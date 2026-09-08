@@ -41,6 +41,9 @@ jobs:
           E2E_BASE_URL: http://127.0.0.1:3000
           E2E_APP_LOG: /tmp/nfc-e2e-app.log
           APP_URL: http://127.0.0.1:3000
+          STRIPE_SECRET_KEY: e2e-not-a-real-stripe-key
+          STRIPE_WEBHOOK_SECRET: e2e-webhook-secret
+          E2E_STRIPE_WEBHOOK_SECRET: e2e-webhook-secret
         run: |
           npm run dev -- --hostname 127.0.0.1 > /tmp/nfc-e2e-app.log 2>&1 &
           APP_PID=$!

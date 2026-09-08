@@ -11,6 +11,7 @@ The work was based on `main` commit `dd801183f5b4936ffddc1793c394d913fbc48ab5` a
 | ESLint, zero warnings | Passed |
 | TypeScript `tsc --noEmit` | Passed |
 | Vitest | 30 tests passed across 9 files |
+| Integrated E2E | 48 assertions passed across required flows A–E on the first CI run |
 | Production build | Passed with Next.js 16.3.4 and Webpack |
 | Prisma schema validation | Passed; 34 models and 4 committed migrations |
 | Backup script shell syntax | Passed for backup, verification and restore scripts |
@@ -18,7 +19,7 @@ The work was based on `main` commit `dd801183f5b4936ffddc1793c394d913fbc48ab5` a
 | Secret-pattern scan | No committed Stripe, GitHub or private-key material detected |
 | Application inventory | 42 pages and 32 API routes |
 
-The workspace did not provide a Docker daemon, so image build, Compose startup, real PostgreSQL migration execution and browser E2E were not repeated here. CI includes PostgreSQL, migration deployment, lint, type checking, tests and production build; a staging run remains a release gate.
+The workspace did not provide a Docker daemon, so image build and Compose startup were not repeated locally. CI includes PostgreSQL, migration deployment, lint, type checking, tests, production build and integrated HTTP journeys. A provider-sandbox and visual browser run remains a staging release gate.
 
 ## Security and privacy review
 

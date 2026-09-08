@@ -10,6 +10,7 @@ The runner covers:
 - Flow D: development-admin login, authorization, draft product creation, variant/stock, genuine image upload, publication and storefront visibility.
 - Flow E: production batch, one-time credentials, QR, manufacturing states, invalid/correct/replayed activation, owner profile editing, public scan, unknown tag and disabled-tag privacy.
 - SEO boundaries: robots exclusions, dynamic sitemap, canonical metadata and product structured data.
+- Payments: server-side price tampering resistance, invalid Stripe signature rejection, valid signed webhook processing and duplicate-event idempotency.
 
 ## Running safely
 

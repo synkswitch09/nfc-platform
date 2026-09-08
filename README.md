@@ -74,6 +74,7 @@ For Apple, `APPLE_CLIENT_SECRET` is the signed client-secret JWT generated from 
 | `npm run lint` | Static linting |
 | `npm run typecheck` | Strict TypeScript check |
 | `npm test` | Security and commerce tests |
+| `npm run test:e2e` | Required HTTP business journeys against a disposable database |
 | `npm run db:migrate` | Create a development migration |
 | `npm run db:deploy` | Apply committed migrations |
 | `npm run db:seed` | Upsert the starter catalogue |
@@ -82,4 +83,4 @@ For Apple, `APPLE_CLIENT_SECRET` is the signed client-secret JWT generated from 
 
 Before accepting live customers: connect transactional email for verification/reset flows; replace legal placeholders with Australian legal advice; use managed object storage and image scanning for uploads; configure distributed rate limiting if the app runs across multiple instances; configure backups, monitoring and alerting; and complete an independent security/privacy review, especially for child profiles.
 
-See [architecture](docs/architecture.md), [security](docs/security.md), [implementation status](docs/implementation-status.md), the [final audit](docs/final-audit-2026-09-08.md), and the [NAS operations runbook](docs/nas-operations.md).
+See [architecture](docs/architecture.md), [security](docs/security.md), [implementation status](docs/implementation-status.md), [E2E testing](docs/e2e-testing.md), the [final audit](docs/final-audit-2026-09-08.md), and the [NAS operations runbook](docs/nas-operations.md).

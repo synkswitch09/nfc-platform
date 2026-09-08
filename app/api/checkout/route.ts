@@ -30,13 +30,13 @@ export async function POST(request: NextRequest) {
   const successPath = user
     ? `/dashboard/orders/${checkout.order.id}?checkout=success`
     : `/order/${checkout.order.orderNumber}/success?token=${encodeURIComponent(checkout.claimToken!)}`;
-  const stripe = getStripe();
-  if (!stripe && process.env.NODE_ENV !== "production" && process.env.ENABLE_TEST_CHECKOUT === "true") {
+  if (process.env.NODE_ENV !== "production" && process.env.ENABLE_TEST_CHECKOUT === "true") {
     const sessionId = `test_${randomUUID()}`;
     await attachCheckoutSession(checkout.order.id, checkout.order.payments[0].id, sessionId);
     await settleCheckoutEvent({ eventId: `test-event-${randomUUID()}`, eventType: "checkout.session.completed.test", providerSessionId: sessionId, orderId: checkout.order.id, amountCents: checkout.order.totalCents, currency: "AUD" });
     return NextResponse.json({ url: `${origin}${successPath}`, testMode: true });
   }
+  const stripe = getStripe();
   if (!stripe) {
     await cancelPendingOrder(checkout.order.id, "Payments are not configured");
     return jsonError("Payments are not configured yet", 503);

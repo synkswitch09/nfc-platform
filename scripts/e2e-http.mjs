@@ -1,10 +1,12 @@
 import { readFile } from "node:fs/promises";
 import { PrismaClient } from "@prisma/client";
+import Stripe from "stripe";
 
 const origin = process.env.E2E_BASE_URL ?? "http://127.0.0.1:3000";
 const appLog = process.env.E2E_APP_LOG ?? "/tmp/nfc-e2e-app.log";
 const adminEmail = process.env.E2E_ADMIN_EMAIL ?? "e2e-admin@example.test";
 const adminPassword = process.env.E2E_ADMIN_PASSWORD ?? "E2eAdminPassword123";
+const stripeWebhookSecret = process.env.E2E_STRIPE_WEBHOOK_SECRET ?? "e2e-webhook-secret";
 const db = new PrismaClient();
 const checks = [];
 
@@ -81,6 +83,15 @@ async function main() {
   const paidOrder = await db.order.findUnique({ where: { orderNumber } });
   assert(paidOrder?.status === "PAID", "Server settled paid order state");
   assert(paidOrder?.totalCents !== 1, "Client price tampering is ignored");
+  const payment = await db.payment.findFirst({ where: { orderId: paidOrder.id } });
+  const stripeEventId = `evt_e2e_${suffix}`;
+  const stripePayload = JSON.stringify({ id: stripeEventId, object: "event", type: "checkout.session.completed", data: { object: { id: payment.providerSessionId, object: "checkout.session", metadata: { orderId: paidOrder.id }, payment_status: "paid", amount_total: paidOrder.totalCents, currency: "aud", payment_intent: `pi_e2e_${suffix}` } } });
+  await jsonResponse(await request("/api/stripe/webhook", { method: "POST", body: stripePayload, headers: { "content-type": "application/json", "stripe-signature": "invalid" } }), 400, "Stripe webhook rejects an invalid signature");
+  const stripe = new Stripe("e2e-not-a-real-stripe-key");
+  const stripeSignature = stripe.webhooks.generateTestHeaderString({ payload: stripePayload, secret: stripeWebhookSecret });
+  await jsonResponse(await request("/api/stripe/webhook", { method: "POST", body: stripePayload, headers: { "content-type": "application/json", "stripe-signature": stripeSignature } }), 200, "Stripe webhook accepts a valid signature");
+  await jsonResponse(await request("/api/stripe/webhook", { method: "POST", body: stripePayload, headers: { "content-type": "application/json", "stripe-signature": stripeSignature } }), 200, "Stripe webhook handles a duplicate event idempotently");
+  assert(await db.webhookEvent.count({ where: { id: stripeEventId } }) === 1, "Duplicate Stripe event is persisted only once");
 
   // FLOW B — create and verify an account after purchase; the previous order is attached.
   await jsonResponse(await request("/api/auth/register", { method: "POST", jar: customerJar, json: { name: "E2E Customer", email: guestEmail, password: guestPassword, orderNumber, orderClaimToken: claimToken } }), 201, "Guest creates an account from the purchase");
