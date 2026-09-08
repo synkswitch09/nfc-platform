@@ -396,6 +396,9 @@ model Order {
   shippingState      String?
   shippingPostcode   String?
   shippingCountry    String               @default("AU")
+  shippingCarrier    String?
+  trackingNumber     String?
+  shippedAt          DateTime?
   status             OrderStatus          @default(PENDING)
   currency           String               @default("AUD")
   subtotalCents      Int
@@ -413,6 +416,7 @@ model Order {
   @@index([userId, createdAt])
   @@index([guestEmail, createdAt])
   @@index([status, createdAt])
+  @@index([trackingNumber])
 }
 
 model OrderItem {

@@ -5,6 +5,7 @@ import { calculateOrderTotals } from "@/lib/commerce";
 import { createOpaqueToken, sha256 } from "@/lib/crypto";
 import { db } from "@/lib/db";
 import { getStoreSettings } from "@/lib/settings";
+import { sendTransactionalEmail } from "@/lib/email";
 
 export type CheckoutItemInput = { variantId: string; quantity: number; personalisation?: Record<string, string> };
 export type CheckoutCustomerInput = {
@@ -118,11 +119,12 @@ export async function cancelPendingOrder(orderId: string, reason: string, actorI
     await tx.payment.updateMany({ where: { orderId, status: "PENDING" }, data: { status: "FAILED" } });
     await tx.order.update({ where: { id: orderId }, data: { status: "CANCELLED" } });
     await tx.orderStatusHistory.create({ data: { orderId, fromStatus: "PAYMENT_PENDING", toStatus: "CANCELLED", actorId, note: reason } });
+    if (actorId) await tx.auditLog.create({ data: { actorId, action: "ORDER_CANCELLED", entityType: "Order", entityId: orderId, metadata: { reason } } });
   });
 }
 
 export async function settleCheckoutEvent(input: { eventId: string; eventType: string; providerSessionId: string; orderId: string; amountCents: number; currency: string; paymentIntentId?: string | null }) {
-  return db.$transaction(async tx => {
+  const result = await db.$transaction(async tx => {
     const seen = await tx.webhookEvent.findUnique({ where: { id: input.eventId } });
     if (seen) return { duplicate: true };
     const payment = await tx.payment.findUnique({ where: { providerSessionId: input.providerSessionId }, include: { order: { include: { items: { include: { variant: true } } } } } });
@@ -153,4 +155,10 @@ export async function settleCheckoutEvent(input: { eventId: string; eventType: s
     await tx.webhookEvent.create({ data: { id: input.eventId, provider: "stripe", eventType: input.eventType } });
     return { duplicate: false };
   }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+  if (!result.duplicate) {
+    const order = await db.order.findUnique({ where: { id: input.orderId }, select: { orderNumber: true, guestEmail: true, user: { select: { email: true } } } });
+    const email = order?.user?.email ?? order?.guestEmail;
+    if (email && order) await sendTransactionalEmail({ to: email, subject: `Order ${order.orderNumber} confirmed`, text: `Thanks for your order. We have received payment for ${order.orderNumber} and will let you know when production begins.` }).catch(() => undefined);
+  }
+  return result;
 }

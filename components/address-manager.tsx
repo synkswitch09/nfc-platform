@@ -1,0 +1,20 @@
+"use client";
+
+import { FormEvent, useState } from "react";
+import { useRouter } from "next/navigation";
+import { Pencil, Plus, Trash2 } from "lucide-react";
+
+type Address = { id: string; label: string | null; recipient: string; line1: string; line2: string | null; suburb: string; state: string; postcode: string; country: string };
+const states = ["ACT", "NSW", "NT", "QLD", "SA", "TAS", "VIC", "WA"];
+
+export function AddressManager({ addresses, defaultName }: { addresses: Address[]; defaultName: string }) {
+  const router = useRouter(); const [editing, setEditing] = useState<Address | null>(null); const [message, setMessage] = useState("");
+  async function save(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault(); setMessage(""); const form = new FormData(event.currentTarget);
+    const payload = { label: form.get("label"), recipient: form.get("recipient"), line1: form.get("line1"), line2: form.get("line2"), suburb: form.get("suburb"), state: form.get("state"), postcode: form.get("postcode"), country: "AU" };
+    const response = await fetch(editing ? `/api/account/addresses/${editing.id}` : "/api/account/addresses", { method: editing ? "PATCH" : "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(payload) }); const result = await response.json().catch(() => ({}));
+    if (!response.ok) return setMessage(result.error ?? "Address could not be saved"); setEditing(null); setMessage("Address saved"); router.refresh(); event.currentTarget.reset();
+  }
+  async function remove(address: Address) { if (!window.confirm(`Delete ${address.label ?? "this address"}?`)) return; const response = await fetch(`/api/account/addresses/${address.id}`, { method: "DELETE" }); if (!response.ok) return setMessage("Address could not be deleted"); router.refresh(); }
+  return <div className="account-grid"><section><div className="address-grid">{addresses.map(address => <article className="card" key={address.id}><div><strong>{address.label ?? "Delivery address"}</strong><div className="address-actions"><button className="icon-button neutral" onClick={() => setEditing(address)} aria-label="Edit address"><Pencil size={16} /></button><button className="icon-button" onClick={() => remove(address)} aria-label="Delete address"><Trash2 size={16} /></button></div></div><address>{address.recipient}<br />{address.line1}<br />{address.line2 && <>{address.line2}<br /></>}{address.suburb}, {address.state} {address.postcode}</address></article>)}</div>{!addresses.length && <div className="card"><h3>No saved addresses</h3><p className="muted">Save one to make your next checkout faster.</p></div>}</section><form className="card form" onSubmit={save} key={editing?.id ?? "new"}><div className="panel-heading"><div><h2>{editing ? "Edit address" : "Add address"}</h2></div>{editing && <button className="text-button" type="button" onClick={() => setEditing(null)}><Plus size={15} /> New</button>}</div><label className="field">Label<input name="label" defaultValue={editing?.label ?? ""} placeholder="Home, Work…" /></label><label className="field">Recipient<input name="recipient" defaultValue={editing?.recipient ?? defaultName} required /></label><label className="field">Address<input name="line1" defaultValue={editing?.line1} required /></label><label className="field">Unit or apartment<input name="line2" defaultValue={editing?.line2 ?? ""} /></label><div className="field-grid three"><label className="field">Suburb<input name="suburb" defaultValue={editing?.suburb} required /></label><label className="field">State<select name="state" defaultValue={editing?.state ?? "SA"}>{states.map(state => <option key={state}>{state}</option>)}</select></label><label className="field">Postcode<input name="postcode" inputMode="numeric" pattern="[0-9]{4}" maxLength={4} defaultValue={editing?.postcode} required /></label></div>{message && <div className={message === "Address saved" ? "notice" : "form-error"}>{message}</div>}<button className="button">Save address</button></form></div>;
+}
