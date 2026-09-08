@@ -15,6 +15,10 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
     event.preventDefault(); setError(""); setPending(true);
     const form = new FormData(event.currentTarget);
     const body = Object.fromEntries(form.entries());
+    if (!isLogin && search.get("order") && search.get("claim")) {
+      body.orderNumber = search.get("order")!;
+      body.orderClaimToken = search.get("claim")!;
+    }
     const response = await fetch(`/api/auth/${mode}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
     const data = await response.json().catch(() => ({}));
     setPending(false);

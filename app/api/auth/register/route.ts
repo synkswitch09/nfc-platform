@@ -17,14 +17,20 @@ export async function POST(request: NextRequest) {
   const exists = await db.user.findUnique({ where: { email: parsed.data.email }, select: { id: true } });
   if (exists) return jsonError("An account already exists for this email", 409);
 
-  const { password, ...details } = parsed.data;
+  const claimOrder = parsed.data.orderNumber && parsed.data.orderClaimToken
+    ? await db.order.findFirst({ where: { orderNumber: parsed.data.orderNumber, claimTokenHash: sha256(parsed.data.orderClaimToken), guestEmail: parsed.data.email, userId: null, claimedAt: null, claimExpiresAt: { gt: new Date() } }, select: { id: true } })
+    : null;
+  if (parsed.data.orderNumber && !claimOrder) return jsonError("This order claim link is invalid or expired", 400);
+
+  const { password } = parsed.data;
+  const details = { name: parsed.data.name, email: parsed.data.email };
   const user = await db.user.create({
     data: { ...details, passwordHash: await hashPassword(password) },
     select: { id: true, name: true, email: true },
   });
   await createSession(user.id);
   const verificationToken = createOpaqueToken();
-  await db.emailVerification.create({ data:{userId:user.id,tokenHash:sha256(verificationToken),expiresAt:new Date(Date.now()+24*60*60*1000)} });
+  await db.emailVerification.create({ data:{userId:user.id,tokenHash:sha256(verificationToken),expiresAt:new Date(Date.now()+24*60*60*1000),orderClaimId:claimOrder?.id} });
   const origin = process.env.APP_URL ?? request.nextUrl.origin;
   await sendTransactionalEmail({to:user.email,subject:"Verify your TapKind email",text:`Verify your email: ${origin}/verify-email?token=${verificationToken}`}).catch(() => undefined);
   await db.auditLog.create({ data: { actorId: user.id, action: "USER_REGISTERED", entityType: "User", entityId: user.id } });
