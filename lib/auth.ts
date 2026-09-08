@@ -34,7 +34,14 @@ export async function getCurrentUser() {
     where: { tokenHash: sha256(token) },
     include: { user: { select: { id: true, email: true, name: true, role: true, emailVerifiedAt: true } } },
   });
-  if (!session || session.expiresAt <= new Date()) return null;
+  if (!session) return null;
+  if (session.expiresAt <= new Date()) {
+    await db.session.delete({ where: { id: session.id } }).catch(() => undefined);
+    return null;
+  }
+  if (Date.now() - session.lastSeen.getTime() > 15 * 60 * 1000) {
+    void db.session.update({ where: { id: session.id }, data: { lastSeen: new Date() } }).catch(() => undefined);
+  }
   return session.user;
 }
 

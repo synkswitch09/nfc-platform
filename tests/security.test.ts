@@ -1,6 +1,7 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import { createActivationCode, createPublicTagId, hashActivationCode, hashPassword, normaliseActivationCode, verifyActivationCode, verifyPassword } from "@/lib/crypto";
-import { safeNextPath } from "@/lib/http";
+import { NextRequest } from "next/server";
+import { getClientIp, safeNextPath } from "@/lib/http";
 import { canManageTag, hasStaffAccess, isActivatable } from "@/lib/policies";
 
 beforeAll(() => { process.env.SESSION_SECRET = "test-session-secret-with-at-least-32-characters"; process.env.ACTIVATION_PEPPER = "test-activation-pepper-with-at-least-32-characters"; });
@@ -16,4 +17,12 @@ describe("authorisation policies", () => {
   it("prevents IDOR while allowing administrators", () => { expect(canManageTag({id:"u1",role:"CUSTOMER"},{ownerId:"u2"})).toBe(false); expect(canManageTag({id:"u1",role:"CUSTOMER"},{ownerId:"u1"})).toBe(true); expect(canManageTag({id:"u1",role:"ADMIN"},{ownerId:"u2"})).toBe(true); });
   it("separates staff roles from customers", () => { expect(hasStaffAccess("CUSTOMER")).toBe(false); expect(hasStaffAccess("STAFF")).toBe(true); expect(hasStaffAccess("ADMIN")).toBe(true); });
   it("blocks open redirects", () => { expect(safeNextPath("//evil.example")).toBe("/dashboard"); expect(safeNextPath("https://evil.example")).toBe("/dashboard"); expect(safeNextPath("/shop")).toBe("/shop"); });
+  it("trusts forwarded client addresses only behind an explicitly trusted proxy", () => {
+    const request = new NextRequest("http://localhost", { headers: { "x-forwarded-for": "203.0.113.10, 10.0.0.2" } });
+    process.env.TRUST_PROXY = "false";
+    expect(getClientIp(request)).toBe("untrusted-proxy");
+    process.env.TRUST_PROXY = "true";
+    expect(getClientIp(request)).toBe("203.0.113.10");
+    delete process.env.TRUST_PROXY;
+  });
 });

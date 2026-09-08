@@ -16,6 +16,7 @@ export function assertSameOrigin(request: NextRequest) {
 }
 
 export function getClientIp(request: NextRequest) {
+  if (process.env.TRUST_PROXY !== "true") return "untrusted-proxy";
   return request.headers.get("cf-connecting-ip")
     ?? request.headers.get("x-real-ip")
     ?? request.headers.get("x-forwarded-for")?.split(",")[0]?.trim()

@@ -15,12 +15,12 @@ Production-oriented MVP for an Australian business selling configurable physical
 
 ## Local setup
 
-1. Copy `.env.example` to `.env` and replace both secrets with independent random values of at least 32 characters.
+1. Copy `.env.example` to `.env`. Set `POSTGRES_PASSWORD`, use the same value inside `DATABASE_URL`, and replace both application secrets with independent random values of at least 32 characters.
 2. Start PostgreSQL with `docker compose up -d db`, or point `DATABASE_URL` at an existing PostgreSQL instance.
-3. Run `npm ci`, `npm run db:deploy`, `npm run db:seed`, then `npm run dev`.
+3. Run `npm ci`, `npm run db:deploy`, `npm run db:seed`, then `npm run dev`. Prisma Client is generated automatically during installation.
 4. Open `http://localhost:3000`.
 
-To create the first local administrator, set `DEV_ADMIN_EMAIL` and `DEV_ADMIN_PASSWORD` only while running `npm run db:seed`. Do not commit real credentials.
+To create the first local administrator, set `DEV_ADMIN_EMAIL` and `DEV_ADMIN_PASSWORD` only while running `npm run db:seed`. The password must use 12+ characters with uppercase, lowercase, and a number. The development-admin mechanism refuses to run in production. Do not commit real credentials.
 
 ## Docker / NAS
 
@@ -31,7 +31,7 @@ docker compose up -d --build
 docker compose exec app npm run db:seed
 ```
 
-Terminate TLS at a trusted reverse proxy (for example Caddy, Traefik or a NAS proxy) and set `APP_URL` to the public HTTPS origin. Back up the `postgres_data` volume and test restores.
+Terminate TLS at a trusted reverse proxy (for example Caddy, Traefik or a NAS proxy), set `APP_URL` to the public HTTPS origin, and set `TRUST_PROXY=true` only when direct access to the app port is blocked and the proxy overwrites forwarded-client headers. PostgreSQL is bound only to host loopback for local administration. Back up the `postgres_data` volume and test restores.
 
 ## Stripe
 

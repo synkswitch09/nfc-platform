@@ -2,6 +2,8 @@ services:
   db:
     image: postgres:17-alpine
     restart: unless-stopped
+    ports:
+      - "127.0.0.1:5432:5432"
     environment:
       POSTGRES_DB: nfc_platform
       POSTGRES_USER: nfc
@@ -22,6 +24,7 @@ services:
       APP_URL: ${APP_URL:-http://localhost:3000}
       SESSION_SECRET: ${SESSION_SECRET:?Set SESSION_SECRET}
       ACTIVATION_PEPPER: ${ACTIVATION_PEPPER:?Set ACTIVATION_PEPPER}
+      TRUST_PROXY: ${TRUST_PROXY:-false}
       STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
       STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
       EMAIL_WEBHOOK_URL: ${EMAIL_WEBHOOK_URL:-}
