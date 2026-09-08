@@ -20,7 +20,24 @@ Production-oriented MVP for an Australian business selling configurable physical
 3. Run `npm ci`, `npm run db:deploy`, `npm run db:seed`, then `npm run dev`. Prisma Client is generated automatically during installation.
 4. Open `http://localhost:3000`.
 
-To create the first local administrator, set `DEV_ADMIN_EMAIL` and `DEV_ADMIN_PASSWORD` only while running `npm run db:seed`. The password must use 12+ characters with uppercase, lowercase, and a number. The development-admin mechanism refuses to run in production. Do not commit real credentials.
+To create the first local administrator, pass `DEV_ADMIN_EMAIL` and `DEV_ADMIN_PASSWORD` only to `npm run db:seed`. The password must use 12+ characters with uppercase, lowercase, and a number. The development-admin mechanism refuses to run in production. Do not add these values to `.env` or commit real credentials.
+
+PowerShell:
+
+```powershell
+$env:DEV_ADMIN_EMAIL="admin@example.com"
+$env:DEV_ADMIN_PASSWORD="replace-with-a-strong-local-password"
+npm run db:seed
+Remove-Item Env:DEV_ADMIN_EMAIL, Env:DEV_ADMIN_PASSWORD
+```
+
+macOS/Linux:
+
+```bash
+DEV_ADMIN_EMAIL=admin@example.com DEV_ADMIN_PASSWORD='replace-with-a-strong-local-password' npm run db:seed
+```
+
+Then open `/login` with those credentials and visit `/admin`. Re-running the seed updates the same local account instead of creating duplicates.
 
 ## Docker / NAS
 
@@ -65,4 +82,4 @@ For Apple, `APPLE_CLIENT_SECRET` is the signed client-secret JWT generated from 
 
 Before accepting live customers: connect transactional email for verification/reset flows; replace legal placeholders with Australian legal advice; use managed object storage and image scanning for uploads; configure distributed rate limiting if the app runs across multiple instances; configure backups, monitoring and alerting; and complete an independent security/privacy review, especially for child profiles.
 
-See [architecture](docs/architecture.md), [security](docs/security.md), [implementation status](docs/implementation-status.md), and the [NAS operations runbook](docs/nas-operations.md).
+See [architecture](docs/architecture.md), [security](docs/security.md), [implementation status](docs/implementation-status.md), the [final audit](docs/final-audit-2026-09-08.md), and the [NAS operations runbook](docs/nas-operations.md).

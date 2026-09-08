@@ -2,7 +2,7 @@
 
 ## Implemented
 
-- Random UUID internal keys and 10-character non-sequential public tag IDs
+- Random UUID internal keys and 16-character non-sequential public tag IDs (approximately 79 bits from the human-safe alphabet)
 - Separate high-entropy activation credentials hashed with HMAC-SHA-256 and a server pepper
 - BCrypt password hashing at cost 12; opaque random sessions stored only as SHA-256 hashes
 - HttpOnly, SameSite=Lax session cookie; Secure in production

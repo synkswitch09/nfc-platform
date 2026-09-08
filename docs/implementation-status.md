@@ -4,12 +4,12 @@
 
 - Guest and account checkout with server-authoritative prices, inventory reservations, Stripe Checkout, signed/idempotent webhooks and secure post-purchase account claiming
 - Password authentication, verified-email and reset flows, opaque database sessions, Google/Apple OIDC through `openid-client`, and safe verified-email account linking
-- Customer dashboard with orders, printable receipts, tracking, saved Australian addresses, NFC activation and profile management
-- Pet, child, emergency, social, business, luggage, review and custom NFC profiles; accessories remain catalogue-only
-- Commercial catalogue with status, categories, variants, inventory, pricing, personalisation fields, SEO and content-verified product media
+- Customer dashboard with orders, printable receipts, tracking, saved Australian addresses, NFC activation, scan windows and profile management
+- Pet, child, emergency, social, business, luggage, review and custom NFC profiles, including editable social links, secondary emergency contacts and business vCard download; accessories remain catalogue-only
+- Commercial catalogue with status, categories, duplicate-as-draft, variants, inventory, pricing, personalisation fields, SEO preview and content-verified product media
 - Operations console for dashboard metrics, products, categories, inventory, orders, customers, tags, manufacturing batches, team roles, settings and audit history
 - Per-unit NFC manufacturing states, permanent random public URLs, separate one-time activation secrets stored only as hashes, QR/CSV/print exports and scan diagnostics
-- Configurable Australian shipping, AUD/GST presentation, metadata, canonical URLs, robots, sitemap, Product and ItemList structured data
+- Configurable Australian shipping, AUD/GST presentation, metadata, canonical URLs, robots, sitemap, editorial guides, and Organization, WebSite, Product, Offer, Breadcrumb, ItemList, Article and legitimate FAQ structured data
 - PostgreSQL migrations and constraints, Docker/NAS deployment, persistent media volume, health check, CI and database/media backup tooling
 
 ## External configuration before launch
