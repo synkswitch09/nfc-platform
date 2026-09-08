@@ -1,0 +1,5 @@
+import { requireRole } from "@/lib/auth";
+import { db } from "@/lib/db";
+import { BatchGenerator } from "@/components/batch-generator";
+
+export default async function AdminPage() { await requireRole(["STAFF","ADMIN"]); const products = await db.product.findMany({ where:{active:true}, select:{id:true,name:true,variants:{select:{id:true,name:true}}}, orderBy:{name:"asc"} }); const [users,orders,tags] = await Promise.all([db.user.count(),db.order.count(),db.nFCTag.count()]); return <section className="dashboard"><p className="eyebrow">Operations</p><h1>Admin</h1><div className="grid"><div className="card"><strong>{users}</strong><p className="muted">Customers and staff</p></div><div className="card"><strong>{orders}</strong><p className="muted">Orders</p></div><div className="card"><strong>{tags}</strong><p className="muted">Manufactured tags</p></div></div><div className="section-head" style={{marginTop:55}}><h2 style={{fontSize:"2rem"}}>Production batch</h2><p className="muted">Create up to 100 unique NFC URLs, activation codes and matching QR codes.</p></div><BatchGenerator products={products} /></section>; }

@@ -1,0 +1,1 @@
+export default function TermsPage() { return <article className="section"><h1>Terms of service</h1><p className="lead">This placeholder must be reviewed by an Australian legal professional before accepting live orders.</p></article>; }

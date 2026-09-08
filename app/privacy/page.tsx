@@ -1,0 +1,1 @@
+export default function PrivacyPage() { return <article className="section"><h1>Privacy policy</h1><p className="lead">This placeholder must be replaced with legal advice covering the Australian Privacy Act, data retention, children’s information, processors and user rights before launch.</p></article>; }

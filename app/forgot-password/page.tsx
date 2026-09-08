@@ -1,0 +1,1 @@
+import {Suspense} from "react";import {PasswordForm} from "@/components/password-form";export default function Page(){return <section className="auth-shell"><div className="auth-card"><h1>Reset password</h1><p className="muted">We’ll send a one-time link if the account exists.</p><Suspense><PasswordForm mode="forgot"/></Suspense></div></section>}
