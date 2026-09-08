@@ -1,0 +1,57 @@
+# TapKind NFC Platform
+
+Production-oriented MVP for an Australian business selling configurable physical NFC products. Each NTAG213 stores only one short, random public URL (`/t/{publicTagId}`); customer and emergency data remain in PostgreSQL and can be changed without rewriting the tag.
+
+## Included
+
+- Mobile-first public site, product catalogue and Stripe Checkout hand-off in AUD
+- Password authentication with hashed sessions, secure cookies and role-based access
+- Atomic tag activation with a separate high-entropy activation code
+- Public resolver for pet, child/emergency, social, business and luggage tags
+- Owner-only profile editing, QR generation, status controls and scan totals
+- Admin production batches of up to 100 NFC URLs, activation codes and QR codes
+- Privacy-minimised scan analytics and audit records
+- PostgreSQL/Prisma model, Docker Compose, health check, tests and GitHub Actions
+
+## Local setup
+
+1. Copy `.env.example` to `.env` and replace both secrets with independent random values of at least 32 characters.
+2. Start PostgreSQL with `docker compose up -d db`, or point `DATABASE_URL` at an existing PostgreSQL instance.
+3. Run `npm ci`, `npm run db:deploy`, `npm run db:seed`, then `npm run dev`.
+4. Open `http://localhost:3000`.
+
+To create the first local administrator, set `DEV_ADMIN_EMAIL` and `DEV_ADMIN_PASSWORD` only while running `npm run db:seed`. Do not commit real credentials.
+
+## Docker / NAS
+
+Create a private `.env` containing `POSTGRES_PASSWORD`, `SESSION_SECRET`, `ACTIVATION_PEPPER`, `APP_URL` and optional Stripe keys, then run:
+
+```bash
+docker compose up -d --build
+docker compose exec app npm run db:seed
+```
+
+Terminate TLS at a trusted reverse proxy (for example Caddy, Traefik or a NAS proxy) and set `APP_URL` to the public HTTPS origin. Back up the `postgres_data` volume and test restores.
+
+## Stripe
+
+Add Stripe secret keys and forward the `checkout.session.completed` webhook to `/api/stripe/webhook`. The server obtains all prices from PostgreSQL and never accepts a client-supplied price. Card data is entered on Stripe Checkout and is never stored by this application.
+
+## Commands
+
+| Command | Purpose |
+|---|---|
+| `npm run dev` | Local development |
+| `npm run build` | Production build |
+| `npm run lint` | Static linting |
+| `npm run typecheck` | Strict TypeScript check |
+| `npm test` | Security and commerce tests |
+| `npm run db:migrate` | Create a development migration |
+| `npm run db:deploy` | Apply committed migrations |
+| `npm run db:seed` | Upsert the starter catalogue |
+
+## Launch gates
+
+Before accepting live customers: connect transactional email for verification/reset flows; replace legal placeholders with Australian legal advice; use managed object storage and image scanning for uploads; configure distributed rate limiting if the app runs across multiple instances; configure backups, monitoring and alerting; and complete an independent security/privacy review, especially for child profiles.
+
+See [architecture](docs/architecture.md), [security](docs/security.md), and [implementation status](docs/implementation-status.md).
