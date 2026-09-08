@@ -10,6 +10,8 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
   const isLogin = mode === "login";
+  const next = search.get("next");
+  const oauthNext = next?.startsWith("/") && !next.startsWith("//") ? `?next=${encodeURIComponent(next)}` : "";
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); setError(""); setPending(true);
@@ -23,12 +25,11 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
     const data = await response.json().catch(() => ({}));
     setPending(false);
     if (!response.ok) return setError(data.error ?? "Something went wrong");
-    const next = search.get("next");
     router.push(next?.startsWith("/") && !next.startsWith("//") ? next : "/dashboard");
     router.refresh();
   }
 
-  return <form className="form" onSubmit={submit}>
+  return <><div className="oauth-grid"><a className="oauth-button" href={`/api/auth/oauth/google/start${oauthNext}`}><span>G</span> Continue with Google</a><a className="oauth-button dark" href={`/api/auth/oauth/apple/start${oauthNext}`}><span>●</span> Continue with Apple</a></div><div className="auth-divider"><span>or use email</span></div>{search.get("oauth") && <div className="form-error" role="alert">{search.get("oauth") === "unavailable" ? "That sign-in provider is not configured yet." : "Social sign-in could not be completed. Please try again."}</div>}<form className="form" onSubmit={submit}>
     {!isLogin && <label className="field">Name<input name="name" autoComplete="name" minLength={2} maxLength={80} required /></label>}
     <label className="field">Email<input name="email" type="email" autoComplete="email" required /></label>
     <label className="field">Password<input name="password" type="password" autoComplete={isLogin ? "current-password" : "new-password"} minLength={isLogin ? 1 : 12} required /></label>
@@ -37,5 +38,5 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
     <button className="button" disabled={pending}>{pending ? "Please wait…" : isLogin ? "Sign in" : "Create account"}</button>
     {isLogin && <Link className="muted" href="/forgot-password"><u>Forgot password?</u></Link>}
     <p className="muted">{isLogin ? "New to TapKind? " : "Already have an account? "}<Link href={isLogin ? "/register" : "/login"}><u>{isLogin ? "Create an account" : "Sign in"}</u></Link></p>
-  </form>;
+  </form></>;
 }

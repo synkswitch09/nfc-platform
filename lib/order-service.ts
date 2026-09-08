@@ -4,6 +4,7 @@ import { availableInventory, CatalogValidationError, normalisePersonalisation } 
 import { calculateOrderTotals } from "@/lib/commerce";
 import { createOpaqueToken, sha256 } from "@/lib/crypto";
 import { db } from "@/lib/db";
+import { getStoreSettings } from "@/lib/settings";
 
 export type CheckoutItemInput = { variantId: string; quantity: number; personalisation?: Record<string, string> };
 export type CheckoutCustomerInput = {
@@ -19,6 +20,7 @@ export class CheckoutError extends Error {
 
 export async function createPendingOrder(items: CheckoutItemInput[], customer: CheckoutCustomerInput) {
   const claimToken = customer.userId ? null : createOpaqueToken();
+  const settings = await getStoreSettings();
   return db.$transaction(async tx => {
     const ids = [...new Set(items.map(item => item.variantId))];
     const variants = await tx.productVariant.findMany({
@@ -47,7 +49,7 @@ export async function createPendingOrder(items: CheckoutItemInput[], customer: C
       }
     }
 
-    const totals = calculateOrderTotals(lines.map(line => ({ unitPriceCents: line.unitPriceCents, quantity: line.item.quantity })));
+    const totals = calculateOrderTotals(lines.map(line => ({ unitPriceCents: line.unitPriceCents, quantity: line.item.quantity })), { flatRateCents: settings.shippingConfig.flatRateCents ?? 900, freeOverCents: settings.shippingConfig.freeOverCents ?? 6000 });
     const order = await tx.order.create({
       data: {
         orderNumber: `TK-${randomUUID().replaceAll("-", "").slice(0, 10).toUpperCase()}`,

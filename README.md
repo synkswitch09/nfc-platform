@@ -37,6 +37,15 @@ Terminate TLS at a trusted reverse proxy (for example Caddy, Traefik or a NAS pr
 
 Add Stripe secret keys and forward the `checkout.session.completed` webhook to `/api/stripe/webhook`. The server obtains all prices from PostgreSQL and never accepts a client-supplied price. Card data is entered on Stripe Checkout and is never stored by this application.
 
+## Google and Apple login
+
+Social login is optional. Set the corresponding client ID and secret, then register these exact callbacks with the providers:
+
+- `https://your-domain.example/api/auth/oauth/google/callback`
+- `https://your-domain.example/api/auth/oauth/apple/callback`
+
+For Apple, `APPLE_CLIENT_SECRET` is the signed client-secret JWT generated from your Apple Developer key; rotate it before its expiry. OAuth accounts are linked to an existing user only when the provider cryptographically confirms the same email. The flow validates state, nonce, PKCE, signature, issuer, audience and expiry.
+
 ## Commands
 
 | Command | Purpose |
