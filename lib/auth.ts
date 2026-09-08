@@ -32,10 +32,14 @@ export async function getCurrentUser() {
   if (!token) return null;
   const session = await db.session.findUnique({
     where: { tokenHash: sha256(token) },
-    include: { user: { select: { id: true, email: true, name: true, role: true, emailVerifiedAt: true } } },
+    include: { user: { select: { id: true, email: true, name: true, role: true, status: true, emailVerifiedAt: true } } },
   });
   if (!session) return null;
   if (session.expiresAt <= new Date()) {
+    await db.session.delete({ where: { id: session.id } }).catch(() => undefined);
+    return null;
+  }
+  if (session.user.status !== "ACTIVE") {
     await db.session.delete({ where: { id: session.id } }).catch(() => undefined);
     return null;
   }

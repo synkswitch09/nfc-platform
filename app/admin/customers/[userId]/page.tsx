@@ -1,0 +1,13 @@
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { CustomerStatusForm } from "@/components/customer-status-form";
+import { db } from "@/lib/db";
+
+const money = new Intl.NumberFormat("en-AU", { style: "currency", currency: "AUD" });
+
+export default async function AdminCustomerPage({ params }: { params: Promise<{ userId: string }> }) {
+  const { userId } = await params;
+  const customer = await db.user.findFirst({ where: { id: userId, role: "CUSTOMER" }, include: { oauthAccounts: { select: { provider: true } }, orders: { orderBy: { createdAt: "desc" } }, tags: { include: { product: { select: { name: true } } }, orderBy: { createdAt: "desc" } } } });
+  if (!customer) notFound();
+  return <div><Link href="/admin/customers" className="admin-back">← Customers</Link><div className="admin-heading"><div><p className="admin-kicker">Customer since {customer.createdAt.toLocaleDateString("en-AU")}</p><h1>{customer.name}</h1><p>{customer.email}{customer.phone ? ` · ${customer.phone}` : ""}</p></div><span className={`admin-status large ${customer.status}`}>{customer.status}</span></div><div className="admin-split"><div><section className="admin-panel"><div className="panel-heading"><div><h2>Orders</h2><p>{customer.orders.length} linked purchases.</p></div></div><div className="compact-list">{customer.orders.map(order => <Link key={order.id} href={`/admin/orders/${order.id}`}><span><strong>{order.orderNumber}</strong><small>{order.createdAt.toLocaleDateString("en-AU")}</small></span><strong>{money.format(order.totalCents / 100)}</strong><span className={`admin-status ${order.status}`}>{order.status.replaceAll("_", " ")}</span></Link>)}</div>{!customer.orders.length && <div className="admin-empty">No linked orders.</div>}</section><section className="admin-panel"><div className="panel-heading"><div><h2>NFC products</h2><p>Tags currently owned by this customer.</p></div></div><div className="compact-list">{customer.tags.map(tag => <Link href={`/admin/tags/${tag.id}`} key={tag.id}><span><strong>{tag.product.name}</strong><small>{tag.publicTagId}</small></span><span className={`admin-status ${tag.status}`}>{tag.status}</span></Link>)}</div>{!customer.tags.length && <div className="admin-empty">No activated tags.</div>}</section></div><aside><section className="admin-panel"><h2>Account access</h2><p className="muted">Suspending or disabling immediately revokes every active session.</p><CustomerStatusForm userId={customer.id} current={customer.status} /></section><section className="admin-panel"><h2>Sign-in methods</h2><p>Password {customer.passwordHash ? "enabled" : "not set"}</p>{customer.oauthAccounts.map(account => <p key={account.provider}>{account.provider}</p>)}</section></aside></div></div>;
+}

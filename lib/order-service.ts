@@ -100,7 +100,7 @@ export async function attachCheckoutSession(orderId: string, paymentId: string, 
   await db.payment.updateMany({ where: { id: paymentId, orderId, status: "PENDING" }, data: { providerSessionId } });
 }
 
-export async function cancelPendingOrder(orderId: string, reason: string) {
+export async function cancelPendingOrder(orderId: string, reason: string, actorId?: string) {
   await db.$transaction(async tx => {
     const order = await tx.order.findUnique({ where: { id: orderId }, include: { items: { include: { variant: true } } } });
     if (!order || order.status !== "PAYMENT_PENDING") return;
@@ -115,7 +115,7 @@ export async function cancelPendingOrder(orderId: string, reason: string) {
     }
     await tx.payment.updateMany({ where: { orderId, status: "PENDING" }, data: { status: "FAILED" } });
     await tx.order.update({ where: { id: orderId }, data: { status: "CANCELLED" } });
-    await tx.orderStatusHistory.create({ data: { orderId, fromStatus: "PAYMENT_PENDING", toStatus: "CANCELLED", note: reason } });
+    await tx.orderStatusHistory.create({ data: { orderId, fromStatus: "PAYMENT_PENDING", toStatus: "CANCELLED", actorId, note: reason } });
   });
 }
 
