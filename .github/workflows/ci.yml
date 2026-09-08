@@ -28,3 +28,21 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
+      - name: Seed disposable E2E database
+        run: npm run db:seed
+        env:
+          DEV_ADMIN_EMAIL: e2e-admin@example.test
+          DEV_ADMIN_PASSWORD: E2eAdminPassword123
+      - name: Run required HTTP E2E flows
+        env:
+          ENABLE_TEST_CHECKOUT: "true"
+          E2E_ADMIN_EMAIL: e2e-admin@example.test
+          E2E_ADMIN_PASSWORD: E2eAdminPassword123
+          E2E_BASE_URL: http://127.0.0.1:3000
+          E2E_APP_LOG: /tmp/nfc-e2e-app.log
+          APP_URL: http://127.0.0.1:3000
+        run: |
+          npm run dev -- --hostname 127.0.0.1 > /tmp/nfc-e2e-app.log 2>&1 &
+          APP_PID=$!
+          trap 'kill "$APP_PID" 2>/dev/null || true' EXIT
+          npm run test:e2e
