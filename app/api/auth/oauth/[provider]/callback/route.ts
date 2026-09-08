@@ -11,7 +11,8 @@ async function callback(request: NextRequest, providerValue: string, values: URL
   const config = getOAuthConfig(provider); if (!config) return clear(NextResponse.redirect(fallback));
   const appUrl = process.env.APP_URL ?? request.nextUrl.origin;
   try {
-    const claims = await exchangeOAuthCode(provider, code, transaction.verifier, `${appUrl}/api/auth/oauth/${provider}/callback`, transaction.nonce);
+    const callbackUrl = new URL(`${appUrl}/api/auth/oauth/${provider}/callback`); callbackUrl.search = values.toString();
+    const claims = await exchangeOAuthCode(provider, callbackUrl, transaction.verifier, transaction.state, transaction.nonce);
     const user = await findOrCreateOAuthUser(config, claims);
     await createSession(user.id);
     return clear(NextResponse.redirect(new URL(transaction.next, appUrl)));

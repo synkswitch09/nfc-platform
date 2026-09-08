@@ -3,10 +3,10 @@ import { codeChallenge, createOAuthTransaction, readOAuthTransaction } from "@/l
 
 describe("OAuth transaction protection", () => {
   beforeEach(() => { process.env.SESSION_SECRET = "test-session-secret-that-is-at-least-32-characters"; });
-  it("round-trips signed state and constrains the return path", () => {
+  it("round-trips signed state and constrains the return path", async () => {
     const transaction = createOAuthTransaction("google", "https://evil.example");
     expect(readOAuthTransaction(transaction.cookie)).toMatchObject({ provider: "google", state: transaction.value.state, next: "/dashboard" });
-    expect(codeChallenge(transaction.value.verifier)).toMatch(/^[A-Za-z0-9_-]{43}$/);
+    expect(await codeChallenge(transaction.value.verifier)).toMatch(/^[A-Za-z0-9_-]{43}$/);
   });
   it("rejects a tampered transaction", () => {
     const transaction = createOAuthTransaction("apple", "/checkout");
