@@ -21,8 +21,11 @@ export function ProfileEditor({ profile }: { profile: ProfileData }) {
     event.preventDefault(); setPending(true); setMessage(""); const values = Object.fromEntries(new FormData(event.currentTarget).entries());
     const details: Record<string, unknown> = Object.fromEntries(fields[profile.type].map(([key]) => [key, values[key] || null]));
     if (["CHILD", "EMERGENCY"].includes(profile.type)) details.status = values.status || "NORMAL";
-    if (["SOCIAL", "REVIEW", "CUSTOM"].includes(profile.type)) { details.mode = profile.type === "REVIEW" ? "DIRECT_REDIRECT" : values.mode || "MULTI_LINK"; details.links = profile.details.links ?? {}; }
-    const contacts = values.contactName && values.contactPhone ? [{ name: values.contactName as string, relationship: values.contactRelationship as string, phone: values.contactPhone as string }] : [];
+    if (["SOCIAL", "REVIEW", "CUSTOM"].includes(profile.type)) {
+      details.mode = profile.type === "REVIEW" ? "DIRECT_REDIRECT" : values.mode || "MULTI_LINK";
+      details.links = Object.fromEntries(socialLinks.flatMap(([key, label]) => values[`link-${key}`] ? [[label, values[`link-${key}`]]] : []));
+    }
+    const contacts = [0, 1].flatMap(index => values[`contactName-${index}`] && values[`contactPhone-${index}`] ? [{ name: values[`contactName-${index}`] as string, relationship: values[`contactRelationship-${index}`] as string, phone: values[`contactPhone-${index}`] as string }] : []);
     const response = await fetch(`/api/tags/${profile.id}/profile`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ type: profile.type, displayName: values.displayName, details, contacts }) });
     const result = await response.json().catch(() => ({})); setPending(false); setMessage(response.ok ? "Profile saved" : result.error ?? "Could not save");
   }
@@ -31,7 +34,11 @@ export function ProfileEditor({ profile }: { profile: ProfileData }) {
     {profile.type === "CHILD" && <label className="field">Status<select name="status" defaultValue={String(profile.details.status ?? "NORMAL")}><option>NORMAL</option><option>MISSING</option></select></label>}
     {["SOCIAL", "CUSTOM"].includes(profile.type) && <label className="field">Mode<select name="mode" defaultValue={String(profile.details.mode ?? "MULTI_LINK")}><option value="MULTI_LINK">Multi-link profile</option><option value="DIRECT_REDIRECT">Direct redirect</option></select></label>}
     {fields[profile.type].map(([key, label]) => <label className="field" key={key}>{label}{/description|medical|allergies|medications|behaviour|bio|message|communication/i.test(key) ? <textarea name={key} defaultValue={String(profile.details[key] ?? "")} /> : <input name={key} defaultValue={String(profile.details[key] ?? "")} />}</label>)}
-    {["PET", "CHILD", "EMERGENCY"].includes(profile.type) && <><h3>Primary emergency contact</h3><label className="field">Name<input name="contactName" defaultValue={profile.contacts[0]?.name ?? ""} /></label><label className="field">Relationship<input name="contactRelationship" defaultValue={profile.contacts[0]?.relationship ?? ""} /></label><label className="field">Phone<input name="contactPhone" inputMode="tel" defaultValue={profile.contacts[0]?.phone ?? ""} /></label></>}
+    {["SOCIAL", "CUSTOM"].includes(profile.type) && <><h3>Profile links</h3>{socialLinks.map(([key, label]) => <label className="field" key={key}>{label}<input name={`link-${key}`} type="url" defaultValue={profileLink(profile.details.links, label)} placeholder="https://" /></label>)}</>}
+    {["PET", "CHILD", "EMERGENCY"].includes(profile.type) && [0, 1].map(index => <fieldset className="contact-fields" key={index}><legend>{index ? "Secondary emergency contact" : "Primary emergency contact"}</legend><label className="field">Name<input name={`contactName-${index}`} defaultValue={profile.contacts[index]?.name ?? ""} /></label><label className="field">Relationship<input name={`contactRelationship-${index}`} defaultValue={profile.contacts[index]?.relationship ?? ""} /></label><label className="field">Phone<input name={`contactPhone-${index}`} inputMode="tel" defaultValue={profile.contacts[index]?.phone ?? ""} /></label></fieldset>)}
     {message && <div className={message === "Profile saved" ? "notice" : "form-error"} role="status">{message}</div>}<button className="button" disabled={pending}>{pending ? "Saving…" : "Save profile"}</button>
   </form>;
 }
+
+const socialLinks = [["instagram", "Instagram"], ["tiktok", "TikTok"], ["facebook", "Facebook"], ["linkedin", "LinkedIn"], ["youtube", "YouTube"], ["whatsapp", "WhatsApp"], ["website", "Website"], ["custom", "Custom link"]] as const;
+function profileLink(value: unknown, label: string) { return value && typeof value === "object" ? String((value as Record<string, unknown>)[label] ?? "") : ""; }

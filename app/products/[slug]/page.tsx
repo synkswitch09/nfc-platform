@@ -37,8 +37,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
   const primary = product.images[0];
   const lowestPrice = product.variants[0]?.priceCents;
   const origin = process.env.APP_URL ?? "http://localhost:3000";
-  const structuredData = {
-    "@context": "https://schema.org",
+  const productData = {
     "@type": "Product",
     name: product.name,
     description: product.shortDescription ?? product.description,
@@ -53,6 +52,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
       url: `${origin}/products/${product.slug}`,
     },
   };
+  const structuredData = { "@context": "https://schema.org", "@graph": [productData, { "@type": "BreadcrumbList", itemListElement: [{ "@type": "ListItem", position: 1, name: "Home", item: origin }, { "@type": "ListItem", position: 2, name: "Shop", item: `${origin}/shop` }, ...(product.category ? [{ "@type": "ListItem", position: 3, name: product.category.name, item: `${origin}/categories/${product.category.slug}` }] : []), { "@type": "ListItem", position: product.category ? 4 : 3, name: product.name, item: `${origin}/products/${product.slug}` }] }] };
 
   return <>
     <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData).replaceAll("<", "\\u003c") }} />

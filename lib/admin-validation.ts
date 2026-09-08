@@ -28,7 +28,17 @@ export const adminProductSchema = z.object({
   if (new Set(value.options.map(option => option.code)).size !== value.options.length) context.addIssue({ code: "custom", message: "Personalisation codes must be unique", path: ["options"] });
 });
 
-export const adminCategorySchema = z.object({ name: z.string().trim().min(2).max(100), slug: z.string().trim().toLowerCase().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/).max(120), description: z.string().trim().max(5_000).nullable().optional(), sortOrder: z.number().int().min(0).max(10_000), active: z.boolean(), seoTitle: z.string().trim().max(70).nullable().optional(), seoDescription: z.string().trim().max(170).nullable().optional() });
+export const adminCategorySchema = z.object({
+  name: z.string().trim().min(2).max(100),
+  slug: z.string().trim().toLowerCase().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/).max(120),
+  description: z.string().trim().max(5_000).nullable().optional(),
+  imageUrl: optionalUrl,
+  sortOrder: z.number().int().min(0).max(10_000),
+  active: z.boolean(),
+  seoTitle: z.string().trim().max(70).nullable().optional(),
+  seoDescription: z.string().trim().max(170).nullable().optional(),
+  faq: z.array(z.object({ question: z.string().trim().min(5).max(180), answer: z.string().trim().min(10).max(1_000) })).max(8).default([]),
+});
 
 export const inventoryAdjustmentSchema = z.object({
   variantId: z.string().uuid(),

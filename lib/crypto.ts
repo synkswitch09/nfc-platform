@@ -9,7 +9,7 @@ function randomBase32(length: number) {
 }
 
 export function createPublicTagId() {
-  return randomBase32(10);
+  return randomBase32(16);
 }
 
 export function createActivationCode() {

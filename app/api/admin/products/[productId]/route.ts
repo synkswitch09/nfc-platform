@@ -4,6 +4,30 @@ import { getAdminApiUser } from "@/lib/admin";
 import { adminProductSchema } from "@/lib/admin-validation";
 import { db } from "@/lib/db";
 import { assertSameOrigin, jsonError } from "@/lib/http";
+import { createPublicTagId } from "@/lib/crypto";
+
+export async function POST(request: NextRequest, { params }: { params: Promise<{ productId: string }> }) {
+  if (!assertSameOrigin(request)) return jsonError("Invalid request origin", 403);
+  const user = await getAdminApiUser(); if (!user) return jsonError("Forbidden", 403);
+  const { productId } = await params;
+  const source = await db.product.findUnique({ where: { id: productId }, include: { variants: true, options: { include: { values: true } } } });
+  if (!source) return jsonError("Product not found", 404);
+  const suffix = createPublicTagId().slice(0, 6).toLowerCase();
+  try {
+    const duplicate = await db.$transaction(async tx => {
+      const product = await tx.product.create({ data: { name: `${source.name} (copy)`, slug: `${source.slug.slice(0, 150)}-${suffix}`, description: source.description, shortDescription: source.shortDescription, fullDescription: source.fullDescription, categoryId: source.categoryId, type: source.type, status: "DRAFT", featured: false, brand: source.brand, gstInclusive: source.gstInclusive, seoTitle: source.seoTitle, seoDescription: source.seoDescription, ogImageUrl: source.ogImageUrl, canonicalUrl: null, indexable: false,
+        variants: { create: source.variants.map(variant => ({ sku: `${variant.sku.slice(0, 42)}-${suffix.toUpperCase()}`, name: variant.name, colour: variant.colour, size: variant.size, material: variant.material, priceCents: variant.priceCents, compareAtPriceCents: variant.compareAtPriceCents, costCents: variant.costCents, inventory: 0, reservedInventory: 0, trackInventory: variant.trackInventory, lowStockThreshold: variant.lowStockThreshold, backorderPolicy: variant.backorderPolicy, active: variant.active })) },
+        options: { create: source.options.map(option => ({ name: option.name, code: option.code, type: option.type, required: option.required, maxLength: option.maxLength, priceDeltaCents: option.priceDeltaCents, helpText: option.helpText, sortOrder: option.sortOrder, active: option.active, values: { create: option.values.map(value => ({ label: value.label, value: value.value, priceDeltaCents: value.priceDeltaCents, sortOrder: value.sortOrder, active: value.active })) } })) },
+      } });
+      await tx.auditLog.create({ data: { actorId: user.id, action: "PRODUCT_DUPLICATED", entityType: "Product", entityId: product.id, metadata: { sourceProductId: source.id } } });
+      return product;
+    });
+    return NextResponse.json({ product: { id: duplicate.id } }, { status: 201 });
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") return jsonError("Could not allocate a unique slug or SKU; try again", 409);
+    return jsonError("Product could not be duplicated", 500);
+  }
+}
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ productId: string }> }) {
   if (!assertSameOrigin(request)) return jsonError("Invalid request origin", 403);

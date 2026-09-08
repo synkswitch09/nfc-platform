@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ArrowRight, BriefcaseBusiness, Dog, QrCode, Share2, ShieldCheck } from "lucide-react";
+import { getStoreSettings } from "@/lib/settings";
 
 const products = [
   { icon: Dog, name: "Pet Tag", copy: "Help a finder contact you quickly, with the medical details that matter.", price: "$24" },
@@ -8,8 +9,11 @@ const products = [
   { icon: BriefcaseBusiness, name: "Business Tag", copy: "A polished digital contact card with a downloadable vCard.", price: "$29" },
 ];
 
-export default function Home() {
+export default async function Home() {
+  const settings = await getStoreSettings();
+  const origin = process.env.APP_URL ?? "http://localhost:3000";
   return <>
+    <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({ "@context": "https://schema.org", "@graph": [{ "@type": "Organization", "@id": `${origin}/#organization`, name: settings.businessName ?? settings.storeName, url: origin, email: settings.supportEmail, sameAs: Object.values(settings.socialLinks) }, { "@type": "WebSite", "@id": `${origin}/#website`, name: settings.siteTitle, url: origin, publisher: { "@id": `${origin}/#organization` } }] }).replaceAll("<", "\\u003c") }} />
     <section className="hero">
       <div>
         <span className="eyebrow"><ShieldCheck size={15} /> Privacy-first by design</span>
@@ -29,5 +33,6 @@ export default function Home() {
       <div className="section-head"><span className="eyebrow">Simple by design</span><h2>From delivery to first tap.</h2></div>
       <div className="grid steps"><article className="card step"><h3>Choose your product</h3><p className="muted">Select a colour and add the name or wording you want printed.</p></article><article className="card step"><h3>Activate securely</h3><p className="muted">Sign in and enter the separate code supplied with your product.</p></article><article className="card step"><h3>Change it any time</h3><p className="muted">Edit the public profile or destination without touching the NFC tag.</p></article></div>
     </section>
+    <section className="section compact-section"><div className="section-head"><span className="eyebrow">Learn before you tap</span><h2>Practical NFC guides.</h2><p className="lead">Clear advice about smart tags, privacy and what information helps in an emergency.</p><Link className="button secondary" href="/guides">Explore the guides <ArrowRight size={17} /></Link></div></section>
   </>;
 }

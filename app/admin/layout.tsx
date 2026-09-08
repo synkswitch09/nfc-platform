@@ -1,8 +1,10 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { Archive, Boxes, ClipboardList, Factory, FileClock, Gauge, PackageSearch, ScanLine, Settings, ShieldCheck, Tags, Users } from "lucide-react";
 import { requireRole } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
+export const metadata: Metadata = { title: "Operations", robots: { index: false, follow: false } };
 
 const groups = [
   { label: "Overview", links: [{ href: "/admin", label: "Dashboard", icon: Gauge }] },

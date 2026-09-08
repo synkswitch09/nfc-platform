@@ -3,6 +3,7 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   output: "standalone",
   poweredByHeader: false,
+  images: { remotePatterns: [{ protocol: "https", hostname: "**" }] },
   experimental: { serverActions: { bodySizeLimit: "1mb" } },
   async headers() {
     return [{
