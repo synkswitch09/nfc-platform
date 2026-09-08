@@ -65,4 +65,4 @@ For Apple, `APPLE_CLIENT_SECRET` is the signed client-secret JWT generated from 
 
 Before accepting live customers: connect transactional email for verification/reset flows; replace legal placeholders with Australian legal advice; use managed object storage and image scanning for uploads; configure distributed rate limiting if the app runs across multiple instances; configure backups, monitoring and alerting; and complete an independent security/privacy review, especially for child profiles.
 
-See [architecture](docs/architecture.md), [security](docs/security.md), and [implementation status](docs/implementation-status.md).
+See [architecture](docs/architecture.md), [security](docs/security.md), [implementation status](docs/implementation-status.md), and the [NAS operations runbook](docs/nas-operations.md).

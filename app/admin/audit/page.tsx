@@ -1,0 +1,8 @@
+import { requireRole } from "@/lib/auth";
+import { db } from "@/lib/db";
+
+export default async function AuditPage({ searchParams }: { searchParams: Promise<{ action?: string; entity?: string }> }) {
+  await requireRole(["ADMIN"]); const { action = "", entity = "" } = await searchParams;
+  const logs = await db.auditLog.findMany({ where: { ...(action ? { action: { contains: action, mode: "insensitive" } } : {}), ...(entity ? { entityType: { contains: entity, mode: "insensitive" } } : {}) }, include: { actor: { select: { name: true, email: true } } }, orderBy: { createdAt: "desc" }, take: 300 });
+  return <div><div className="admin-heading"><div><p className="admin-kicker">System</p><h1>Audit log</h1><p>Immutable record of important administrative and security actions.</p></div></div><form className="admin-filters"><label><input name="action" defaultValue={action} placeholder="Action contains…" /></label><label><input name="entity" defaultValue={entity} placeholder="Entity type…" /></label><button className="button secondary">Filter</button></form><section className="admin-panel flush"><div className="admin-table audit-table"><div className="admin-tr admin-th"><span>When</span><span>Action</span><span>Actor</span><span>Entity</span><span>Context</span></div>{logs.map(log => <div className="admin-tr" key={String(log.id)}><span>{log.createdAt.toLocaleString("en-AU")}</span><strong>{log.action}</strong><span>{log.actor ? <>{log.actor.name}<small>{log.actor.email}</small></> : "System"}</span><span>{log.entityType}<small>{log.entityId ?? "—"}</small></span><code>{log.metadata ? JSON.stringify(log.metadata).slice(0, 180) : "—"}</code></div>)}</div>{!logs.length && <div className="admin-empty">No audit events match this view.</div>}</section></div>;
+}

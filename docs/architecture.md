@@ -15,7 +15,9 @@ The MVP is a modular monolith. Next.js renders the public website, dashboards an
 
 ## Data model
 
-`NFCTag` is the stable product identity. `TagProfile` holds shared public controls and has a one-to-one relation with exactly one type-specific profile. This avoids an unvalidated JSON blob for sensitive fields while allowing new product types to be added through an enum, profile table, validator and renderer. Orders snapshot unit prices and personalisation; Stripe records are separate and webhook events are idempotent.
+`NFCTag` is the stable product identity. `TagProfile` holds shared public controls and has a one-to-one relation with exactly one type-specific profile. Emergency products reuse the constrained emergency model; review and custom link products reuse the validated link model. Accessories intentionally have no NFC profile. Orders snapshot unit prices, SKUs, product types, addresses and personalisation; Stripe records are separate and webhook events are idempotent.
+
+Catalogue media is referenced in PostgreSQL but stored in a durable private volume and served through a content-type-controlled route. This keeps the first NAS deployment self-contained while preserving a clean migration path to S3-compatible object storage.
 
 ## Scale path
 

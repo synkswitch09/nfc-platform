@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Archive, Boxes, ClipboardList, Factory, Gauge, PackageSearch, ScanLine, Settings, Tags, Users } from "lucide-react";
+import { Archive, Boxes, ClipboardList, Factory, FileClock, Gauge, PackageSearch, ScanLine, Settings, ShieldCheck, Tags, Users } from "lucide-react";
 import { requireRole } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
@@ -9,7 +9,7 @@ const groups = [
   { label: "Catalog", links: [{ href: "/admin/products", label: "Products", icon: PackageSearch }, { href: "/admin/categories", label: "Categories", icon: Archive }, { href: "/admin/inventory", label: "Inventory", icon: Boxes }] },
   { label: "Sales", links: [{ href: "/admin/orders", label: "Orders", icon: ClipboardList }, { href: "/admin/customers", label: "Customers", icon: Users }] },
   { label: "NFC", links: [{ href: "/admin/tags", label: "Tags", icon: Tags }, { href: "/admin/manufacturing", label: "Manufacturing", icon: Factory }, { href: "/admin/manufacturing/batches", label: "Production batches", icon: ScanLine }] },
-  { label: "System", links: [{ href: "/admin/settings", label: "Settings", icon: Settings }] },
+  { label: "System", links: [{ href: "/admin/team", label: "Team access", icon: ShieldCheck }, { href: "/admin/audit", label: "Audit log", icon: FileClock }, { href: "/admin/settings", label: "Settings", icon: Settings }] },
 ];
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {

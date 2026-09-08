@@ -1,24 +1,28 @@
 # Implementation status
 
-## Functional MVP
+## Implemented on `develop`
 
-- Account registration, login, logout and protected dashboard
-- Five extensible product/profile types
-- Secure manufacturing batch, activation and public tag resolution
-- Pet and child emergency calls/SMS plus explicit location-sharing action
-- Social direct redirect/multi-link, business and luggage public views
-- Catalogue, server-authoritative order creation and Stripe Checkout/webhook handling
-- Admin summary and production batch interface
-- QR generation and privacy-minimised scan totals
-- Local, Docker/NAS and CI configuration
+- Guest and account checkout with server-authoritative prices, inventory reservations, Stripe Checkout, signed/idempotent webhooks and secure post-purchase account claiming
+- Password authentication, verified-email and reset flows, opaque database sessions, Google/Apple OIDC through `openid-client`, and safe verified-email account linking
+- Customer dashboard with orders, printable receipts, tracking, saved Australian addresses, NFC activation and profile management
+- Pet, child, emergency, social, business, luggage, review and custom NFC profiles; accessories remain catalogue-only
+- Commercial catalogue with status, categories, variants, inventory, pricing, personalisation fields, SEO and content-verified product media
+- Operations console for dashboard metrics, products, categories, inventory, orders, customers, tags, manufacturing batches, team roles, settings and audit history
+- Per-unit NFC manufacturing states, permanent random public URLs, separate one-time activation secrets stored only as hashes, QR/CSV/print exports and scan diagnostics
+- Configurable Australian shipping, AUD/GST presentation, metadata, canonical URLs, robots, sitemap, Product and ItemList structured data
+- PostgreSQL migrations and constraints, Docker/NAS deployment, persistent media volume, health check, CI and database/media backup tooling
 
-## Next delivery slices
+## External configuration before launch
 
-1. Email verification, forgot-password delivery and user profile/address screens
-2. Cart with variants, colour, physical personalisation and inventory reservations
-3. Complete order/fulfilment administration and customer order list
-4. Image upload/storage pipeline and richer profile editors (including social link management and secondary contacts)
-5. Aggregated analytics charts, CSV/PDF production exports and optional NFC-writer integration
-6. Tag transfer/replacement workflow with confirmation and cooling-off controls
+- Register Google and Apple applications and place their secrets in the deployment secret store
+- Configure Stripe live keys/webhook and a transactional email webhook
+- Replace placeholder legal text with reviewed Australian terms/privacy content and complete a privacy impact assessment for child information
+- Put TLS, alerting, encrypted off-device backups and a regular staging restore test in place
+- Add distributed rate limiting if more than one app replica is deployed
+- Complete dependency/container scanning, accessibility review, browser end-to-end tests and an independent penetration test
 
-The schema already contains the supporting entities for the first four slices. Placeholder privacy and terms pages are intentionally not represented as production legal advice.
+## Deliberately deferred
+
+- Direct NFC-writer hardware integration. The manufacturing model and permanent URL format are ready for a future station, while current operations use QR/CSV/print output.
+- Automated carrier APIs and Stripe refund initiation. Operations cannot mark a refund or manufacture an unpaid order without a real external action.
+- Horizontal service decomposition. The modular monolith is intentionally retained until traffic justifies independent scaling.
