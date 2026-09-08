@@ -11,6 +11,7 @@
 - Per-unit NFC manufacturing states, permanent random public URLs, separate one-time activation secrets stored only as hashes, QR/CSV/print exports and scan diagnostics
 - Configurable Australian shipping, AUD/GST presentation, metadata, canonical URLs, robots, sitemap, editorial guides, and Organization, WebSite, Product, Offer, Breadcrumb, ItemList, Article and legitimate FAQ structured data
 - PostgreSQL migrations and constraints, Docker/NAS deployment, persistent media volume, health check, CI and database/media backup tooling
+- CI-backed HTTP E2E evidence for the required guest purchase, post-purchase account, protected NFC management, Product Admin and complete NFC lifecycle journeys
 
 ## External configuration before launch
 

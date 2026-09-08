@@ -11,7 +11,7 @@ The work was based on `main` commit `dd801183f5b4936ffddc1793c394d913fbc48ab5` a
 | ESLint, zero warnings | Passed |
 | TypeScript `tsc --noEmit` | Passed |
 | Vitest | 30 tests passed across 9 files |
-| Integrated E2E | 48 assertions passed across required flows A–E on the first CI run |
+| Integrated E2E | 52 assertions passed across required flows A–E, including signed and duplicate Stripe webhooks |
 | Production build | Passed with Next.js 16.3.4 and Webpack |
 | Prisma schema validation | Passed; 34 models and 4 committed migrations |
 | Backup script shell syntax | Passed for backup, verification and restore scripts |
