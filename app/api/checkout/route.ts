@@ -14,14 +14,26 @@ export async function POST(request: NextRequest) {
   const parsed = checkoutSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return jsonError("Invalid cart");
   const ids = [...new Set(parsed.data.items.map(item => item.variantId))];
-  const variants = await db.productVariant.findMany({ where: { id: { in: ids }, active: true, product: { active: true } }, include: { product: true } });
+  const variants = await db.productVariant.findMany({ where: { id: { in: ids }, active: true, product: { status: "ACTIVE" } }, include: { product: true } });
   if (variants.length !== ids.length) return jsonError("One or more products are unavailable", 409);
   const byId = new Map(variants.map(v => [v.id, v]));
   const { subtotalCents, shippingCents, totalCents } = calculateOrderTotals(parsed.data.items.map(item => ({ unitPriceCents: byId.get(item.variantId)!.priceCents, quantity: item.quantity })));
   const order = await db.order.create({ data: {
     orderNumber: `TK-${randomUUID().replaceAll("-", "").slice(0, 10).toUpperCase()}`,
     userId: user.id, subtotalCents, shippingCents, totalCents,
-    items: { create: parsed.data.items.map(item => ({ variantId: item.variantId, quantity: item.quantity, unitPriceCents: byId.get(item.variantId)!.priceCents, personalisation: item.personalisation ?? undefined })) },
+    items: { create: parsed.data.items.map(item => {
+      const variant = byId.get(item.variantId)!;
+      return {
+        variantId: item.variantId,
+        quantity: item.quantity,
+        unitPriceCents: variant.priceCents,
+        productName: variant.product.name,
+        variantName: variant.name,
+        sku: variant.sku,
+        productType: variant.product.type,
+        personalisation: item.personalisation ?? undefined,
+      };
+    }) },
     payments: { create: { amountCents: totalCents, currency: "AUD" } },
   }, include: { payments: true } });
   const origin = process.env.APP_URL ?? request.nextUrl.origin;

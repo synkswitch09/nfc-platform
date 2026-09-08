@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
   const parsed = loginSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return jsonError("Invalid email or password", 401);
   const user = await db.user.findUnique({ where: { email: parsed.data.email } });
-  if (!user || !(await verifyPassword(parsed.data.password, user.passwordHash))) {
+  if (!user || user.status !== "ACTIVE" || !user.passwordHash || !(await verifyPassword(parsed.data.password, user.passwordHash))) {
     return jsonError("Invalid email or password", 401);
   }
   await createSession(user.id);

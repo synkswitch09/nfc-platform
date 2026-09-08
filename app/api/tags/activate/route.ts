@@ -6,6 +6,7 @@ import { assertSameOrigin, getClientIp, jsonError } from "@/lib/http";
 import { rateLimit } from "@/lib/rate-limit";
 import { activationSchema } from "@/lib/validation";
 import { isActivatable } from "@/lib/policies";
+import { isManagedProfileType } from "@/lib/product-types";
 
 export async function POST(request: NextRequest) {
   if (!assertSameOrigin(request)) return jsonError("Invalid request origin", 403);
@@ -29,6 +30,7 @@ export async function POST(request: NextRequest) {
     if (tag) await db.tagActivation.create({ data: { tagId: tag.id, userId: user.id, success: false, ipHash: privacyHash(ip) } });
     return jsonError("Tag ID or activation code is invalid", 400);
   }
+  if (!isManagedProfileType(tag.productType)) return jsonError("This product type is not ready for activation", 409);
 
   try {
     await db.$transaction(async (tx) => {

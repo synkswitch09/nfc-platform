@@ -3,6 +3,7 @@ import { createActivationCode, createPublicTagId, hashActivationCode, hashPasswo
 import { NextRequest } from "next/server";
 import { getClientIp, safeNextPath } from "@/lib/http";
 import { canManageTag, hasStaffAccess, isActivatable } from "@/lib/policies";
+import { isManagedProfileType } from "@/lib/product-types";
 
 beforeAll(() => { process.env.SESSION_SECRET = "test-session-secret-with-at-least-32-characters"; process.env.ACTIVATION_PEPPER = "test-activation-pepper-with-at-least-32-characters"; });
 
@@ -16,6 +17,7 @@ describe("authorisation policies", () => {
   it("only activates an unowned, unclaimed tag", () => { expect(isActivatable({status:"UNCLAIMED",ownerId:null})).toBe(true); expect(isActivatable({status:"ACTIVE",ownerId:null})).toBe(false); expect(isActivatable({status:"UNCLAIMED",ownerId:"user-2"})).toBe(false); });
   it("prevents IDOR while allowing administrators", () => { expect(canManageTag({id:"u1",role:"CUSTOMER"},{ownerId:"u2"})).toBe(false); expect(canManageTag({id:"u1",role:"CUSTOMER"},{ownerId:"u1"})).toBe(true); expect(canManageTag({id:"u1",role:"ADMIN"},{ownerId:"u2"})).toBe(true); });
   it("separates staff roles from customers", () => { expect(hasStaffAccess("CUSTOMER")).toBe(false); expect(hasStaffAccess("STAFF")).toBe(true); expect(hasStaffAccess("ADMIN")).toBe(true); });
+  it("does not activate catalogue-only product types as unsupported profiles", () => { expect(isManagedProfileType("PET")).toBe(true); expect(isManagedProfileType("ACCESSORY")).toBe(false); });
   it("blocks open redirects", () => { expect(safeNextPath("//evil.example")).toBe("/dashboard"); expect(safeNextPath("https://evil.example")).toBe("/dashboard"); expect(safeNextPath("/shop")).toBe("/shop"); });
   it("trusts forwarded client addresses only behind an explicitly trusted proxy", () => {
     const request = new NextRequest("http://localhost", { headers: { "x-forwarded-for": "203.0.113.10, 10.0.0.2" } });
