@@ -2,6 +2,8 @@ import Link from "next/link";
 import { Archive, Boxes, ClipboardList, Factory, Gauge, PackageSearch, ScanLine, Settings, Tags, Users } from "lucide-react";
 import { requireRole } from "@/lib/auth";
 
+export const dynamic = "force-dynamic";
+
 const groups = [
   { label: "Overview", links: [{ href: "/admin", label: "Dashboard", icon: Gauge }] },
   { label: "Catalog", links: [{ href: "/admin/products", label: "Products", icon: PackageSearch }, { href: "/admin/categories", label: "Categories", icon: Archive }, { href: "/admin/inventory", label: "Inventory", icon: Boxes }] },

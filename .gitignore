@@ -6,3 +6,4 @@ coverage
 *.log
 *.tsbuildinfo
 public/uploads
+data/uploads

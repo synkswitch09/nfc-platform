@@ -31,7 +31,9 @@ docker compose up -d --build
 docker compose exec app npm run db:seed
 ```
 
-Terminate TLS at a trusted reverse proxy (for example Caddy, Traefik or a NAS proxy), set `APP_URL` to the public HTTPS origin, and set `TRUST_PROXY=true` only when direct access to the app port is blocked and the proxy overwrites forwarded-client headers. PostgreSQL is bound only to host loopback for local administration. Back up the `postgres_data` volume and test restores.
+Terminate TLS at a trusted reverse proxy (for example Caddy, Traefik or a NAS proxy), set `APP_URL` to the public HTTPS origin, and set `TRUST_PROXY=true` only when direct access to the app port is blocked and the proxy overwrites forwarded-client headers. PostgreSQL is bound only to host loopback for local administration. Back up both the `postgres_data` and `product_uploads` volumes, and test restores regularly.
+
+Product uploads accept content-verified PNG, JPEG and WebP files up to 5 MB. The Docker deployment persists them in `product_uploads`; a non-container deployment can set `UPLOAD_DIR` to a durable private directory. Uploaded originals must be included in the backup and restore plan.
 
 ## Stripe
 
