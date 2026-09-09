@@ -28,8 +28,9 @@ export function createOAuthTransaction(provider: OAuthProviderName, next: string
 
 export function readOAuthTransaction(cookie: string | undefined) {
   if (!cookie) return null;
-  const [payload, signature] = cookie.split("."); if (!payload || !signature) return null;
-  const expected = signatureFor(payload); const given = Buffer.from(signature, "base64url");
+  const parts = cookie.split("."); if (parts.length !== 2) return null;
+  const [payload, signature] = parts; if (!payload || !signature) return null;
+  const expected = Buffer.from(signatureFor(payload).toString("base64url")); const given = Buffer.from(signature);
   if (given.length !== expected.length || !timingSafeEqual(given, expected)) return null;
   try { const value = JSON.parse(Buffer.from(payload, "base64url").toString("utf8")) as OAuthTransaction; return value.expires > Date.now() ? value : null; } catch { return null; }
 }

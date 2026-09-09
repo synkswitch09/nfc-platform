@@ -11,5 +11,6 @@ describe("OAuth transaction protection", () => {
   it("rejects a tampered transaction", () => {
     const transaction = createOAuthTransaction("apple", "/checkout");
     expect(readOAuthTransaction(`${transaction.cookie.slice(0, -1)}x`)).toBeNull();
+    expect(readOAuthTransaction(`${transaction.cookie}.ignored`)).toBeNull();
   });
 });
