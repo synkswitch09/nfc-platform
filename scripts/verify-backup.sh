@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 
-backup_path=${1:?Usage: scripts/verify-backup.sh /path/to/tapkind-backup}
+backup_path=${1:?Usage: scripts/verify-backup.sh /path/to/tapkin-backup}
 cd "$backup_path"
 sha256sum -c SHA256SUMS
 docker run --rm -i postgres:17-alpine pg_restore --list < database.dump > /dev/null

@@ -23,7 +23,7 @@ type CartContextValue = {
 };
 
 const CartContext = createContext<CartContextValue | null>(null);
-const STORAGE_KEY = "tapkind-cart-v1";
+const STORAGE_KEY = "tapkin-cart-v1";
 
 function lineKey(variantId: string, personalisation: Record<string, string>) {
   return `${variantId}:${JSON.stringify(Object.entries(personalisation).sort(([a], [b]) => a.localeCompare(b)))}`;

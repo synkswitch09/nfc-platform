@@ -1,38 +1,19 @@
+import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight, BriefcaseBusiness, Dog, QrCode, Share2, ShieldCheck } from "lucide-react";
+import { ArrowRight, BriefcaseBusiness, Dog, Luggage, QrCode, Radio, Share2, ShieldCheck } from "lucide-react";
+import { db } from "@/lib/db";
 import { getStoreSettings } from "@/lib/settings";
 
-const products = [
-  { icon: Dog, name: "Pet Tag", copy: "Help a finder contact you quickly, with the medical details that matter.", price: "$24" },
-  { icon: ShieldCheck, name: "Child Safety Tag", copy: "A privacy-first emergency profile controlled by a guardian.", price: "$27" },
-  { icon: Share2, name: "Social Tag", copy: "Share one profile or redirect straight to your favourite social account.", price: "$19" },
-  { icon: BriefcaseBusiness, name: "Business Tag", copy: "A polished digital contact card with a downloadable vCard.", price: "$29" },
-];
+const icons = { dog: Dog, shield: ShieldCheck, "shield-check": ShieldCheck, share: Share2, business: BriefcaseBusiness, luggage: Luggage, radio: Radio };
 
 export default async function Home() {
-  const settings = await getStoreSettings();
+  const [settings, categories] = await Promise.all([getStoreSettings(), process.env.DATABASE_URL ? db.productCategory.findMany({ where: { status: "PUBLISHED", showOnHomepage: true }, orderBy: [{ sortOrder: "asc" }, { name: "asc" }], take: 8 }).catch(() => []) : []]);
   const origin = process.env.APP_URL ?? "http://localhost:3000";
   return <>
     <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({ "@context": "https://schema.org", "@graph": [{ "@type": "Organization", "@id": `${origin}/#organization`, name: settings.businessName ?? settings.storeName, url: origin, email: settings.supportEmail, sameAs: Object.values(settings.socialLinks) }, { "@type": "WebSite", "@id": `${origin}/#website`, name: settings.siteTitle, url: origin, publisher: { "@id": `${origin}/#organization` } }] }).replaceAll("<", "\\u003c") }} />
-    <section className="hero">
-      <div>
-        <span className="eyebrow"><ShieldCheck size={15} /> Privacy-first by design</span>
-        <h1>One tap.<br />A safer connection.</h1>
-        <p className="lead">Smart NFC products that connect people to the right information—without storing personal details on the tag itself.</p>
-        <div className="actions"><Link className="button lime" href="/shop">Shop tags <ArrowRight size={17} /></Link><Link className="button secondary" href="/activate">Activate a tag</Link></div>
-      </div>
-      <div className="tag-visual" aria-label="Illustration of a TapKind pet tag">
-        <div className="physical-tag"><QrCode size={42} /><strong>MAX</strong><small>Tap or scan to help me home</small></div>
-      </div>
-    </section>
-    <section className="section">
-      <div className="section-head"><span className="eyebrow">Made for real life</span><h2>A useful tag for every connection.</h2><p className="lead">Update the destination any time. The NFC product never needs to be reprogrammed.</p></div>
-      <div className="grid">{products.map(({ icon: Icon, name, copy, price }) => <article className="card product-card" key={name}><span className="icon"><Icon /></span><h3>{name}</h3><p>{copy}</p><span className="price">From {price} AUD</span></article>)}</div>
-    </section>
-    <section className="section" id="how-it-works">
-      <div className="section-head"><span className="eyebrow">Simple by design</span><h2>From delivery to first tap.</h2></div>
-      <div className="grid steps"><article className="card step"><h3>Choose your product</h3><p className="muted">Select a colour and add the name or wording you want printed.</p></article><article className="card step"><h3>Activate securely</h3><p className="muted">Sign in and enter the separate code supplied with your product.</p></article><article className="card step"><h3>Change it any time</h3><p className="muted">Edit the public profile or destination without touching the NFC tag.</p></article></div>
-    </section>
-    <section className="section compact-section"><div className="section-head"><span className="eyebrow">Learn before you tap</span><h2>Practical NFC guides.</h2><p className="lead">Clear advice about smart tags, privacy and what information helps in an emergency.</p><Link className="button secondary" href="/guides">Explore the guides <ArrowRight size={17} /></Link></div></section>
+    <section className="hero platform-hero"><div><span className="eyebrow"><Radio size={15} /> 3D printed · NFC connected</span><h1>Physical products.<br />Digital possibilities.</h1><p className="lead">Personalised smart products that combine 3D printing, NFC and QR with secure profiles for safety, recovery, networking and sharing.</p><div className="actions"><Link className="button lime" href="/shop">Explore smart products <ArrowRight size={17} /></Link><Link className="button secondary" href="/activate">Activate a product</Link></div></div><div className="tag-visual" aria-label="Tapkin smart product illustration"><div className="physical-tag"><QrCode size={42} /><strong>TAPKIN</strong><small>Tap or scan to connect</small></div></div></section>
+    <section className="section"><div className="section-head"><span className="eyebrow">Built around real use cases</span><h2>One platform. Many useful connections.</h2><p className="lead">Choose the product that fits the moment. Every category has its own purpose, content and configurable experience.</p></div>{categories.length ? <div className="category-card-grid">{categories.map(category => { const Icon = icons[(category.icon ?? "radio") as keyof typeof icons] ?? Radio; return <Link className="category-card" href={`/categories/${category.slug}`} key={category.id}>{category.cardImageUrl ? <Image src={category.cardImageUrl} alt="" width={640} height={420} unoptimized /> : <span className="icon"><Icon /></span>}<span className="eyebrow">Smart collection</span><h3>{category.cardTitle ?? category.name}</h3><p>{category.cardText ?? category.shortDescription ?? category.description}</p><strong>Explore {category.name} <ArrowRight size={16} /></strong></Link>; })}</div> : <div className="admin-empty">Collections are being prepared. Visit the Shop to see available products.</div>}</section>
+    <section className="section" id="how-it-works"><div className="section-head"><span className="eyebrow">Simple by design</span><h2>From idea to one useful tap.</h2></div><div className="grid steps"><article className="card step"><h3>Choose and personalise</h3><p className="muted">Select a product, material, colour and the details you want manufactured.</p></article><article className="card step"><h3>Receive and activate</h3><p className="muted">Your printed product arrives with a separate one-time activation credential.</p></article><article className="card step"><h3>Stay in control</h3><p className="muted">Update the profile, destination or status without reprogramming the NFC chip.</p></article></div></section>
+    <section className="section compact-section"><div className="section-head"><span className="eyebrow">Designed for trust</span><h2>Identity that stays under your control.</h2><p className="lead">The chip stores only a permanent Tapkin URL. Personal information remains in the protected account and can be updated or disabled at any time.</p><Link className="button secondary" href="/guides">Explore practical guides <ArrowRight size={17} /></Link></div></section>
   </>;
 }

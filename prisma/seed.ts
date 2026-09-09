@@ -4,109 +4,50 @@ import { passwordSchema } from "../lib/validation";
 
 const db = new PrismaClient();
 const categories = [
-  { slug: "pet-tags", name: "Pet Tags", description: "Personalised NFC tags that help lost pets get home faster." },
-  { slug: "child-safety", name: "Child Safety", description: "Privacy-conscious emergency contact products for families." },
-  { slug: "social", name: "Social", description: "Share a social profile or link with one tap." },
-  { slug: "business", name: "Business", description: "Reusable smart contact products for professionals and teams." },
-  { slug: "luggage", name: "Luggage", description: "Minimal-contact smart tags for bags and travel gear." },
-  { slug: "accessories", name: "Accessories", description: "Useful additions for TapKind products." },
+  { slug: "pet-tags", name: "Pet", icon: "dog", shortDescription: "Smart tags that help lost pets reconnect with their people.", heroEyebrow: "More than a pet tag", heroHeadline: "Peace of mind looks good on them.", heroDescription: "Durable, personalised NFC and QR pet tags that help a finder reach you quickly while you control every detail they see.", cardTitle: "Pet safety", cardText: "Fast contact, useful medical notes and profiles you can update anytime.", ctaLabel: "Shop Pet Tags", benefits: [{ icon: "heart", title: "Faster reunions", description: "NFC and QR help a finder reach the right contact in seconds.", order: 0, visible: true }, { icon: "shield", title: "Safer sharing", description: "Show behaviour, allergies and medical notes without putting them on the chip.", order: 1, visible: true }, { icon: "paw", title: "Made for daily wear", description: "Lightweight 3D-printed forms designed for dogs and cats.", order: 2, visible: true }], howItWorks: [{ title: "Choose their style", description: "Pick a shape, colour and the name to print on the front.", order: 0, visible: true }, { title: "Activate at home", description: "Use the separate secure code supplied with the finished tag.", order: 1, visible: true }, { title: "Keep the profile current", description: "Update contacts, medical notes or lost status without replacing the tag.", order: 2, visible: true }], contentSections: [{ layout: "IMAGE_RIGHT", eyebrow: "Designed for real life", heading: "Strong enough to roam. Simple enough to help.", copy: "A clear scan experience gives a finder the useful information first while keeping account control with the owner.", bulletPoints: ["NFC and QR access", "Water-resistant materials", "Owner-controlled contact details", "Lost-mode messaging"], order: 0, visible: true }], faq: [{ question: "Does a finder need the Tapkin app?", answer: "No. A compatible phone can tap the NFC product or scan its QR code in the normal camera app.", order: 0, enabled: true }, { question: "Can I change my contact details later?", answer: "Yes. The permanent tag URL stays the same while you update the protected profile in your account.", order: 1, enabled: true }] },
+  { slug: "child-safety-tags", name: "Child Safety", icon: "shield-check", shortDescription: "Guardian-controlled emergency information for backpacks, keys and everyday gear.", heroEyebrow: "Prepared without oversharing", heroHeadline: "The right information when a child needs help.", heroDescription: "Privacy-conscious NFC and QR products that connect a trusted adult with guardian contacts and carefully selected emergency details.", cardTitle: "Child safety", cardText: "Guardian-controlled profiles designed for school, travel and busy family life.", ctaLabel: "Shop Child Safety", benefits: [{ icon: "shield", title: "Guardian controlled", description: "Only the account owner decides what a finder can see.", order: 0, visible: true }, { icon: "phone", title: "Quick contact", description: "Prominent call actions help a trusted adult contact a guardian.", order: 1, visible: true }, { icon: "lock", title: "Minimal by design", description: "Share critical guidance without publishing unnecessary identity details.", order: 2, visible: true }], howItWorks: [{ title: "Choose the item", description: "Select a backpack tag, keyring or emergency bag identifier.", order: 0, visible: true }, { title: "Create the safety profile", description: "Add guardian contacts and only the information that is genuinely useful.", order: 1, visible: true }, { title: "Review as life changes", description: "Update school, medical and contact guidance from the owner account.", order: 2, visible: true }], contentSections: [{ layout: "TEXT_ONLY", eyebrow: "Privacy first", heading: "Useful in an emergency. Quiet the rest of the time.", copy: "Tapkin child-safety profiles are intentionally focused. The product carries a random URL, not a child's personal data, and the guardian can disable access at any time.", bulletPoints: ["No home address required", "No GPS tracking claims", "Two prioritised emergency contacts", "Missing-status support"], order: 0, visible: true }], faq: [{ question: "Does the NFC tag track my child?", answer: "No. Tapkin products do not contain GPS. A visitor can choose to share their own location when contacting the guardian.", order: 0, enabled: true }] },
+  { slug: "social-nfc-tags", name: "Social Media", icon: "share", shortDescription: "One tap to a creator profile, social destination or flexible link collection.", heroEyebrow: "Share without searching", heroHeadline: "Turn real-world moments into digital connections.", heroDescription: "Personalised NFC keyrings and badges for creators, events and anyone who wants a faster way to share the right profile.", cardTitle: "Social & creator", cardText: "A memorable physical product linked to the destinations you control.", ctaLabel: "Shop Social NFC", benefits: [{ icon: "zap", title: "Instant sharing", description: "Open one destination directly or present a polished multi-link profile.", order: 0, visible: true }, { icon: "refresh", title: "Change destinations", description: "Switch platforms later without reprinting or reprogramming the product.", order: 1, visible: true }, { icon: "sparkles", title: "Made personal", description: "Choose colour and printed text for a recognisable everyday object.", order: 2, visible: true }], howItWorks: [{ title: "Choose your format", description: "Pick a keyring, creator tag or wearable-style badge.", order: 0, visible: true }, { title: "Activate your profile", description: "Select direct redirect or a multi-link landing after delivery.", order: 1, visible: true }, { title: "Tap to connect", description: "Use it at events, counters, markets or everyday conversations.", order: 2, visible: true }], contentSections: [{ layout: "IMAGE_LEFT", eyebrow: "Built for change", heading: "Your next platform does not need a new keyring.", copy: "The printed product opens a permanent Tapkin address. Update the destination whenever your content strategy changes.", bulletPoints: ["Direct social redirect", "Multi-link profile", "Safe external URL validation"], order: 0, visible: true }], faq: [{ question: "Can the tag open Instagram directly?", answer: "Yes. Direct redirect mode can open a validated Instagram or other HTTPS destination configured by the owner.", order: 0, enabled: true }] },
+  { slug: "business-nfc-tags", name: "Business", icon: "business", shortDescription: "Reusable digital contact products for professionals, teams and customer touchpoints.", heroEyebrow: "Networking made tangible", heroHeadline: "A better handoff than a paper business card.", heroDescription: "Smart keyrings, desk products and review stands that connect customers and contacts with the next useful action.", cardTitle: "Business & networking", cardText: "Share contact details, save a vCard or guide customers to a trusted destination.", ctaLabel: "Shop Business NFC", benefits: [{ icon: "contact", title: "Contact-ready", description: "Let a new connection save a complete vCard from the profile.", order: 0, visible: true }, { icon: "building", title: "Built for teams", description: "Products can represent a person, role, location or business touchpoint.", order: 1, visible: true }, { icon: "repeat", title: "Reusable", description: "Update details after a role or campaign changes without replacing the product.", order: 2, visible: true }], howItWorks: [{ title: "Choose the touchpoint", description: "Select a personal keyring, desk stand or customer review product.", order: 0, visible: true }, { title: "Configure the action", description: "Share a contact profile, website, social links or validated review page.", order: 1, visible: true }, { title: "Use it repeatedly", description: "Bring the same product to meetings, counters and events.", order: 2, visible: true }], contentSections: [{ layout: "IMAGE_RIGHT", eyebrow: "Professional by default", heading: "Make the next action obvious.", copy: "Tapkin business products remove the friction between meeting someone and saving the right details.", bulletPoints: ["Downloadable vCard", "Company and role details", "Direct phone and email actions", "Update without reprinting"], order: 0, visible: true }], faq: [{ question: "Can I update my job title later?", answer: "Yes. Business profile details can be updated from the owner dashboard while the physical product keeps the same URL.", order: 0, enabled: true }] },
+  { slug: "luggage-tags", name: "Luggage & Objects", icon: "luggage", shortDescription: "Privacy-conscious recovery profiles for bags, backpacks and valuable equipment.", heroEyebrow: "Made to find its way back", heroHeadline: "Recovery details without a home address on display.", heroDescription: "NFC and QR identification products that give a finder a simple way to contact you while revealing only what you choose.", cardTitle: "Luggage & objects", cardText: "Smart identification for travel gear, backpacks and equipment.", ctaLabel: "Shop Luggage Tags", benefits: [{ icon: "map", title: "Travel ready", description: "A permanent digital profile works across changing trips and destinations.", order: 0, visible: true }, { icon: "eye-off", title: "Less exposed", description: "Avoid printing a full residential address on the outside of a bag.", order: 1, visible: true }, { icon: "message", title: "Clear recovery message", description: "Tell a finder how to contact you and what to do next.", order: 2, visible: true }], howItWorks: [{ title: "Personalise the identifier", description: "Choose colour, printed name and a form suited to the item.", order: 0, visible: true }, { title: "Add recovery contacts", description: "Configure the minimum phone or email details a finder needs.", order: 1, visible: true }, { title: "Mark it lost when needed", description: "Lost mode makes the recovery message prominent while keeping owner control.", order: 2, visible: true }], contentSections: [{ layout: "TEXT_ONLY", eyebrow: "Ready for the next trip", heading: "One identifier for bags, gear and changing plans.", copy: "A Tapkin URL stays with the physical item. You can update the profile before every trip without buying another identifier.", bulletPoints: ["Permanent NFC and QR URL", "Lost-mode notice", "Owner-controlled contact information"], order: 0, visible: true }], faq: [{ question: "Do I need to publish my home address?", answer: "No. The luggage profile is designed around a recovery message and the contact methods you choose.", order: 0, enabled: true }] },
 ];
 
-type SeedOption = {
-  code: string;
-  name: string;
-  type: CustomisationFieldType;
-  required?: boolean;
-  maxLength?: number;
-  values?: string[];
-};
-
-const catalog: Array<{ slug: string; name: string; description: string; type: ProductType; sku: string; priceCents: number; category: string; featured?: boolean; options: SeedOption[] }> = [
-  { slug: "pet-tag", name: "Personalised NFC Pet Tag", description: "A durable, 3D-printed tag with a fast emergency profile for a lost pet.", type: "PET", sku: "PET-BASE", priceCents: 2495, category: "pet-tags", featured: true, options: [
-    { code: "pet-name", name: "Pet name", type: "SHORT_TEXT", required: true, maxLength: 24 },
-    { code: "colour", name: "Colour", type: "COLOUR", required: true, values: ["Black", "White", "Ocean", "Coral"] },
-    { code: "shape", name: "Shape", type: "SELECT", required: true, values: ["Round", "Bone", "Heart"] },
-  ] },
-  { slug: "child-safety-tag", name: "Child Safety NFC Tag", description: "A privacy-first guardian contact and critical-information tag.", type: "CHILD", sku: "CHILD-BASE", priceCents: 2795, category: "child-safety", featured: true, options: [
-    { code: "printed-name", name: "Printed name", type: "SHORT_TEXT", required: true, maxLength: 24 },
-    { code: "colour", name: "Colour", type: "COLOUR", required: true, values: ["Black", "White", "Ocean", "Coral"] },
-  ] },
-  { slug: "social-tag", name: "Social NFC Keyring", description: "Open one social destination or a flexible multi-link profile.", type: "SOCIAL", sku: "SOCIAL-BASE", priceCents: 1995, category: "social", options: [
-    { code: "printed-text", name: "Printed text", type: "SHORT_TEXT", maxLength: 24 },
-    { code: "colour", name: "Colour", type: "COLOUR", required: true, values: ["Black", "White", "Ocean", "Lime"] },
-  ] },
-  { slug: "business-tag", name: "Business NFC Product", description: "A polished digital contact product with a downloadable vCard-ready profile.", type: "BUSINESS", sku: "BIZ-BASE", priceCents: 2995, category: "business", options: [
-    { code: "display-name", name: "Name or company", type: "SHORT_TEXT", required: true, maxLength: 36 },
-    { code: "colour", name: "Colour", type: "COLOUR", required: true, values: ["Black", "White", "Navy"] },
-  ] },
-  { slug: "luggage-tag", name: "Smart NFC Luggage Tag", description: "Share only the contact details needed to return a lost bag.", type: "LUGGAGE", sku: "LUG-BASE", priceCents: 2295, category: "luggage", options: [
-    { code: "printed-name", name: "Printed name", type: "SHORT_TEXT", required: true, maxLength: 28 },
-    { code: "colour", name: "Colour", type: "COLOUR", required: true, values: ["Black", "White", "Ocean", "Coral"] },
-  ] },
+type SeedOption = { code: string; name: string; type: CustomisationFieldType; required?: boolean; maxLength?: number; values?: string[] };
+const commonColours = ["Black", "White", "Ocean", "Coral"];
+const product = (slug: string, name: string, description: string, type: ProductType, sku: string, priceCents: number, category: string, options: SeedOption[], featured = false) => ({ slug, name, description, type, sku, priceCents, category, options, featured });
+const catalog = [
+  product("round-nfc-pet-tag", "Round NFC Pet Tag", "A lightweight round PETG tag with a fast, owner-controlled pet safety profile.", "PET", "PET-ROUND", 2495, "pet-tags", [{ code: "pet-name", name: "Pet name", type: "SHORT_TEXT", required: true, maxLength: 24 }, { code: "colour", name: "Colour", type: "COLOUR", required: true, values: commonColours }], true),
+  product("bone-nfc-pet-tag", "Bone NFC Pet Tag", "A distinctive bone-shaped tag for dogs, linked to medical notes and owner contacts.", "PET", "PET-BONE", 2695, "pet-tags", [{ code: "pet-name", name: "Pet name", type: "SHORT_TEXT", required: true, maxLength: 24 }, { code: "colour", name: "Colour", type: "COLOUR", required: true, values: commonColours }]),
+  product("heart-nfc-pet-tag", "Heart NFC Pet Tag", "A personalised heart tag for cats and dogs with NFC and a scannable QR fallback.", "PET", "PET-HEART", 2695, "pet-tags", [{ code: "pet-name", name: "Pet name", type: "SHORT_TEXT", required: true, maxLength: 24 }, { code: "colour", name: "Colour", type: "COLOUR", required: true, values: commonColours }]),
+  product("backpack-safety-tag", "Backpack Safety Tag", "A guardian-controlled NFC and QR safety profile for school bags and excursions.", "CHILD", "CHILD-BACKPACK", 2795, "child-safety-tags", [{ code: "printed-name", name: "Printed name", type: "SHORT_TEXT", required: true, maxLength: 20 }, { code: "colour", name: "Colour", type: "COLOUR", required: true, values: commonColours }], true),
+  product("emergency-child-keyring", "Emergency Child Keyring", "A compact emergency keyring for guardian contacts and carefully selected medical guidance.", "CHILD", "CHILD-KEY", 2595, "child-safety-tags", [{ code: "printed-text", name: "Printed text", type: "SHORT_TEXT", maxLength: 20 }, { code: "colour", name: "Colour", type: "COLOUR", required: true, values: commonColours }]),
+  product("social-nfc-keyring", "Social NFC Keyring", "A personalised keyring that opens one social destination or a flexible multi-link profile.", "SOCIAL", "SOCIAL-KEY", 1995, "social-nfc-tags", [{ code: "printed-text", name: "Printed text", type: "SHORT_TEXT", maxLength: 24 }, { code: "colour", name: "Colour", type: "COLOUR", required: true, values: ["Black", "White", "Ocean", "Lime"] }], true),
+  product("creator-nfc-tag", "Creator NFC Tag", "A creator-focused NFC product for events, markets and fast audience connections.", "SOCIAL", "SOCIAL-CREATOR", 2395, "social-nfc-tags", [{ code: "creator-name", name: "Creator name", type: "SHORT_TEXT", required: true, maxLength: 28 }, { code: "colour", name: "Colour", type: "COLOUR", required: true, values: ["Black", "White", "Ocean", "Lime"] }]),
+  product("nfc-business-keyring", "NFC Business Keyring", "A reusable digital contact product with phone, email, social links and downloadable vCard.", "BUSINESS", "BIZ-KEY", 2995, "business-nfc-tags", [{ code: "display-name", name: "Name or company", type: "SHORT_TEXT", required: true, maxLength: 36 }, { code: "colour", name: "Colour", type: "COLOUR", required: true, values: ["Black", "White", "Navy"] }], true),
+  product("google-review-stand", "Google Review Stand", "A counter-ready NFC and QR stand that opens a validated customer review destination.", "REVIEW", "BIZ-REVIEW", 4495, "business-nfc-tags", [{ code: "business-name", name: "Business name", type: "SHORT_TEXT", required: true, maxLength: 40 }, { code: "colour", name: "Colour", type: "COLOUR", required: true, values: ["Black", "White", "Navy"] }]),
+  product("smart-luggage-tag", "Smart Luggage Tag", "A durable travel tag with a minimal-contact recovery profile and lost-mode messaging.", "LUGGAGE", "LUG-TRAVEL", 2295, "luggage-tags", [{ code: "printed-name", name: "Printed name", type: "SHORT_TEXT", required: true, maxLength: 28 }, { code: "colour", name: "Colour", type: "COLOUR", required: true, values: commonColours }], true),
+  product("backpack-identification-tag", "Backpack Identification Tag", "A versatile NFC identifier for backpacks, cases and valuable everyday equipment.", "LUGGAGE", "LUG-BACKPACK", 2195, "luggage-tags", [{ code: "printed-text", name: "Printed text", type: "SHORT_TEXT", required: true, maxLength: 28 }, { code: "colour", name: "Colour", type: "COLOUR", required: true, values: commonColours }]),
 ];
 
 async function main() {
   const categoryIds = new Map<string, string>();
   for (const [sortOrder, item] of categories.entries()) {
-    const category = await db.productCategory.upsert({
-      where: { slug: item.slug },
-      update: { name: item.name, description: item.description, sortOrder, active: true },
-      create: { ...item, sortOrder },
-    });
+    const ctaHref = `/shop?category=${item.slug}`;
+    const category = await db.productCategory.upsert({ where: { slug: item.slug }, update: { ...item, ctaHref, sortOrder, status: "PUBLISHED", showOnHomepage: true, showInNavigation: true, showInShop: true, showLanding: true, indexable: true, seoTitle: `${item.name} NFC Products Australia`, seoDescription: item.shortDescription }, create: { ...item, ctaHref, sortOrder, status: "PUBLISHED", seoTitle: `${item.name} NFC Products Australia`, seoDescription: item.shortDescription } });
     categoryIds.set(item.slug, category.id);
   }
-
   for (const item of catalog) {
-    const product = await db.product.upsert({
-      where: { slug: item.slug },
-      update: { name: item.name, description: item.description, shortDescription: item.description, type: item.type, categoryId: categoryIds.get(item.category), status: "ACTIVE", featured: item.featured ?? false },
-      create: { slug: item.slug, name: item.name, description: item.description, shortDescription: item.description, type: item.type, categoryId: categoryIds.get(item.category), status: "ACTIVE", featured: item.featured ?? false },
-    });
-    await db.productVariant.upsert({
-      where: { sku: item.sku },
-      update: { productId: product.id, name: "Standard", priceCents: item.priceCents, active: true },
-      create: { productId: product.id, sku: item.sku, name: "Standard", priceCents: item.priceCents, inventory: 100 },
-    });
+    const productRecord = await db.product.upsert({ where: { slug: item.slug }, update: { name: item.name, description: item.description, shortDescription: item.description, type: item.type, categoryId: categoryIds.get(item.category), status: "ACTIVE", shopVisible: true, featured: item.featured, brand: "Tapkin" }, create: { slug: item.slug, name: item.name, description: item.description, shortDescription: item.description, type: item.type, categoryId: categoryIds.get(item.category), status: "ACTIVE", shopVisible: true, featured: item.featured, brand: "Tapkin" } });
+    await db.productVariant.upsert({ where: { sku: item.sku }, update: { productId: productRecord.id, name: "Standard", priceCents: item.priceCents, active: true }, create: { productId: productRecord.id, sku: item.sku, name: "Standard", priceCents: item.priceCents, inventory: 100 } });
     for (const [sortOrder, optionSeed] of item.options.entries()) {
-      const option = await db.productOption.upsert({
-        where: { productId_code: { productId: product.id, code: optionSeed.code } },
-        update: { name: optionSeed.name, type: optionSeed.type, required: optionSeed.required ?? false, maxLength: optionSeed.maxLength, sortOrder, active: true },
-        create: { productId: product.id, code: optionSeed.code, name: optionSeed.name, type: optionSeed.type, required: optionSeed.required ?? false, maxLength: optionSeed.maxLength, sortOrder },
-      });
-      for (const [valueOrder, value] of (optionSeed.values ?? []).entries()) {
-        await db.productOptionValue.upsert({
-          where: { optionId_value: { optionId: option.id, value: value.toLowerCase() } },
-          update: { label: value, sortOrder: valueOrder, active: true },
-          create: { optionId: option.id, label: value, value: value.toLowerCase(), sortOrder: valueOrder },
-        });
-      }
+      const option = await db.productOption.upsert({ where: { productId_code: { productId: productRecord.id, code: optionSeed.code } }, update: { name: optionSeed.name, type: optionSeed.type, required: optionSeed.required ?? false, maxLength: optionSeed.maxLength, sortOrder, active: true }, create: { productId: productRecord.id, code: optionSeed.code, name: optionSeed.name, type: optionSeed.type, required: optionSeed.required ?? false, maxLength: optionSeed.maxLength, sortOrder } });
+      for (const [valueOrder, value] of (optionSeed.values ?? []).entries()) await db.productOptionValue.upsert({ where: { optionId_value: { optionId: option.id, value: value.toLowerCase() } }, update: { label: value, sortOrder: valueOrder, active: true }, create: { optionId: option.id, label: value, value: value.toLowerCase(), sortOrder: valueOrder } });
     }
   }
-  await db.storeSettings.upsert({ where: { id: "default" }, update: {}, create: { id: "default" } });
-  const email = process.env.DEV_ADMIN_EMAIL?.trim().toLowerCase();
-  const password = process.env.DEV_ADMIN_PASSWORD;
-
-  if (process.env.NODE_ENV === "production" && (email || password)) {
-    throw new Error("Development administrator seeding is disabled in production");
-  }
-  if (Boolean(email) !== Boolean(password)) {
-    throw new Error("Set both DEV_ADMIN_EMAIL and DEV_ADMIN_PASSWORD, or leave both empty");
-  }
-  if (email && password) {
-    const parsedPassword = passwordSchema.safeParse(password);
-    if (!parsedPassword.success) throw new Error(parsedPassword.error.issues[0]?.message ?? "Invalid development administrator password");
-    const passwordHash = await hashPassword(parsedPassword.data);
-    await db.user.upsert({
-      where: { email },
-      update: { role: Role.ADMIN, passwordHash, emailVerifiedAt: new Date() },
-      create: { email, name: "Platform Admin", role: Role.ADMIN, passwordHash, emailVerifiedAt: new Date() },
-    });
-  }
+  await db.storeSettings.upsert({ where: { id: "default" }, update: { storeName: "Tapkin", siteTitle: "Tapkin Smart Products", siteDescription: "Personalised smart products combining 3D printing, NFC, QR and secure digital profiles." }, create: { id: "default", storeName: "Tapkin", siteTitle: "Tapkin Smart Products", siteDescription: "Personalised smart products combining 3D printing, NFC, QR and secure digital profiles." } });
+  const email = process.env.DEV_ADMIN_EMAIL?.trim().toLowerCase(); const password = process.env.DEV_ADMIN_PASSWORD;
+  if (process.env.NODE_ENV === "production" && (email || password)) throw new Error("Development administrator seeding is disabled in production");
+  if (Boolean(email) !== Boolean(password)) throw new Error("Set both DEV_ADMIN_EMAIL and DEV_ADMIN_PASSWORD, or leave both empty");
+  if (email && password) { const parsedPassword = passwordSchema.safeParse(password); if (!parsedPassword.success) throw new Error(parsedPassword.error.issues[0]?.message ?? "Invalid development administrator password"); const passwordHash = await hashPassword(parsedPassword.data); await db.user.upsert({ where: { email }, update: { role: Role.ADMIN, passwordHash, emailVerifiedAt: new Date() }, create: { email, name: "Platform Admin", role: Role.ADMIN, passwordHash, emailVerifiedAt: new Date() } }); }
 }
 
-main()
-  .catch((error) => {
-    console.error(error instanceof Error ? error.message : "Database seed failed");
-    process.exitCode = 1;
-  })
-  .finally(() => db.$disconnect());
+main().catch(error => { console.error(error instanceof Error ? error.message : "Database seed failed"); process.exitCode = 1; }).finally(() => db.$disconnect());

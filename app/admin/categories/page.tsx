@@ -1,7 +1,11 @@
-import { AdminCategoryManager } from "@/components/admin-category-manager";
+import Link from "next/link";
+import { Plus, Search } from "lucide-react";
 import { db } from "@/lib/db";
 
-export default async function AdminCategoriesPage() {
-  const categories = await db.productCategory.findMany({ include: { _count: { select: { products: true } } }, orderBy: [{ sortOrder: "asc" }, { name: "asc" }] });
-  return <div><div className="admin-heading"><div><p className="admin-kicker">Catalog</p><h1>Categories</h1><p>Manage storefront navigation and category SEO.</p></div></div><AdminCategoryManager categories={categories} /></div>;
+const statuses = ["DRAFT", "PUBLISHED", "HIDDEN", "ARCHIVED"] as const;
+
+export default async function AdminCategoriesPage({ searchParams }: { searchParams: Promise<{ q?: string; status?: string }> }) {
+  const { q = "", status = "" } = await searchParams; const validStatus = statuses.find(value => value === status);
+  const categories = await db.productCategory.findMany({ where: { ...(q ? { OR: [{ name: { contains: q, mode: "insensitive" } }, { slug: { contains: q, mode: "insensitive" } }] } : {}), ...(validStatus ? { status: validStatus } : {}) }, include: { _count: { select: { products: true } } }, orderBy: [{ sortOrder: "asc" }, { name: "asc" }], take: 200 });
+  return <div><div className="admin-heading"><div><p className="admin-kicker">Content</p><h1>Categories</h1><p>Control landing content, visibility and SEO without affecting existing NFC tags.</p></div><Link className="button" href="/admin/categories/new"><Plus size={17} /> Add category</Link></div><form className="admin-filters"><label><Search size={17} /><input name="q" defaultValue={q} placeholder="Search name or slug" /></label><select name="status" defaultValue={status}><option value="">All statuses</option>{statuses.map(value => <option key={value}>{value}</option>)}</select><button className="button secondary">Filter</button></form><section className="admin-panel flush">{categories.length ? <div className="admin-table category-admin-table"><div className="admin-tr admin-th"><span>Category</span><span>Products</span><span>Public surfaces</span><span>Status</span></div>{categories.map(category => <Link href={`/admin/categories/${category.id}`} className="admin-tr" key={category.id}><span><strong>{category.name}</strong><small>/{category.slug}</small></span><strong>{category._count.products}</strong><span><small>{[category.showOnHomepage && "Home", category.showInNavigation && "Nav", category.showInShop && "Shop", category.showLanding && "Landing"].filter(Boolean).join(" · ") || "Hidden everywhere"}</small></span><span className={`admin-status ${category.status}`}>{category.status}</span></Link>)}</div> : <div className="admin-empty">No categories match this view.</div>}</section></div>;
 }

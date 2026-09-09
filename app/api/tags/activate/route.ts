@@ -24,10 +24,15 @@ export async function POST(request: NextRequest) {
   const tag = await db.nFCTag.findUnique({ where: { publicTagId: parsed.data.publicTagId } });
   const valid = tag
     && isActivatable(tag)
+    && (!tag.activationLockedUntil || tag.activationLockedUntil <= new Date())
     && await verifyActivationCode(parsed.data.activationCode, tag.activationCodeHash);
 
   if (!valid || !tag) {
-    if (tag) await db.tagActivation.create({ data: { tagId: tag.id, userId: user.id, success: false, ipHash: privacyHash(ip) } });
+    if (tag) {
+      const since = new Date(Date.now() - 15 * 60_000);
+      const failures = await db.tagActivation.count({ where: { tagId: tag.id, success: false, attemptedAt: { gte: since } } });
+      await db.$transaction([db.tagActivation.create({ data: { tagId: tag.id, userId: user.id, success: false, ipHash: privacyHash(ip) } }), ...(failures >= 4 ? [db.nFCTag.update({ where: { id: tag.id }, data: { activationLockedUntil: new Date(Date.now() + 30 * 60_000) } })] : [])]);
+    }
     return jsonError("Tag ID or activation code is invalid", 400);
   }
   if (!isManagedProfileType(tag.productType)) return jsonError("This product type is not ready for activation", 409);
@@ -36,7 +41,7 @@ export async function POST(request: NextRequest) {
     await db.$transaction(async (tx) => {
       const claimed = await tx.nFCTag.updateMany({
         where: { id: tag.id, ownerId: null, status: "UNCLAIMED" },
-        data: { ownerId: user.id, status: "ACTIVE", activatedAt: new Date() },
+        data: { ownerId: user.id, status: "ACTIVE", activatedAt: new Date(), activationLockedUntil: null },
       });
       if (claimed.count !== 1) throw new Error("TAG_ALREADY_CLAIMED");
       const profile = await tx.tagProfile.create({ data: { tagId: tag.id, displayName: tag.productType === "PET" ? "My pet" : "My tag" } });

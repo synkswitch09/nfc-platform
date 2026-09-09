@@ -12,22 +12,17 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   if (!parsed.success) return jsonError(parsed.error.issues[0]?.message ?? "Invalid category");
   const { categoryId } = await params;
   try {
-    const updated = await db.productCategory.updateMany({ where: { id: categoryId }, data: parsed.data });
-    if (!updated.count) return jsonError("Category not found", 404);
-    await db.auditLog.create({ data: { actorId: user.id, action: "CATEGORY_UPDATED", entityType: "ProductCategory", entityId: categoryId } });
+    const existing = await db.productCategory.findUnique({ where: { id: categoryId }, select: { status: true } });
+    if (!existing) return jsonError("Category not found", 404);
+    const next = parsed.data.status;
+    const action = existing.status === next ? "CATEGORY_UPDATED" : next === "PUBLISHED" ? "CATEGORY_PUBLISHED" : next === "HIDDEN" ? "CATEGORY_HIDDEN" : next === "ARCHIVED" ? "CATEGORY_ARCHIVED" : "CATEGORY_DRAFTED";
+    await db.$transaction([
+      db.productCategory.update({ where: { id: categoryId }, data: parsed.data }),
+      db.auditLog.create({ data: { actorId: user.id, action, entityType: "ProductCategory", entityId: categoryId, metadata: { fromStatus: existing.status, toStatus: next } } }),
+    ]);
     return NextResponse.json({ ok: true });
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") return jsonError("That category slug is already in use", 409);
     return jsonError("Category could not be updated", 500);
   }
-}
-
-export async function DELETE(request: NextRequest, { params }: { params: Promise<{ categoryId: string }> }) {
-  if (!assertSameOrigin(request)) return jsonError("Invalid request origin", 403);
-  const user = await getAdminApiUser(); if (!user) return jsonError("Forbidden", 403);
-  const { categoryId } = await params;
-  const updated = await db.productCategory.updateMany({ where: { id: categoryId }, data: { active: false } });
-  if (!updated.count) return jsonError("Category not found", 404);
-  await db.auditLog.create({ data: { actorId: user.id, action: "CATEGORY_ARCHIVED", entityType: "ProductCategory", entityId: categoryId } });
-  return NextResponse.json({ ok: true });
 }

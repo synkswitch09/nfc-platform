@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 
-backup_path=${1:?Usage: CONFIRM_RESTORE=yes scripts/restore.sh /path/to/tapkind-backup}
+backup_path=${1:?Usage: CONFIRM_RESTORE=yes scripts/restore.sh /path/to/tapkin-backup}
 if [ "${CONFIRM_RESTORE:-}" != "yes" ]; then
   echo "Restore replaces the current database and media. Re-run with CONFIRM_RESTORE=yes after checking the target."
   exit 1

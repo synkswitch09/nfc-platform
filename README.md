@@ -1,4 +1,4 @@
-# TapKind NFC Platform
+# Tapkin NFC Platform
 
 Production-oriented MVP for an Australian business selling configurable physical NFC products. Each NTAG213 stores only one short, random public URL (`/t/{publicTagId}`); customer and emergency data remain in PostgreSQL and can be changed without rewriting the tag.
 

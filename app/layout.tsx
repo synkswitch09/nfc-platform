@@ -5,15 +5,16 @@ import { getCurrentUser } from "@/lib/auth";
 import { CartLink } from "@/components/cart-link";
 import { CartProvider } from "@/components/cart-provider";
 import { getStoreSettings } from "@/lib/settings";
+import { db } from "@/lib/db";
 import "./globals.css";
 
 export async function generateMetadata(): Promise<Metadata> {
   const settings = await getStoreSettings();
-  return { metadataBase: new URL(process.env.APP_URL ?? "http://localhost:3000"), title: { default: settings.siteTitle, template: `%s · ${settings.storeName}` }, description: settings.siteDescription, openGraph: { title: settings.siteTitle, description: settings.siteDescription, type: "website", locale: "en_AU", images: settings.defaultSocialImageUrl ? [settings.defaultSocialImageUrl] : [] } };
+  return { metadataBase: new URL(process.env.APP_URL ?? "http://localhost:3000"), title: { default: settings.siteTitle, template: `%s · ${settings.storeName}` }, description: settings.siteDescription, applicationName: "Tapkin", openGraph: { siteName: "Tapkin", title: settings.siteTitle, description: settings.siteDescription, type: "website", locale: "en_AU", images: settings.defaultSocialImageUrl ? [settings.defaultSocialImageUrl] : [] }, twitter: { card: settings.defaultSocialImageUrl ? "summary_large_image" : "summary", title: settings.siteTitle, description: settings.siteDescription, images: settings.defaultSocialImageUrl ? [settings.defaultSocialImageUrl] : [] } };
 }
 
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  const [user, settings] = await Promise.all([getCurrentUser(), getStoreSettings()]);
+  const [user, settings, categories] = await Promise.all([getCurrentUser(), getStoreSettings(), process.env.DATABASE_URL ? db.productCategory.findMany({ where: { status: "PUBLISHED", showInNavigation: true }, select: { name: true, slug: true }, orderBy: [{ sortOrder: "asc" }, { name: "asc" }], take: 6 }).catch(() => []) : []]);
   return (
     <html lang="en-AU">
       <body>
@@ -22,6 +23,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
           <Link href="/" className="brand"><span className="brand-mark"><Radio size={18} /></span>{settings.storeName}</Link>
           <nav aria-label="Main navigation">
             <Link href="/shop">Shop</Link>
+            {categories.map(category => <Link className="category-nav-link" href={`/categories/${category.slug}`} key={category.slug}>{category.name}</Link>)}
             <Link href="/#how-it-works">How it works</Link>
             <CartLink />
             {user ? <Link className="nav-cta" href="/dashboard">My products</Link> : <Link className="nav-cta" href="/login">Sign in</Link>}

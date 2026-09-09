@@ -11,7 +11,7 @@ export function PublicActions({ phone, label = "owner" }: { phone?: string | nul
     setMessage("");
     if (!navigator.geolocation) return setMessage("Location sharing is not supported on this device.");
     navigator.geolocation.getCurrentPosition(
-      ({ coords }) => { const map = `https://maps.google.com/?q=${coords.latitude},${coords.longitude}`; window.location.href = `sms:${dial}?body=${encodeURIComponent(`I scanned this TapKind tag. My current location: ${map}`)}`; },
+      ({ coords }) => { const map = `https://maps.google.com/?q=${coords.latitude},${coords.longitude}`; window.location.href = `sms:${dial}?body=${encodeURIComponent(`I scanned this Tapkin tag. My current location: ${map}`)}`; },
       () => setMessage("Your location was not shared. You can still call or send a message."),
       { enableHighAccuracy: false, timeout: 10000, maximumAge: 60000 },
     );

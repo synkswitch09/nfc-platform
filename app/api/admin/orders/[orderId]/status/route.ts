@@ -34,7 +34,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const email = updatedOrder?.user?.email ?? updatedOrder?.guestEmail;
   if (email && updatedOrder && ["PROCESSING", "READY_TO_SHIP", "SHIPPED", "DELIVERED"].includes(updatedOrder.status)) {
     const tracking = updatedOrder.status === "SHIPPED" ? ` Carrier: ${updatedOrder.shippingCarrier}. Tracking: ${updatedOrder.trackingNumber}.` : "";
-    await sendTransactionalEmail({ to: email, subject: `Order ${updatedOrder.orderNumber}: ${updatedOrder.status.replaceAll("_", " ")}`, text: `Your TapKind order is now ${updatedOrder.status.replaceAll("_", " ").toLowerCase()}.${tracking}` }).catch(() => undefined);
+    await sendTransactionalEmail({ to: email, subject: `Order ${updatedOrder.orderNumber}: ${updatedOrder.status.replaceAll("_", " ")}`, text: `Your Tapkin order is now ${updatedOrder.status.replaceAll("_", " ").toLowerCase()}.${tracking}` }).catch(() => undefined);
   }
   return NextResponse.json({ ok: true });
 }

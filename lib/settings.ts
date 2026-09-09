@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 
-export const defaultStoreSettings = { storeName: "TapKind", businessName: null as string | null, supportEmail: "hello@example.com", currency: "AUD", defaultCountry: "AU", siteTitle: "TapKind NFC", siteDescription: "Smart NFC tags for pets, families, social profiles and business in Australia.", defaultSocialImageUrl: null as string | null, socialLinks: {} as Record<string, string>, shippingConfig: { flatRateCents: 900, freeOverCents: 6000 } as Record<string, number> };
+export const defaultStoreSettings = { storeName: "Tapkin", businessName: null as string | null, supportEmail: "hello@example.com", currency: "AUD", defaultCountry: "AU", siteTitle: "Tapkin Smart Products", siteDescription: "Personalised smart products combining 3D printing, NFC, QR and secure digital profiles.", defaultSocialImageUrl: null as string | null, socialLinks: {} as Record<string, string>, shippingConfig: { flatRateCents: 900, freeOverCents: 6000 } as Record<string, number> };
 
 export async function getStoreSettings() {
   if (!process.env.DATABASE_URL) return defaultStoreSettings;

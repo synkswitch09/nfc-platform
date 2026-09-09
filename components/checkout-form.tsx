@@ -35,7 +35,7 @@ export function CheckoutForm({ account, shippingConfig }: { account: { name: str
     });
     const result = await response.json().catch(() => ({}));
     if (!response.ok) { setPending(false); setError(result.error ?? "Checkout is unavailable"); return; }
-    sessionStorage.setItem("tapkind-clear-cart-on-success", "true");
+    sessionStorage.setItem("tapkin-clear-cart-on-success", "true");
     window.location.assign(result.url);
   }
 
@@ -45,7 +45,7 @@ export function CheckoutForm({ account, shippingConfig }: { account: { name: str
       {account && <div className="guest-banner"><strong>Signed in as {account.name}</strong><span>Your order will appear in your account after payment.</span></div>}
       <section className="checkout-section"><h2>Contact</h2><div className="field-grid"><label className="field">Full name<input name="name" autoComplete="name" defaultValue={account?.address?.recipient ?? account?.name} required /></label><label className="field">Email<input name="email" type="email" autoComplete="email" defaultValue={account?.email} required /></label></div></section>
       <section className="checkout-section"><h2>Delivery address</h2>{account?.address && <p className="notice">Your first saved address has been filled in. You can edit it for this order.</p>}<label className="field">Address<input name="line1" autoComplete="address-line1" defaultValue={account?.address?.line1} required /></label><label className="field">Apartment, suite or unit <span className="optional">Optional</span><input name="line2" autoComplete="address-line2" defaultValue={account?.address?.line2 ?? ""} /></label><div className="field-grid three"><label className="field">Suburb<input name="suburb" autoComplete="address-level2" defaultValue={account?.address?.suburb} required /></label><label className="field">State<select name="state" autoComplete="address-level1" defaultValue={account?.address?.state ?? "SA"}>{states.map(state => <option key={state}>{state}</option>)}</select></label><label className="field">Postcode<input name="postcode" inputMode="numeric" pattern="[0-9]{4}" maxLength={4} autoComplete="postal-code" defaultValue={account?.address?.postcode} required /></label></div></section>
-      <section className="checkout-section payment-note"><LockKeyhole /><div><h2>Secure payment</h2><p>You will enter card details on Stripe Checkout. TapKind never stores your card number.</p></div></section>
+      <section className="checkout-section payment-note"><LockKeyhole /><div><h2>Secure payment</h2><p>You will enter card details on Stripe Checkout. Tapkin never stores your card number.</p></div></section>
     </div>
     <aside className="order-summary checkout-summary"><h2>Your order</h2>{cart.lines.map(line => <p key={line.key}><span>{line.productName} × {line.quantity}</span><strong>{money.format(line.unitPriceCents * line.quantity / 100)}</strong></p>)}<p><span>Shipping</span><strong>{shipping ? money.format(shipping / 100) : "Free"}</strong></p><p className="summary-total"><span>Total</span><strong>{money.format((subtotal + shipping) / 100)}</strong></p>{error && <div className="form-error" role="alert">{error}</div>}<button className="button purchase-button" disabled={pending}>{pending ? "Preparing secure payment…" : "Continue to secure payment"}</button><p className="fine-print">By continuing, you agree to our <Link href="/terms"><u>terms</u></Link> and acknowledge our <Link href="/privacy"><u>privacy policy</u></Link>.</p></aside>
   </form>;

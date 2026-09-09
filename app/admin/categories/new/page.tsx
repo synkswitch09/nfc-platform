@@ -1,0 +1,5 @@
+import { CategoryEditor, type CategoryEditorInitial } from "@/components/category-editor";
+
+const initial: CategoryEditorInitial = { name: "", slug: "", shortDescription: "", description: "", icon: "radio", imageUrl: "", cardTitle: "", cardText: "", cardImageUrl: "", heroEyebrow: "Smart products for real life", heroHeadline: "", heroDescription: "", heroImageUrl: "", secondaryImageUrl: "", ctaLabel: "Shop this collection", ctaHref: "/shop", secondaryCtaLabel: "", secondaryCtaHref: "", status: "DRAFT", sortOrder: 0, showOnHomepage: true, showInNavigation: true, showInShop: true, showLanding: true, seoTitle: "", seoDescription: "", ogImageUrl: "", canonicalUrl: "", indexable: false, benefits: [], howItWorks: [], contentSections: [], faq: [] };
+
+export default function NewCategoryPage() { return <div><div className="admin-heading"><div><p className="admin-kicker">Content</p><h1>New category</h1><p>Create structured content as a draft, then publish when it is ready.</p></div></div><CategoryEditor initial={initial} /></div>; }

@@ -25,7 +25,7 @@ export async function createPendingOrder(items: CheckoutItemInput[], customer: C
   return db.$transaction(async tx => {
     const ids = [...new Set(items.map(item => item.variantId))];
     const variants = await tx.productVariant.findMany({
-      where: { id: { in: ids }, active: true, product: { status: "ACTIVE" } },
+      where: { id: { in: ids }, active: true, product: { status: "ACTIVE", shopVisible: true, category: { status: "PUBLISHED" } } },
       include: { product: { include: { options: { where: { active: true }, include: { values: true } } } } },
     });
     if (variants.length !== ids.length) throw new CheckoutError("One or more products are unavailable", 409);

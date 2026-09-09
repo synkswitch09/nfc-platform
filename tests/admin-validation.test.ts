@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { adminCategorySchema, adminProductSchema, inventoryAdjustmentSchema } from "@/lib/admin-validation";
+import { activationRegenerationSchema, adminCategorySchema, adminProductSchema, inventoryAdjustmentSchema } from "@/lib/admin-validation";
 
 const validProduct = {
-  name: "Pet tag", slug: "pet-tag", description: "A durable NFC pet tag.", type: "PET", status: "DRAFT", featured: false, brand: "TapKind", gstInclusive: true, indexable: true,
+  name: "Pet tag", slug: "pet-tag", description: "A durable NFC pet tag.", type: "PET", status: "DRAFT", featured: false, shopVisible: false, brand: "Tapkin", gstInclusive: true, indexable: true,
   variants: [{ sku: "PET-001", name: "Standard", priceCents: 2495, inventory: 10, trackInventory: true, lowStockThreshold: 5, backorderPolicy: "DENY", active: true }],
   options: [],
 };
@@ -17,7 +17,17 @@ describe("admin validation", () => {
     expect(adminProductSchema.safeParse({ ...validProduct, canonicalUrl: "javascript:alert(1)" }).success).toBe(false);
   });
   it("requires stable category slugs and stock-adjustment reasons", () => {
-    expect(adminCategorySchema.safeParse({ name: "Pet Tags", slug: "Pet Tags", sortOrder: 0, active: true }).success).toBe(false);
+    expect(adminCategorySchema.safeParse({ name: "Pet Tags", slug: "Pet Tags", sortOrder: 0, status: "PUBLISHED" }).success).toBe(false);
     expect(inventoryAdjustmentSchema.safeParse({ variantId: crypto.randomUUID(), quantity: 3, reason: "" }).success).toBe(false);
+  });
+  it("accepts structured category content and rejects unsafe CTA paths", () => {
+    const category = { name: "Pet Tags", slug: "pet-tags", sortOrder: 0, status: "PUBLISHED", showOnHomepage: true, showInNavigation: true, showInShop: true, showLanding: true, indexable: true, benefits: [], howItWorks: [], contentSections: [], faq: [] };
+    expect(adminCategorySchema.safeParse({ ...category, ctaHref: "/shop?category=pet-tags" }).success).toBe(true);
+    expect(adminCategorySchema.safeParse({ ...category, ctaHref: "javascript:alert(1)" }).success).toBe(false);
+  });
+  it("requires explicit identity verification before credential regeneration", () => {
+    const request = { reason: "CUSTOMER_LOST_CODE", note: "Verified against the original order", confirmedIdentity: true };
+    expect(activationRegenerationSchema.safeParse(request).success).toBe(true);
+    expect(activationRegenerationSchema.safeParse({ ...request, confirmedIdentity: false }).success).toBe(false);
   });
 });

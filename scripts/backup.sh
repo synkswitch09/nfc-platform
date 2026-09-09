@@ -3,7 +3,7 @@ set -eu
 
 backup_root=${1:?Usage: scripts/backup.sh /secure/backup/directory}
 timestamp=$(date -u +%Y%m%dT%H%M%SZ)
-destination="$backup_root/tapkind-$timestamp"
+destination="$backup_root/tapkin-$timestamp"
 mkdir -p "$destination"
 
 docker compose exec -T db pg_dump -U nfc -d nfc_platform --format=custom > "$destination/database.dump"

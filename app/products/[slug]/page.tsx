@@ -8,7 +8,7 @@ import { db } from "@/lib/db";
 import { ProductPurchase } from "@/components/product-purchase";
 
 const getProduct = cache((slug: string) => db.product.findFirst({
-  where: { slug, status: "ACTIVE" },
+  where: { slug, status: "ACTIVE", shopVisible: true, category: { status: "PUBLISHED" } },
   include: {
     category: true,
     images: { orderBy: [{ isPrimary: "desc" }, { sortOrder: "asc" }] },
@@ -42,7 +42,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
     name: product.name,
     description: product.shortDescription ?? product.description,
     sku: product.variants[0]?.sku,
-    brand: { "@type": "Brand", name: product.brand },
+    brand: { "@type": "Brand", name: product.brand || "Tapkin" },
     image: product.images.map(image => new URL(image.url, origin).toString()),
     offers: lowestPrice === undefined ? undefined : {
       "@type": "Offer",
@@ -60,7 +60,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
       <nav className="breadcrumbs" aria-label="Breadcrumb"><Link href="/">Home</Link><span>/</span><Link href="/shop">Shop</Link>{product.category && <><span>/</span><Link href={`/categories/${product.category.slug}`}>{product.category.name}</Link></>}</nav>
       <div className="product-layout">
         <div className="product-gallery">
-          {primary ? <Image src={primary.url} alt={primary.altText} width={900} height={900} priority unoptimized /> : <div className="product-placeholder"><Radio size={64} /><span>TapKind</span><strong>{product.name}</strong><small>Made to order in Adelaide</small></div>}
+          {primary ? <Image src={primary.url} alt={primary.altText} width={900} height={900} priority unoptimized /> : <div className="product-placeholder"><Radio size={64} /><span>Tapkin</span><strong>{product.name}</strong><small>Made to order in Adelaide</small></div>}
           {product.images.length > 1 && <div className="product-thumbs">{product.images.slice(1).map(image => <Image key={image.id} src={image.url} alt={image.altText} width={160} height={160} unoptimized />)}</div>}
         </div>
         <div className="product-copy">
@@ -71,7 +71,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
           <div className="trust-list"><span><ShieldCheck /> Personal data stays off the NFC chip</span><span><RefreshCw /> Update the profile any time</span><span><PackageCheck /> Personalised and made to order</span><span><Truck /> Australia-wide delivery</span></div>
         </div>
       </div>
-      <div className="product-story"><div><p className="eyebrow">How it works</p><h2>One physical tag. A profile you control.</h2></div><div><p>{product.fullDescription ?? product.description}</p><p>The NFC chip and printed QR code open the same secure TapKind address. Your personal details live in your account, so you can update or disable them without replacing the product.</p></div></div>
+      <div className="product-story"><div><p className="eyebrow">How it works</p><h2>One physical product. A profile you control.</h2></div><div><p>{product.fullDescription ?? product.description}</p><p>The NFC chip and printed QR code open the same secure Tapkin address. Your personal details live in your account, so you can update or disable them without replacing the product.</p></div></div>
     </section>
   </>;
 }

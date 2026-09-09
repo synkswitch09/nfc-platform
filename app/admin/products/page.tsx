@@ -4,24 +4,21 @@ import { Plus, Search } from "lucide-react";
 import { db } from "@/lib/db";
 
 const money = new Intl.NumberFormat("en-AU", { style: "currency", currency: "AUD" });
+const statuses = ["DRAFT", "ACTIVE", "HIDDEN", "OUT_OF_STOCK", "ARCHIVED"] as const;
+const PAGE_SIZE = 50;
 
-export default async function AdminProductsPage({ searchParams }: { searchParams: Promise<{ q?: string; status?: string }> }) {
-  const { q = "", status = "" } = await searchParams;
-  const products = await db.product.findMany({
-    where: {
-      ...(q ? { OR: [{ name: { contains: q, mode: "insensitive" } }, { slug: { contains: q, mode: "insensitive" } }, { variants: { some: { sku: { contains: q, mode: "insensitive" } } } }] } : {}),
-      ...(status && ["DRAFT", "ACTIVE", "OUT_OF_STOCK", "ARCHIVED"].includes(status) ? { status: status as "DRAFT" | "ACTIVE" | "OUT_OF_STOCK" | "ARCHIVED" } : {}),
-    },
-    include: { category: true, variants: { where: { active: true }, orderBy: { priceCents: "asc" } }, images: { where: { isPrimary: true }, take: 1 } },
-    orderBy: { updatedAt: "desc" },
-  });
-
-  return <div><div className="admin-heading"><div><p className="admin-kicker">Catalog</p><h1>Products</h1><p>Control publication, pricing, variants and NFC personalisation.</p></div><Link className="button" href="/admin/products/new"><Plus size={17} /> Add product</Link></div>
-    <form className="admin-filters"><label><Search size={17} /><input name="q" defaultValue={q} placeholder="Search name, slug or SKU" /></label><select name="status" defaultValue={status}><option value="">All statuses</option><option>DRAFT</option><option>ACTIVE</option><option>OUT_OF_STOCK</option><option>ARCHIVED</option></select><button className="button secondary">Filter</button></form>
-    <section className="admin-panel flush">{products.length ? <div className="admin-table product-admin-table"><div className="admin-tr admin-th"><span>Product</span><span>Category</span><span>Price</span><span>Stock</span><span>Status</span></div>{products.map(product => {
-      const activeVariants = product.variants;
-      const stock = activeVariants.reduce((total, variant) => total + Math.max(0, variant.inventory - variant.reservedInventory), 0);
-      return <Link href={`/admin/products/${product.id}`} className="admin-tr" key={product.id}><span className="admin-product-cell">{product.images[0] ? <Image src={product.images[0].url} alt="" width={42} height={42} unoptimized /> : <span className="admin-product-placeholder">TK</span>}<span><strong>{product.name}</strong><small>{activeVariants.map(variant => variant.sku).join(" · ") || "No active variants"}</small></span></span><span>{product.category?.name ?? "Uncategorised"}</span><span>{activeVariants[0] ? money.format(activeVariants[0].priceCents / 100) : "—"}</span><span className={stock <= 5 ? "stock-warning" : ""}>{stock}</span><span className={`admin-status ${product.status}`}>{product.status.replaceAll("_", " ")}</span></Link>;
-    })}</div> : <div className="admin-empty">No products match this view.</div>}</section>
-  </div>;
+export default async function AdminProductsPage({ searchParams }: { searchParams: Promise<{ q?: string; status?: string; category?: string; inventory?: string; sort?: string; page?: string }> }) {
+  const params = await searchParams; const q = params.q ?? ""; const status = statuses.find(value => value === params.status); const page = Math.max(1, Number(params.page) || 1);
+  const where = {
+    ...(q ? { OR: [{ name: { contains: q, mode: "insensitive" as const } }, { slug: { contains: q, mode: "insensitive" as const } }, { variants: { some: { sku: { contains: q, mode: "insensitive" as const } } } }] } : {}),
+    ...(status ? { status } : {}), ...(params.category ? { categoryId: params.category } : {}),
+    ...(params.inventory === "out" ? { variants: { some: { active: true, trackInventory: true, inventory: { lte: 0 } } } } : params.inventory === "low" ? { variants: { some: { active: true, trackInventory: true, inventory: { gt: 0, lte: 5 } } } } : params.inventory === "available" ? { variants: { some: { active: true, OR: [{ trackInventory: false }, { inventory: { gt: 0 } }, { backorderPolicy: "ALLOW" as const }] } } } : {}),
+  };
+  const orderBy = params.sort === "name" ? { name: "asc" as const } : params.sort === "created" ? { createdAt: "desc" as const } : { updatedAt: "desc" as const };
+  const [products, total, categories] = await Promise.all([
+    db.product.findMany({ where, include: { category: true, variants: { where: { active: true }, orderBy: { priceCents: "asc" } }, images: { where: { isPrimary: true }, take: 1 } }, orderBy, skip: (page - 1) * PAGE_SIZE, take: PAGE_SIZE }),
+    db.product.count({ where }), db.productCategory.findMany({ select: { id: true, name: true }, orderBy: { name: "asc" } }),
+  ]);
+  const pages = Math.max(1, Math.ceil(total / PAGE_SIZE)); const query = new URLSearchParams(Object.entries(params).flatMap(([key, value]) => value && key !== "page" ? [[key, value]] : []));
+  return <div><div className="admin-heading"><div><p className="admin-kicker">Catalog</p><h1>Products</h1><p>Control publication, pricing, variants, inventory and NFC personalisation.</p></div><Link className="button" href="/admin/products/new"><Plus size={17} /> Add product</Link></div><form className="admin-filters product-filters"><label><Search size={17} /><input name="q" defaultValue={q} placeholder="Name, slug or SKU" /></label><select name="category" defaultValue={params.category ?? ""}><option value="">All categories</option>{categories.map(category => <option value={category.id} key={category.id}>{category.name}</option>)}</select><select name="status" defaultValue={params.status ?? ""}><option value="">All statuses</option>{statuses.map(value => <option key={value}>{value}</option>)}</select><select name="inventory" defaultValue={params.inventory ?? ""}><option value="">Any inventory</option><option value="available">Available</option><option value="low">Low stock</option><option value="out">Out of stock</option></select><select name="sort" defaultValue={params.sort ?? "updated"}><option value="updated">Recently updated</option><option value="created">Newest</option><option value="name">Name A–Z</option></select><button className="button secondary">Filter</button></form><section className="admin-panel flush">{products.length ? <div className="admin-table product-admin-table"><div className="admin-tr admin-th"><span>Product</span><span>Category</span><span>Price</span><span>Stock</span><span>Status</span></div>{products.map(product => { const stock = product.variants.reduce((totalStock, variant) => totalStock + Math.max(0, variant.inventory - variant.reservedInventory), 0); return <Link href={`/admin/products/${product.id}`} className="admin-tr" key={product.id}><span className="admin-product-cell">{product.images[0] ? <Image src={product.images[0].url} alt="" width={42} height={42} unoptimized /> : <span className="admin-product-placeholder">TK</span>}<span><strong>{product.name}</strong><small>{product.variants.map(variant => variant.sku).join(" · ") || "No active variants"}</small></span></span><span>{product.category?.name ?? "Uncategorised"}</span><span>{product.variants[0] ? money.format(product.variants[0].priceCents / 100) : "—"}</span><span className={stock <= 5 ? "stock-warning" : ""}>{stock}</span><span className={`admin-status ${product.status}`}>{product.status.replaceAll("_", " ")}</span></Link>; })}</div> : <div className="admin-empty">No products match this view.</div>}</section>{pages > 1 && <nav className="pagination" aria-label="Product pages"><Link className={page <= 1 ? "disabled" : ""} href={`/admin/products?${query}&page=${Math.max(1, page - 1)}`}>Previous</Link><span>Page {page} of {pages}</span><Link className={page >= pages ? "disabled" : ""} href={`/admin/products?${query}&page=${Math.min(pages, page + 1)}`}>Next</Link></nav>}</div>;
 }

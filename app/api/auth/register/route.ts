@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
   const verificationToken = createOpaqueToken();
   await db.emailVerification.create({ data:{userId:user.id,tokenHash:sha256(verificationToken),expiresAt:new Date(Date.now()+24*60*60*1000),orderClaimId:claimOrder?.id} });
   const origin = process.env.APP_URL ?? request.nextUrl.origin;
-  await sendTransactionalEmail({to:user.email,subject:"Verify your TapKind email",text:`Verify your email: ${origin}/verify-email?token=${verificationToken}`}).catch(() => undefined);
+  await sendTransactionalEmail({to:user.email,subject:"Verify your Tapkin email",text:`Verify your email: ${origin}/verify-email?token=${verificationToken}`}).catch(() => undefined);
   await db.auditLog.create({ data: { actorId: user.id, action: "USER_REGISTERED", entityType: "User", entityId: user.id } });
   return NextResponse.json({ user }, { status: 201 });
 }
