@@ -2,6 +2,7 @@ FROM node:24-alpine AS dependencies
 WORKDIR /app
 RUN apk add --no-cache openssl libc6-compat
 COPY package.json package-lock.json ./
+COPY prisma/schema.prisma ./prisma/schema.prisma
 RUN npm ci
 
 FROM dependencies AS builder
