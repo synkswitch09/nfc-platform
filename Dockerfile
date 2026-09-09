@@ -7,6 +7,7 @@ RUN npm ci
 
 FROM dependencies AS builder
 COPY . .
+RUN mkdir -p public
 RUN npx prisma generate && npm run build
 
 FROM node:24-alpine AS runner
