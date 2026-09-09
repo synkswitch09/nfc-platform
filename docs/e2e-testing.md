@@ -4,11 +4,12 @@
 
 The runner covers:
 
-- Flow A: public browsing, cart/checkout surfaces, guest checkout, server-authoritative totals, test payment settlement and order success.
+- Flow A: homepage, category landing, filtered Shop, product/cart/checkout surfaces, guest checkout, server-authoritative totals, test payment settlement and order success.
 - Flow B: post-purchase email registration, verification, secure order attachment and appearance in the customer dashboard.
 - Flow C: anonymous rejection from account/NFC management.
 - Flow D: development-admin login, authorization, draft product creation, variant/stock, genuine image upload, publication and storefront visibility.
-- Flow E: production batch, one-time credentials, QR, manufacturing states, invalid/correct/replayed activation, owner profile editing, public scan, unknown tag and disabled-tag privacy.
+- Flow E: production batch, QR, manufacturing states, ADMIN-only credential regeneration, old-secret invalidation, one-time disclosure/audit safety, owner profile editing, public scan, unknown tag and disabled-tag privacy.
+- Continuity gates: active tag and owner management remain available while its category is `HIDDEN`/`ARCHIVED` and while its product is `HIDDEN`/`ARCHIVED`/`OUT_OF_STOCK`.
 - SEO boundaries: robots exclusions, dynamic sitemap, canonical metadata and product structured data.
 - Payments: server-side price tampering resistance, invalid Stripe signature rejection, valid signed webhook processing and duplicate-event idempotency.
 

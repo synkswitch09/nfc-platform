@@ -65,10 +65,10 @@ async function main() {
   const customerJar = new Map(); const adminJar = new Map();
 
   // FLOW A — guest purchase through the real HTTP boundary and test payment settlement.
-  for (const path of ["/", "/shop", "/products/pet-tag", "/cart", "/checkout"]) {
+  for (const path of ["/", "/categories/pet-tags", "/shop?category=pet-tags", "/products/round-nfc-pet-tag", "/cart", "/checkout"]) {
     const response = await request(path); assert(response.status === 200, `Guest can browse ${path}`);
   }
-  const seededVariant = await db.productVariant.findUnique({ where: { sku: "PET-BASE" } });
+  const seededVariant = await db.productVariant.findUnique({ where: { sku: "PET-ROUND" } });
   assert(Boolean(seededVariant), "Seeded checkout variant exists");
   await jsonResponse(await request("/api/checkout", { method: "POST", json: { items: [{ variantId: seededVariant.id, quantity: 0 }], customer: { name: "E2E Guest", email: guestEmail, shipping: { line1: "1 Test Street", suburb: "Adelaide", state: "SA", postcode: "5000", country: "AU" } } } }), 400, "Checkout rejects invalid quantities");
   await jsonResponse(await request("/api/checkout", { method: "POST", json: { items: [{ variantId: "00000000-0000-4000-8000-000000000000", quantity: 1 }], customer: { name: "E2E Guest", email: guestEmail, shipping: { line1: "1 Test Street", suburb: "Adelaide", state: "SA", postcode: "5000", country: "AU" } } } }), 409, "Checkout rejects unavailable variants");
@@ -110,8 +110,10 @@ async function main() {
   await jsonResponse(await request("/api/admin/products", { method: "POST", json: {} }), 403, "Customerless request is rejected by Product Admin");
   const login = await jsonResponse(await request("/api/auth/login", { method: "POST", jar: adminJar, json: { email: adminEmail, password: adminPassword } }), 200, "Development administrator can sign in");
   assert(login.user.role === "ADMIN", "Administrator role is enforced");
+  const e2eCategory = await db.productCategory.findUnique({ where: { slug: "pet-tags" } });
+  assert(e2eCategory?.status === "PUBLISHED", "Published category exists for the product journey");
   const slug = `e2e-nfc-tag-${suffix}`; const sku = `E2E-${suffix.toUpperCase()}`.slice(0, 50);
-  const productPayload = { name: `E2E NFC Tag ${suffix}`, slug, description: "A test-only NFC tag used by the integrated business journey.", fullDescription: "Created through Product Admin, imaged, stocked, published and then used in the NFC manufacturing flow.", categoryId: null, type: "PET", status: "DRAFT", featured: false, brand: "Tapkin", gstInclusive: true, seoTitle: `E2E NFC Tag ${suffix}`, seoDescription: "Integrated test product for NFC commerce and manufacturing.", ogImageUrl: "", canonicalUrl: "", indexable: false,
+  const productPayload = { name: `E2E NFC Tag ${suffix}`, slug, description: "A test-only NFC tag used by the integrated business journey.", fullDescription: "Created through Product Admin, imaged, stocked, published and then used in the NFC manufacturing flow.", categoryId: e2eCategory.id, type: "PET", status: "DRAFT", featured: false, shopVisible: false, brand: "Tapkin", gstInclusive: true, seoTitle: `E2E NFC Tag ${suffix}`, seoDescription: "Integrated test product for NFC commerce and manufacturing.", ogImageUrl: "", canonicalUrl: "", indexable: false,
     variants: [{ sku, name: "Standard", colour: "Ocean", size: "Standard", material: "PETG", priceCents: 3495, compareAtPriceCents: null, costCents: 800, inventory: 25, trackInventory: true, lowStockThreshold: 3, backorderPolicy: "DENY", active: true }],
     options: [{ name: "Pet name", code: "pet-name", type: "SHORT_TEXT", required: true, maxLength: 24, priceDeltaCents: 0, helpText: "Printed on the tag", active: true, values: [] }],
   };
@@ -123,7 +125,7 @@ async function main() {
   imageForm.append("altText", "Ocean E2E NFC pet tag");
   await jsonResponse(await request(`/api/admin/products/${product.id}/images`, { method: "POST", jar: adminJar, body: imageForm }), 201, "Administrator uploads a content-verified product image");
   const variant = product.variants[0];
-  await jsonResponse(await request(`/api/admin/products/${product.id}`, { method: "PATCH", jar: adminJar, json: { ...productPayload, status: "ACTIVE", indexable: true, variants: [{ ...productPayload.variants[0], id: variant.id }] } }), 200, "Administrator publishes the product");
+  await jsonResponse(await request(`/api/admin/products/${product.id}`, { method: "PATCH", jar: adminJar, json: { ...productPayload, status: "ACTIVE", shopVisible: true, indexable: true, variants: [{ ...productPayload.variants[0], id: variant.id }] } }), 200, "Administrator publishes the product");
   const storeProduct = await bodyText(await request(`/products/${slug}`));
   assert(storeProduct.text.includes(productPayload.name), "Published product appears in the store");
 
@@ -135,12 +137,36 @@ async function main() {
   for (const status of ["PROGRAMMED", "VERIFIED", "ASSEMBLED", "READY"]) {
     await jsonResponse(await request(`/api/admin/tags/${tag.id}/manufacturing`, { method: "POST", jar: adminJar, json: { status } }), 200, `Manufacturing advances tag to ${status}`);
   }
-  await jsonResponse(await request("/api/tags/activate", { method: "POST", jar: customerJar, json: { publicTagId: credential.publicTagId, activationCode: "ABCD-EFGH-JKLM" } }), 400, "Incorrect activation credential is rejected generically");
-  const activation = await jsonResponse(await request("/api/tags/activate", { method: "POST", jar: customerJar, json: { publicTagId: credential.publicTagId, activationCode: credential.activationCode } }), 200, "Customer activates the manufactured tag once");
-  await jsonResponse(await request("/api/tags/activate", { method: "POST", jar: customerJar, json: { publicTagId: credential.publicTagId, activationCode: credential.activationCode } }), 400, "Activation credential cannot be replayed");
+  await jsonResponse(await request(`/api/admin/tags/${tag.id}/activation`, { method: "POST", jar: adminJar, json: { reason: "CUSTOMER_LOST_CODE", note: "Identity confirmation deliberately omitted", confirmedIdentity: false } }), 400, "Activation regeneration requires identity confirmation");
+  const regenerated = await jsonResponse(await request(`/api/admin/tags/${tag.id}/activation`, { method: "POST", jar: adminJar, json: { reason: "CUSTOMER_LOST_CODE", note: "Order and verified account matched by support", confirmedIdentity: true } }), 200, "Administrator rotates an unclaimed activation credential");
+  assert(regenerated.activationCode !== credential.activationCode && regenerated.version === 2, "Regenerated activation credential is new and versioned");
+  const regenerationAudit = await db.auditLog.findFirst({ where: { entityId: tag.id, action: "TAG_ACTIVATION_CREDENTIAL_REGENERATED" }, orderBy: { createdAt: "desc" } });
+  const auditMetadata = JSON.stringify(regenerationAudit?.metadata ?? {});
+  assert(Boolean(regenerationAudit) && !auditMetadata.includes(regenerated.activationCode), "Audit records credential rotation without storing the secret");
+  await jsonResponse(await request("/api/tags/activate", { method: "POST", jar: customerJar, json: { publicTagId: credential.publicTagId, activationCode: credential.activationCode } }), 400, "Previous activation credential is invalidated immediately");
+  const activation = await jsonResponse(await request("/api/tags/activate", { method: "POST", jar: customerJar, json: { publicTagId: credential.publicTagId, activationCode: regenerated.activationCode } }), 200, "Customer activates the tag with the one-time replacement credential");
+  await jsonResponse(await request("/api/tags/activate", { method: "POST", jar: customerJar, json: { publicTagId: credential.publicTagId, activationCode: regenerated.activationCode } }), 400, "Activation credential cannot be replayed");
   await jsonResponse(await request(`/api/tags/${activation.tagId}/profile`, { method: "PATCH", jar: customerJar, json: { type: "PET", displayName: "Pixel E2E", details: { species: "Dog", breed: "Kelpie", description: "Friendly test pet", medicalInfo: "No medication", allergies: null, medications: null, behaviourNotes: "Approach calmly", veterinarian: null, approximateAge: "3", sex: null, photoUrl: "" }, contacts: [{ name: "E2E Customer", relationship: "Owner", phone: "+61400000000" }] } }), 200, "Customer configures the owned public profile");
   const publicProfile = await bodyText(await request(`/t/${credential.publicTagId}`));
   assert(publicProfile.text.includes("Pixel E2E") && publicProfile.text.includes("Approach calmly"), "Public NFC scan resolves the configured profile");
+  const ownerTagPage = await bodyText(await request(`/dashboard/tags/${activation.tagId}`, { jar: customerJar }));
+  assert(ownerTagPage.text.includes("Pixel E2E") && ownerTagPage.text.includes("Lifetime"), "Owner can manage the active tag and view analytics");
+
+  // Commercial visibility never governs an already-issued NFC identity.
+  for (const categoryStatus of ["HIDDEN", "ARCHIVED"]) {
+    await db.productCategory.update({ where: { id: e2eCategory.id }, data: { status: categoryStatus } });
+    const categoryHiddenProfile = await bodyText(await request(`/t/${credential.publicTagId}`));
+    assert(categoryHiddenProfile.text.includes("Pixel E2E"), `${categoryStatus} category does not interrupt an active tag`);
+    const categoryHiddenOwner = await bodyText(await request(`/dashboard/tags/${activation.tagId}`, { jar: customerJar }));
+    assert(categoryHiddenOwner.text.includes("Pixel E2E"), `Owner management survives a ${categoryStatus} category`);
+  }
+  await db.productCategory.update({ where: { id: e2eCategory.id }, data: { status: "PUBLISHED" } });
+  for (const productStatus of ["HIDDEN", "ARCHIVED", "OUT_OF_STOCK"]) {
+    await db.product.update({ where: { id: product.id }, data: { status: productStatus } });
+    const unavailableProductProfile = await bodyText(await request(`/t/${credential.publicTagId}`));
+    assert(unavailableProductProfile.text.includes("Pixel E2E"), `${productStatus} product does not interrupt an active tag`);
+  }
+  await db.product.update({ where: { id: product.id }, data: { status: "ACTIVE", shopVisible: true } });
   const unknownTag = await request("/t/ABCDEFGH23456789"); assert(unknownTag.status === 404, "Unknown public tag returns 404");
   await jsonResponse(await request(`/api/admin/tags/${tag.id}/status`, { method: "POST", jar: adminJar, json: { status: "LOST", reason: "E2E lost-tag check" } }), 200, "Administrator can report an active tag lost");
   const lost = await bodyText(await request(`/t/${credential.publicTagId}`));

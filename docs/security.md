@@ -3,7 +3,7 @@
 ## Implemented
 
 - Random UUID internal keys and 16-character non-sequential public tag IDs (approximately 79 bits from the human-safe alphabet)
-- Separate high-entropy activation credentials hashed with HMAC-SHA-256 and a server pepper
+- Separate high-entropy activation credentials hashed with HMAC-SHA-256 and a server pepper; regeneration rotates the hash, invalidates the old credential and reveals the replacement only in the immediate response
 - BCrypt password hashing at cost 12; opaque random sessions stored only as SHA-256 hashes
 - HttpOnly, SameSite=Lax session cookie; Secure in production
 - Same-origin enforcement for state-changing browser APIs
@@ -17,8 +17,10 @@
 - Child profile excludes address, school, routine and exact birth date by design
 - Raw IP addresses are not stored in scan events
 - Google/Apple Authorization Code Flow delegated to `openid-client` with PKCE, signed state storage, nonce and verified-email linking
-- Product uploads are size-limited and checked by file signature; filenames never control their storage path
+- Product uploads are size-limited and checked by MIME, file signature, decoded dimensions and pixel count; filenames never control their storage path
 - Suspended accounts and role changes revoke active sessions
+- Sensitive credential regeneration is ADMIN-only, requires an explicit identity-verification confirmation and reason, and records versions and context without the secret
+- Category/product status never authorizes public tag resolution; only tag state and profile visibility can expose or suppress an issued profile
 
 ## Required before production
 

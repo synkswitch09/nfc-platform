@@ -15,9 +15,17 @@ The MVP is a modular monolith. Next.js renders the public website, dashboards an
 
 ## Data model
 
-`NFCTag` is the stable product identity. `TagProfile` holds shared public controls and has a one-to-one relation with exactly one type-specific profile. Emergency products reuse the constrained emergency model; review and custom link products reuse the validated link model. Accessories intentionally have no NFC profile. Orders snapshot unit prices, SKUs, product types, addresses and personalisation; Stripe records are separate and webhook events are idempotent.
+`ProductCategory`, `Product` and `NFCTag` have deliberately separate lifecycles:
 
-Catalogue media is referenced in PostgreSQL but stored in a durable private volume and served through a content-type-controlled route. This keeps the first NAS deployment self-contained while preserving a clean migration path to S3-compatible object storage.
+- A category controls commercial content, navigation, landing-page SEO and catalogue discovery. `DRAFT`, `HIDDEN` and `ARCHIVED` categories are not public, but remain available to Admin and retain historical relations.
+- A product controls whether a new unit can be sold. Only `ACTIVE` products with `shopVisible=true` inside a published category enter Shop or checkout. Hidden, out-of-stock and archived products retain orders, manufacturing records and issued tags.
+- An `NFCTag` is a durable issued identity. Its resolver uses only the tag's own status, ownership/profile visibility and security rules; it does not query category or product availability. `ACTIVE` and `LOST` profiles resolve, `DISABLED` and `REPLACED` expose no profile, and unclaimed units enter activation.
+
+`TagProfile` holds shared public controls and has a one-to-one relation with exactly one type-specific profile. Emergency products reuse the constrained emergency model; review and custom link products reuse the validated link model. Accessories intentionally have no NFC profile. Orders snapshot unit prices, SKUs, product types, addresses and personalisation; Stripe records are separate and webhook events are idempotent. An optional `OrderItem` link on `NFCTag` supports traceability without making order history a runtime dependency of the public resolver.
+
+Category landing content is structured JSON validated by Zod (benefits, steps, narrative sections and FAQ), rather than arbitrary HTML. Public CTA paths are restricted to internal URLs. The same category record controls homepage, navigation, shop-filter and landing visibility independently.
+
+Catalogue media is referenced in PostgreSQL but stored in a durable private volume and served through a content-type-controlled route. Uploads are checked by content signature, decoded dimensions and pixel limits; metadata records dimensions, primary image and ordering. This keeps the first NAS deployment self-contained while preserving a clean migration path to a resizing/scanning S3-compatible pipeline.
 
 ## Scale path
 

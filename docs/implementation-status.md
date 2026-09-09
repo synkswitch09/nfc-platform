@@ -6,12 +6,13 @@
 - Password authentication, verified-email and reset flows, opaque database sessions, Google/Apple OIDC through `openid-client`, and safe verified-email account linking
 - Customer dashboard with orders, printable receipts, tracking, saved Australian addresses, NFC activation, scan windows and profile management
 - Pet, child, emergency, social, business, luggage, review and custom NFC profiles, including editable social links, secondary emergency contacts and business vCard download; accessories remain catalogue-only
-- Commercial catalogue with status, categories, duplicate-as-draft, variants, inventory, pricing, personalisation fields, SEO preview and content-verified product media
-- Operations console for dashboard metrics, products, categories, inventory, orders, customers, tags, manufacturing batches, team roles, settings and audit history
-- Per-unit NFC manufacturing states, permanent random public URLs, separate one-time activation secrets stored only as hashes, QR/CSV/print exports and scan diagnostics
+- Commercial catalogue with independent category/product lifecycles, duplicate-as-draft, variants, inventory, pricing, personalisation fields, safe-delete rules, SEO preview and content-verified product media
+- Structured category CMS for five distinct landings, homepage/navigation/shop visibility, hero, benefits, steps, narrative sections, FAQ and SEO without arbitrary HTML
+- Operations console for dashboard metrics, product/category search and filters, inventory, orders, customers, detailed tag search, manufacturing batches, team roles, settings and audit history
+- Per-unit NFC manufacturing states, permanent random public URLs, separate one-time activation secrets stored only as hashes, admin-only credential rotation with one-time disclosure, QR/CSV/print exports and scan diagnostics
 - Configurable Australian shipping, AUD/GST presentation, metadata, canonical URLs, robots, sitemap, editorial guides, and Organization, WebSite, Product, Offer, Breadcrumb, ItemList, Article and legitimate FAQ structured data
 - PostgreSQL migrations and constraints, Docker/NAS deployment, persistent media volume, health check, CI and database/media backup tooling
-- CI-backed HTTP E2E evidence for the required guest purchase, post-purchase account, protected NFC management, Product Admin and complete NFC lifecycle journeys
+- CI-backed HTTP E2E coverage for guest purchase, post-purchase account, protected NFC management, Product Admin, credential rotation and continuity of active tags when categories/products leave sale
 
 ## External configuration before launch
 
