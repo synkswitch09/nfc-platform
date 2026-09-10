@@ -12,13 +12,21 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   if (!parsed.success) return jsonError(parsed.error.issues[0]?.message ?? "Invalid category");
   const { categoryId } = await params;
   try {
-    const existing = await db.productCategory.findUnique({ where: { id: categoryId }, select: { status: true } });
+    const existing = await db.productCategory.findUnique({ where: { id: categoryId }, select: { status: true, slug: true, legacySlugs: true } });
     if (!existing) return jsonError("Category not found", 404);
+    const collision = await db.productCategory.findFirst({
+      where: { id: { not: categoryId }, OR: [{ slug: parsed.data.slug }, { legacySlugs: { has: parsed.data.slug } }] },
+      select: { id: true },
+    });
+    if (collision) return jsonError("That category slug is already in use", 409);
+    const legacySlugs = existing.slug === parsed.data.slug
+      ? existing.legacySlugs
+      : Array.from(new Set([...existing.legacySlugs, existing.slug])).filter(slug => slug !== parsed.data.slug);
     const next = parsed.data.status;
     const action = existing.status === next ? "CATEGORY_UPDATED" : next === "PUBLISHED" ? "CATEGORY_PUBLISHED" : next === "HIDDEN" ? "CATEGORY_HIDDEN" : next === "ARCHIVED" ? "CATEGORY_ARCHIVED" : "CATEGORY_DRAFTED";
     await db.$transaction([
-      db.productCategory.update({ where: { id: categoryId }, data: parsed.data }),
-      db.auditLog.create({ data: { actorId: user.id, action, entityType: "ProductCategory", entityId: categoryId, metadata: { fromStatus: existing.status, toStatus: next } } }),
+      db.productCategory.update({ where: { id: categoryId }, data: { ...parsed.data, legacySlugs } }),
+      db.auditLog.create({ data: { actorId: user.id, action, entityType: "ProductCategory", entityId: categoryId, metadata: { fromStatus: existing.status, toStatus: next, fromSlug: existing.slug, toSlug: parsed.data.slug } } }),
     ]);
     return NextResponse.json({ ok: true });
   } catch (error) {

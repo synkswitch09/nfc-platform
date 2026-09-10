@@ -73,7 +73,7 @@ async function main() {
   await jsonResponse(await request("/api/checkout", { method: "POST", json: { items: [{ variantId: seededVariant.id, quantity: 0 }], customer: { name: "E2E Guest", email: guestEmail, shipping: { line1: "1 Test Street", suburb: "Adelaide", state: "SA", postcode: "5000", country: "AU" } } } }), 400, "Checkout rejects invalid quantities");
   await jsonResponse(await request("/api/checkout", { method: "POST", json: { items: [{ variantId: "00000000-0000-4000-8000-000000000000", quantity: 1 }], customer: { name: "E2E Guest", email: guestEmail, shipping: { line1: "1 Test Street", suburb: "Adelaide", state: "SA", postcode: "5000", country: "AU" } } } }), 409, "Checkout rejects unavailable variants");
   const checkout = await jsonResponse(await request("/api/checkout", { method: "POST", json: {
-    items: [{ variantId: seededVariant.id, quantity: 1, unitPriceCents: 1, personalisation: { "pet-name": "Pixel", colour: "ocean", shape: "round" } }],
+    items: [{ variantId: seededVariant.id, quantity: 1, unitPriceCents: 1, personalisation: { "pet-name": "Pixel", colour: "ocean" } }],
     customer: { name: "E2E Guest", email: guestEmail, shipping: { line1: "1 Test Street", suburb: "Adelaide", state: "SA", postcode: "5000", country: "AU" } },
   } }), 200, "Guest checkout succeeds without an account");
   assert(checkout.testMode === true, "Test payment flow settles the order");

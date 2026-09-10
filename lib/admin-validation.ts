@@ -2,6 +2,7 @@ import { z } from "zod";
 
 const optionalUrl = z.string().trim().url().refine(value => /^https?:\/\//i.test(value)).or(z.literal("")).optional();
 const optionalInternalPath = z.string().trim().regex(/^\/(?!\/)[A-Za-z0-9/_?&=.%+-]*$/, "Use a safe internal path beginning with /").or(z.literal("")).optional();
+const reservedCategorySlugs = new Set(["activate", "admin", "api", "cart", "categories", "checkout", "claim-order", "dashboard", "forgot-password", "guides", "login", "order", "privacy", "products", "register", "reset-password", "shop", "t", "terms", "verify-email"]);
 const optionValueSchema = z.object({ id: z.string().uuid().optional(), label: z.string().trim().min(1).max(80), value: z.string().trim().min(1).max(80), priceDeltaCents: z.number().int().min(0).max(100_000), active: z.boolean().default(true) });
 const optionSchema = z.object({ id: z.string().uuid().optional(), name: z.string().trim().min(1).max(80), code: z.string().trim().toLowerCase().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/), type: z.enum(["SHORT_TEXT", "LONG_TEXT", "SELECT", "RADIO", "CHECKBOX", "COLOUR", "IMAGE"]), required: z.boolean().default(false), maxLength: z.number().int().min(1).max(2_000).nullable().optional(), priceDeltaCents: z.number().int().min(0).max(100_000), helpText: z.string().trim().max(200).nullable().optional(), active: z.boolean().default(true), values: z.array(optionValueSchema).max(50).default([]) });
 const variantSchema = z.object({ id: z.string().uuid().optional(), sku: z.string().trim().toUpperCase().regex(/^[A-Z0-9][A-Z0-9._-]{2,49}$/), name: z.string().trim().min(1).max(100), colour: z.string().trim().max(50).nullable().optional(), size: z.string().trim().max(50).nullable().optional(), material: z.string().trim().max(50).nullable().optional(), priceCents: z.number().int().min(0).max(100_000_000), compareAtPriceCents: z.number().int().min(0).max(100_000_000).nullable().optional(), costCents: z.number().int().min(0).max(100_000_000).nullable().optional(), inventory: z.number().int().min(0).max(1_000_000), trackInventory: z.boolean().default(true), lowStockThreshold: z.number().int().min(0).max(100_000), backorderPolicy: z.enum(["DENY", "ALLOW"]), active: z.boolean().default(true) });
@@ -32,7 +33,7 @@ export const adminProductSchema = z.object({
 
 export const adminCategorySchema = z.object({
   name: z.string().trim().min(2).max(100),
-  slug: z.string().trim().toLowerCase().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/).max(120),
+  slug: z.string().trim().toLowerCase().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/).max(120).refine(value => !reservedCategorySlugs.has(value), "That slug is reserved by the application"),
   shortDescription: z.string().trim().max(240).nullable().optional(),
   description: z.string().trim().max(5_000).nullable().optional(),
   icon: z.string().trim().regex(/^[a-z][a-z0-9-]{1,39}$/).nullable().optional(),
@@ -40,10 +41,12 @@ export const adminCategorySchema = z.object({
   cardTitle: z.string().trim().max(100).nullable().optional(),
   cardText: z.string().trim().max(240).nullable().optional(),
   cardImageUrl: optionalUrl,
+  cardImageAlt: z.string().trim().max(160).nullable().optional(),
   heroEyebrow: z.string().trim().max(80).nullable().optional(),
   heroHeadline: z.string().trim().max(160).nullable().optional(),
   heroDescription: z.string().trim().max(1_000).nullable().optional(),
   heroImageUrl: optionalUrl,
+  heroImageAlt: z.string().trim().max(160).nullable().optional(),
   secondaryImageUrl: optionalUrl,
   ctaLabel: z.string().trim().max(60).nullable().optional(),
   ctaHref: optionalInternalPath,
@@ -61,9 +64,17 @@ export const adminCategorySchema = z.object({
   canonicalUrl: optionalUrl,
   indexable: z.boolean(),
   benefits: z.array(z.object({ icon: z.string().trim().max(40), title: z.string().trim().min(2).max(100), description: z.string().trim().min(5).max(500), order: z.number().int().min(0).max(100), visible: z.boolean() })).max(12).default([]),
+  useCases: z.array(z.object({ icon: z.string().trim().max(40), title: z.string().trim().min(2).max(100), description: z.string().trim().min(5).max(500), order: z.number().int().min(0).max(100), visible: z.boolean() })).max(12).default([]),
   howItWorks: z.array(z.object({ title: z.string().trim().min(2).max(100), description: z.string().trim().min(5).max(500), imageUrl: optionalUrl, ctaLabel: z.string().trim().max(60).nullable().optional(), ctaHref: optionalInternalPath, order: z.number().int().min(0).max(100), visible: z.boolean() })).max(10).default([]),
   contentSections: z.array(z.object({ layout: z.enum(["IMAGE_LEFT", "IMAGE_RIGHT", "TEXT_ONLY"]), eyebrow: z.string().trim().max(80).nullable().optional(), heading: z.string().trim().min(2).max(160), copy: z.string().trim().min(10).max(2_000), bulletPoints: z.array(z.string().trim().min(2).max(200)).max(10).default([]), imageUrl: optionalUrl, ctaLabel: z.string().trim().max(60).nullable().optional(), ctaHref: optionalInternalPath, order: z.number().int().min(0).max(100), visible: z.boolean() })).max(12).default([]),
   faq: z.array(z.object({ question: z.string().trim().min(5).max(180), answer: z.string().trim().min(10).max(1_000), order: z.number().int().min(0).max(100), enabled: z.boolean() })).max(20).default([]),
+  finalCtaEyebrow: z.string().trim().max(80).nullable().optional(),
+  finalCtaHeadline: z.string().trim().max(160).nullable().optional(),
+  finalCtaDescription: z.string().trim().max(500).nullable().optional(),
+  finalCtaLabel: z.string().trim().max(60).nullable().optional(),
+  finalCtaHref: optionalInternalPath,
+  visualTheme: z.enum(["CORAL", "SKY", "MIDNIGHT", "VIOLET", "AMBER"]),
+  landingLayout: z.enum(["EDITORIAL", "ASSURANCE", "EXECUTIVE", "MOMENTUM", "JOURNEY"]),
 });
 
 export const activationRegenerationSchema = z.object({

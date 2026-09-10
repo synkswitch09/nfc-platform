@@ -13,12 +13,18 @@ export async function POST(request: NextRequest) {
   if (!parsed.success) return jsonError(parsed.error.issues[0]?.message ?? "Invalid category");
   try {
     const category = await db.$transaction(async tx => {
+      const collision = await tx.productCategory.findFirst({
+        where: { OR: [{ slug: parsed.data.slug }, { legacySlugs: { has: parsed.data.slug } }] },
+        select: { id: true },
+      });
+      if (collision) throw new Error("CATEGORY_SLUG_CONFLICT");
       const created = await tx.productCategory.create({ data: parsed.data });
       await tx.auditLog.create({ data: { actorId: user.id, action: "CATEGORY_CREATED", entityType: "ProductCategory", entityId: created.id, metadata: { status: created.status } } });
       return created;
     });
     return NextResponse.json({ category }, { status: 201 });
   } catch (error) {
+    if (error instanceof Error && error.message === "CATEGORY_SLUG_CONFLICT") return jsonError("That category slug is already in use", 409);
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") return jsonError("That category slug is already in use", 409);
     return jsonError("Category could not be created", 500);
   }

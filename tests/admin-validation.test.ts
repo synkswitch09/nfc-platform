@@ -21,9 +21,10 @@ describe("admin validation", () => {
     expect(inventoryAdjustmentSchema.safeParse({ variantId: crypto.randomUUID(), quantity: 3, reason: "" }).success).toBe(false);
   });
   it("accepts structured category content and rejects unsafe CTA paths", () => {
-    const category = { name: "Pet Tags", slug: "pet-tags", sortOrder: 0, status: "PUBLISHED", showOnHomepage: true, showInNavigation: true, showInShop: true, showLanding: true, indexable: true, benefits: [], howItWorks: [], contentSections: [], faq: [] };
-    expect(adminCategorySchema.safeParse({ ...category, ctaHref: "/shop?category=pet-tags" }).success).toBe(true);
+    const category = { name: "Pet", slug: "pet", sortOrder: 0, status: "PUBLISHED", visualTheme: "CORAL", landingLayout: "EDITORIAL", showOnHomepage: true, showInNavigation: true, showInShop: true, showLanding: true, indexable: true, benefits: [], useCases: [], howItWorks: [], contentSections: [], faq: [] };
+    expect(adminCategorySchema.safeParse({ ...category, ctaHref: "/shop?category=pet" }).success).toBe(true);
     expect(adminCategorySchema.safeParse({ ...category, ctaHref: "javascript:alert(1)" }).success).toBe(false);
+    expect(adminCategorySchema.safeParse({ ...category, slug: "admin" }).success).toBe(false);
   });
   it("requires explicit identity verification before credential regeneration", () => {
     const request = { reason: "CUSTOMER_LOST_CODE", note: "Verified against the original order", confirmedIdentity: true };

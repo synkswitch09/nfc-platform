@@ -52,6 +52,22 @@ enum CategoryStatus {
   ARCHIVED
 }
 
+enum CategoryVisualTheme {
+  CORAL
+  SKY
+  MIDNIGHT
+  VIOLET
+  AMBER
+}
+
+enum CategoryLandingLayout {
+  EDITORIAL
+  ASSURANCE
+  EXECUTIVE
+  MOMENTUM
+  JOURNEY
+}
+
 enum CustomisationFieldType {
   SHORT_TEXT
   LONG_TEXT
@@ -256,48 +272,60 @@ model Product {
 }
 
 model ProductCategory {
-  id                String         @id @default(uuid()) @db.Uuid
-  slug              String         @unique
-  name              String
-  shortDescription  String?
-  description       String?        @db.Text
-  icon              String?
-  imageUrl          String?
-  cardTitle         String?
-  cardText          String?
-  cardImageUrl      String?
-  heroEyebrow       String?
-  heroHeadline      String?
-  heroDescription   String?        @db.Text
-  heroImageUrl      String?
-  secondaryImageUrl String?
-  ctaLabel          String?
-  ctaHref           String?
-  secondaryCtaLabel String?
-  secondaryCtaHref  String?
-  benefits          Json           @default("[]")
-  howItWorks        Json           @default("[]")
-  contentSections   Json           @default("[]")
-  faq               Json           @default("[]")
-  status            CategoryStatus @default(DRAFT)
-  sortOrder         Int            @default(0)
-  showOnHomepage    Boolean        @default(true)
-  showInNavigation  Boolean        @default(true)
-  showInShop        Boolean        @default(true)
-  showLanding       Boolean        @default(true)
-  seoTitle          String?
-  seoDescription    String?
-  ogImageUrl        String?
-  canonicalUrl      String?
-  indexable         Boolean        @default(true)
-  createdAt         DateTime       @default(now())
-  updatedAt         DateTime       @updatedAt
-  products          Product[]
+  id                  String                @id @default(uuid()) @db.Uuid
+  slug                String                @unique
+  legacySlugs         String[]              @default([])
+  name                String
+  shortDescription    String?
+  description         String?               @db.Text
+  icon                String?
+  imageUrl            String?
+  cardTitle           String?
+  cardText            String?
+  cardImageUrl        String?
+  cardImageAlt        String?
+  heroEyebrow         String?
+  heroHeadline        String?
+  heroDescription     String?               @db.Text
+  heroImageUrl        String?
+  heroImageAlt        String?
+  secondaryImageUrl   String?
+  ctaLabel            String?
+  ctaHref             String?
+  secondaryCtaLabel   String?
+  secondaryCtaHref    String?
+  benefits            Json                  @default("[]")
+  useCases            Json                  @default("[]")
+  howItWorks          Json                  @default("[]")
+  contentSections     Json                  @default("[]")
+  faq                 Json                  @default("[]")
+  finalCtaEyebrow     String?
+  finalCtaHeadline    String?
+  finalCtaDescription String?               @db.Text
+  finalCtaLabel       String?
+  finalCtaHref        String?
+  visualTheme         CategoryVisualTheme   @default(CORAL)
+  landingLayout       CategoryLandingLayout @default(EDITORIAL)
+  status              CategoryStatus        @default(DRAFT)
+  sortOrder           Int                   @default(0)
+  showOnHomepage      Boolean               @default(true)
+  showInNavigation    Boolean               @default(true)
+  showInShop          Boolean               @default(true)
+  showLanding         Boolean               @default(true)
+  seoTitle            String?
+  seoDescription      String?
+  ogImageUrl          String?
+  canonicalUrl        String?
+  indexable           Boolean               @default(true)
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
+  products            Product[]
 
   @@index([status, sortOrder])
   @@index([status, showOnHomepage, sortOrder])
   @@index([status, showInNavigation, sortOrder])
   @@index([status, showInShop, sortOrder])
+  @@index([legacySlugs], type: Gin)
 }
 
 model ProductImage {
