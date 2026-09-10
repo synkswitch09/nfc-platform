@@ -12,6 +12,8 @@ RUN npm run build
 
 FROM dependencies AS migrator
 COPY --chown=node:node prisma ./prisma
+COPY --chown=node:node lib ./lib
+COPY --chown=node:node tsconfig.json ./tsconfig.json
 USER node
 CMD ["./node_modules/.bin/prisma", "migrate", "deploy"]
 
