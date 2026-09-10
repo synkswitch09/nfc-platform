@@ -27,6 +27,8 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: 24, cache: npm }
       - run: npm ci
+      - name: Block critical dependency advisories
+        run: npm audit --omit=dev --audit-level=critical
       - run: npm run config:check
       - run: npm run db:deploy
       - run: npm run lint

@@ -87,9 +87,11 @@ Move production to its own server before regulated/contractual isolation is requ
 
 Prisma is a process singleton. Container replicas still multiply the connection pool; keep the URL connection limit small and monitor `active_connections`. Revisit PgBouncer only when metrics justify it.
 
+Do not add a blanket application retry around mutations: it can duplicate side effects. Let readiness fail while PostgreSQL is unavailable and let Container Apps stop routing traffic. Add bounded, operation-specific retry only for demonstrably transient, idempotent reads/operations.
+
 ### Migrations
 
-The app image never runs migrations at startup. CI builds a separate `migrator` target. Configure one manual-trigger Container Apps Job per environment with that image and only that environment's `DATABASE_URL`. The deploy workflow updates and waits for the job before updating the web app.
+The app image never runs migrations at startup. CI builds a separate `migrator` target. Configure one manual-trigger Container Apps Job per environment with that image and only that environment's `DATABASE_URL`. The deploy workflow updates and waits for the job before updating the web app. Workflow concurrency permits only one release for an environment at a time, preventing overlapping migration/deploy sequences.
 
 Migration release order: review SQL -> back up/confirm restore point -> run in DEVELOPMENT -> promote and run in STAGING -> exercise staging -> obtain production approval -> run production job once -> deploy app. Prefer backward-compatible expand/migrate/contract changes. Never combine an irreversible destructive schema change with the app release that first depends on it.
 
@@ -213,6 +215,8 @@ Application rollback: keep immutable SHA tags and Container Apps revisions. Stop
 Database rollback: prefer a forward-fix. A code rollback is safe only while the new schema remains backward compatible. For destructive/incompatible changes, stop release, restore to a new server/database from the pre-release point, validate, then deliberately repoint the app. `git revert` alone cannot undo migrated data.
 
 Production checklist: staging passed; migration reviewed; backup/restore posture confirmed; lint/typecheck/unit/E2E/build/Docker passed; OAuth/Stripe/email are in correct modes; no demo admin/data; `/api/health/live` and `/ready` pass; homepage, Shop, login, one product, one non-sensitive test NFC route and Admin authorization pass; explicit approver authorizes the Environment.
+
+Dependency audit note (10 September 2026): npm reports four high advisories through Prisma CLI 6.19's `@prisma/config` development/migration dependencies (`deepmerge-ts` and `effect`). The proposed automatic remediation downgrades Prisma to 6.12 and was intentionally not applied. The runtime standalone image does not include the Prisma CLI; the isolated migrator consumes trusted schema/config only. CI blocks critical advisories, while these high findings remain a tracked upgrade item to retest against the next compatible Prisma release. Re-evaluate before production approval.
 
 ## 14. NFC continuity
 

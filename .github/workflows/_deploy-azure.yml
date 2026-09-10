@@ -5,6 +5,9 @@ on:
       target_environment:
         required: true
         type: string
+concurrency:
+  group: deploy-${{ inputs.target_environment }}
+  cancel-in-progress: ${{ inputs.target_environment != 'production' }}
 jobs:
   deploy:
     runs-on: ubuntu-latest

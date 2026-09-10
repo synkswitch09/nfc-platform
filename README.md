@@ -85,6 +85,6 @@ For Apple, `APPLE_CLIENT_SECRET` is the signed client-secret JWT generated from 
 
 ## Launch gates
 
-Before accepting live customers: connect transactional email for verification/reset flows; replace legal placeholders with Australian legal advice; add malware/image scanning appropriate to the upload risk; configure distributed rate limiting if the app runs across multiple instances; configure backups, monitoring and alerting; and complete an independent security/privacy review, especially for child profiles.
+Before accepting live customers: connect transactional email for verification/reset flows; replace legal placeholders with Australian legal advice; add malware/image scanning appropriate to the upload risk; configure backups, monitoring and alerting; and complete an independent security/privacy review, especially for child profiles.
 
 See the [Azure deployment runbook](docs/deployment-azure.md), [architecture](docs/architecture.md), [category content operations](docs/category-content.md), [security](docs/security.md), [implementation status](docs/implementation-status.md), [E2E testing](docs/e2e-testing.md), the [category experience audit](docs/final-audit-2026-09-10.md), the [catalogue/content/NFC audit](docs/final-audit-2026-09-09.md), the [original platform audit](docs/final-audit-2026-09-08.md), and the [NAS operations runbook](docs/nas-operations.md).
