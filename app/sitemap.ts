@@ -2,6 +2,8 @@ import type { MetadataRoute } from "next";
 import { db } from "@/lib/db";
 import { getRuntimeConfig, searchEnginePolicy } from "@/lib/config";
 
+export const dynamic = "force-dynamic";
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const config = getRuntimeConfig();
   if (!searchEnginePolicy(config.appEnv).index) return [];

@@ -3,7 +3,9 @@ import { z } from "zod";
 export const appEnvironments = ["development", "staging", "production"] as const;
 export type AppEnvironment = (typeof appEnvironments)[number];
 
-const optionalString = z.string().trim().min(1).optional();
+const blankToUndefined = (value: unknown) => typeof value === "string" && value.trim() === "" ? undefined : value;
+const optionalString = z.preprocess(blankToUndefined, z.string().trim().min(1).optional());
+const optionalUrl = z.preprocess(blankToUndefined, z.string().url().optional());
 const booleanString = z.enum(["true", "false"]).default("false").transform(value => value === "true");
 
 const runtimeConfigSchema = z.object({
@@ -17,10 +19,10 @@ const runtimeConfigSchema = z.object({
   STORAGE_PROVIDER: z.enum(["local", "azure-blob"]).default("local"),
   STORAGE_ENVIRONMENT: z.enum(appEnvironments).optional(),
   UPLOAD_DIR: z.string().trim().min(1).default("./data/uploads"),
-  AZURE_STORAGE_CONTAINER_URL: z.string().url().optional(),
+  AZURE_STORAGE_CONTAINER_URL: optionalUrl,
   AZURE_STORAGE_SAS_TOKEN: optionalString,
   EMAIL_MODE: z.enum(["mock", "sandbox", "live"]).default("mock"),
-  EMAIL_WEBHOOK_URL: z.string().url().optional(),
+  EMAIL_WEBHOOK_URL: optionalUrl,
   EMAIL_WEBHOOK_SECRET: optionalString,
   STRIPE_SECRET_KEY: optionalString,
   STRIPE_WEBHOOK_SECRET: optionalString,
@@ -53,6 +55,7 @@ const runtimeConfigSchema = z.object({
       if (!["postgres:", "postgresql:"].includes(url.protocol)) issue("DATABASE_URL", "DATABASE_URL must use PostgreSQL");
       const databaseName = decodeURIComponent(url.pathname.replace(/^\//, ""));
       if (value.DATABASE_EXPECTED_NAME && databaseName !== value.DATABASE_EXPECTED_NAME) issue("DATABASE_URL", "DATABASE_URL database does not match DATABASE_EXPECTED_NAME");
+      if (value.APP_ENV !== "development" && !["require", "verify-ca", "verify-full"].includes(url.searchParams.get("sslmode") ?? "")) issue("DATABASE_URL", "DATABASE_URL must require TLS outside development");
     } catch {
       issue("DATABASE_URL", "DATABASE_URL must be a valid PostgreSQL URL");
     }
@@ -68,6 +71,12 @@ const runtimeConfigSchema = z.object({
     if (value.STORAGE_PROVIDER !== "azure-blob") issue("STORAGE_PROVIDER", "A durable storage provider is required in staging and production");
     if (value.STORAGE_ENVIRONMENT !== value.APP_ENV) issue("STORAGE_ENVIRONMENT", "STORAGE_ENVIRONMENT must match APP_ENV");
     if (!value.AZURE_STORAGE_CONTAINER_URL) issue("AZURE_STORAGE_CONTAINER_URL", "AZURE_STORAGE_CONTAINER_URL is required for Azure Blob storage");
+    if (value.AZURE_STORAGE_CONTAINER_URL) {
+      const containerUrl = new URL(value.AZURE_STORAGE_CONTAINER_URL);
+      const container = containerUrl.pathname.split("/").filter(Boolean).at(-1) ?? "";
+      if (containerUrl.search) issue("AZURE_STORAGE_CONTAINER_URL", "Keep credentials out of AZURE_STORAGE_CONTAINER_URL");
+      if (!container.endsWith(`-${value.APP_ENV}`)) issue("AZURE_STORAGE_CONTAINER_URL", "The Blob container name must end with the APP_ENV name");
+    }
     if (!value.AZURE_STORAGE_SAS_TOKEN) issue("AZURE_STORAGE_SAS_TOKEN", "AZURE_STORAGE_SAS_TOKEN is required for Azure Blob storage");
     if (value.EMAIL_MODE === "mock") issue("EMAIL_MODE", "Staging and production require an isolated sandbox or live email provider");
     if (!value.EMAIL_WEBHOOK_URL) issue("EMAIL_WEBHOOK_URL", "EMAIL_WEBHOOK_URL is required outside development");
@@ -108,6 +117,7 @@ export type RuntimeConfig = {
 };
 
 export function parseRuntimeConfig(environment: Record<string, string | undefined>): RuntimeConfig {
+  if (environment.NODE_ENV === "production" && !environment.APP_ENV && environment.NEXT_PHASE !== "phase-production-build") throw new Error("Invalid runtime configuration: APP_ENV must be explicit when NODE_ENV=production");
   const parsed = runtimeConfigSchema.safeParse(environment);
   if (!parsed.success) {
     const details = parsed.error.issues.map(item => `${item.path.join(".")}: ${item.message}`).join("; ");

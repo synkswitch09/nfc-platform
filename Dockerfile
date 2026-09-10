@@ -8,7 +8,7 @@ RUN npm ci
 FROM dependencies AS builder
 COPY . .
 RUN mkdir -p public
-RUN npm run build
+RUN APP_ENV=development npm run build
 
 FROM dependencies AS migrator
 COPY --chown=node:node prisma ./prisma

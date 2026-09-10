@@ -29,6 +29,14 @@ describe("runtime configuration", () => {
     expect(config.email.mode).toBe("mock");
   });
 
+  it("treats blank optional service settings as disabled", () => {
+    expect(parseRuntimeConfig({ APP_ENV: "development", STRIPE_SECRET_KEY: "", EMAIL_WEBHOOK_URL: "", AZURE_STORAGE_CONTAINER_URL: "" }).stripe.secretKey).toBeUndefined();
+  });
+
+  it("requires an explicit deployment environment in a production runtime", () => {
+    expect(() => parseRuntimeConfig({ NODE_ENV: "production" })).toThrow("APP_ENV must be explicit");
+  });
+
   it.each(["staging", "production"] as const)("rejects incomplete %s configuration", environment => {
     expect(() => parseRuntimeConfig({ APP_ENV: environment })).toThrow("Invalid runtime configuration");
   });
