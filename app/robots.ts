@@ -1,6 +1,9 @@
 import type { MetadataRoute } from "next";
 
 export default function robots(): MetadataRoute.Robots {
-  const origin = process.env.APP_URL ?? "http://localhost:3000";
+  const config = getRuntimeConfig();
+  const origin = config.appUrl;
+  if (!searchEnginePolicy(config.appEnv).index) return { rules: [{ userAgent: "*", disallow: "/" }] };
   return { rules: [{ userAgent: "*", allow: ["/", "/shop", "/products/", "/categories/"], disallow: ["/admin/", "/dashboard/", "/api/", "/checkout", "/claim-order", "/activate", "/t/"] }], sitemap: `${origin}/sitemap.xml` };
 }
+import { getRuntimeConfig, searchEnginePolicy } from "@/lib/config";

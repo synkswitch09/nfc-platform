@@ -6,11 +6,13 @@ import { CartLink } from "@/components/cart-link";
 import { CartProvider } from "@/components/cart-provider";
 import { getStoreSettings } from "@/lib/settings";
 import { db } from "@/lib/db";
+import { getRuntimeConfig, searchEnginePolicy } from "@/lib/config";
 import "./globals.css";
 
 export async function generateMetadata(): Promise<Metadata> {
   const settings = await getStoreSettings();
-  return { metadataBase: new URL(process.env.APP_URL ?? "http://localhost:3000"), title: { default: settings.siteTitle, template: `%s · ${settings.storeName}` }, description: settings.siteDescription, applicationName: "Tapkin", openGraph: { siteName: "Tapkin", title: settings.siteTitle, description: settings.siteDescription, type: "website", locale: "en_AU", images: settings.defaultSocialImageUrl ? [settings.defaultSocialImageUrl] : [] }, twitter: { card: settings.defaultSocialImageUrl ? "summary_large_image" : "summary", title: settings.siteTitle, description: settings.siteDescription, images: settings.defaultSocialImageUrl ? [settings.defaultSocialImageUrl] : [] } };
+  const config = getRuntimeConfig();
+  return { metadataBase: new URL(config.appUrl), robots: searchEnginePolicy(config.appEnv), title: { default: settings.siteTitle, template: `%s · ${settings.storeName}` }, description: settings.siteDescription, applicationName: "Tapkin", openGraph: { siteName: "Tapkin", title: settings.siteTitle, description: settings.siteDescription, type: "website", locale: "en_AU", images: settings.defaultSocialImageUrl ? [settings.defaultSocialImageUrl] : [] }, twitter: { card: settings.defaultSocialImageUrl ? "summary_large_image" : "summary", title: settings.siteTitle, description: settings.siteDescription, images: settings.defaultSocialImageUrl ? [settings.defaultSocialImageUrl] : [] } };
 }
 
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

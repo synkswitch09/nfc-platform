@@ -6,6 +6,7 @@ import { attachCheckoutSession, cancelPendingOrder, CheckoutError, createPending
 import { rateLimit } from "@/lib/rate-limit";
 import { getStripe } from "@/lib/stripe";
 import { checkoutSchema } from "@/lib/validation";
+import { getRuntimeConfig } from "@/lib/config";
 
 export async function POST(request: NextRequest) {
   if (!assertSameOrigin(request)) return jsonError("Invalid request origin", 403);
@@ -26,11 +27,12 @@ export async function POST(request: NextRequest) {
     return jsonError("Checkout could not be prepared", 500);
   }
 
-  const origin = process.env.APP_URL ?? request.nextUrl.origin;
+  const runtime = getRuntimeConfig();
+  const origin = runtime.appUrl;
   const successPath = user
     ? `/dashboard/orders/${checkout.order.id}?checkout=success`
     : `/order/${checkout.order.orderNumber}/success?token=${encodeURIComponent(checkout.claimToken!)}`;
-  if (process.env.NODE_ENV !== "production" && process.env.ENABLE_TEST_CHECKOUT === "true") {
+  if (runtime.appEnv === "development" && runtime.stripe.testCheckout) {
     const sessionId = `test_${randomUUID()}`;
     await attachCheckoutSession(checkout.order.id, checkout.order.payments[0].id, sessionId);
     await settleCheckoutEvent({ eventId: `test-event-${randomUUID()}`, eventType: "checkout.session.completed.test", providerSessionId: sessionId, orderId: checkout.order.id, amountCents: checkout.order.totalCents, currency: "AUD" });

@@ -3,10 +3,11 @@ import Stripe from "stripe";
 import { CheckoutError, settleCheckoutEvent } from "@/lib/order-service";
 import { getStripe } from "@/lib/stripe";
 import { logEvent } from "@/lib/logger";
+import { getRuntimeConfig } from "@/lib/config";
 
 export async function POST(request: NextRequest) {
   const stripe = getStripe();
-  const secret = process.env.STRIPE_WEBHOOK_SECRET;
+  const secret = getRuntimeConfig().stripe.webhookSecret;
   const signature = request.headers.get("stripe-signature");
   if (!stripe || !secret || !signature) { logEvent("warn", "stripe.webhook_rejected", { requestId: request.headers.get("x-request-id"), reason: "unavailable_or_unsigned" }); return NextResponse.json({ error: "Webhook unavailable" }, { status: 400 }); }
 

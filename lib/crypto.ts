@@ -1,5 +1,6 @@
 import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import bcrypt from "bcryptjs";
+import { getRuntimeConfig } from "@/lib/config";
 
 const BASE32 = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
@@ -51,7 +52,8 @@ export function privacyHash(value: string) {
 }
 
 export function requiredSecret(name: "SESSION_SECRET" | "ACTIVATION_PEPPER") {
-  const value = process.env[name];
+  const config = getRuntimeConfig();
+  const value = name === "SESSION_SECRET" ? config.sessionSecret : config.activationPepper;
   if (!value || value.length < 32) throw new Error(`${name} must contain at least 32 characters`);
   return value;
 }

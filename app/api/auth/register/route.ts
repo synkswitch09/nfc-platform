@@ -6,6 +6,7 @@ import { sendTransactionalEmail } from "@/lib/email";
 import { assertSameOrigin, getClientIp, jsonError } from "@/lib/http";
 import { rateLimit } from "@/lib/rate-limit";
 import { registerSchema } from "@/lib/validation";
+import { getRuntimeConfig } from "@/lib/config";
 
 export async function POST(request: NextRequest) {
   if (!assertSameOrigin(request)) return jsonError("Invalid request origin", 403);
@@ -31,7 +32,7 @@ export async function POST(request: NextRequest) {
   await createSession(user.id);
   const verificationToken = createOpaqueToken();
   await db.emailVerification.create({ data:{userId:user.id,tokenHash:sha256(verificationToken),expiresAt:new Date(Date.now()+24*60*60*1000),orderClaimId:claimOrder?.id} });
-  const origin = process.env.APP_URL ?? request.nextUrl.origin;
+  const origin = getRuntimeConfig().appUrl;
   await sendTransactionalEmail({to:user.email,subject:"Verify your Tapkin email",text:`Verify your email: ${origin}/verify-email?token=${verificationToken}`}).catch(() => undefined);
   await db.auditLog.create({ data: { actorId: user.id, action: "USER_REGISTERED", entityType: "User", entityId: user.id } });
   return NextResponse.json({ user }, { status: 201 });

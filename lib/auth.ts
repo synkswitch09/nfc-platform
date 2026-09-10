@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { createOpaqueToken, sha256 } from "@/lib/crypto";
+import { getRuntimeConfig } from "@/lib/config";
 
 export const SESSION_COOKIE = "nfc_session";
 const SESSION_DAYS = 30;
@@ -13,7 +14,7 @@ export async function createSession(userId: string) {
   const jar = await cookies();
   jar.set(SESSION_COOKIE, token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    secure: getRuntimeConfig().appUrl.startsWith("https://"),
     sameSite: "lax",
     path: "/",
     expires: expiresAt,

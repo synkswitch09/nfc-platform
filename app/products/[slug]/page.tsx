@@ -6,6 +6,7 @@ import { notFound } from "next/navigation";
 import { PackageCheck, Radio, RefreshCw, ShieldCheck, Truck } from "lucide-react";
 import { db } from "@/lib/db";
 import { ProductPurchase } from "@/components/product-purchase";
+import { getRuntimeConfig, searchEnginePolicy } from "@/lib/config";
 
 const getProduct = cache((slug: string) => db.product.findFirst({
   where: { slug, status: "ACTIVE", shopVisible: true, category: { status: "PUBLISHED" } },
@@ -26,7 +27,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     title,
     description,
     alternates: { canonical: product.canonicalUrl ?? `/products/${product.slug}` },
-    robots: product.indexable ? { index: true, follow: true } : { index: false, follow: false },
+    robots: product.indexable && searchEnginePolicy(getRuntimeConfig().appEnv).index ? { index: true, follow: true } : { index: false, follow: false },
     openGraph: { title, description, type: "website", images: product.ogImageUrl ? [product.ogImageUrl] : product.images[0] ? [product.images[0].url] : undefined },
   };
 }
@@ -36,7 +37,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
   if (!product) notFound();
   const primary = product.images[0];
   const lowestPrice = product.variants[0]?.priceCents;
-  const origin = process.env.APP_URL ?? "http://localhost:3000";
+  const origin = getRuntimeConfig().appUrl;
   const productData = {
     "@type": "Product",
     name: product.name,

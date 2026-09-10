@@ -3,6 +3,7 @@ import { notFound, permanentRedirect } from "next/navigation";
 import { CategoryLanding } from "@/components/category-landing";
 import { categoryFaq } from "@/lib/category-content";
 import { categoryPublicPath, getPublicCategory } from "@/lib/category-query";
+import { getRuntimeConfig, searchEnginePolicy } from "@/lib/config";
 
 export async function generateMetadata({ params }: { params: Promise<{ categorySlug: string }> }): Promise<Metadata> {
   const category = await getPublicCategory((await params).categorySlug);
@@ -13,7 +14,7 @@ export async function generateMetadata({ params }: { params: Promise<{ categoryS
     title,
     description,
     alternates: { canonical: category.canonicalUrl ?? categoryPublicPath(category.slug) },
-    robots: category.indexable ? { index: true, follow: true } : { index: false, follow: false },
+    robots: category.indexable && searchEnginePolicy(getRuntimeConfig().appEnv).index ? { index: true, follow: true } : { index: false, follow: false },
     openGraph: { title, description: description ?? undefined, type: "website", images: category.ogImageUrl ? [category.ogImageUrl] : category.heroImageUrl ? [category.heroImageUrl] : undefined },
   };
 }
@@ -24,7 +25,7 @@ export default async function PublicCategoryPage({ params }: { params: Promise<{
   if (!category) notFound();
   if (categorySlug !== category.slug) permanentRedirect(categoryPublicPath(category.slug));
 
-  const origin = process.env.APP_URL ?? "http://localhost:3000";
+  const origin = getRuntimeConfig().appUrl;
   const faq = categoryFaq(category.faq);
   const products = category.showInShop ? category.products : [];
   const structuredData = {

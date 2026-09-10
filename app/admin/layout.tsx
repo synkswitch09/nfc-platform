@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { Archive, Boxes, ClipboardList, Factory, FileClock, Gauge, PackageSearch, ScanLine, Settings, ShieldCheck, Tags, Users } from "lucide-react";
 import { requireRole } from "@/lib/auth";
+import { getRuntimeConfig } from "@/lib/config";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Operations", robots: { index: false, follow: false } };
@@ -17,5 +18,6 @@ const groups = [
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   await requireRole(["STAFF", "ADMIN"]);
-  return <div className="admin-shell"><aside className="admin-sidebar"><Link href="/admin" className="admin-brand"><span>TK</span><div>Tapkin<small>Operations</small></div></Link>{groups.map(group => <div className="admin-nav-group" key={group.label}><p>{group.label}</p>{group.links.map(({ href, label, icon: Icon }) => <Link href={href} key={href}><Icon size={18} />{label}</Link>)}</div>)}<Link href="/" className="admin-store-link">← View storefront</Link></aside><main className="admin-main">{children}</main></div>;
+  const environment = getRuntimeConfig().appEnv;
+  return <div className="admin-shell"><aside className="admin-sidebar"><Link href="/admin" className="admin-brand"><span>TK</span><div>Tapkin<small>Operations</small></div></Link>{groups.map(group => <div className="admin-nav-group" key={group.label}><p>{group.label}</p>{group.links.map(({ href, label, icon: Icon }) => <Link href={href} key={href}><Icon size={18} />{label}</Link>)}</div>)}<Link href="/" className="admin-store-link">← View storefront</Link></aside><main className="admin-main">{environment !== "production" && <div className={`environment-banner ${environment}`} role="status">{environment.toUpperCase()} ENVIRONMENT</div>}{children}</main></div>;
 }

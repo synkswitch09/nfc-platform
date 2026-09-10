@@ -1,4 +1,5 @@
 import { headers } from "next/headers";
+import { getRuntimeConfig } from "@/lib/config";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { AlertTriangle, BriefcaseBusiness, Dog, Luggage, Radio, ShieldCheck } from "lucide-react";
@@ -22,7 +23,7 @@ export default async function PublicTagPage({ params }: { params: Promise<{ publ
   if (state === "UNAVAILABLE" || !tag.profile) return <div className="public-profile"><div className="profile-card"><ShieldCheck size={38} /><h1 style={{fontSize:"2.5rem"}}>Tag unavailable</h1><p className="muted">The owner has disabled this tag. No personal information is available.</p></div></div>;
 
   const h = await headers(); const now = new Date(); const dayBucket = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
-  const userAgent = h.get("user-agent") ?? ""; const scanIdentity = process.env.TRUST_PROXY === "true" ? h.get("cf-connecting-ip") ?? h.get("x-real-ip") ?? "unknown" : userAgent.slice(0, 120);
+  const userAgent = h.get("user-agent") ?? ""; const scanIdentity = getRuntimeConfig().trustProxy ? h.get("cf-connecting-ip") ?? h.get("x-real-ip") ?? h.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown" : userAgent.slice(0, 120);
   void rateLimit("tag-scan", `${tag.id}:${scanIdentity}`, 120, 24 * 60 * 60_000).then(limit => limit.allowed ? db.scanEvent.create({ data: { tagId: tag.id, dayBucket, deviceCategory: deviceCategory(userAgent), countryCode: h.get("cf-ipcountry")?.slice(0,2) || null, region: h.get("cf-region")?.slice(0,80) || null } }) : undefined).catch(() => undefined);
   if (tag.profile.social?.mode === "DIRECT_REDIRECT") { const url = validRedirect(tag.profile.social.redirectUrl); if (url) redirect(url); }
 

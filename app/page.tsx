@@ -4,10 +4,11 @@ import { ArrowRight, QrCode, Radio } from "lucide-react";
 import { CategoryIcon } from "@/components/category-icon";
 import { db } from "@/lib/db";
 import { getStoreSettings } from "@/lib/settings";
+import { getRuntimeConfig } from "@/lib/config";
 
 export default async function Home() {
   const [settings, categories] = await Promise.all([getStoreSettings(), process.env.DATABASE_URL ? db.productCategory.findMany({ where: { status: "PUBLISHED", showOnHomepage: true }, orderBy: [{ sortOrder: "asc" }, { name: "asc" }], take: 8 }).catch(() => []) : []]);
-  const origin = process.env.APP_URL ?? "http://localhost:3000";
+  const origin = getRuntimeConfig().appUrl;
   return <>
     <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({ "@context": "https://schema.org", "@graph": [{ "@type": "Organization", "@id": `${origin}/#organization`, name: settings.businessName ?? settings.storeName, url: origin, email: settings.supportEmail, sameAs: Object.values(settings.socialLinks) }, { "@type": "WebSite", "@id": `${origin}/#website`, name: settings.siteTitle, url: origin, publisher: { "@id": `${origin}/#organization` } }] }).replaceAll("<", "\\u003c") }} />
     <section className="hero platform-hero"><div><span className="eyebrow"><Radio size={15} /> 3D printed · NFC connected</span><h1>Physical products.<br />Digital possibilities.</h1><p className="lead">Personalised smart products that combine 3D printing, NFC and QR with secure profiles for safety, recovery, networking and sharing.</p><div className="actions"><Link className="button lime" href="/shop">Explore smart products <ArrowRight size={17} /></Link><Link className="button secondary" href="/activate">Activate a product</Link></div></div><div className="tag-visual" aria-label="Tapkin smart product illustration"><div className="physical-tag"><QrCode size={42} /><strong>TAPKIN</strong><small>Tap or scan to connect</small></div></div></section>

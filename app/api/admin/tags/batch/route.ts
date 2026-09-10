@@ -6,6 +6,7 @@ import { getAdminApiUser } from "@/lib/admin";
 import { createActivationCode, createPublicTagId, hashActivationCode } from "@/lib/crypto";
 import { db } from "@/lib/db";
 import { assertSameOrigin, jsonError } from "@/lib/http";
+import { getRuntimeConfig } from "@/lib/config";
 
 const schema = z.object({ productId: z.string().uuid(), productVariantId: z.string().uuid().optional().nullable(), quantity: z.number().int().min(1).max(100), notes: z.string().trim().max(500).optional() });
 
@@ -28,7 +29,7 @@ export async function POST(request: NextRequest) {
     await tx.auditLog.create({ data: { actorId: user.id, action: "MANUFACTURING_BATCH_CREATED", entityType: "ManufacturingBatch", entityId: created.id, metadata: { batchNumber, quantity: secrets.length, productId: product.id } } });
     return created;
   });
-  const origin = process.env.APP_URL ?? request.nextUrl.origin;
+  const origin = getRuntimeConfig().appUrl;
   const credentials = await Promise.all(secrets.map(async secret => {
     const publicUrl = `${origin}/t/${secret.publicTagId}`;
     return { sequence: secret.sequence, publicTagId: secret.publicTagId, activationCode: secret.activationCode, publicUrl, qrDataUrl: await QRCode.toDataURL(publicUrl, { width: 220, margin: 1, errorCorrectionLevel: "M" }) };

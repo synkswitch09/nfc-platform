@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSession } from "@/lib/auth";
 import { exchangeOAuthCode, findOrCreateOAuthUser, getOAuthConfig, OAUTH_COOKIE, readOAuthTransaction, type OAuthProviderName } from "@/lib/oauth";
+import { getRuntimeConfig } from "@/lib/config";
 
 async function callback(request: NextRequest, providerValue: string, values: URLSearchParams) {
   const fallback = new URL("/login?oauth=failed", request.url);
@@ -9,7 +10,7 @@ async function callback(request: NextRequest, providerValue: string, values: URL
   const code = values.get("code"); const state = values.get("state"); const error = values.get("error");
   if (!transaction || transaction.provider !== provider || !code || !state || state !== transaction.state || error) return clear(NextResponse.redirect(fallback));
   const config = getOAuthConfig(provider); if (!config) return clear(NextResponse.redirect(fallback));
-  const appUrl = process.env.APP_URL ?? request.nextUrl.origin;
+  const appUrl = getRuntimeConfig().appUrl;
   try {
     const callbackUrl = new URL(`${appUrl}/api/auth/oauth/${provider}/callback`); callbackUrl.search = values.toString();
     const claims = await exchangeOAuthCode(provider, callbackUrl, transaction.verifier, transaction.state, transaction.nonce);

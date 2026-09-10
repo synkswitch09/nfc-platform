@@ -1,6 +1,7 @@
 import { CategoryLandingLayout, CategoryVisualTheme, CustomisationFieldType, PrismaClient, ProductType, Role } from "@prisma/client";
 import { hashPassword } from "../lib/crypto";
 import { passwordSchema } from "../lib/validation";
+import { currentAppEnvironment } from "../lib/config";
 
 const db = new PrismaClient();
 const categories = [
@@ -74,6 +75,11 @@ const catalog = [
 ];
 
 async function main() {
+  const environment = currentAppEnvironment();
+  if (environment === "production") throw new Error("Production seeding is disabled. Bootstrap real administrators through the controlled production procedure.");
+  if (environment === "staging" && process.env.ALLOW_STAGING_SEED !== "true") throw new Error("Set ALLOW_STAGING_SEED=true explicitly to load controlled staging data");
+  if (environment !== "development" && (process.env.DEV_ADMIN_EMAIL || process.env.DEV_ADMIN_PASSWORD)) throw new Error("Development administrator credentials are allowed only in DEVELOPMENT");
+  if (environment !== "staging" && (process.env.STAGING_ADMIN_EMAIL || process.env.STAGING_ADMIN_PASSWORD)) throw new Error("Staging administrator credentials are allowed only in STAGING");
   const categoryIds = new Map<string, string>();
   for (const [sortOrder, item] of categories.entries()) {
     const ctaHref = `/shop?category=${item.slug}`;
@@ -89,10 +95,11 @@ async function main() {
     }
   }
   await db.storeSettings.upsert({ where: { id: "default" }, update: { storeName: "Tapkin", siteTitle: "Tapkin Smart Products", siteDescription: "Personalised smart products combining 3D printing, NFC, QR and secure digital profiles." }, create: { id: "default", storeName: "Tapkin", siteTitle: "Tapkin Smart Products", siteDescription: "Personalised smart products combining 3D printing, NFC, QR and secure digital profiles." } });
-  const email = process.env.DEV_ADMIN_EMAIL?.trim().toLowerCase(); const password = process.env.DEV_ADMIN_PASSWORD;
-  if (process.env.NODE_ENV === "production" && (email || password)) throw new Error("Development administrator seeding is disabled in production");
-  if (Boolean(email) !== Boolean(password)) throw new Error("Set both DEV_ADMIN_EMAIL and DEV_ADMIN_PASSWORD, or leave both empty");
-  if (email && password) { const parsedPassword = passwordSchema.safeParse(password); if (!parsedPassword.success) throw new Error(parsedPassword.error.issues[0]?.message ?? "Invalid development administrator password"); const passwordHash = await hashPassword(parsedPassword.data); await db.user.upsert({ where: { email }, update: { role: Role.ADMIN, passwordHash, emailVerifiedAt: new Date() }, create: { email, name: "Platform Admin", role: Role.ADMIN, passwordHash, emailVerifiedAt: new Date() } }); }
+  const emailName = environment === "staging" ? "STAGING_ADMIN_EMAIL" : "DEV_ADMIN_EMAIL";
+  const passwordName = environment === "staging" ? "STAGING_ADMIN_PASSWORD" : "DEV_ADMIN_PASSWORD";
+  const email = process.env[emailName]?.trim().toLowerCase(); const password = process.env[passwordName];
+  if (Boolean(email) !== Boolean(password)) throw new Error(`Set both ${emailName} and ${passwordName}, or leave both empty`);
+  if (email && password) { const parsedPassword = passwordSchema.safeParse(password); if (!parsedPassword.success) throw new Error(parsedPassword.error.issues[0]?.message ?? "Invalid administrator password"); const passwordHash = await hashPassword(parsedPassword.data); await db.user.upsert({ where: { email }, update: { role: Role.ADMIN, passwordHash, emailVerifiedAt: new Date() }, create: { email, name: environment === "staging" ? "Staging Admin" : "Development Admin", role: Role.ADMIN, passwordHash, emailVerifiedAt: new Date() } }); }
 }
 
 main().catch(error => { console.error(error instanceof Error ? error.message : "Database seed failed"); process.exitCode = 1; }).finally(() => db.$disconnect());

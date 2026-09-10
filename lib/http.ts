@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getRuntimeConfig } from "@/lib/config";
 
 export function jsonError(message: string, status = 400) {
   return NextResponse.json({ error: message }, { status });
@@ -16,7 +17,7 @@ export function assertSameOrigin(request: NextRequest) {
 }
 
 export function getClientIp(request: NextRequest) {
-  if (process.env.TRUST_PROXY !== "true") return "untrusted-proxy";
+  if (!getRuntimeConfig().trustProxy) return "untrusted-proxy";
   return request.headers.get("cf-connecting-ip")
     ?? request.headers.get("x-real-ip")
     ?? request.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
