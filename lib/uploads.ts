@@ -1,6 +1,8 @@
 import { randomUUID } from "node:crypto";
-import { mkdir, readFile, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { getRuntimeConfig } from "@/lib/config";
+import { createStorageKey, isSafeStorageKey } from "@/lib/storage/keys";
+import { getStorageProvider } from "@/lib/storage";
 
 export const MAX_PRODUCT_IMAGE_BYTES = 5 * 1024 * 1024;
 const formats = [
@@ -41,7 +43,7 @@ export function productImageDimensions(bytes: Uint8Array, mimeType: string) {
   return null;
 }
 
-export function uploadDirectory() { return path.resolve(/* turbopackIgnore: true */ process.env.UPLOAD_DIR ?? path.join(process.cwd(), "data", "uploads")); }
+export function uploadDirectory() { return path.resolve(/* turbopackIgnore: true */ getRuntimeConfig().storage.uploadDir ?? path.join(process.cwd(), "data", "uploads")); }
 
 export async function validateAndStoreImage(file: File) {
   if (!file.size || file.size > MAX_PRODUCT_IMAGE_BYTES) throw new Error("IMAGE_SIZE");
@@ -49,14 +51,15 @@ export async function validateAndStoreImage(file: File) {
   if (!format || file.type !== format.mime) throw new Error("IMAGE_FORMAT");
   const dimensions = productImageDimensions(bytes, format.mime);
   if (!dimensions || dimensions.width < 1 || dimensions.height < 1 || dimensions.width > 10_000 || dimensions.height > 10_000 || dimensions.width * dimensions.height > 40_000_000) throw new Error("IMAGE_DIMENSIONS");
-  const storageKey = `${randomUUID()}.${format.extension}`; const directory = uploadDirectory();
-  await mkdir(directory, { recursive: true }); await writeFile(path.join(/* turbopackIgnore: true */ directory, storageKey), bytes, { flag: "wx", mode: 0o640 });
+  const runtime = getRuntimeConfig();
+  const storageKey = createStorageKey(runtime.appEnv, randomUUID(), format.extension as "png" | "jpg" | "webp");
+  await getStorageProvider(runtime).put(storageKey, bytes, { contentType: format.mime, cacheControl: "public, max-age=31536000, immutable", metadata: { environment: runtime.appEnv, purpose: "product-image" } });
   return { storageKey, mimeType: format.mime, byteSize: bytes.byteLength, ...dimensions };
 }
 
 export async function readStoredImage(storageKey: string) {
-  if (!/^[0-9a-f-]{36}\.(png|jpg|webp)$/.test(storageKey)) return null;
-  return readFile(/* turbopackIgnore: true */ path.join(/* turbopackIgnore: true */ uploadDirectory(), storageKey)).catch(() => null);
+  if (!isSafeStorageKey(storageKey)) return null;
+  return getStorageProvider().get(storageKey);
 }
 
-export async function deleteStoredImage(storageKey: string) { await unlink(/* turbopackIgnore: true */ path.join(/* turbopackIgnore: true */ uploadDirectory(), storageKey)).catch(() => undefined); }
+export async function deleteStoredImage(storageKey: string) { if (isSafeStorageKey(storageKey)) await getStorageProvider().delete(storageKey); }
