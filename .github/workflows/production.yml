@@ -1,0 +1,24 @@
+name: Validate and deploy PRODUCTION
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      deploy:
+        description: Deploy the validated main commit after Production approval
+        required: true
+        type: boolean
+        default: false
+permissions:
+  contents: read
+  packages: write
+  id-token: write
+jobs:
+  validate:
+    uses: ./.github/workflows/_validate.yml
+  deploy:
+    needs: validate
+    if: github.event_name == 'workflow_dispatch' && inputs.deploy == true && vars.AZURE_DEPLOY_ENABLED == 'true'
+    uses: ./.github/workflows/_deploy-azure.yml
+    with: { target_environment: production }
+    secrets: inherit

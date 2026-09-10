@@ -1,51 +1,10 @@
 name: CI
 on:
-  push:
   pull_request:
+  push:
+    branches-ignore: [develop, staging, main]
+permissions:
+  contents: read
 jobs:
   verify:
-    runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:17-alpine
-        env: { POSTGRES_DB: nfc_platform, POSTGRES_USER: nfc, POSTGRES_PASSWORD: nfc }
-        ports: ["5432:5432"]
-        options: >-
-          --health-cmd "pg_isready -U nfc -d nfc_platform"
-          --health-interval 5s --health-timeout 5s --health-retries 10
-    env:
-      DATABASE_URL: postgresql://nfc:nfc@localhost:5432/nfc_platform?schema=public
-      APP_URL: http://localhost:3000
-      SESSION_SECRET: ci-session-secret-with-at-least-32-characters
-      ACTIVATION_PEPPER: ci-activation-pepper-with-at-least-32-characters
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with: { node-version: 24, cache: npm }
-      - run: npm ci
-      - run: npm run db:deploy
-      - run: npm run lint
-      - run: npm run typecheck
-      - run: npm test
-      - run: npm run build
-      - name: Seed disposable E2E database
-        run: npm run db:seed
-        env:
-          DEV_ADMIN_EMAIL: e2e-admin@example.test
-          DEV_ADMIN_PASSWORD: E2eAdminPassword123
-      - name: Run required HTTP E2E flows
-        env:
-          ENABLE_TEST_CHECKOUT: "true"
-          E2E_ADMIN_EMAIL: e2e-admin@example.test
-          E2E_ADMIN_PASSWORD: E2eAdminPassword123
-          E2E_BASE_URL: http://127.0.0.1:3000
-          E2E_APP_LOG: /tmp/nfc-e2e-app.log
-          APP_URL: http://127.0.0.1:3000
-          STRIPE_SECRET_KEY: e2e-not-a-real-stripe-key
-          STRIPE_WEBHOOK_SECRET: e2e-webhook-secret
-          E2E_STRIPE_WEBHOOK_SECRET: e2e-webhook-secret
-        run: |
-          npm run dev -- --hostname 127.0.0.1 > /tmp/nfc-e2e-app.log 2>&1 &
-          APP_PID=$!
-          trap 'kill "$APP_PID" 2>/dev/null || true' EXIT
-          npm run test:e2e
+    uses: ./.github/workflows/_validate.yml

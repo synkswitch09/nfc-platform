@@ -1,0 +1,48 @@
+name: Reusable Azure deployment
+on:
+  workflow_call:
+    inputs:
+      target_environment:
+        required: true
+        type: string
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.target_environment }}
+    env:
+      IMAGE: ghcr.io/${{ github.repository }}:${{ github.sha }}
+      MIGRATION_IMAGE: ghcr.io/${{ github.repository }}:${{ github.sha }}-migrator
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/login-action@v3
+        with: { registry: ghcr.io, username: "${{ github.actor }}", password: "${{ secrets.GITHUB_TOKEN }}" }
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with: { context: ., target: runner, push: true, tags: "${{ env.IMAGE }}" }
+      - uses: docker/build-push-action@v6
+        with: { context: ., target: migrator, push: true, tags: "${{ env.MIGRATION_IMAGE }}" }
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Run the environment migration job once
+        run: |
+          az containerapp job update --name "$AZURE_MIGRATION_JOB" --resource-group "$AZURE_RESOURCE_GROUP" --image "$MIGRATION_IMAGE"
+          az containerapp job start --name "$AZURE_MIGRATION_JOB" --resource-group "$AZURE_RESOURCE_GROUP" --wait
+        env:
+          AZURE_MIGRATION_JOB: ${{ vars.AZURE_MIGRATION_JOB }}
+          AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+      - name: Deploy immutable application image
+        run: az containerapp update --name "$AZURE_CONTAINER_APP" --resource-group "$AZURE_RESOURCE_GROUP" --image "$IMAGE"
+        env:
+          AZURE_CONTAINER_APP: ${{ vars.AZURE_CONTAINER_APP }}
+          AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+      - uses: actions/setup-node@v4
+        with: { node-version: 24 }
+      - name: Run post-deployment smoke tests
+        run: npm run smoke
+        env:
+          SMOKE_BASE_URL: ${{ vars.APP_URL }}
+          SMOKE_PRODUCT_SLUG: ${{ vars.SMOKE_PRODUCT_SLUG }}
+          SMOKE_TAG_ID: ${{ vars.SMOKE_TAG_ID }}

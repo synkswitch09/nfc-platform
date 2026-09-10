@@ -1,0 +1,18 @@
+name: Deploy STAGING
+on:
+  push:
+    branches: [staging]
+  workflow_dispatch:
+permissions:
+  contents: read
+  packages: write
+  id-token: write
+jobs:
+  validate:
+    uses: ./.github/workflows/_validate.yml
+  deploy:
+    needs: validate
+    if: vars.AZURE_DEPLOY_ENABLED == 'true'
+    uses: ./.github/workflows/_deploy-azure.yml
+    with: { target_environment: staging }
+    secrets: inherit
