@@ -7,7 +7,7 @@
 - Customer dashboard with orders, printable receipts, tracking, saved Australian addresses, NFC activation, scan windows and profile management
 - Pet, child, emergency, social, business, luggage, review and custom NFC profiles, including editable social links, secondary emergency contacts and business vCard download; accessories remain catalogue-only
 - Commercial catalogue with independent category/product lifecycles, duplicate-as-draft, variants, inventory, pricing, personalisation fields, safe-delete rules, SEO preview and content-verified product media
-- Structured category CMS for five distinct landings, homepage/navigation/shop visibility, hero, benefits, steps, narrative sections, FAQ and SEO without arbitrary HTML
+- Structured category CMS for five distinct clean-URL landings, homepage/navigation/Shop visibility, themes, compositions, hero, benefits, use cases, steps, narrative sections, final CTA, accessible image text, FAQ and SEO without arbitrary HTML
 - Operations console for dashboard metrics, product/category search and filters, inventory, orders, customers, detailed tag search, manufacturing batches, team roles, settings and audit history
 - Per-unit NFC manufacturing states, permanent random public URLs, separate one-time activation secrets stored only as hashes, admin-only credential rotation with one-time disclosure, QR/CSV/print exports and scan diagnostics
 - Configurable Australian shipping, AUD/GST presentation, metadata, canonical URLs, robots, sitemap, editorial guides, and Organization, WebSite, Product, Offer, Breadcrumb, ItemList, Article and legitimate FAQ structured data

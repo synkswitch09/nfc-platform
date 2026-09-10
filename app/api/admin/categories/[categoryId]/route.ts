@@ -22,10 +22,16 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     const legacySlugs = existing.slug === parsed.data.slug
       ? existing.legacySlugs
       : Array.from(new Set([...existing.legacySlugs, existing.slug])).filter(slug => slug !== parsed.data.slug);
+    const categoryData = {
+      ...parsed.data,
+      legacySlugs,
+      ctaHref: parsed.data.ctaHref === `/shop?category=${existing.slug}` ? `/shop?category=${parsed.data.slug}` : parsed.data.ctaHref,
+      finalCtaHref: parsed.data.finalCtaHref === `/shop?category=${existing.slug}` ? `/shop?category=${parsed.data.slug}` : parsed.data.finalCtaHref,
+    };
     const next = parsed.data.status;
     const action = existing.status === next ? "CATEGORY_UPDATED" : next === "PUBLISHED" ? "CATEGORY_PUBLISHED" : next === "HIDDEN" ? "CATEGORY_HIDDEN" : next === "ARCHIVED" ? "CATEGORY_ARCHIVED" : "CATEGORY_DRAFTED";
     await db.$transaction([
-      db.productCategory.update({ where: { id: categoryId }, data: { ...parsed.data, legacySlugs } }),
+      db.productCategory.update({ where: { id: categoryId }, data: categoryData }),
       db.auditLog.create({ data: { actorId: user.id, action, entityType: "ProductCategory", entityId: categoryId, metadata: { fromStatus: existing.status, toStatus: next, fromSlug: existing.slug, toSlug: parsed.data.slug } } }),
     ]);
     return NextResponse.json({ ok: true });

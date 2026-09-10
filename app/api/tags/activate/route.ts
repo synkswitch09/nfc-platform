@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
         data: { ownerId: user.id, status: "ACTIVE", activatedAt: new Date(), activationLockedUntil: null },
       });
       if (claimed.count !== 1) throw new Error("TAG_ALREADY_CLAIMED");
-      const profile = await tx.tagProfile.create({ data: { tagId: tag.id, displayName: tag.productType === "PET" ? "My pet" : "My tag" } });
+      const profile = await tx.tagProfile.create({ data: { tagId: tag.id, displayName: tag.productType === "PET" ? "My pet" : tag.productType === "CHILD" ? "Child safety profile" : "My tag" } });
       if (tag.productType === "PET") await tx.petProfile.create({ data: { tagProfileId: profile.id } });
       if (["CHILD", "EMERGENCY"].includes(tag.productType)) await tx.childProfile.create({ data: { tagProfileId: profile.id } });
       if (["SOCIAL", "REVIEW", "CUSTOM"].includes(tag.productType)) await tx.socialProfile.create({ data: { tagProfileId: profile.id, mode: tag.productType === "REVIEW" ? "DIRECT_REDIRECT" : "MULTI_LINK" } });

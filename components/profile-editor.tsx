@@ -6,7 +6,7 @@ type ProfileData = { id: string; type: "PET" | "CHILD" | "EMERGENCY" | "SOCIAL" 
 
 const fields: Record<ProfileData["type"], Array<[string, string]>> = {
   PET: [["species","Species"],["breed","Breed"],["approximateAge","Approximate age"],["description","Description"],["medicalInfo","Important medical information"],["allergies","Allergies"],["medications","Medications"],["behaviourNotes","Behavioural notes"],["veterinarian","Veterinarian"]],
-  CHILD: [["approximateAge","Approximate age"],["criticalMedicalInfo","Critical medical information"],["allergies","Allergies"],["communicationNotes","Communication instructions"]],
+  CHILD: [["approximateAge","Approximate age (public, optional)"],["criticalMedicalInfo","Critical medical information"],["allergies","Allergies"],["communicationNotes","Communication instructions"]],
   EMERGENCY: [["criticalMedicalInfo","Critical medical information"],["allergies","Allergies"],["communicationNotes","Emergency instructions"]],
   SOCIAL: [["bio","Short bio"],["redirectUrl","Direct redirect URL"]],
   BUSINESS: [["company","Company"],["jobTitle","Job title"],["phone","Phone"],["email","Email"],["website","Website"],["linkedIn","LinkedIn URL"],["bio","Profile summary"]],
@@ -30,7 +30,9 @@ export function ProfileEditor({ profile }: { profile: ProfileData }) {
     const result = await response.json().catch(() => ({})); setPending(false); setMessage(response.ok ? "Profile saved" : result.error ?? "Could not save");
   }
   return <form className="form card" onSubmit={submit}>
-    <h3>Public profile</h3><label className="field">Display name<input name="displayName" defaultValue={profile.displayName} required /></label>
+    <h3>Public profile</h3>
+    {profile.type === "CHILD" && <div className="notice" id="child-privacy-help"><strong>Privacy-first setup</strong><br />Everything entered below can appear after a scan. Use a first name or neutral alias and only essential safety information. Do not add a surname, home address, school, routine or other identifying details.</div>}
+    <label className="field">{profile.type === "CHILD" ? "Public alias or first name" : "Display name"}<input name="displayName" defaultValue={profile.displayName} aria-describedby={profile.type === "CHILD" ? "child-privacy-help" : undefined} autoComplete={profile.type === "CHILD" ? "off" : undefined} required /></label>
     {profile.type === "CHILD" && <label className="field">Status<select name="status" defaultValue={String(profile.details.status ?? "NORMAL")}><option>NORMAL</option><option>MISSING</option></select></label>}
     {["SOCIAL", "CUSTOM"].includes(profile.type) && <label className="field">Mode<select name="mode" defaultValue={String(profile.details.mode ?? "MULTI_LINK")}><option value="MULTI_LINK">Multi-link profile</option><option value="DIRECT_REDIRECT">Direct redirect</option></select></label>}
     {fields[profile.type].map(([key, label]) => <label className="field" key={key}>{label}{/description|medical|allergies|medications|behaviour|bio|message|communication/i.test(key) ? <textarea name={key} defaultValue={String(profile.details[key] ?? "")} /> : <input name={key} defaultValue={String(profile.details[key] ?? "")} />}</label>)}

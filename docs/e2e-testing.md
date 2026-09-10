@@ -4,7 +4,7 @@
 
 The runner covers:
 
-- Flow A: homepage, category landing, filtered Shop, product/cart/checkout surfaces, guest checkout, server-authoritative totals, test payment settlement and order success.
+- Flow A: homepage, clean category landing, historical category redirect, filtered Shop, product/cart/checkout surfaces, guest checkout, server-authoritative totals, test payment settlement and order success.
 - Flow B: post-purchase email registration, verification, secure order attachment and appearance in the customer dashboard.
 - Flow C: anonymous rejection from account/NFC management.
 - Flow D: development-admin login, authorization, draft product creation, variant/stock, genuine image upload, publication and storefront visibility.
