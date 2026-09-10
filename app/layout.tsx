@@ -23,7 +23,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
           <Link href="/" className="brand"><span className="brand-mark"><Radio size={18} /></span>{settings.storeName}</Link>
           <nav aria-label="Main navigation">
             <Link href="/shop">Shop</Link>
-            {categories.map(category => <Link className="category-nav-link" href={`/categories/${category.slug}`} key={category.slug}>{category.name}</Link>)}
+            {categories.map(category => <Link className="category-nav-link" href={`/${category.slug}`} key={category.slug}>{category.name}</Link>)}
             <Link href="/#how-it-works">How it works</Link>
             <CartLink />
             {user ? <Link className="nav-cta" href="/dashboard">My products</Link> : <Link className="nav-cta" href="/login">Sign in</Link>}

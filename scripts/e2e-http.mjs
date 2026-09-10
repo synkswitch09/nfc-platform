@@ -65,7 +65,7 @@ async function main() {
   const customerJar = new Map(); const adminJar = new Map();
 
   // FLOW A — guest purchase through the real HTTP boundary and test payment settlement.
-  for (const path of ["/", "/categories/pet-tags", "/shop?category=pet-tags", "/products/round-nfc-pet-tag", "/cart", "/checkout"]) {
+  for (const path of ["/", "/pet", "/categories/pet-tags", "/shop?category=pet", "/products/round-nfc-pet-tag", "/cart", "/checkout"]) {
     const response = await request(path); assert(response.status === 200, `Guest can browse ${path}`);
   }
   const seededVariant = await db.productVariant.findUnique({ where: { sku: "PET-ROUND" } });
@@ -110,7 +110,7 @@ async function main() {
   await jsonResponse(await request("/api/admin/products", { method: "POST", json: {} }), 403, "Customerless request is rejected by Product Admin");
   const login = await jsonResponse(await request("/api/auth/login", { method: "POST", jar: adminJar, json: { email: adminEmail, password: adminPassword } }), 200, "Development administrator can sign in");
   assert(login.user.role === "ADMIN", "Administrator role is enforced");
-  const e2eCategory = await db.productCategory.findUnique({ where: { slug: "pet-tags" } });
+  const e2eCategory = await db.productCategory.findUnique({ where: { slug: "pet" } });
   assert(e2eCategory?.status === "PUBLISHED", "Published category exists for the product journey");
   const slug = `e2e-nfc-tag-${suffix}`; const sku = `E2E-${suffix.toUpperCase()}`.slice(0, 50);
   const productPayload = { name: `E2E NFC Tag ${suffix}`, slug, description: "A test-only NFC tag used by the integrated business journey.", fullDescription: "Created through Product Admin, imaged, stocked, published and then used in the NFC manufacturing flow.", categoryId: e2eCategory.id, type: "PET", status: "DRAFT", featured: false, shopVisible: false, brand: "Tapkin", gstInclusive: true, seoTitle: `E2E NFC Tag ${suffix}`, seoDescription: "Integrated test product for NFC commerce and manufacturing.", ogImageUrl: "", canonicalUrl: "", indexable: false,
