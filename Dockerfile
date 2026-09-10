@@ -8,16 +8,25 @@ RUN npm ci
 FROM dependencies AS builder
 COPY . .
 RUN mkdir -p public
-RUN npx prisma generate && npm run build
+RUN npm run build
+
+FROM dependencies AS migrator
+COPY --chown=node:node prisma ./prisma
+USER node
+CMD ["./node_modules/.bin/prisma", "migrate", "deploy"]
 
 FROM node:24-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
-RUN apk add --no-cache openssl libc6-compat
-COPY --from=builder /app/package.json /app/package-lock.json ./
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/.next ./.next
-COPY --from=builder /app/public ./public
-COPY --from=builder /app/prisma ./prisma
+ENV HOSTNAME=0.0.0.0
+ENV PORT=3000
+RUN apk add --no-cache openssl libc6-compat tini && addgroup --system --gid 1001 nodejs && adduser --system --uid 1001 nextjs && mkdir -p /app/data/uploads && chown -R nextjs:nodejs /app
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+COPY --from=builder --chown=nextjs:nodejs /app/public ./public
+USER nextjs
 EXPOSE 3000
-CMD ["sh", "-c", "npx prisma migrate deploy && npm start"]
+STOPSIGNAL SIGTERM
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 CMD wget -q -O /dev/null "http://127.0.0.1:${PORT}/api/health/live" || exit 1
+ENTRYPOINT ["/sbin/tini", "--"]
+CMD ["node", "server.js"]

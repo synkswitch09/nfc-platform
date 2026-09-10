@@ -20,11 +20,16 @@ services:
     restart: unless-stopped
     ports: ["3000:3000"]
     environment:
+      APP_ENV: development
       DATABASE_URL: postgresql://nfc:${POSTGRES_PASSWORD}@db:5432/nfc_platform?schema=public
+      DATABASE_EXPECTED_NAME: nfc_platform
       APP_URL: ${APP_URL:-http://localhost:3000}
       SESSION_SECRET: ${SESSION_SECRET:?Set SESSION_SECRET}
       ACTIVATION_PEPPER: ${ACTIVATION_PEPPER:?Set ACTIVATION_PEPPER}
       TRUST_PROXY: ${TRUST_PROXY:-false}
+      STORAGE_PROVIDER: local
+      STORAGE_ENVIRONMENT: development
+      EMAIL_MODE: mock
       STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
       STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
       EMAIL_WEBHOOK_URL: ${EMAIL_WEBHOOK_URL:-}
@@ -37,7 +42,22 @@ services:
     volumes:
       - product_uploads:/app/data/uploads
     depends_on:
+      migrate: { condition: service_completed_successfully }
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:3000/api/health/live"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+  migrate:
+    build:
+      context: .
+      target: migrator
+    environment:
+      DATABASE_URL: postgresql://nfc:${POSTGRES_PASSWORD}@db:5432/nfc_platform?schema=public
+    depends_on:
       db: { condition: service_healthy }
+    restart: "no"
 volumes:
   postgres_data:
   product_uploads:
