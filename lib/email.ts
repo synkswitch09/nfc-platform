@@ -1,9 +1,13 @@
+import { appendFile } from "node:fs/promises";
 import { getRuntimeConfig } from "@/lib/config";
 import { logEvent } from "@/lib/logger";
 
 export async function sendTransactionalEmail(input: { to: string; subject: string; text: string }) {
   const { email, appEnv } = getRuntimeConfig();
   if (email.mode === "mock") {
+    if (email.testOutboxPath) {
+      await appendFile(email.testOutboxPath, `${JSON.stringify({ ...input, createdAt: new Date().toISOString() })}\n`, { encoding: "utf8", mode: 0o600 });
+    }
     logEvent("info", "email_mocked", { messageType: input.subject, recipientDomain: input.to.split("@")[1] ?? "invalid" });
     return false;
   }

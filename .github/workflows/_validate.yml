@@ -23,8 +23,8 @@ jobs:
       STORAGE_ENVIRONMENT: development
       EMAIL_MODE: mock
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with: { node-version: 24, cache: npm }
       - run: npm ci
       - name: Block critical dependency advisories
@@ -51,11 +51,19 @@ jobs:
           E2E_ADMIN_PASSWORD: E2eAdminPassword123
           E2E_BASE_URL: http://127.0.0.1:3000
           E2E_APP_LOG: /tmp/nfc-e2e-app.log
+          EMAIL_TEST_OUTBOX_PATH: /tmp/nfc-e2e-email-outbox.ndjson
+          E2E_EMAIL_OUTBOX: /tmp/nfc-e2e-email-outbox.ndjson
           STRIPE_SECRET_KEY: e2e-not-a-real-stripe-key
           STRIPE_WEBHOOK_SECRET: e2e-webhook-secret
           E2E_STRIPE_WEBHOOK_SECRET: e2e-webhook-secret
         run: |
+          rm -f /tmp/nfc-e2e-email-outbox.ndjson
           npm run dev -- --hostname 127.0.0.1 > /tmp/nfc-e2e-app.log 2>&1 &
           APP_PID=$!
           trap 'kill "$APP_PID" 2>/dev/null || true' EXIT
-          npm run test:e2e
+          if ! npm run test:e2e; then
+            echo "::group::Application log (last 200 lines)"
+            tail -n 200 /tmp/nfc-e2e-app.log || true
+            echo "::endgroup::"
+            exit 1
+          fi

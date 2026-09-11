@@ -3,7 +3,7 @@ import { PrismaClient } from "@prisma/client";
 import Stripe from "stripe";
 
 const origin = process.env.E2E_BASE_URL ?? "http://127.0.0.1:3000";
-const appLog = process.env.E2E_APP_LOG ?? "/tmp/nfc-e2e-app.log";
+const emailOutbox = process.env.E2E_EMAIL_OUTBOX ?? "/tmp/nfc-e2e-email-outbox.ndjson";
 const adminEmail = process.env.E2E_ADMIN_EMAIL ?? "e2e-admin@example.test";
 const adminPassword = process.env.E2E_ADMIN_PASSWORD ?? "E2eAdminPassword123";
 const stripeWebhookSecret = process.env.E2E_STRIPE_WEBHOOK_SECRET ?? "e2e-webhook-secret";
@@ -50,13 +50,13 @@ async function waitForHealth() {
 }
 
 async function latestVerificationToken() {
-  for (let attempt = 0; attempt < 20; attempt += 1) {
-    const log = await readFile(appLog, "utf8").catch(() => "");
-    const matches = [...log.matchAll(/\/verify-email\?token=([A-Za-z0-9_-]+)/g)];
+  for (let attempt = 0; attempt < 40; attempt += 1) {
+    const outbox = await readFile(emailOutbox, "utf8").catch(() => "");
+    const matches = [...outbox.matchAll(/\/verify-email\?token=([A-Za-z0-9_-]+)/g)];
     if (matches.length) return matches.at(-1)[1];
     await new Promise(resolve => setTimeout(resolve, 250));
   }
-  throw new Error("Email verification token was not emitted to the development email preview log");
+  throw new Error("Email verification token was not captured in the isolated E2E outbox");
 }
 
 async function main() {

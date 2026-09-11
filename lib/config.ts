@@ -24,6 +24,7 @@ const runtimeConfigSchema = z.object({
   EMAIL_MODE: z.enum(["mock", "sandbox", "live"]).default("mock"),
   EMAIL_WEBHOOK_URL: optionalUrl,
   EMAIL_WEBHOOK_SECRET: optionalString,
+  EMAIL_TEST_OUTBOX_PATH: optionalString,
   STRIPE_SECRET_KEY: optionalString,
   STRIPE_WEBHOOK_SECRET: optionalString,
   NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: optionalString,
@@ -81,6 +82,7 @@ const runtimeConfigSchema = z.object({
     if (value.EMAIL_MODE === "mock") issue("EMAIL_MODE", "Staging and production require an isolated sandbox or live email provider");
     if (!value.EMAIL_WEBHOOK_URL) issue("EMAIL_WEBHOOK_URL", "EMAIL_WEBHOOK_URL is required outside development");
     if (!value.EMAIL_WEBHOOK_SECRET) issue("EMAIL_WEBHOOK_SECRET", "EMAIL_WEBHOOK_SECRET is required outside development");
+    if (value.EMAIL_TEST_OUTBOX_PATH) issue("EMAIL_TEST_OUTBOX_PATH", "The test email outbox is restricted to development");
     if (value.ENABLE_TEST_CHECKOUT) issue("ENABLE_TEST_CHECKOUT", "Test checkout is restricted to development");
     if (value.DEV_ADMIN_EMAIL || value.DEV_ADMIN_PASSWORD) issue("DEV_ADMIN_EMAIL", "Development administrator credentials are forbidden outside development");
   }
@@ -110,7 +112,7 @@ export type RuntimeConfig = {
   activationPepper?: string;
   trustProxy: boolean;
   storage: { provider: "local" | "azure-blob"; environment?: AppEnvironment; uploadDir: string; containerUrl?: string; sasToken?: string };
-  email: { mode: "mock" | "sandbox" | "live"; webhookUrl?: string; webhookSecret?: string };
+  email: { mode: "mock" | "sandbox" | "live"; webhookUrl?: string; webhookSecret?: string; testOutboxPath?: string };
   stripe: { secretKey?: string; webhookSecret?: string; publishableKey?: string; testCheckout: boolean };
   analyticsId?: string;
   logLevel: "info" | "warn" | "error";
@@ -133,7 +135,7 @@ export function parseRuntimeConfig(environment: Record<string, string | undefine
     activationPepper: value.ACTIVATION_PEPPER,
     trustProxy: value.TRUST_PROXY,
     storage: { provider: value.STORAGE_PROVIDER, environment: value.STORAGE_ENVIRONMENT, uploadDir: value.UPLOAD_DIR, containerUrl: value.AZURE_STORAGE_CONTAINER_URL, sasToken: value.AZURE_STORAGE_SAS_TOKEN },
-    email: { mode: value.EMAIL_MODE, webhookUrl: value.EMAIL_WEBHOOK_URL, webhookSecret: value.EMAIL_WEBHOOK_SECRET },
+    email: { mode: value.EMAIL_MODE, webhookUrl: value.EMAIL_WEBHOOK_URL, webhookSecret: value.EMAIL_WEBHOOK_SECRET, testOutboxPath: value.EMAIL_TEST_OUTBOX_PATH },
     stripe: { secretKey: value.STRIPE_SECRET_KEY, webhookSecret: value.STRIPE_WEBHOOK_SECRET, publishableKey: value.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY, testCheckout: value.ENABLE_TEST_CHECKOUT },
     analyticsId: value.ANALYTICS_ID,
     logLevel: value.LOG_LEVEL,

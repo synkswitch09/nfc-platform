@@ -33,6 +33,11 @@ describe("runtime configuration", () => {
     expect(parseRuntimeConfig({ APP_ENV: "development", STRIPE_SECRET_KEY: "", EMAIL_WEBHOOK_URL: "", AZURE_STORAGE_CONTAINER_URL: "" }).stripe.secretKey).toBeUndefined();
   });
 
+  it("allows an isolated mock-email outbox only in development", () => {
+    expect(parseRuntimeConfig({ APP_ENV: "development", EMAIL_TEST_OUTBOX_PATH: "/tmp/tapkin-test-outbox.ndjson" }).email.testOutboxPath).toBe("/tmp/tapkin-test-outbox.ndjson");
+    expect(() => parseRuntimeConfig({ ...nonDevelopment("staging"), EMAIL_TEST_OUTBOX_PATH: "/tmp/tapkin-test-outbox.ndjson" })).toThrow("test email outbox is restricted to development");
+  });
+
   it("requires an explicit deployment environment in a production runtime", () => {
     expect(() => parseRuntimeConfig({ NODE_ENV: "production" })).toThrow("APP_ENV must be explicit");
   });
