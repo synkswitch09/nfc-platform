@@ -116,6 +116,62 @@ enum BackorderPolicy {
   ALLOW
 }
 
+enum PersonalisationMode {
+  NONE
+  OPTIONAL
+  REQUIRED
+}
+
+enum ShippingProviderKind {
+  MANUAL
+  MOCK
+  AUSTRALIA_POST
+}
+
+enum ShippingQuoteStatus {
+  ACTIVE
+  CONSUMED
+  EXPIRED
+}
+
+enum ShipmentStatus {
+  DRAFT
+  LABEL_READY
+  IN_TRANSIT
+  DELIVERED
+  CANCELLED
+}
+
+enum PrintDocumentType {
+  SHIPPING_LABEL
+}
+
+enum PrintJobStatus {
+  QUEUED
+  CLAIMED
+  PRINTED
+  FAILED
+  CANCELLED
+}
+
+enum LandingSectionType {
+  HERO
+  FEATURE_BADGES
+  BENEFITS
+  STEPS
+  PRODUCT_SHOWCASE
+  FEATURE_LIST
+  MEDIA_CONTENT
+  STORY_PROCESS
+  FAQ
+  CTA_BANNER
+  PRODUCT_GRID
+  CATEGORY_GRID
+  RICH_TEXT
+  TRUST_STRIP
+  STATS
+}
+
 enum TagStatus {
   MANUFACTURED
   UNCLAIMED
@@ -211,6 +267,9 @@ model User {
   emailTokens               EmailVerification[]
   passwordResets            PasswordReset[]
   storeMemberships          StoreMembership[]
+  createdShippingOrigins    ShippingOrigin[]      @relation("ShippingOriginCreator")
+  createdShipments          Shipment[]            @relation("ShipmentCreator")
+  createdPrintAgents        PrintAgent[]          @relation("PrintAgentCreator")
 }
 
 model Store {
@@ -251,6 +310,16 @@ model Store {
   manufacturingBatches ManufacturingBatch[]
   manufacturingJobs    ManufacturingJob[]
   auditLogs            AuditLog[]
+  shippingOrigins      ShippingOrigin[]
+  packaging            Packaging[]
+  shippingZones        ShippingZone[]
+  shippingProviders    ShippingProvider[]
+  shippingRates        ShippingRate[]
+  shippingQuotes       ShippingQuote[]
+  shipments            Shipment[]
+  printAgents          PrintAgent[]
+  printJobs            PrintJob[]
+  landingSections      LandingPageSection[]
 
   @@index([status, name])
 }
@@ -385,6 +454,14 @@ model Product {
   indexable        Boolean              @default(true)
   brand            String
   gstInclusive     Boolean              @default(true)
+  personalisationMode PersonalisationMode @default(NONE)
+  weightGrams      Int?
+  lengthMm         Int?
+  widthMm          Int?
+  heightMm         Int?
+  defaultPackagingId String?            @db.Uuid
+  shipsSeparately  Boolean              @default(false)
+  specialHandling  String?
   createdAt        DateTime             @default(now())
   updatedAt        DateTime             @updatedAt
   category         ProductCategory?     @relation(fields: [categoryId], references: [id], onDelete: SetNull)
@@ -394,6 +471,7 @@ model Product {
   options          ProductOption[]
   tags             NFCTag[]
   batches          ManufacturingBatch[]
+  defaultPackaging Packaging?           @relation(fields: [defaultPackagingId], references: [id], onDelete: SetNull)
 
   @@unique([storeId, slug])
   @@index([storeId, categoryId, status])
@@ -451,6 +529,7 @@ model ProductCategory {
   updatedAt           DateTime              @updatedAt
   products            Product[]
   store               Store                 @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  landingSections     LandingPageSection[]
 
   @@unique([storeId, slug])
   @@index([storeId, status, sortOrder])
@@ -472,12 +551,15 @@ model ProductImage {
   height     Int?
   sortOrder  Int              @default(0)
   isPrimary  Boolean          @default(false)
+  optionValueId String?       @db.Uuid
   createdAt  DateTime         @default(now())
   updatedAt  DateTime         @updatedAt
   product    Product          @relation(fields: [productId], references: [id], onDelete: Cascade)
   variants   ProductVariant[] @relation("VariantImage")
+  optionValue ProductOptionValue? @relation(fields: [optionValueId], references: [id], onDelete: SetNull)
 
   @@index([productId, sortOrder])
+  @@index([productId, optionValueId, sortOrder])
 }
 
 model ProductOption {
@@ -507,7 +589,11 @@ model ProductOptionValue {
   priceDeltaCents Int           @default(0)
   sortOrder       Int           @default(0)
   active          Boolean       @default(true)
+  swatchHex       String?
+  swatchHexSecondary String?
+  swatchImageUrl  String?
   option          ProductOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
+  images          ProductImage[]
 
   @@unique([optionId, value])
   @@index([optionId, active, sortOrder])
@@ -531,6 +617,13 @@ model ProductVariant {
   backorderPolicy     BackorderPolicy      @default(DENY)
   imageId             String?              @db.Uuid
   active              Boolean              @default(true)
+  isDefault           Boolean              @default(false)
+  optionSelection     Json                 @default("{}")
+  weightGrams         Int?
+  lengthMm            Int?
+  widthMm             Int?
+  heightMm            Int?
+  defaultPackagingId  String?              @db.Uuid
   createdAt           DateTime             @default(now())
   updatedAt           DateTime             @updatedAt
   product             Product              @relation(fields: [productId], references: [id], onDelete: Restrict)
@@ -541,6 +634,7 @@ model ProductVariant {
   batches             ManufacturingBatch[]
   inventoryMovements  InventoryMovement[]
   manufacturingJobs   ManufacturingJob[]
+  defaultPackaging    Packaging?           @relation(fields: [defaultPackagingId], references: [id], onDelete: SetNull)
 
   @@index([productId, active])
   @@index([trackInventory, inventory])
@@ -601,6 +695,13 @@ model Order {
   shippingCountry     String                @default("AU")
   shippingCarrier     String?
   trackingNumber      String?
+  shippingProviderKey String?
+  shippingServiceCode String?
+  shippingServiceName String?
+  shippingQuoteId     String?               @unique @db.Uuid
+  shippingQuoteSnapshot Json?
+  packagingSnapshot  Json?
+  shippingOriginSnapshot Json?
   shippedAt           DateTime?
   status              OrderStatus           @default(PENDING)
   currency            String                @default("AUD")
@@ -616,6 +717,8 @@ model Order {
   payments            Payment[]
   statusHistory       OrderStatusHistory[]
   inventoryMovements  InventoryMovement[]
+  shippingQuote       ShippingQuote?        @relation(fields: [shippingQuoteId], references: [id], onDelete: SetNull)
+  shipments           Shipment[]
 
   @@index([storeId, userId, createdAt])
   @@index([storeId, guestEmail, createdAt])
@@ -634,6 +737,9 @@ model OrderItem {
   sku               String
   productType       ProductType
   personalisation   Json?
+  personalisationMode PersonalisationMode @default(NONE)
+  selectedOptions   Json?
+  shippingSnapshot  Json?
   order             Order              @relation(fields: [orderId], references: [id], onDelete: Cascade)
   variant           ProductVariant     @relation(fields: [variantId], references: [id], onDelete: Restrict)
   tags              NFCTag[]
@@ -725,6 +831,241 @@ model ManufacturingJob {
   @@index([storeId, status, priority, createdAt])
   @@index([productVariantId, status])
   @@index([assignedToId, status])
+}
+
+model ShippingOrigin {
+  id          String   @id @default(uuid()) @db.Uuid
+  storeId     String   @db.Uuid
+  name        String
+  senderName  String
+  company     String?
+  line1       String
+  line2       String?
+  suburb      String
+  state       String
+  postcode    String
+  country     String   @default("AU") @db.Char(2)
+  phone       String?
+  email       String?
+  isDefault   Boolean  @default(false)
+  active      Boolean  @default(true)
+  createdById String?  @db.Uuid
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  store       Store    @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  createdBy   User?    @relation("ShippingOriginCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  shipments   Shipment[]
+
+  @@unique([storeId, name])
+  @@index([storeId, active, isDefault])
+}
+
+model Packaging {
+  id              String   @id @default(uuid()) @db.Uuid
+  storeId         String   @db.Uuid
+  name            String
+  code            String
+  lengthMm        Int
+  widthMm         Int
+  heightMm        Int
+  emptyWeightGrams Int     @default(0)
+  maxWeightGrams  Int?
+  costCents       Int      @default(0)
+  active          Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  store           Store    @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  products        Product[]
+  variants        ProductVariant[]
+  shippingRates   ShippingRate[]
+
+  @@unique([storeId, code])
+  @@index([storeId, active, name])
+}
+
+model ShippingZone {
+  id             String   @id @default(uuid()) @db.Uuid
+  storeId        String   @db.Uuid
+  name           String
+  countries      String[] @default(["AU"])
+  states         String[] @default([])
+  postcodeRules  Json     @default("[]")
+  priority       Int      @default(0)
+  active         Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  store          Store    @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  rates          ShippingRate[]
+
+  @@unique([storeId, name])
+  @@index([storeId, active, priority])
+}
+
+model ShippingProvider {
+  id             String               @id @default(uuid()) @db.Uuid
+  storeId        String               @db.Uuid
+  key            String
+  name           String
+  kind           ShippingProviderKind
+  active         Boolean              @default(true)
+  supportsRates  Boolean              @default(false)
+  supportsLabels Boolean              @default(false)
+  settings       Json                 @default("{}")
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+  store          Store                @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  rates          ShippingRate[]
+  shipments      Shipment[]
+
+  @@unique([storeId, key])
+  @@index([storeId, active])
+}
+
+model ShippingRate {
+  id                String   @id @default(uuid()) @db.Uuid
+  storeId           String   @db.Uuid
+  zoneId            String   @db.Uuid
+  providerId        String?  @db.Uuid
+  packagingId       String?  @db.Uuid
+  serviceCode       String
+  serviceName       String
+  amountCents       Int
+  freeOverCents     Int?
+  minWeightGrams    Int?
+  maxWeightGrams    Int?
+  estimatedDaysMin  Int?
+  estimatedDaysMax  Int?
+  priority          Int      @default(0)
+  active            Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  store             Store    @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  zone              ShippingZone @relation(fields: [zoneId], references: [id], onDelete: Restrict)
+  provider          ShippingProvider? @relation(fields: [providerId], references: [id], onDelete: SetNull)
+  packaging         Packaging? @relation(fields: [packagingId], references: [id], onDelete: SetNull)
+
+  @@unique([storeId, zoneId, serviceCode, packagingId])
+  @@index([storeId, active, priority])
+  @@index([zoneId, active])
+}
+
+model ShippingQuote {
+  id                String              @id @default(uuid()) @db.Uuid
+  storeId           String              @db.Uuid
+  tokenHash         String              @unique
+  status            ShippingQuoteStatus @default(ACTIVE)
+  cartHash          String
+  destinationHash   String
+  providerKey       String
+  serviceCode       String
+  serviceName       String
+  amountCents       Int
+  currency          String              @default("AUD") @db.Char(3)
+  estimatedDaysMin  Int?
+  estimatedDaysMax  Int?
+  originSnapshot    Json
+  packagingSnapshot Json
+  expiresAt         DateTime
+  consumedAt        DateTime?
+  createdAt         DateTime            @default(now())
+  store             Store               @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  order             Order?
+
+  @@index([storeId, status, expiresAt])
+}
+
+model Shipment {
+  id                  String         @id @default(uuid()) @db.Uuid
+  storeId             String         @db.Uuid
+  orderId             String         @db.Uuid
+  originId            String?        @db.Uuid
+  providerId          String?        @db.Uuid
+  providerShipmentId  String?
+  status              ShipmentStatus @default(DRAFT)
+  serviceCode         String
+  serviceName         String
+  trackingNumber      String?
+  trackingUrl         String?
+  labelStorageKey     String?
+  labelMimeType       String?
+  labelCreatedAt      DateTime?
+  createdById         String?        @db.Uuid
+  shippedAt           DateTime?
+  deliveredAt         DateTime?
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+  store               Store          @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  order               Order          @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  origin              ShippingOrigin? @relation(fields: [originId], references: [id], onDelete: SetNull)
+  provider            ShippingProvider? @relation(fields: [providerId], references: [id], onDelete: SetNull)
+  createdBy           User?          @relation("ShipmentCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  printJobs           PrintJob[]
+
+  @@index([storeId, status, createdAt])
+  @@index([orderId, createdAt])
+  @@index([trackingNumber])
+}
+
+model PrintAgent {
+  id          String   @id @default(uuid()) @db.Uuid
+  storeId     String   @db.Uuid
+  name        String
+  tokenHash   String   @unique
+  active      Boolean  @default(true)
+  printerName String?
+  lastSeenAt  DateTime?
+  createdById String?  @db.Uuid
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  store       Store    @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  createdBy   User?    @relation("PrintAgentCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  jobs        PrintJob[]
+
+  @@unique([storeId, name])
+  @@index([storeId, active])
+}
+
+model PrintJob {
+  id           String            @id @default(uuid()) @db.Uuid
+  storeId      String            @db.Uuid
+  shipmentId   String            @db.Uuid
+  printAgentId String?           @db.Uuid
+  documentType PrintDocumentType @default(SHIPPING_LABEL)
+  status       PrintJobStatus    @default(QUEUED)
+  copies       Int               @default(1)
+  attempts     Int               @default(0)
+  leaseTokenHash String?
+  leaseExpiresAt DateTime?
+  claimedAt    DateTime?
+  printedAt    DateTime?
+  failedAt     DateTime?
+  errorMessage String?
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+  shipment     Shipment          @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+  printAgent   PrintAgent?       @relation(fields: [printAgentId], references: [id], onDelete: SetNull)
+  store        Store             @relation(fields: [storeId], references: [id], onDelete: Restrict)
+
+  @@index([storeId, status, createdAt])
+  @@index([printAgentId, status])
+  @@index([leaseExpiresAt])
+}
+
+model LandingPageSection {
+  id         String             @id @default(uuid()) @db.Uuid
+  storeId    String             @db.Uuid
+  categoryId String             @db.Uuid
+  type       LandingSectionType
+  name       String
+  visible    Boolean            @default(true)
+  sortOrder  Int                @default(0)
+  content    Json               @default("{}")
+  createdAt  DateTime           @default(now())
+  updatedAt  DateTime           @updatedAt
+  store      Store              @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  category   ProductCategory    @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@index([storeId, categoryId, visible, sortOrder])
 }
 
 model Payment {
