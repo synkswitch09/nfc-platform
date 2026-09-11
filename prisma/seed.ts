@@ -5,6 +5,7 @@ import { currentAppEnvironment } from "../lib/config";
 
 const db = new PrismaClient();
 const TAPKIN_STORE_ID = "00000000-0000-4000-8000-000000000001";
+const HOME_DEMO_STORE_ID = "00000000-0000-4000-8000-000000000002";
 const categories = [
   {
     slug: "pet", legacySlugs: ["pet-tags"], name: "Pet", icon: "dog", visualTheme: CategoryVisualTheme.CORAL, landingLayout: CategoryLandingLayout.EDITORIAL,
@@ -75,6 +76,58 @@ const catalog = [
   product("backpack-identification-tag", "Backpack Identification Tag", "A versatile NFC identifier for backpacks, cases and valuable everyday equipment.", "LUGGAGE", "LUG-BACKPACK", 2195, "luggage", [{ code: "printed-text", name: "Printed text", type: "SHORT_TEXT", required: true, maxLength: 28 }, { code: "colour", name: "Colour", type: "COLOUR", required: true, values: commonColours }]),
 ];
 
+async function seedHomeDemo() {
+  const store = await db.store.upsert({
+    where: { slug: "home-demo" },
+    update: { status: "ACTIVE", capabilities: [StoreCapability.COMMERCE, StoreCapability.CUSTOM_PERSONALISATION, StoreCapability.PRINT_3D, StoreCapability.INVENTORY] },
+    create: {
+      id: HOME_DEMO_STORE_ID,
+      slug: "home-demo",
+      name: "Home Demo",
+      displayName: "Home Demo",
+      status: "ACTIVE",
+      supportEmail: "home-demo@example.com",
+      seoTitle: "Home Demo · Useful 3D Printed Objects",
+      seoDescription: "A development-only storefront demonstrating thoughtful 3D printed products for desks, organisation and everyday spaces.",
+      theme: { accent: "#f2b880", accentSecondary: "#496b5d", background: "#f8f4ed", foreground: "#26332d", radius: "0.9rem", fontStyle: "modern" },
+      homepage: { variant: "home-demo", heroEyebrow: "Useful objects, calmly considered", heroHeadline: "A more settled place for everyday things.", heroDescription: "Small-batch 3D printed products for desks, cables and the objects that deserve a proper place.", primaryCtaLabel: "Explore Home Demo", primaryCtaHref: "/shop" },
+      organization: { type: "Organization", name: "Home Demo" },
+      shippingConfig: { flatRateCents: 1100, freeOverCents: 7500 },
+      capabilities: [StoreCapability.COMMERCE, StoreCapability.CUSTOM_PERSONALISATION, StoreCapability.PRINT_3D, StoreCapability.INVENTORY],
+    },
+  });
+  await db.storeDomain.upsert({ where: { environment_hostname: { environment: DeploymentEnvironment.DEVELOPMENT, hostname: "home.localhost" } }, update: { storeId: store.id, protocol: "http", isPrimary: true }, create: { storeId: store.id, environment: DeploymentEnvironment.DEVELOPMENT, hostname: "home.localhost", protocol: "http", isPrimary: true } });
+
+  const categorySeeds = [
+    { slug: "desk-organization", name: "Desk & Organization", icon: "layout-grid", visualTheme: CategoryVisualTheme.MIDNIGHT, landingLayout: CategoryLandingLayout.EDITORIAL, shortDescription: "Purpose-built forms that give everyday desk objects a calm, practical place.", heroEyebrow: "A clearer place to work", heroHeadline: "Organise the small things that interrupt your day.", heroDescription: "Functional stands and organisers printed in small batches for cables, devices and focused workspaces.", cardTitle: "Desk & Organization", cardText: "Phone stands, cable control and considered storage for a calmer surface.", benefits: [{ icon: "layout-grid", title: "Purposeful footprint", description: "Useful capacity without taking over the desk.", order: 0, visible: true }, { icon: "palette", title: "Made to fit", description: "Choose practical colours and sizes for the space.", order: 1, visible: true }], howItWorks: [{ title: "Choose the problem", description: "Start with the device, cable or surface that needs a better place.", order: 0, visible: true }, { title: "Select the finish", description: "Pick a colour and configuration suited to the setup.", order: 1, visible: true }, { title: "Made in small batches", description: "The item is printed, finished and checked before packing.", order: 2, visible: true }] },
+    { slug: "everyday-comfort", name: "Everyday Comfort", icon: "lamp-desk", visualTheme: CategoryVisualTheme.AMBER, landingLayout: CategoryLandingLayout.JOURNEY, shortDescription: "Simple objects that make familiar routines feel a little easier.", heroEyebrow: "Comfort in the useful details", heroHeadline: "Small improvements for the spaces you use most.", heroDescription: "Thoughtful 3D printed accessories shaped around everyday storage, display and easy access.", cardTitle: "Everyday Comfort", cardText: "Practical forms with a warmer, quieter presence at home.", benefits: [{ icon: "sparkles", title: "Quietly useful", description: "Clear functions without visual clutter.", order: 0, visible: true }, { icon: "repeat", title: "Made for repetition", description: "Durable objects for routines that happen every day.", order: 1, visible: true }], howItWorks: [{ title: "Find the useful detail", description: "Choose an object designed around a familiar daily task.", order: 0, visible: true }, { title: "Make it yours", description: "Select an available colour and fit.", order: 1, visible: true }, { title: "Put it to work", description: "Unpack, place and use it without setup complexity.", order: 2, visible: true }] },
+  ];
+  const categoryIds = new Map<string, string>();
+  for (const [sortOrder, item] of categorySeeds.entries()) {
+    const category = await db.productCategory.upsert({
+      where: { storeId_slug: { storeId: store.id, slug: item.slug } },
+      update: { ...item, status: "PUBLISHED", sortOrder, showOnHomepage: true, showInNavigation: true, showInShop: true, showLanding: true, indexable: false, ctaHref: `/shop?category=${item.slug}`, finalCtaHref: `/shop?category=${item.slug}` },
+      create: { ...item, storeId: store.id, status: "PUBLISHED", sortOrder, indexable: false, ctaHref: `/shop?category=${item.slug}`, finalCtaHref: `/shop?category=${item.slug}`, seoTitle: `${item.name} · Home Demo`, seoDescription: item.shortDescription },
+    });
+    categoryIds.set(item.slug, category.id);
+  }
+  const demoProducts = [
+    product("minimal-phone-stand", "Minimal Phone Stand", "An angled desktop stand with a compact footprint and a clear charging path.", ProductType.ACCESSORY, "HOME-DEMO-PHONE", 2995, "desk-organization", [{ code: "colour", name: "Colour", type: "COLOUR", required: true, values: ["Sand", "Forest", "Charcoal"] }], true),
+    product("cable-organizer", "Cable Organizer", "A low-profile cable guide that keeps charging leads ready without dominating the desk.", ProductType.ACCESSORY, "HOME-DEMO-CABLE", 1495, "desk-organization", [{ code: "colour", name: "Colour", type: "COLOUR", required: true, values: ["Sand", "Forest", "Charcoal"] }]),
+    product("headphone-holder", "Headphone Holder", "A stable home for headphones designed to keep the everyday setup clear and accessible.", ProductType.ACCESSORY, "HOME-DEMO-HEADPHONE", 3495, "everyday-comfort", [{ code: "colour", name: "Colour", type: "COLOUR", required: true, values: ["Sand", "Forest", "Charcoal"] }], true),
+  ];
+  for (const item of demoProducts) {
+    const categoryId = categoryIds.get(item.category)!;
+    const productRecord = await db.product.upsert({ where: { storeId_slug: { storeId: store.id, slug: item.slug } }, update: { name: item.name, description: item.description, shortDescription: item.description, categoryId, status: "ACTIVE", shopVisible: true, featured: item.featured, brand: store.displayName }, create: { storeId: store.id, slug: item.slug, name: item.name, description: item.description, shortDescription: item.description, type: item.type, categoryId, status: "ACTIVE", shopVisible: true, featured: item.featured, brand: store.displayName } });
+    await db.productVariant.upsert({ where: { sku: item.sku }, update: { productId: productRecord.id, name: "Standard", priceCents: item.priceCents, active: true }, create: { productId: productRecord.id, sku: item.sku, name: "Standard", priceCents: item.priceCents, inventory: 40 } });
+    for (const [sortOrder, optionSeed] of item.options.entries()) {
+      const option = await db.productOption.upsert({ where: { productId_code: { productId: productRecord.id, code: optionSeed.code } }, update: { name: optionSeed.name, type: optionSeed.type, required: optionSeed.required ?? false, sortOrder, active: true }, create: { productId: productRecord.id, code: optionSeed.code, name: optionSeed.name, type: optionSeed.type, required: optionSeed.required ?? false, sortOrder } });
+      for (const [valueOrder, value] of (optionSeed.values ?? []).entries()) await db.productOptionValue.upsert({ where: { optionId_value: { optionId: option.id, value: value.toLowerCase() } }, update: { label: value, sortOrder: valueOrder, active: true }, create: { optionId: option.id, label: value, value: value.toLowerCase(), sortOrder: valueOrder } });
+    }
+  }
+  return store;
+}
+
 async function main() {
   const environment = currentAppEnvironment();
   if (environment === "production") throw new Error("Production seeding is disabled. Bootstrap real administrators through the controlled production procedure.");
@@ -105,12 +158,19 @@ async function main() {
       for (const [valueOrder, value] of (optionSeed.values ?? []).entries()) await db.productOptionValue.upsert({ where: { optionId_value: { optionId: option.id, value: value.toLowerCase() } }, update: { label: value, sortOrder: valueOrder, active: true }, create: { optionId: option.id, label: value, value: value.toLowerCase(), sortOrder: valueOrder } });
     }
   }
+  const homeDemoStore = environment === "development" ? await seedHomeDemo() : null;
   await db.storeSettings.upsert({ where: { id: "default" }, update: { storeName: "Tapkin", siteTitle: "Tapkin Smart Products", siteDescription: "Personalised smart products combining 3D printing, NFC, QR and secure digital profiles." }, create: { id: "default", storeName: "Tapkin", siteTitle: "Tapkin Smart Products", siteDescription: "Personalised smart products combining 3D printing, NFC, QR and secure digital profiles." } });
   const emailName = environment === "staging" ? "STAGING_ADMIN_EMAIL" : "DEV_ADMIN_EMAIL";
   const passwordName = environment === "staging" ? "STAGING_ADMIN_PASSWORD" : "DEV_ADMIN_PASSWORD";
   const email = process.env[emailName]?.trim().toLowerCase(); const password = process.env[passwordName];
   if (Boolean(email) !== Boolean(password)) throw new Error(`Set both ${emailName} and ${passwordName}, or leave both empty`);
-  if (email && password) { const parsedPassword = passwordSchema.safeParse(password); if (!parsedPassword.success) throw new Error(parsedPassword.error.issues[0]?.message ?? "Invalid administrator password"); const passwordHash = await hashPassword(parsedPassword.data); const admin = await db.user.upsert({ where: { email }, update: { role: Role.ADMIN, passwordHash, emailVerifiedAt: new Date() }, create: { email, name: environment === "staging" ? "Staging Admin" : "Development Admin", role: Role.ADMIN, passwordHash, emailVerifiedAt: new Date() } }); await db.storeMembership.upsert({ where: { storeId_userId: { storeId: store.id, userId: admin.id } }, update: { role: "ADMIN" }, create: { storeId: store.id, userId: admin.id, role: "ADMIN" } }); }
+  if (email && password) {
+    const parsedPassword = passwordSchema.safeParse(password);
+    if (!parsedPassword.success) throw new Error(parsedPassword.error.issues[0]?.message ?? "Invalid administrator password");
+    const passwordHash = await hashPassword(parsedPassword.data);
+    const admin = await db.user.upsert({ where: { email }, update: { role: Role.ADMIN, passwordHash, emailVerifiedAt: new Date() }, create: { email, name: environment === "staging" ? "Staging Admin" : "Development Admin", role: Role.ADMIN, passwordHash, emailVerifiedAt: new Date() } });
+    for (const target of [store, homeDemoStore].filter((item): item is NonNullable<typeof item> => Boolean(item))) await db.storeMembership.upsert({ where: { storeId_userId: { storeId: target.id, userId: admin.id } }, update: { role: "ADMIN" }, create: { storeId: target.id, userId: admin.id, role: "ADMIN" } });
+  }
 }
 
 main().catch(error => { console.error(error instanceof Error ? error.message : "Database seed failed"); process.exitCode = 1; }).finally(() => db.$disconnect());

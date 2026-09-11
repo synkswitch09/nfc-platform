@@ -23,26 +23,24 @@ type CartContextValue = {
 };
 
 const CartContext = createContext<CartContextValue | null>(null);
-const STORAGE_KEY = "tapkin-cart-v1";
-
 function lineKey(variantId: string, personalisation: Record<string, string>) {
   return `${variantId}:${JSON.stringify(Object.entries(personalisation).sort(([a], [b]) => a.localeCompare(b)))}`;
 }
 
-export function CartProvider({ children }: { children: React.ReactNode }) {
+export function CartProvider({ children, storageKey }: { children: React.ReactNode; storageKey: string }) {
   const [lines, setLines] = useState<CartLine[]>([]);
   const [ready, setReady] = useState(false);
   useEffect(() => {
     const frame = requestAnimationFrame(() => {
       try {
-        const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "[]");
+        const stored = JSON.parse(localStorage.getItem(storageKey) ?? "[]");
         if (Array.isArray(stored)) setLines(stored.filter(line => line && typeof line.variantId === "string" && Number.isInteger(line.quantity)));
-      } catch { localStorage.removeItem(STORAGE_KEY); }
+      } catch { localStorage.removeItem(storageKey); }
       setReady(true);
     });
     return () => cancelAnimationFrame(frame);
-  }, []);
-  useEffect(() => { if (ready) localStorage.setItem(STORAGE_KEY, JSON.stringify(lines)); }, [lines, ready]);
+  }, [storageKey]);
+  useEffect(() => { if (ready) localStorage.setItem(storageKey, JSON.stringify(lines)); }, [lines, ready, storageKey]);
 
   const value = useMemo<CartContextValue>(() => ({
     lines,

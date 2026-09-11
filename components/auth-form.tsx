@@ -4,7 +4,7 @@ import { FormEvent, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 
-export function AuthForm({ mode }: { mode: "login" | "register" }) {
+export function AuthForm({ mode, storeName }: { mode: "login" | "register"; storeName: string }) {
   const router = useRouter();
   const search = useSearchParams();
   const [error, setError] = useState("");
@@ -37,6 +37,6 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
     {error && <div className="form-error" role="alert">{error}</div>}
     <button className="button" disabled={pending}>{pending ? "Please wait…" : isLogin ? "Sign in" : "Create account"}</button>
     {isLogin && <Link className="muted" href="/forgot-password"><u>Forgot password?</u></Link>}
-    <p className="muted">{isLogin ? "New to Tapkin? " : "Already have an account? "}<Link href={isLogin ? "/register" : "/login"}><u>{isLogin ? "Create an account" : "Sign in"}</u></Link></p>
+    <p className="muted">{isLogin ? `New to ${storeName}? ` : "Already have an account? "}<Link href={isLogin ? "/register" : "/login"}><u>{isLogin ? "Create an account" : "Sign in"}</u></Link></p>
   </form></>;
 }

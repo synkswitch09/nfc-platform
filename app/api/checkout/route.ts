@@ -7,7 +7,7 @@ import { rateLimit } from "@/lib/rate-limit";
 import { getStripe } from "@/lib/stripe";
 import { checkoutSchema } from "@/lib/validation";
 import { getRuntimeConfig } from "@/lib/config";
-import { getCurrentStorefront } from "@/lib/storefront";
+import { getCurrentStorefront, isStoreCommerceAvailable } from "@/lib/storefront";
 
 export async function POST(request: NextRequest) {
   if (!assertSameOrigin(request)) return jsonError("Invalid request origin", 403);
@@ -17,6 +17,7 @@ export async function POST(request: NextRequest) {
   if (!parsed.success) return jsonError(parsed.error.issues[0]?.message ?? "Invalid checkout details");
 
   const [user, store] = await Promise.all([getCurrentUser(), getCurrentStorefront()]);
+  if (!isStoreCommerceAvailable(store)) return jsonError("This store is not accepting orders", 409);
   if (!parsed.data.customer) return jsonError("Contact and shipping details are required");
   const customer = parsed.data.customer;
 

@@ -176,6 +176,10 @@ export function hasStoreCapability(store: Pick<Storefront, "capabilities">, capa
   return store.capabilities.includes(capability);
 }
 
+export function isStoreCommerceAvailable(store: Pick<Storefront, "capabilities" | "status">) {
+  return store.status === StoreStatus.ACTIVE && hasStoreCapability(store, StoreCapability.COMMERCE);
+}
+
 export function storeThemeStyle(theme: StorefrontTheme): CSSProperties {
   return {
     "--store-accent": theme.accent,

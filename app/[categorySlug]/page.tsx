@@ -5,6 +5,8 @@ import { categoryFaq } from "@/lib/category-content";
 import { categoryPublicPath, getPublicCategory } from "@/lib/category-query";
 import { getRuntimeConfig, searchEnginePolicy } from "@/lib/config";
 import { getCurrentStorefront } from "@/lib/storefront";
+import { hasStoreCapability } from "@/lib/storefront";
+import { StoreCapability } from "@prisma/client";
 
 export async function generateMetadata({ params }: { params: Promise<{ categorySlug: string }> }): Promise<Metadata> {
   const category = await getPublicCategory((await params).categorySlug);
@@ -26,7 +28,8 @@ export default async function PublicCategoryPage({ params }: { params: Promise<{
   if (!category) notFound();
   if (categorySlug !== category.slug) permanentRedirect(categoryPublicPath(category.slug));
 
-  const origin = (await getCurrentStorefront()).origin;
+  const store = await getCurrentStorefront();
+  const origin = store.origin;
   const faq = categoryFaq(category.faq);
   const products = category.showInShop ? category.products : [];
   const structuredData = {
@@ -38,5 +41,5 @@ export default async function PublicCategoryPage({ params }: { params: Promise<{
     ],
   };
 
-  return <><script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData).replaceAll("<", "\\u003c") }} /><CategoryLanding category={category} /></>;
+  return <><script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData).replaceAll("<", "\\u003c") }} /><CategoryLanding category={category} store={{ displayName: store.displayName, currency: store.currency, nfcEnabled: hasStoreCapability(store, StoreCapability.NFC) }} /></>;
 }

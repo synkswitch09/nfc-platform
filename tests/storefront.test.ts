@@ -1,11 +1,22 @@
 import { describe, expect, it } from "vitest";
-import { DeploymentEnvironment, StoreCapability } from "@prisma/client";
-import { deploymentEnvironment, hasStoreCapability, normaliseRequestHost, UnknownStorefrontError } from "@/lib/storefront";
+import { DeploymentEnvironment, StoreCapability, StoreStatus } from "@prisma/client";
+import { deploymentEnvironment, hasStoreCapability, isStoreCommerceAvailable, normaliseRequestHost, UnknownStorefrontError } from "@/lib/storefront";
 
 describe("storefront routing boundaries", () => {
   it("normalises an exact request host without trusting its port", () => {
     expect(normaliseRequestHost("LOCALHOST:3000")).toBe("localhost");
     expect(normaliseRequestHost("Tapkin.com.au:443")).toBe("tapkin.com.au");
+    expect(normaliseRequestHost("home.localhost:3000")).toBe("home.localhost");
+  });
+
+  it("keeps Home Demo commerce isolated without exposing NFC administration", () => {
+    const homeDemo = { status: StoreStatus.ACTIVE, capabilities: [StoreCapability.COMMERCE, StoreCapability.PRINT_3D] };
+    expect(isStoreCommerceAvailable(homeDemo)).toBe(true);
+    expect(hasStoreCapability(homeDemo, StoreCapability.NFC)).toBe(false);
+  });
+
+  it.each([StoreStatus.DRAFT, StoreStatus.HIDDEN, StoreStatus.ARCHIVED])("blocks new commerce for a %s Store", status => {
+    expect(isStoreCommerceAvailable({ status, capabilities: [StoreCapability.COMMERCE] })).toBe(false);
   });
 
   it.each(["tapkin.com.au/evil", "tapkin.com.au@evil.example", "tapkin.com.au,evil.example", "", "tapkin.com.au\\evil"])("rejects an unsafe host value: %s", value => {

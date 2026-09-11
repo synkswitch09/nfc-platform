@@ -1,13 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ShieldCheck, Radio } from "lucide-react";
+import { ShieldCheck, Radio, Shapes } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth";
 import { CartLink } from "@/components/cart-link";
 import { CartProvider } from "@/components/cart-provider";
 import { getStoreSettings } from "@/lib/settings";
 import { db } from "@/lib/db";
 import { getRuntimeConfig, searchEnginePolicy } from "@/lib/config";
-import { getCurrentStorefront, hasStoreCapability, storeThemeStyle } from "@/lib/storefront";
+import { getCurrentStorefront, hasStoreCapability, isStoreCommerceAvailable, storeThemeStyle } from "@/lib/storefront";
 import { StoreCapability, StoreStatus } from "@prisma/client";
 import "./globals.css";
 
@@ -21,13 +21,14 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   const store = await getCurrentStorefront();
   const [user, settings, categories] = await Promise.all([getCurrentUser(), getStoreSettings(store), process.env.DATABASE_URL && store.status === StoreStatus.ACTIVE ? db.productCategory.findMany({ where: { storeId: store.id, status: "PUBLISHED", showInNavigation: true }, select: { name: true, slug: true }, orderBy: [{ sortOrder: "asc" }, { name: "asc" }], take: 6 }).catch(() => []) : []]);
-  const commerce = store.status === StoreStatus.ACTIVE && hasStoreCapability(store, StoreCapability.COMMERCE);
+  const commerce = isStoreCommerceAvailable(store);
+  const BrandIcon = hasStoreCapability(store, StoreCapability.NFC) ? Radio : Shapes;
   return (
     <html lang="en-AU">
       <body data-store={store.slug} data-theme-style={store.theme.fontStyle} style={storeThemeStyle(store.theme)}>
-        <CartProvider>
+        <CartProvider storageKey={`commerce-cart:${store.id}:v1`}>
         <header className="site-header">
-          <Link href="/" className="brand"><span className="brand-mark"><Radio size={18} /></span>{settings.storeName}</Link>
+          <Link href="/" className="brand"><span className="brand-mark"><BrandIcon size={18} /></span>{settings.storeName}</Link>
           <nav aria-label="Main navigation">
             {commerce && <Link href="/shop">Shop</Link>}
             {categories.map(category => <Link className="category-nav-link" href={`/${category.slug}`} key={category.slug}>{category.name}</Link>)}
