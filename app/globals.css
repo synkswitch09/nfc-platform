@@ -262,6 +262,11 @@ body:has(.admin-shell) .site-header, body:has(.admin-shell) > footer { display: 
 .category-landing[data-layout="journey"] .category-landing-hero { grid-template-columns: minmax(0, .8fr) minmax(440px, 1.2fr); }
 .field-hint { margin: 14px 0 0; color: var(--muted); font-size: .82rem; }
 .category-pills a.active { color: white; background: var(--brand); border-color: var(--brand); }
+.admin-image-grid select { width: 100%; border: 1px solid var(--line); border-radius: 8px; padding: 7px; font-size: .76rem; }
+.admin-image-grid .field.compact { gap: 4px; font-size: .7rem; }
+.option-values { display: grid; gap: 10px; padding-top: 4px; }
+.option-value-row { display: grid; grid-template-columns: 1fr 1fr .7fr repeat(3, .8fr) auto; gap: 10px; align-items: end; }
+.colour-field input[type="color"] { min-height: 40px; padding: 3px; }
 @media (max-width: 1050px) and (min-width: 801px) {
   .category-nav-link { display: none; }
   .category-card-grid { grid-template-columns: repeat(2, 1fr); }
