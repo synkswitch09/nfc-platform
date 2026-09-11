@@ -228,8 +228,8 @@ async function main() {
 
   // SEO and private-surface boundaries are verified through rendered HTTP output.
   const robots = await bodyText(await request("/robots.txt")); const sitemap = await bodyText(await request("/sitemap.xml"));
-  assert(robots.text.includes("/admin") && robots.text.includes("/dashboard"), "Robots excludes private surfaces");
-  assert(sitemap.text.includes(`/products/${slug}`), "Dynamic sitemap contains the published product");
+  assert(robots.lower.includes("disallow: /"), "Development robots blocks all crawling");
+  assert(!sitemap.text.includes(`/products/${slug}`), "Development sitemap publishes no storefront URLs");
   assert(storeProduct.text.includes("application/ld+json") && storeProduct.text.includes("canonical"), "Product renders canonical metadata and structured data");
   await jsonResponse(await request("/api/auth/logout", { method: "POST", jar: customerJar }), 200, "Customer can sign out");
   const signedOutDashboard = await request("/dashboard", { jar: customerJar, redirect: "manual" });
