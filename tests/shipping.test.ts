@@ -7,6 +7,7 @@ describe("shipping security and packing", () => {
     const first = shippingCartHash([{ variantId: "v1", quantity: 1, personalisation: { colour: "ocean", name: "Pixel" } }]);
     expect(shippingCartHash([{ variantId: "v1", quantity: 1, personalisation: { name: "Pixel", colour: "ocean" } }])).toBe(first);
     expect(shippingCartHash([{ variantId: "v1", quantity: 2, personalisation: { name: "Pixel", colour: "ocean" } }])).not.toBe(first);
+    expect(shippingCartHash([{ variantId: "v1", quantity: 1, personalisationChoice: "PERSONALISED", personalisation: { name: "Pixel", colour: "ocean" } }])).not.toBe(first);
   });
 
   it("binds a quote to the complete normalised delivery address", () => {

@@ -40,6 +40,10 @@ export const adminProductSchema = z.object({
   if (value.variants.filter(variant => variant.isDefault).length > 1) context.addIssue({ code: "custom", message: "Only one variant can be the default", path: ["variants"] });
   if (new Set(value.options.map(option => option.code)).size !== value.options.length) context.addIssue({ code: "custom", message: "Personalisation codes must be unique", path: ["options"] });
   if (value.personalisationMode === "NONE" && value.options.some(option => !["SELECT", "RADIO", "COLOUR"].includes(option.type))) context.addIssue({ code: "custom", message: "Products with personalisation disabled may only use product-selection fields", path: ["personalisationMode"] });
+  const selections = new Map(value.options.filter(option => ["SELECT", "RADIO", "COLOUR"].includes(option.type)).map(option => [option.code, new Set(option.values.filter(item => item.active).map(item => item.value))]));
+  value.variants.forEach((variant, variantIndex) => Object.entries(variant.optionSelection).forEach(([code, selected]) => {
+    if (!selections.get(code)?.has(selected)) context.addIssue({ code: "custom", message: `Variant option ${code}=${selected} is not configured`, path: ["variants", variantIndex, "optionSelection"] });
+  }));
 });
 
 export const adminCategorySchema = z.object({

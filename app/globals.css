@@ -262,6 +262,17 @@ body:has(.admin-shell) .site-header, body:has(.admin-shell) > footer { display: 
 .category-landing[data-layout="journey"] .category-landing-hero { grid-template-columns: minmax(0, .8fr) minmax(440px, 1.2fr); }
 .field-hint { margin: 14px 0 0; color: var(--muted); font-size: .82rem; }
 .category-pills a.active { color: white; background: var(--brand); border-color: var(--brand); }
+.product-thumbs button { border: 2px solid transparent; border-radius: 16px; padding: 2px; background: transparent; cursor: pointer; }
+.product-thumbs button.active { border-color: var(--store-accent); }
+.colour-options, .selection-radios, .purchase-choice { border: 0; padding: 0; margin: 0; display: grid; gap: 10px; }
+.colour-options legend, .selection-radios legend, .purchase-choice legend { font-weight: 750; margin-bottom: 7px; }
+.colour-options > div { display: flex; flex-wrap: wrap; gap: 9px; }
+.colour-options button { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 8px; min-width: 112px; border: 1px solid var(--line); border-radius: 12px; padding: 8px 10px; background: white; color: var(--ink); cursor: pointer; }
+.colour-options button.active { border-color: var(--store-accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--store-accent) 18%, transparent); }
+.colour-swatch { width: 24px; height: 24px; border: 1px solid rgba(0,0,0,.18); border-radius: 50%; background-size: cover !important; background-position: center !important; }
+.selection-radios label, .purchase-choice label { display: flex; align-items: center; gap: 10px; border: 1px solid var(--line); border-radius: 12px; padding: 11px; cursor: pointer; }
+.purchase-choice label:has(input:checked) { border-color: var(--store-accent); background: color-mix(in srgb, var(--store-accent) 7%, white); }
+.purchase-choice span { display: grid; }.purchase-choice small { color: var(--muted); font-weight: 400; }
 .admin-image-grid select { width: 100%; border: 1px solid var(--line); border-radius: 8px; padding: 7px; font-size: .76rem; }
 .admin-image-grid .field.compact { gap: 4px; font-size: .7rem; }
 .option-values { display: grid; gap: 10px; padding-top: 4px; }

@@ -23,8 +23,20 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     await cancelPendingOrder(orderId, parsed.data.note || "Cancelled by operations", user.id);
   } else {
     const changed = await db.$transaction(async tx => {
-      const updated = await tx.order.updateMany({ where: { id: orderId, storeId: store.id, status: order.status }, data: { status: parsed.data.status, ...(parsed.data.status === "SHIPPED" ? { shippingCarrier: parsed.data.carrier, trackingNumber: parsed.data.trackingNumber, shippedAt: new Date() } : {}) } });
+      const changedAt = new Date();
+      const updated = await tx.order.updateMany({ where: { id: orderId, storeId: store.id, status: order.status }, data: { status: parsed.data.status, ...(parsed.data.status === "SHIPPED" ? { shippingCarrier: parsed.data.carrier, trackingNumber: parsed.data.trackingNumber, shippedAt: changedAt } : {}) } });
       if (!updated.count) return false;
+      if (parsed.data.status === "SHIPPED") {
+        await tx.shipment.updateMany({
+          where: { orderId, storeId: store.id, status: "LABEL_READY" },
+          data: { status: "IN_TRANSIT", trackingNumber: parsed.data.trackingNumber, shippedAt: changedAt },
+        });
+      } else if (parsed.data.status === "DELIVERED") {
+        await tx.shipment.updateMany({
+          where: { orderId, storeId: store.id, status: "IN_TRANSIT" },
+          data: { status: "DELIVERED", deliveredAt: changedAt },
+        });
+      }
       await tx.orderStatusHistory.create({ data: { orderId, fromStatus: order.status, toStatus: parsed.data.status, actorId: user.id, note: parsed.data.note || null } });
       await tx.auditLog.create({ data: { actorId: user.id, storeId: store.id, action: "ORDER_STATUS_CHANGED", entityType: "Order", entityId: orderId, metadata: { from: order.status, to: parsed.data.status } } });
       return true;

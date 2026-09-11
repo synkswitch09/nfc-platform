@@ -5,6 +5,8 @@ Production-oriented shared commerce platform for specialised 3D-printed product 
 ## Included
 
 - Mobile-first public site, product catalogue and Stripe Checkout hand-off in AUD
+- Store-scoped shipping quotes, fulfilment labels, tracking and a leased thermal-print queue
+- Modular category landing pages plus colour-aware product galleries and Basic/Personalised purchases
 - Password authentication with hashed sessions, secure cookies and role-based access
 - Atomic tag activation with a separate high-entropy activation code
 - Public resolver for pet, child/emergency, social, business and luggage tags
@@ -67,6 +69,12 @@ Social login is optional. Set the corresponding client ID and secret, then regis
 
 For Apple, `APPLE_CLIENT_SECRET` is the signed client-secret JWT generated from your Apple Developer key; rotate it before its expiry. OAuth accounts are linked to an existing user only when the provider cryptographically confirms the same email. The flow validates state, nonce, PKCE, signature, issuer, audience and expiry.
 
+## Shipping and Tapkin Print Agent
+
+Admin Shipping shows the current Store's origins, packaging, zones, configured rates, providers and print queue. Checkout obtains a short-lived server quote for the exact Store, cart, personalisation choice and Australian address; it never accepts a client shipping price. Manual rates are the launch-safe MyPost Business path. The Australia Post provider kind is reserved for a future approved eParcel Shipping and Tracking API integration.
+
+For automatic thermal printing, register an agent in Admin Shipping and copy the one-time token immediately. On the workstation connected to the printer, set `TAPKIN_PRINT_AGENT_URL`, `TAPKIN_PRINT_AGENT_TOKEN`, `TAPKIN_PRINT_COMMAND` and `TAPKIN_PRINT_ARGS_JSON`, then run `npm run print-agent`. Arguments are passed directly without a shell; use `{file}` for the temporary label path and `{printer}` for `TAPKIN_PRINTER_NAME`. The agent leases one Store-scoped job at a time, removes the temporary PDF after printing and reports the result to the durable queue.
+
 ## Commands
 
 | Command | Purpose |
@@ -87,4 +95,4 @@ For Apple, `APPLE_CLIENT_SECRET` is the signed client-secret JWT generated from 
 
 Before accepting live customers: connect transactional email for verification/reset flows; replace legal placeholders with Australian legal advice; add malware/image scanning appropriate to the upload risk; configure backups, monitoring and alerting; and complete an independent security/privacy review, especially for child profiles.
 
-See the [multi-brand architecture decision](docs/architecture/multi-brand.md), [Azure deployment runbook](docs/deployment-azure.md), [architecture](docs/architecture.md), [category content operations](docs/category-content.md), [security](docs/security.md), [implementation status](docs/implementation-status.md), [E2E testing](docs/e2e-testing.md), the [category experience audit](docs/final-audit-2026-09-10.md), the [catalogue/content/NFC audit](docs/final-audit-2026-09-09.md), the [original platform audit](docs/final-audit-2026-09-08.md), and the [NAS operations runbook](docs/nas-operations.md).
+See the [shipping/content architecture](docs/architecture/shipping-content-platform.md), [multi-brand architecture decision](docs/architecture/multi-brand.md), [Azure deployment runbook](docs/deployment-azure.md), [architecture](docs/architecture.md), [category content operations](docs/category-content.md), [security](docs/security.md), [implementation status](docs/implementation-status.md), [E2E testing](docs/e2e-testing.md), the [category experience audit](docs/final-audit-2026-09-10.md), the [catalogue/content/NFC audit](docs/final-audit-2026-09-09.md), the [original platform audit](docs/final-audit-2026-09-08.md), and the [NAS operations runbook](docs/nas-operations.md).

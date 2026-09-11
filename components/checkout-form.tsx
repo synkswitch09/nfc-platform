@@ -31,7 +31,7 @@ export function CheckoutForm({ account, store }: { account: { name: string; emai
   async function calculateDelivery(form: HTMLFormElement) {
     setError(""); setQuotePending(true); setQuotes([]); setSelectedQuoteToken("");
     const data = new FormData(form);
-    const response = await fetch("/api/shipping/quotes", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ items: cart.lines.map(line => ({ variantId: line.variantId, quantity: line.quantity, personalisation: line.personalisation })), destination: addressFrom(data) }) });
+    const response = await fetch("/api/shipping/quotes", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ items: cart.lines.map(line => ({ variantId: line.variantId, quantity: line.quantity, personalisationChoice: line.personalisationChoice, personalisation: line.personalisation })), destination: addressFrom(data) }) });
     const result = await response.json().catch(() => ({}));
     setQuotePending(false);
     if (!response.ok) { setError(result.error ?? "Delivery rates are unavailable"); return; }
@@ -49,7 +49,7 @@ export function CheckoutForm({ account, store }: { account: { name: string; emai
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
-        items: cart.lines.map(line => ({ variantId: line.variantId, quantity: line.quantity, personalisation: line.personalisation })),
+        items: cart.lines.map(line => ({ variantId: line.variantId, quantity: line.quantity, personalisationChoice: line.personalisationChoice, personalisation: line.personalisation })),
         shippingQuoteToken: selectedQuoteToken,
         customer: {
           name: data.get("name"), email: data.get("email"),

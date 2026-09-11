@@ -122,6 +122,11 @@ enum PersonalisationMode {
   REQUIRED
 }
 
+enum PersonalisationChoice {
+  BASIC
+  PERSONALISED
+}
+
 enum ShippingProviderKind {
   MANUAL
   MOCK
@@ -738,6 +743,7 @@ model OrderItem {
   productType       ProductType
   personalisation   Json?
   personalisationMode PersonalisationMode @default(NONE)
+  personalisationChoice PersonalisationChoice @default(BASIC)
   selectedOptions   Json?
   shippingSnapshot  Json?
   order             Order              @relation(fields: [orderId], references: [id], onDelete: Cascade)

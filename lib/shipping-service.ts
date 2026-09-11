@@ -1,5 +1,5 @@
 import type { Prisma } from "@prisma/client";
-import { availableInventory, CatalogValidationError, normalisePersonalisation } from "@/lib/catalog";
+import { assertVariantSelection, availableInventory, CatalogValidationError, normalisePersonalisation } from "@/lib/catalog";
 import { createOpaqueToken, sha256 } from "@/lib/crypto";
 import { db } from "@/lib/db";
 import { packPhysicalLines, shippingCartHash, shippingDestinationHash, type ShippingCartInput, type ShippingDestination, zoneMatches } from "@/lib/shipping";
@@ -33,7 +33,10 @@ export async function createShippingQuotes(items: ShippingCartInput[], destinati
   const physicalLines = items.map(item => {
     const variant = byId.get(item.variantId)!;
     let normalised;
-    try { normalised = normalisePersonalisation(variant.product.options, item.personalisation); }
+    try {
+      normalised = normalisePersonalisation(variant.product.options, item.personalisation, variant.product.personalisationMode, item.personalisationChoice);
+      assertVariantSelection(variant.optionSelection, normalised.selectedOptions);
+    }
     catch (error) { throw new ShippingError(error instanceof CatalogValidationError ? error.message : "Invalid personalisation"); }
     if (variant.trackInventory && variant.backorderPolicy === "DENY" && availableInventory(variant) < item.quantity) throw new ShippingError(`${variant.product.name} does not have enough stock`, 409);
     subtotalCents += (variant.priceCents + normalised.priceDeltaCents) * item.quantity;
@@ -48,14 +51,35 @@ export async function createShippingQuotes(items: ShippingCartInput[], destinati
     };
   });
 
-  const selectedPackaging = physicalLines.find(line => line.package)?.package ?? packaging[0];
   const origin = origins[0];
-  if (!selectedPackaging || !origin) throw new ShippingError("Shipping is not configured for this store", 503);
+  const storeDefaultPackaging = packaging[0];
+  if (!storeDefaultPackaging || !origin) throw new ShippingError("Shipping is not configured for this store", 503);
   const zone = zones.find(candidate => zoneMatches(destination, candidate));
   if (!zone) throw new ShippingError("We do not currently ship to this address", 409);
-  const parcels = packPhysicalLines(physicalLines, selectedPackaging);
+  const packageGroups = new Map<string, { package: typeof storeDefaultPackaging; lines: typeof physicalLines }>();
+  for (const line of physicalLines) {
+    const selected = line.package ?? storeDefaultPackaging;
+    const group = packageGroups.get(selected.id) ?? { package: selected, lines: [] };
+    group.lines.push(line);
+    packageGroups.set(selected.id, group);
+  }
+  const packedGroups = [...packageGroups.values()].map(group => ({
+    package: group.package,
+    parcels: packPhysicalLines(group.lines, group.package),
+  }));
+  if (packedGroups.some(group => group.package.maxWeightGrams !== null && group.parcels.some(parcel => parcel.weightGrams > group.package.maxWeightGrams!))) {
+    throw new ShippingError("The order exceeds the configured packaging limit", 409);
+  }
+  const parcels = packedGroups.flatMap(group => group.parcels);
+  const packagingIds = [...packageGroups.keys()];
   const rates = await db.shippingRate.findMany({
-    where: { storeId: store.id, zoneId: zone.id, active: true },
+    where: {
+      storeId: store.id,
+      zoneId: zone.id,
+      active: true,
+      ...(packagingIds.length === 1 ? { OR: [{ packagingId: null }, { packagingId: packagingIds[0] }] } : { packagingId: null }),
+      AND: [{ OR: [{ providerId: null }, { provider: { active: true, supportsRates: true } }] }],
+    },
     include: { provider: true },
     orderBy: [{ priority: "desc" }, { amountCents: "asc" }],
   });
@@ -93,7 +117,7 @@ export async function createShippingQuotes(items: ShippingCartInput[], destinati
   const destinationHash = shippingDestinationHash(destination);
   const expiresAt = new Date(Date.now() + QUOTE_TTL_MS);
   const originSnapshot = originSnapshotOf(origin);
-  const packagingSnapshot = { id: selectedPackaging.id, code: selectedPackaging.code, name: selectedPackaging.name, lengthMm: selectedPackaging.lengthMm, widthMm: selectedPackaging.widthMm, heightMm: selectedPackaging.heightMm, emptyWeightGrams: selectedPackaging.emptyWeightGrams, parcels };
+  const packagingSnapshot = { packages: [...packageGroups.values()].map(group => ({ id: group.package.id, code: group.package.code, name: group.package.name, lengthMm: group.package.lengthMm, widthMm: group.package.widthMm, heightMm: group.package.heightMm, emptyWeightGrams: group.package.emptyWeightGrams })), parcels };
 
   return Promise.all(offered.map(async rate => {
     const token = createOpaqueToken();

@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { Prisma, StoreCapability, StoreStatus } from "@prisma/client";
-import { availableInventory, CatalogValidationError, normalisePersonalisation } from "@/lib/catalog";
+import { assertVariantSelection, availableInventory, CatalogValidationError, normalisePersonalisation, resolvePersonalisationChoice } from "@/lib/catalog";
 import { calculateQuotedOrderTotals } from "@/lib/commerce";
 import { createOpaqueToken, sha256 } from "@/lib/crypto";
 import { db } from "@/lib/db";
@@ -9,7 +9,7 @@ import { manufacturingRequirements } from "@/lib/manufacturing";
 import { shippingCartHash, shippingDestinationHash } from "@/lib/shipping";
 import { notifyPaidOrder } from "@/lib/order-notifications";
 
-export type CheckoutItemInput = { variantId: string; quantity: number; personalisation?: Record<string, string> };
+export type CheckoutItemInput = { variantId: string; quantity: number; personalisationChoice?: "BASIC" | "PERSONALISED"; personalisation?: Record<string, string> };
 export type CheckoutCustomerInput = {
   userId?: string;
   email: string;
@@ -36,11 +36,16 @@ export async function createPendingOrder(items: CheckoutItemInput[], customer: C
     const lines = items.map(item => {
       const variant = byId.get(item.variantId)!;
       let normalised;
-      try { normalised = normalisePersonalisation(variant.product.options, item.personalisation); }
+      let personalisationChoice;
+      try {
+        personalisationChoice = resolvePersonalisationChoice(variant.product.personalisationMode, item.personalisationChoice);
+        normalised = normalisePersonalisation(variant.product.options, item.personalisation, variant.product.personalisationMode, personalisationChoice);
+        assertVariantSelection(variant.optionSelection, normalised.selectedOptions);
+      }
       catch (error) { throw new CheckoutError(error instanceof CatalogValidationError ? error.message : "Invalid personalisation"); }
       const unitPriceCents = variant.priceCents + normalised.priceDeltaCents;
       if (unitPriceCents < 0) throw new CheckoutError("Invalid product price", 409);
-      return { item, variant, unitPriceCents, personalisation: normalised.personalisation, selectedOptions: normalised.selectedOptions };
+      return { item, variant, unitPriceCents, personalisationChoice, personalisation: normalised.personalisation, selectedOptions: normalised.selectedOptions };
     });
 
     const requestedByVariant = new Map<string, number>();
@@ -86,7 +91,7 @@ export async function createPendingOrder(items: CheckoutItemInput[], customer: C
         status: "PAYMENT_PENDING",
         currency: store.currency,
         ...totals,
-        items: { create: lines.map(({ item, variant, unitPriceCents, personalisation, selectedOptions }) => ({
+        items: { create: lines.map(({ item, variant, unitPriceCents, personalisationChoice, personalisation, selectedOptions }) => ({
           variantId: variant.id,
           quantity: item.quantity,
           unitPriceCents,
@@ -96,6 +101,7 @@ export async function createPendingOrder(items: CheckoutItemInput[], customer: C
           productType: variant.product.type,
           personalisation,
           personalisationMode: variant.product.personalisationMode,
+          personalisationChoice,
           selectedOptions,
           shippingSnapshot: { weightGrams: variant.weightGrams ?? variant.product.weightGrams, lengthMm: variant.lengthMm ?? variant.product.lengthMm, widthMm: variant.widthMm ?? variant.product.widthMm, heightMm: variant.heightMm ?? variant.product.heightMm, shipsSeparately: variant.product.shipsSeparately, specialHandling: variant.product.specialHandling },
         })) },

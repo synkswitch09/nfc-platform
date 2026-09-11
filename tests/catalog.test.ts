@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { availableInventory, CatalogValidationError, normalisePersonalisation } from "@/lib/catalog";
+import { assertVariantSelection, availableInventory, CatalogValidationError, normalisePersonalisation, resolvePersonalisationChoice } from "@/lib/catalog";
 
 const options = [
   { code: "pet-name", type: "SHORT_TEXT" as const, required: true, maxLength: 12, priceDeltaCents: 0, active: true, values: [] },
@@ -25,5 +25,19 @@ describe("catalog personalisation", () => {
     const checkbox = [{ code: "gift-box", type: "CHECKBOX" as const, required: false, maxLength: null, priceDeltaCents: 500, active: true, values: [] }];
     expect(normalisePersonalisation(checkbox, { "gift-box": "false" }).priceDeltaCents).toBe(0);
     expect(normalisePersonalisation(checkbox, { "gift-box": "true" }).priceDeltaCents).toBe(500);
+  });
+  it("separates basic and personalised purchases while keeping colour selection", () => {
+    expect(normalisePersonalisation(options, { colour: "ocean" }, "OPTIONAL", "BASIC")).toEqual({ personalisation: {}, selectedOptions: { colour: "ocean" }, priceDeltaCents: 150 });
+    expect(() => normalisePersonalisation(options, { "pet-name": "Max", colour: "ocean" }, "OPTIONAL", "BASIC")).toThrow("Unknown personalisation option");
+    expect(() => resolvePersonalisationChoice("REQUIRED", "BASIC")).toThrow("Personalisation is required");
+    expect(resolvePersonalisationChoice("NONE", "BASIC")).toBe("BASIC");
+  });
+  it("binds product selections to the chosen variant", () => {
+    expect(() => assertVariantSelection({ colour: "coral" }, { colour: "ocean" })).toThrow("do not match this variant");
+    expect(() => assertVariantSelection({ colour: "ocean" }, { colour: "ocean" })).not.toThrow();
+  });
+  it("records image personalisation as an operations follow-up and applies its price", () => {
+    const image = [{ code: "portrait", type: "IMAGE" as const, required: true, maxLength: null, priceDeltaCents: 700, active: true, values: [] }];
+    expect(normalisePersonalisation(image, {}, "REQUIRED", "PERSONALISED")).toEqual({ personalisation: { portrait: "TO_BE_CONFIRMED" }, selectedOptions: {}, priceDeltaCents: 700 });
   });
 });

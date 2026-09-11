@@ -31,4 +31,9 @@ describe("admin validation", () => {
     expect(activationRegenerationSchema.safeParse(request).success).toBe(true);
     expect(activationRegenerationSchema.safeParse({ ...request, confirmedIdentity: false }).success).toBe(false);
   });
+  it("validates Store-configured swatches and variant option mappings", () => {
+    const configured = { ...validProduct, personalisationMode: "NONE", options: [{ name: "Colour", code: "colour", type: "COLOUR", required: true, priceDeltaCents: 0, active: true, values: [{ label: "Ocean", value: "ocean", priceDeltaCents: 0, active: true, swatchHex: "#167d9a" }] }], variants: [{ ...validProduct.variants[0], optionSelection: { colour: "ocean" }, isDefault: true }] };
+    expect(adminProductSchema.safeParse(configured).success).toBe(true);
+    expect(adminProductSchema.safeParse({ ...configured, variants: [{ ...configured.variants[0], optionSelection: { colour: "missing" } }] }).success).toBe(false);
+  });
 });

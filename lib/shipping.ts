@@ -12,6 +12,7 @@ export type ShippingDestination = {
 export type ShippingCartInput = {
   variantId: string;
   quantity: number;
+  personalisationChoice?: "BASIC" | "PERSONALISED";
   personalisation?: Record<string, string>;
 };
 
@@ -38,8 +39,8 @@ function stableRecord(value: Record<string, string> | undefined) {
 
 export function shippingCartHash(items: ShippingCartInput[]) {
   const canonical = items
-    .map(item => ({ variantId: item.variantId, quantity: item.quantity, personalisation: stableRecord(item.personalisation) }))
-    .sort((left, right) => `${left.variantId}:${JSON.stringify(left.personalisation)}`.localeCompare(`${right.variantId}:${JSON.stringify(right.personalisation)}`));
+    .map(item => ({ variantId: item.variantId, quantity: item.quantity, personalisationChoice: item.personalisationChoice ?? "BASIC", personalisation: stableRecord(item.personalisation) }))
+    .sort((left, right) => `${left.variantId}:${left.personalisationChoice}:${JSON.stringify(left.personalisation)}`.localeCompare(`${right.variantId}:${right.personalisationChoice}:${JSON.stringify(right.personalisation)}`));
   return createHash("sha256").update(JSON.stringify(canonical)).digest("hex");
 }
 

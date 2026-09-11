@@ -9,6 +9,7 @@ export type CartLine = {
   variantName: string;
   unitPriceCents: number;
   quantity: number;
+  personalisationChoice: "BASIC" | "PERSONALISED";
   personalisation: Record<string, string>;
 };
 
@@ -23,8 +24,8 @@ type CartContextValue = {
 };
 
 const CartContext = createContext<CartContextValue | null>(null);
-function lineKey(variantId: string, personalisation: Record<string, string>) {
-  return `${variantId}:${JSON.stringify(Object.entries(personalisation).sort(([a], [b]) => a.localeCompare(b)))}`;
+function lineKey(variantId: string, personalisationChoice: "BASIC" | "PERSONALISED", personalisation: Record<string, string>) {
+  return `${variantId}:${personalisationChoice}:${JSON.stringify(Object.entries(personalisation).sort(([a], [b]) => a.localeCompare(b)))}`;
 }
 
 export function CartProvider({ children, storageKey }: { children: React.ReactNode; storageKey: string }) {
@@ -34,7 +35,7 @@ export function CartProvider({ children, storageKey }: { children: React.ReactNo
     const frame = requestAnimationFrame(() => {
       try {
         const stored = JSON.parse(localStorage.getItem(storageKey) ?? "[]");
-        if (Array.isArray(stored)) setLines(stored.filter(line => line && typeof line.variantId === "string" && Number.isInteger(line.quantity)));
+        if (Array.isArray(stored)) setLines(stored.filter(line => line && typeof line.variantId === "string" && Number.isInteger(line.quantity)).map(line => ({ ...line, personalisationChoice: line.personalisationChoice === "PERSONALISED" ? "PERSONALISED" : "BASIC", personalisation: line.personalisation && typeof line.personalisation === "object" ? line.personalisation : {} })));
       } catch { localStorage.removeItem(storageKey); }
       setReady(true);
     });
@@ -47,7 +48,7 @@ export function CartProvider({ children, storageKey }: { children: React.ReactNo
     ready,
     count: lines.reduce((sum, line) => sum + line.quantity, 0),
     add: input => setLines(current => {
-      const key = lineKey(input.variantId, input.personalisation);
+      const key = lineKey(input.variantId, input.personalisationChoice, input.personalisation);
       const existing = current.find(line => line.key === key);
       return existing
         ? current.map(line => line.key === key ? { ...line, quantity: Math.min(10, line.quantity + input.quantity) } : line)

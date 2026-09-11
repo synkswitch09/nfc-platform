@@ -14,7 +14,7 @@ export function CartView({ currency, nfcEnabled, shippingConfig }: { currency: s
   return <div className="cart-layout">
     <div className="cart-lines">{lines.map(line => <article className="cart-row" key={line.key}>
       <div className="cart-thumb"><ProductMark nfcEnabled={nfcEnabled} /></div>
-      <div><h3>{line.productName}</h3><p className="muted">{line.variantName}</p>{Object.entries(line.personalisation).length > 0 && <dl className="personalisation-list">{Object.entries(line.personalisation).map(([key, value]) => <div key={key}><dt>{key.replaceAll("-", " ")}</dt><dd>{value}</dd></div>)}</dl>}</div>
+      <div><h3>{line.productName}</h3><p className="muted">{line.variantName} · {line.personalisationChoice === "PERSONALISED" ? "Personalised" : "Basic"}</p>{Object.entries(line.personalisation).length > 0 && <dl className="personalisation-list">{Object.entries(line.personalisation).map(([key, value]) => <div key={key}><dt>{key.replaceAll("-", " ")}</dt><dd>{value}</dd></div>)}</dl>}</div>
       <div className="quantity-control" aria-label={`Quantity for ${line.productName}`}><button type="button" onClick={() => setQuantity(line.key, line.quantity - 1)} aria-label="Decrease quantity"><Minus size={15} /></button><span>{line.quantity}</span><button type="button" onClick={() => setQuantity(line.key, line.quantity + 1)} aria-label="Increase quantity"><Plus size={15} /></button></div>
       <strong>{money.format(line.unitPriceCents * line.quantity / 100)}</strong>
       <button className="icon-button" type="button" onClick={() => remove(line.key)} aria-label={`Remove ${line.productName}`}><Trash2 size={18} /></button>

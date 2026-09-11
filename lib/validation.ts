@@ -30,6 +30,7 @@ export const activationSchema = z.object({
 export const checkoutItemsSchema = z.array(z.object({
     variantId: z.string().uuid(),
     quantity: z.number().int().min(1).max(10),
+    personalisationChoice: z.enum(["BASIC", "PERSONALISED"]).optional(),
     personalisation: z.record(z.string(), z.string().trim().max(80)).optional(),
   })).min(1).max(20);
 
