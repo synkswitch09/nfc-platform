@@ -2,6 +2,9 @@
 
 ## Implemented on `develop`
 
+- Host-resolved multi-Store foundation with trusted domains per environment, Store lifecycle/capabilities, Store-specific themes/homepages/SEO, platform identity plus Store memberships, host-bound sessions and Store-scoped catalogue/content/orders/media/audit
+- Separate Store administration contexts with domain-based selector, platform-admin All Stores metrics, Store branding/settings and capability-aware navigation; development-only Home Demo proves category/product/theme/SEO isolation without NFC
+- Generic 3D-print `ManufacturingJob` queue created from paid order items, separated from Tapkin NFC identity batches and annotated when NFC-specific work is required
 - Guest and account checkout with server-authoritative prices, inventory reservations, Stripe Checkout, signed/idempotent webhooks and secure post-purchase account claiming
 - Password authentication, verified-email and reset flows, opaque database sessions, Google/Apple OIDC through `openid-client`, and safe verified-email account linking
 - Customer dashboard with orders, printable receipts, tracking, saved Australian addresses, NFC activation, scan windows and profile management
@@ -22,9 +25,11 @@
 - Put TLS, alerting, encrypted off-device backups and a regular staging restore test in place
 - Add distributed rate limiting if more than one app replica is deployed
 - Complete dependency/container scanning, accessibility review, browser end-to-end tests and an independent penetration test
+- Verify every real Store domain, OAuth return URI, transactional-email brand and Stripe flow in staging before enabling that Store in production
 
 ## Deliberately deferred
 
 - Direct NFC-writer hardware integration. The manufacturing model and permanent URL format are ready for a future station, while current operations use QR/CSV/print output.
 - Automated carrier APIs and Stripe refund initiation. Operations cannot mark a refund or manufacture an unpaid order without a real external action.
 - Horizontal service decomposition. The modular monolith is intentionally retained until traffic justifies independent scaling.
+- A generic Store creation wizard, shared physical `ManufacturingDefinition`, raw-material/spool inventory and per-Store logical backup/restore. The present model leaves explicit extension points without building an ERP or MES prematurely.

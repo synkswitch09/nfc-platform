@@ -1,27 +1,27 @@
-# Tapkin on Azure: low-cost deployment runbook
+# Shared commerce platform on Azure: low-cost multi-brand runbook
 
 Status: repository preparation only. No Azure resource or production deployment was created by this change.
 
-This runbook targets Azure Container Apps, Azure Database for PostgreSQL Flexible Server and Azure Blob Storage while keeping the application portable. Tapkin still uses standard Docker, PostgreSQL through `DATABASE_URL`, HTTP email/payment integrations and a provider-neutral storage interface.
+This runbook targets Azure Container Apps, Azure Database for PostgreSQL Flexible Server and Azure Blob Storage while keeping the application portable. Tapkin is the first Store served by the shared platform; a new brand does not require a cloned repository, database server or Container App by default.
 
 ## 1. Architecture and environment contract
 
 ```text
 DNS (Cloudflare optional)
   -> Azure Container Apps ingress
-     -> Tapkin stateless container
+     -> host-resolved commerce platform container
         -> PostgreSQL Flexible Server
         -> private Blob container
         -> Stripe / OAuth / email webhooks
 ```
 
-Create three Container Apps and three migration jobs. Every app/job receives only its own environment configuration.
+Create one Container App and one migration job per deployment environment, not per Store. Each environment runtime may bind multiple verified Store domains and receives only its own database and secrets.
 
 | Setting | DEVELOPMENT | STAGING | PRODUCTION |
 |---|---|---|---|
 | Branch | `develop` | `staging` | `main` |
 | Container App | `tapkin-develop` | `tapkin-staging` | `tapkin-production` |
-| Domain | `develop.tapkin.com.au` | `staging.tapkin.com.au` | `tapkin.com.au` (`www` optional) |
+| Initial domains | `develop.tapkin.com.au` | `staging.tapkin.com.au` | `tapkin.com.au` (`www` optional) |
 | `APP_ENV` | `development` | `staging` | `production` |
 | Database | `tapkin_development` | `tapkin_staging` | `tapkin_production` |
 | Blob container | `tapkin-development` | `tapkin-staging` | `tapkin-production` |
@@ -50,7 +50,7 @@ Deployment jobs remain skipped until the repository variable `AZURE_DEPLOY_ENABL
 ## 3. Subscription, resource group and budget
 
 1. In Azure Portal select the intended subscription and region (prefer an Australian region that supports every selected SKU).
-2. Create one resource group such as `rg-tapkin-au`. Separate resource groups per production can come later when billing/permissions justify it.
+2. Create one resource group such as `rg-commerce-platform-au`. An existing technical name such as `rg-tapkin-au` may remain; Azure resource names are not public brand identity. Separate resource groups per production Store can come later when billing, ownership or permissions justify it.
 3. Open Cost Management + Billing -> Budgets -> Add. Create an initial monthly AU$5 budget and another AU$10 safety budget (or the smallest amounts useful for the subscription). Notify at 50%, 80% and 100%; include forecast alerts where available.
 4. Check Cost Analysis and resource-level metrics at least weekly during setup. A budget alerts; it does not stop resources automatically.
 
@@ -106,7 +106,7 @@ The literal sample `admin@example.local` / `DevAdmin123!` is never stored by the
 ## 5. Blob Storage
 
 1. Create one StorageV2 account with secure transfer required, minimum TLS 1.2+, public blob access disabled and locally redundant storage initially.
-2. Create private containers `tapkin-development`, `tapkin-staging`, `tapkin-production`.
+2. Create one private container per environment (`commerce-development`, `commerce-staging`, `commerce-production`, or retain already-created technical names). Objects are additionally prefixed by Store slug and access is mediated by Store-scoped database records.
 3. Set `STORAGE_PROVIDER=azure-blob`, `STORAGE_ENVIRONMENT` to the matching `APP_ENV`, and `AZURE_STORAGE_CONTAINER_URL` to only that container.
 4. The current portable Azure provider uses a container-scoped SAS held as a Container App secret. Grant only create/write/read/delete rights actually needed, HTTPS only, with an expiry and rotation calendar. Never commit it. Managed Identity with a future token-based provider is the preferred next hardening step once the first deployment is stable.
 5. Use a different SAS per environment. Because the containers and new object keys are environment-separated, development cannot overwrite production media.
@@ -116,10 +116,10 @@ Product uploads are content-signature checked PNG/JPEG/WebP, limited to 5 MB and
 ## 6. Container Apps and migration jobs
 
 1. Create one Container Apps Environment initially unless stronger production network/log isolation is needed.
-2. Create `tapkin-develop`, `tapkin-staging`, `tapkin-production` with external HTTPS ingress, target port 3000, single revision mode and CPU/memory at the smallest tested values.
+2. Create one app per environment (for example `commerce-develop`, `commerce-staging`, `commerce-production`) with external HTTPS ingress, target port 3000, single revision mode and CPU/memory at the smallest tested values. Existing `tapkin-*` technical resource names may remain.
 3. Configure HTTP startup/liveness on `/api/health/live` and readiness on `/api/health/ready`. Readiness checks PostgreSQL; responses reveal no host or secret. Azure supports one probe of each type and treats HTTP 200–399 as success ([probe reference](https://learn.microsoft.com/azure/container-apps/health-probes)).
 4. Configure max replicas conservatively and min replicas 0 for development/staging. Set production to 0 only before real customers if first-request latency is acceptable. A sleeping revision may add several seconds to the first `/t/{publicTagId}` request. Once physical NFC tags are sold or incident/recovery traffic matters, set production min replicas to 1; reliability wins over the small saving.
-5. Create manual Container Apps Jobs `tapkin-develop-migrate`, `tapkin-staging-migrate`, `tapkin-production-migrate` using the `migrator` image, one execution/parallelism 1, no schedule, and environment-specific DB secrets.
+5. Create one manual migration job per environment using the `migrator` image, one execution/parallelism 1, no schedule, and environment-specific DB secrets. Migrations cover every Store in that environment's shared database.
 6. Configure `PORT=3000`, `NODE_ENV=production`, stdout/stderr log collection and graceful termination. The runtime runs as UID 1001 and does not contain Prisma CLI/dev tooling.
 
 Sessions, rate-limit counters, pending orders and other critical business state are database-backed. The pre-checkout cart is deliberately noncritical browser-local state, not container memory. Uploaded media uses Blob Storage in cloud. Local disk is not a production dependency.
@@ -143,7 +143,7 @@ Never set `DEV_ADMIN_*`, `ALLOW_STAGING_SEED` or `ENABLE_TEST_CHECKOUT` in produ
 
 ## 8. Authentication, domains and providers
 
-Absolute URLs come only from `APP_URL`; arbitrary forwarded host/proto headers do not select OAuth/reset/checkout destinations. HTTPS environments receive Secure, HttpOnly, SameSite cookies. `TRUST_PROXY` affects privacy-minimised client identity only.
+`APP_URL` remains a deployment bootstrap and health configuration value. Customer-facing absolute URLs come from an exact `StoreDomain(environment, hostname)` allow-list match. An arbitrary Host, forwarded host or client-supplied Store ID cannot select OAuth/reset/checkout destinations. HTTPS environments receive host-only Secure, HttpOnly, SameSite cookies. `TRUST_PROXY` affects privacy-minimised client identity only.
 
 Register exact Google redirect URIs:
 
@@ -151,21 +151,25 @@ Register exact Google redirect URIs:
 - `https://staging.tapkin.com.au/api/auth/oauth/google/callback`
 - `https://tapkin.com.au/api/auth/oauth/google/callback`
 
+Register the same exact callback path for every additional Store domain that enables Google authentication. Repeat this per environment; never use a wildcard return URI.
+
 Register exact Apple return URLs:
 
 - `https://develop.tapkin.com.au/api/auth/oauth/apple/callback`
 - `https://staging.tapkin.com.au/api/auth/oauth/apple/callback`
 - `https://tapkin.com.au/api/auth/oauth/apple/callback`
 
+Add and verify each additional Store domain/return URL with Apple before enabling that provider for the Store. OAuth state stores a signed Store ID and allow-listed return origin, and safe internal return paths reject open redirects.
+
 Apple web sign-in requires a Services ID associated with verified domains and return URLs; the client secret is a signed JWT with an expiry. Keep separate lower/production configuration where Apple permits and schedule rotation.
 
-Create independent Stripe webhook endpoints ending `/api/stripe/webhook` for all three domains. Development/staging use test mode. Production alone receives `sk_live_`/`pk_live_`. Signature validation, event idempotency and server-authoritative prices remain mandatory.
+Create one Stripe webhook endpoint per deployment environment, ending `/api/stripe/webhook` on a stable domain for that environment. A single company Stripe account can serve several Stores initially; signed Checkout metadata carries Store ID and is matched to the Order. Development/staging use test mode. Production alone receives live keys. A future `paymentProfileKey` can map a Store to separate environment-held credentials without storing secrets in PostgreSQL.
 
 Development email is `mock`: it logs only message type and recipient domain, never reset/verification tokens or message body. Staging uses a provider sandbox that cannot deliver to arbitrary customers; production uses the real provider.
 
 ## 9. DNS, TLS and optional Cloudflare
 
-Add and verify each Container Apps custom domain, then follow the Azure-generated validation record instructions. Subdomains normally use CNAME; apex/root configuration may require the records Azure displays. Use Azure managed certificates where supported and verify renewal. See [Azure custom domains and managed certificates](https://learn.microsoft.com/azure/container-apps/custom-domains-managed-certificates).
+Add and verify every Store domain on the same environment Container App, then follow the Azure-generated validation record instructions. Add the hostname to `StoreDomain` only after DNS/TLS ownership is verified; otherwise the application intentionally rejects it. Subdomains normally use CNAME; apex/root configuration may require the records Azure displays. Use Azure managed certificates where supported and verify renewal. See [Azure custom domains and managed certificates](https://learn.microsoft.com/azure/container-apps/custom-domains-managed-certificates).
 
 Cloudflare is optional. If used, first configure records DNS-only until Azure validation/certificate issuance completes; enable proxying only after end-to-end HTTPS works. Use Full (strict) TLS, do not use Flexible mode, preserve `/t/*`, `/api/*` and OAuth callbacks, and never cache authenticated/admin/API responses. The application must continue working if records point directly to Azure.
 
@@ -185,7 +189,7 @@ GHCR is selected over ACR for the initial low-cost phase. Keep the package priva
 
 ## 11. SEO, analytics, logs and monitoring
 
-Development/staging receive noindex/nofollow/noarchive through root metadata, `robots.txt`, empty sitemaps and the `X-Robots-Tag` response header. Production honors product/category CMS visibility/indexability and uses only its own `APP_URL` for metadata, canonical URLs, OpenGraph and structured data.
+Development/staging receive noindex/nofollow/noarchive through root metadata, `robots.txt`, empty sitemaps and the `X-Robots-Tag` response header. Production honors product/category CMS visibility/indexability. Metadata, canonical URLs, OpenGraph, Organization/WebSite/Product schema, robots and sitemap use the resolved Store origin and Store-scoped data only.
 
 Every structured application log includes `environment` and goes to stdout/stderr. Do not log credentials, tokens, activation codes, DB URLs or request bodies. Start with Container Apps logs and short retention. Add Application Insights only after deciding sampling/retention and confirming the budget. Use a separate analytics property/stream per environment or leave lower environments disabled; revenue, orders, NFC scans and conversions must never mix across databases/properties.
 
@@ -193,7 +197,7 @@ Every structured application log includes `environment` and goes to stdout/stder
 
 Enable/confirm Azure managed backups and choose production retention based on the business recovery objective. Geo-redundancy and longer retention increase cost. Before risky releases, confirm a current restore point.
 
-Also take an encrypted logical backup from a controlled workstation/job:
+Also take an encrypted logical backup from a controlled workstation/job. The shared backup contains all Stores; per-Store point-in-time restore is not available initially and requires a future logical export/import workflow:
 
 ```bash
 pg_dump --format=custom --no-owner --no-acl "$DATABASE_URL" --file tapkin-production.dump

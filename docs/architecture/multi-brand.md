@@ -81,18 +81,18 @@ The future sharing boundary should be a manufacturing definition, not the custom
 
 ## Identity, customers and sessions
 
-`User` remains the global identity. `StoreCustomer` records the relationship between a User and Store, including store-local preferences and consent timestamps. Orders and owned products shown in a storefront are always filtered by the current Store.
+`User` remains the global identity. `StoreMembership` records the relationship between a User and Store, including store-local role and marketing-consent timestamp. Orders and owned products shown in a storefront are always filtered by the current Store.
 
 Cookies remain host-only; unrelated brand domains do not share browser cookies. The same credentials or OAuth identity can establish a separate session on each store. Verification, password-reset and OAuth return URLs are built from a previously resolved, allow-listed Store origin. Arbitrary return URLs are rejected.
 
 Current `ADMIN` users act as platform administrators. `STAFF` access is scoped through Store memberships. The safe evolution is:
 
-- `CUSTOMER`: global identity with one or more StoreCustomer relationships.
+- `CUSTOMER`: global identity with one or more StoreMembership relationships.
 - `STAFF`: requires explicit Store staff scope.
 - `ADMIN`: platform administrator during the first internal-operations phase.
 - future `STORE_ADMIN`: represent through scoped membership rather than another global role.
 
-Every store-owned Admin mutation checks both the role and Store scope. An All Stores view is read-only/aggregate unless a specific Store is selected.
+Every store-owned Admin mutation checks both the role and Store scope. An All Stores view is read-only/aggregate unless a specific Store is selected. The selector navigates to the Store's allow-listed canonical domain instead of placing a client-controlled Store ID in a cookie or query string. Because sessions are host-only, the same identity establishes a separate session on each unrelated brand domain.
 
 ## Checkout, orders and payments
 
@@ -104,7 +104,7 @@ Transactional email accepts Store context and uses its name, support address, ca
 
 ## Storefront, theme and content
 
-Shared components retain accessibility, forms, cart and commerce interaction. Store theme is validated structured data exposed as CSS custom properties: palette, typography family, radius, shadow and presentation variant. Header, hero and card variants are selected from a bounded allow-list rather than arbitrary HTML or CSS.
+Shared components retain accessibility, forms, cart and commerce interaction. Store theme is validated structured data exposed as CSS custom properties: palette, typography style and radius. Header, hero and card variants are selected from a bounded allow-list rather than arbitrary HTML or CSS. Browser-local carts are namespaced by Store ID in addition to the browser origin.
 
 Homepage content is a small ordered set of typed modules (hero, categories, featured products, editorial/trust and CTA). Category CMS remains structured and becomes Store-owned. This provides meaningful brand variation without a generic page builder or CSS forks.
 

@@ -21,6 +21,11 @@
 - Suspended accounts and role changes revoke active sessions
 - Sensitive credential regeneration is ADMIN-only, requires an explicit identity-verification confirmation and reason, and records versions and context without the secret
 - Category/product status never authorizes public tag resolution; only tag state and profile visibility can expose or suppress an issued profile
+- Exact environment-specific `StoreDomain` allow-list resolution; public and checkout Store context never trusts a client `storeId` or forwarded hostname
+- Store-scoped sessions, catalogue/content/order/customer/media/Admin queries and Store-prefixed object keys prevent cross-brand IDOR and cache/media leakage
+- Platform-wide identity with host-only sessions: credentials may be reused safely, but unrelated brand domains do not share browser cookies or customer views
+- Store lifecycle stops new commerce without changing issued NFC tag state; NFC capability cannot be removed while the Store has issued tags
+- Store selector navigates to a verified canonical Store origin; aggregate All Stores views are platform-admin-only and read-only
 
 ## Required before production
 
@@ -33,3 +38,4 @@
 - Secret manager, key rotation, encrypted backups with restore tests, monitoring and security alerting
 - Tighten CSP to remove development allowances after confirming Next.js production nonces/hashes
 - External penetration test and dependency/container scanning
+- Database-level row security is not enabled; logical Store isolation therefore requires continued query review, integration tests and least-privilege staff scopes

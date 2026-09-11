@@ -1,6 +1,6 @@
-# Tapkin NFC Platform
+# Multi-brand commerce platform · Tapkin
 
-Production-oriented MVP for an Australian business selling configurable physical NFC products. Each NTAG213 stores only one short, random public URL (`/t/{publicTagId}`); customer and emergency data remain in PostgreSQL and can be changed without rewriting the tag.
+Production-oriented shared commerce platform for specialised 3D-printed product Stores. Tapkin is the first public Store and adds NFC, QR and digital-profile capabilities. Each Tapkin NTAG213 stores only one short, random public URL (`/t/{publicTagId}`); customer and emergency data remain in PostgreSQL and can be changed without rewriting the tag.
 
 ## Included
 
@@ -18,7 +18,7 @@ Production-oriented MVP for an Australian business selling configurable physical
 1. Copy `.env.example` to `.env`. Set `POSTGRES_PASSWORD`, use the same value inside `DATABASE_URL`, and replace both application secrets with independent random values of at least 32 characters.
 2. Start PostgreSQL with `docker compose up -d db`, or point `DATABASE_URL` at an existing PostgreSQL instance.
 3. Run `npm ci`, `npm run db:deploy`, `npm run db:seed`, then `npm run dev`. Prisma Client is generated automatically during installation. `APP_ENV=development` is the safe local default.
-4. Open `http://localhost:3000`.
+4. Open Tapkin at `http://localhost:3000`. After seeding, Home Demo is available only in development at `http://home.localhost:3000` and proves theme, catalogue, category, SEO and capability isolation without NFC.
 
 To create the first local administrator, pass `DEV_ADMIN_EMAIL` and `DEV_ADMIN_PASSWORD` only to `npm run db:seed`. The password must use 12+ characters with uppercase, lowercase, and a number. The development-admin mechanism refuses to run in staging and production. Do not add these values to `.env` or commit real credentials.
 
@@ -87,4 +87,4 @@ For Apple, `APPLE_CLIENT_SECRET` is the signed client-secret JWT generated from 
 
 Before accepting live customers: connect transactional email for verification/reset flows; replace legal placeholders with Australian legal advice; add malware/image scanning appropriate to the upload risk; configure backups, monitoring and alerting; and complete an independent security/privacy review, especially for child profiles.
 
-See the [Azure deployment runbook](docs/deployment-azure.md), [architecture](docs/architecture.md), [category content operations](docs/category-content.md), [security](docs/security.md), [implementation status](docs/implementation-status.md), [E2E testing](docs/e2e-testing.md), the [category experience audit](docs/final-audit-2026-09-10.md), the [catalogue/content/NFC audit](docs/final-audit-2026-09-09.md), the [original platform audit](docs/final-audit-2026-09-08.md), and the [NAS operations runbook](docs/nas-operations.md).
+See the [multi-brand architecture decision](docs/architecture/multi-brand.md), [Azure deployment runbook](docs/deployment-azure.md), [architecture](docs/architecture.md), [category content operations](docs/category-content.md), [security](docs/security.md), [implementation status](docs/implementation-status.md), [E2E testing](docs/e2e-testing.md), the [category experience audit](docs/final-audit-2026-09-10.md), the [catalogue/content/NFC audit](docs/final-audit-2026-09-09.md), the [original platform audit](docs/final-audit-2026-09-08.md), and the [NAS operations runbook](docs/nas-operations.md).

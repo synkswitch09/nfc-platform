@@ -2,7 +2,7 @@
 
 ## Runtime
 
-The MVP is a modular monolith. Next.js renders the public website, dashboards and tag pages; Route Handlers provide authenticated mutations and Stripe webhooks. Prisma is the only data-access layer and PostgreSQL is the source of truth. This keeps local and NAS operation simple while preserving a clean path to managed containers and PostgreSQL later.
+The platform is a host-resolved modular monolith. Next.js renders Store-specific public websites, dashboards and optional NFC tag pages; Route Handlers provide authenticated mutations and Stripe webhooks. Prisma is the only data-access layer and PostgreSQL is the source of truth. One runtime and database serve multiple logically isolated Stores, keeping Azure cost and operations low while preserving a clean extraction path if a Store later requires independent deployment.
 
 ## Core flow
 
@@ -24,6 +24,10 @@ The MVP is a modular monolith. Next.js renders the public website, dashboards an
 `TagProfile` holds shared public controls and has a one-to-one relation with exactly one type-specific profile. Emergency products reuse the constrained emergency model; review and custom link products reuse the validated link model. Accessories intentionally have no NFC profile. Orders snapshot unit prices, SKUs, product types, addresses and personalisation; Stripe records are separate and webhook events are idempotent. An optional `OrderItem` link on `NFCTag` supports traceability without making order history a runtime dependency of the public resolver.
 
 Category landing content is structured JSON validated by Zod (benefits, use cases, steps, narrative sections and FAQ), rather than arbitrary HTML. Public CTA paths are restricted to internal URLs. The same category record controls homepage, navigation, Shop-filter and landing visibility independently. Themes and reusable compositions are CMS-selected presentation data, never category-name conditions. Clean root slugs are protected from application-route collisions, and historical slugs are retained for permanent SEO redirects.
+
+`Store` owns commercial catalogue, category content, orders, domains, theme, SEO and enabled capabilities. `User` is a shared identity while `StoreMembership` is the Store-local customer/staff relationship. Sessions remain host-bound and carry Store ID. A validated `StoreDomain` plus deployment environment resolves every public request; Store IDs submitted by clients are never authoritative. See the detailed [multi-brand decision](architecture/multi-brand.md).
+
+Generic `ManufacturingJob` records are created idempotently per paid order item for Stores with `PRINT_3D`. They track the current print/finishing/QA/packing queue and whether NFC work is also required. `ManufacturingBatch` remains the separate Tapkin NFC identity generation/programming workflow; sellable inventory and future raw-material/spool inventory remain different concepts.
 
 Catalogue media is referenced in PostgreSQL but stored in a durable private volume and served through a content-type-controlled route. Uploads are checked by content signature, decoded dimensions and pixel limits; metadata records dimensions, primary image and ordering. This keeps the first NAS deployment self-contained while preserving a clean migration path to a resizing/scanning S3-compatible pipeline.
 
