@@ -34,6 +34,23 @@ async function seedShipping(storeId: string, flatRateCents: number, freeOverCent
     create: { storeId, zoneId: zone.id, providerId: provider.id, packagingId: parcel.id, serviceCode: "STANDARD", serviceName: "Standard parcel delivery", amountCents: flatRateCents, freeOverCents, estimatedDaysMin: 2, estimatedDaysMax: 6, active: true },
   });
 }
+
+type LandingSeed = { name: string; heroEyebrow?: string; heroHeadline?: string; heroDescription?: string; heroImageUrl?: string; heroImageAlt?: string; ctaLabel?: string; benefits?: Array<{ icon: string; title: string; description: string }>; useCases?: Array<{ icon: string; title: string; description: string }>; howItWorks?: Array<{ title: string; description: string; imageUrl?: string }>; contentSections?: Array<{ layout: string; eyebrow?: string; heading: string; copy: string; bulletPoints?: string[]; imageUrl?: string; ctaLabel?: string; ctaHref?: string }>; faq?: Array<{ question: string; answer: string }>; finalCtaEyebrow?: string; finalCtaHeadline?: string; finalCtaDescription?: string; finalCtaLabel?: string };
+
+async function seedLandingSections(storeId: string, categoryId: string, item: LandingSeed, shopHref: string) {
+  if (await db.landingPageSection.count({ where: { storeId, categoryId } })) return;
+  const sections = [
+    { type: "HERO" as const, name: "Hero", content: { layout: "IMAGE_RIGHT", eyebrow: item.heroEyebrow ?? "Made for real life", headline: item.heroHeadline ?? item.name, copy: item.heroDescription ?? "", imageUrl: item.heroImageUrl ?? "", imageAlt: item.heroImageAlt ?? "", ctaLabel: item.ctaLabel ?? `Shop ${item.name}`, ctaHref: shopHref, bullets: [] } },
+    { type: "FEATURE_BADGES" as const, name: "Quick benefits", content: { eyebrow: "Why it matters", headline: "Designed around the moments that matter.", copy: "", imageUrl: "", imageAlt: "", ctaLabel: "", ctaHref: "", items: (item.benefits ?? []).slice(0, 4).map(value => ({ ...value, imageUrl: "", imageAlt: "", ctaLabel: "", ctaHref: "" })) } },
+    { type: "BENEFITS" as const, name: "Use cases", content: { eyebrow: "Made for real life", headline: `Where ${item.name} fits in.`, copy: "", imageUrl: "", imageAlt: "", ctaLabel: "", ctaHref: "", items: (item.useCases ?? []).map(value => ({ ...value, imageUrl: "", imageAlt: "", ctaLabel: "", ctaHref: "" })) } },
+    { type: "STEPS" as const, name: "How it works", content: { eyebrow: "Simple. Fast. Useful.", headline: "How it works", copy: "", imageUrl: "", imageAlt: "", ctaLabel: "", ctaHref: "", items: (item.howItWorks ?? []).map(value => ({ icon: "sparkles", title: value.title, description: value.description, imageUrl: value.imageUrl ?? "", imageAlt: "", ctaLabel: "", ctaHref: "" })) } },
+    ...(item.contentSections ?? []).map((value, index) => ({ type: "MEDIA_CONTENT" as const, name: `Story ${index + 1}`, content: { layout: value.layout, eyebrow: value.eyebrow ?? "", headline: value.heading, copy: value.copy, imageUrl: value.imageUrl ?? "", imageAlt: "", ctaLabel: value.ctaLabel ?? "", ctaHref: value.ctaHref ?? "", bullets: value.bulletPoints ?? [] } })),
+    { type: "PRODUCT_GRID" as const, name: "Products", content: { eyebrow: "Made to be yours", headline: `Explore the ${item.name} collection.`, copy: "", imageUrl: "", imageAlt: "", ctaLabel: "", ctaHref: "", limit: 6, featuredOnly: false } },
+    { type: "FAQ" as const, name: "FAQ", content: { eyebrow: "Helpful answers", headline: "Frequently asked questions", copy: "", imageUrl: "", imageAlt: "", ctaLabel: "", ctaHref: "", items: (item.faq ?? []).map(value => ({ question: value.question, answer: value.answer })) } },
+    { type: "CTA_BANNER" as const, name: "Final call to action", content: { layout: "CENTRED", eyebrow: item.finalCtaEyebrow ?? "Made for real life", headline: item.finalCtaHeadline ?? `Discover the ${item.name} collection.`, copy: item.finalCtaDescription ?? "", imageUrl: "", imageAlt: "", ctaLabel: item.finalCtaLabel ?? `Shop ${item.name}`, ctaHref: shopHref, bullets: [] } },
+  ];
+  await db.landingPageSection.createMany({ data: sections.map((section, sortOrder) => ({ storeId, categoryId, type: section.type, name: section.name, visible: true, sortOrder, content: section.content })) });
+}
 const categories = [
   {
     slug: "pet", legacySlugs: ["pet-tags"], name: "Pet", icon: "dog", visualTheme: CategoryVisualTheme.CORAL, landingLayout: CategoryLandingLayout.EDITORIAL,
@@ -138,6 +155,7 @@ async function seedHomeDemo() {
       update: { ...item, status: "PUBLISHED", sortOrder, showOnHomepage: true, showInNavigation: true, showInShop: true, showLanding: true, indexable: false, ctaHref: `/shop?category=${item.slug}`, finalCtaHref: `/shop?category=${item.slug}` },
       create: { ...item, storeId: store.id, status: "PUBLISHED", sortOrder, indexable: false, ctaHref: `/shop?category=${item.slug}`, finalCtaHref: `/shop?category=${item.slug}`, seoTitle: `${item.name} · Home Demo`, seoDescription: item.shortDescription },
     });
+    await seedLandingSections(store.id, category.id, item, `/shop?category=${item.slug}`);
     categoryIds.set(item.slug, category.id);
   }
   const demoProducts = [
@@ -176,6 +194,7 @@ async function main() {
   for (const [sortOrder, item] of categories.entries()) {
     const ctaHref = `/shop?category=${item.slug}`;
     const category = await db.productCategory.upsert({ where: { storeId_slug: { storeId: store.id, slug: item.slug } }, update: { ...item, ctaHref, finalCtaHref: ctaHref, sortOrder, status: "PUBLISHED", showOnHomepage: true, showInNavigation: true, showInShop: true, showLanding: true, indexable: true, seoTitle: `${item.name} NFC Products Australia`, seoDescription: item.shortDescription }, create: { ...item, storeId: store.id, ctaHref, finalCtaHref: ctaHref, sortOrder, status: "PUBLISHED", seoTitle: `${item.name} NFC Products Australia`, seoDescription: item.shortDescription } });
+    await seedLandingSections(store.id, category.id, item, ctaHref);
     categoryIds.set(item.slug, category.id);
   }
   for (const item of catalog) {

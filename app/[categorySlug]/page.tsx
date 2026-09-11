@@ -7,6 +7,8 @@ import { getRuntimeConfig, searchEnginePolicy } from "@/lib/config";
 import { getCurrentStorefront } from "@/lib/storefront";
 import { hasStoreCapability } from "@/lib/storefront";
 import { StoreCapability } from "@prisma/client";
+import { LandingSectionRenderer } from "@/components/landing-section-renderer";
+import { modularFaq, modularHeroImage } from "@/lib/landing-sections";
 
 export async function generateMetadata({ params }: { params: Promise<{ categorySlug: string }> }): Promise<Metadata> {
   const category = await getPublicCategory((await params).categorySlug);
@@ -18,7 +20,7 @@ export async function generateMetadata({ params }: { params: Promise<{ categoryS
     description,
     alternates: { canonical: category.canonicalUrl ?? categoryPublicPath(category.slug) },
     robots: category.indexable && searchEnginePolicy(getRuntimeConfig().appEnv).index ? { index: true, follow: true } : { index: false, follow: false },
-    openGraph: { title, description: description ?? undefined, type: "website", images: category.ogImageUrl ? [category.ogImageUrl] : category.heroImageUrl ? [category.heroImageUrl] : undefined },
+    openGraph: { title, description: description ?? undefined, type: "website", images: category.ogImageUrl ? [category.ogImageUrl] : modularHeroImage(category.landingSections) ? [modularHeroImage(category.landingSections)!] : category.heroImageUrl ? [category.heroImageUrl] : undefined },
   };
 }
 
@@ -30,7 +32,7 @@ export default async function PublicCategoryPage({ params }: { params: Promise<{
 
   const store = await getCurrentStorefront();
   const origin = store.origin;
-  const faq = categoryFaq(category.faq);
+  const faq = category.landingSections.length ? modularFaq(category.landingSections) : categoryFaq(category.faq);
   const products = category.showInShop ? category.products : [];
   const structuredData = {
     "@context": "https://schema.org",
@@ -41,5 +43,6 @@ export default async function PublicCategoryPage({ params }: { params: Promise<{
     ],
   };
 
-  return <><script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData).replaceAll("<", "\\u003c") }} /><CategoryLanding category={category} store={{ displayName: store.displayName, currency: store.currency, nfcEnabled: hasStoreCapability(store, StoreCapability.NFC) }} /></>;
+  const storefront = { displayName: store.displayName, currency: store.currency, nfcEnabled: hasStoreCapability(store, StoreCapability.NFC) };
+  return <><script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData).replaceAll("<", "\\u003c") }} />{category.landingSections.length ? <LandingSectionRenderer category={category} store={storefront} /> : <CategoryLanding category={category} store={storefront} />}</>;
 }
