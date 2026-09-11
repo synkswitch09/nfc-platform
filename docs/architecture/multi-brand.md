@@ -63,7 +63,7 @@ Commercial availability and issued-service continuity remain different concerns.
 
 ## Data ownership and uniqueness
 
-The first migration adds Store relations, backfills all existing records to Tapkin, validates them, and only then makes required relations non-null. It preserves IDs, tag URLs, order numbers and history.
+The first migration adds Store relations, backfills all existing records to Tapkin, validates them, and only then makes required relations non-null. It preserves IDs, tag URLs, order numbers and history. Because historical orders did not record a trustworthy source domain or deployment environment, they are labelled `legacy-unrecorded` / `LEGACY`; only newly created orders receive an exact server-resolved snapshot.
 
 - `ProductCategory` and `Product` are store-owned. Their slugs become unique per Store.
 - `ProductVariant.sku` remains globally unique initially. Operations and manufacturing need an unambiguous SKU across the whole company.

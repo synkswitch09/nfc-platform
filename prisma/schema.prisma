@@ -43,6 +43,7 @@ enum DeploymentEnvironment {
   DEVELOPMENT
   STAGING
   PRODUCTION
+  LEGACY
 }
 
 enum AccountStatus {
