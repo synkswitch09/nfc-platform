@@ -43,6 +43,6 @@ export async function getAccessibleAdminStores(user: NonNullable<Awaited<ReturnT
   });
   return stores.flatMap(store => {
     const domain = store.domains[0];
-    return domain ? [{ ...store, origin: `${domain.protocol}://${domain.hostname}` }] : [];
+    return domain ? [{ ...store, origin: `${domain.protocol}://${domain.hostname}${domain.port ? `:${domain.port}` : ""}` }] : [];
   });
 }

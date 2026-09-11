@@ -1,12 +1,17 @@
 import { describe, expect, it } from "vitest";
 import { DeploymentEnvironment, StoreCapability, StoreStatus } from "@prisma/client";
-import { deploymentEnvironment, hasStoreCapability, isStoreCommerceAvailable, normaliseRequestHost, UnknownStorefrontError } from "@/lib/storefront";
+import { deploymentEnvironment, hasStoreCapability, isStoreCommerceAvailable, normaliseRequestHost, storeDomainOrigin, UnknownStorefrontError } from "@/lib/storefront";
 
 describe("storefront routing boundaries", () => {
   it("normalises an exact request host without trusting its port", () => {
     expect(normaliseRequestHost("LOCALHOST:3000")).toBe("localhost");
     expect(normaliseRequestHost("Tapkin.com.au:443")).toBe("tapkin.com.au");
     expect(normaliseRequestHost("home.localhost:3000")).toBe("home.localhost");
+  });
+
+  it("preserves explicit development ports without adding them to production", () => {
+    expect(storeDomainOrigin({ protocol: "http", hostname: "home.localhost", port: 3000 })).toBe("http://home.localhost:3000");
+    expect(storeDomainOrigin({ protocol: "https", hostname: "tapkin.com.au", port: null })).toBe("https://tapkin.com.au");
   });
 
   it("keeps Home Demo commerce isolated without exposing NFC administration", () => {

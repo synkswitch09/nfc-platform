@@ -96,7 +96,7 @@ async function seedHomeDemo() {
       capabilities: [StoreCapability.COMMERCE, StoreCapability.CUSTOM_PERSONALISATION, StoreCapability.PRINT_3D, StoreCapability.INVENTORY],
     },
   });
-  await db.storeDomain.upsert({ where: { environment_hostname: { environment: DeploymentEnvironment.DEVELOPMENT, hostname: "home.localhost" } }, update: { storeId: store.id, protocol: "http", isPrimary: true }, create: { storeId: store.id, environment: DeploymentEnvironment.DEVELOPMENT, hostname: "home.localhost", protocol: "http", isPrimary: true } });
+  await db.storeDomain.upsert({ where: { environment_hostname: { environment: DeploymentEnvironment.DEVELOPMENT, hostname: "home.localhost" } }, update: { storeId: store.id, protocol: "http", port: 3000, isPrimary: true }, create: { storeId: store.id, environment: DeploymentEnvironment.DEVELOPMENT, hostname: "home.localhost", protocol: "http", port: 3000, isPrimary: true } });
 
   const categorySeeds = [
     { slug: "desk-organization", name: "Desk & Organization", icon: "layout-grid", visualTheme: CategoryVisualTheme.MIDNIGHT, landingLayout: CategoryLandingLayout.EDITORIAL, shortDescription: "Purpose-built forms that give everyday desk objects a calm, practical place.", heroEyebrow: "A clearer place to work", heroHeadline: "Organise the small things that interrupt your day.", heroDescription: "Functional stands and organisers printed in small batches for cables, devices and focused workspaces.", cardTitle: "Desk & Organization", cardText: "Phone stands, cable control and considered storage for a calmer surface.", benefits: [{ icon: "layout-grid", title: "Purposeful footprint", description: "Useful capacity without taking over the desk.", order: 0, visible: true }, { icon: "palette", title: "Made to fit", description: "Choose practical colours and sizes for the space.", order: 1, visible: true }], howItWorks: [{ title: "Choose the problem", description: "Start with the device, cable or surface that needs a better place.", order: 0, visible: true }, { title: "Select the finish", description: "Pick a colour and configuration suited to the setup.", order: 1, visible: true }, { title: "Made in small batches", description: "The item is printed, finished and checked before packing.", order: 2, visible: true }] },
@@ -141,7 +141,7 @@ async function main() {
   });
   const deployment = environment.toUpperCase() as DeploymentEnvironment;
   const hostname = environment === "staging" ? "staging.tapkin.com.au" : "localhost";
-  await db.storeDomain.upsert({ where: { environment_hostname: { environment: deployment, hostname } }, update: { storeId: store.id, isPrimary: true, protocol: environment === "development" ? "http" : "https" }, create: { storeId: store.id, environment: deployment, hostname, isPrimary: true, protocol: environment === "development" ? "http" : "https" } });
+  await db.storeDomain.upsert({ where: { environment_hostname: { environment: deployment, hostname } }, update: { storeId: store.id, isPrimary: true, protocol: environment === "development" ? "http" : "https", port: environment === "development" ? 3000 : null }, create: { storeId: store.id, environment: deployment, hostname, isPrimary: true, protocol: environment === "development" ? "http" : "https", port: environment === "development" ? 3000 : null } });
   const categoryIds = new Map<string, string>();
   for (const [sortOrder, item] of categories.entries()) {
     const ctaHref = `/shop?category=${item.slug}`;

@@ -74,7 +74,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
           {product.images.length > 1 && <div className="product-thumbs">{product.images.slice(1).map(image => <Image key={image.id} src={image.url} alt={image.altText} width={160} height={160} unoptimized />)}</div>}
         </div>
         <div className="product-copy">
-          <p className="eyebrow">{product.category?.name ?? "Smart NFC product"}</p>
+          <p className="eyebrow">{product.category?.name ?? (connected ? "Smart NFC product" : "Made-to-order product")}</p>
           <h1>{product.name}</h1>
           <p className="lead">{product.shortDescription ?? product.description}</p>
           <ProductPurchase productName={product.name} variants={product.variants} options={product.options} />

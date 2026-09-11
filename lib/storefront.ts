@@ -116,7 +116,7 @@ function mapStorefront(row: StoreWithDomains, hostname: string, environment: Dep
     capabilities: row.capabilities,
     paymentProfileKey: row.paymentProfileKey,
     hostname,
-    origin: `${primary.protocol}://${primary.hostname}`,
+    origin: storeDomainOrigin(primary),
     environment,
   };
 }
@@ -174,6 +174,10 @@ export const getCurrentStorefront = cache(async (): Promise<Storefront> => {
 
 export function hasStoreCapability(store: Pick<Storefront, "capabilities">, capability: StoreCapability) {
   return store.capabilities.includes(capability);
+}
+
+export function storeDomainOrigin(domain: { protocol: string; hostname: string; port: number | null }) {
+  return `${domain.protocol}://${domain.hostname}${domain.port ? `:${domain.port}` : ""}`;
 }
 
 export function isStoreCommerceAvailable(store: Pick<Storefront, "capabilities" | "status">) {

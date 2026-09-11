@@ -6,6 +6,7 @@ import { createOpaqueToken, sha256 } from "@/lib/crypto";
 import { db } from "@/lib/db";
 import { sendTransactionalEmail } from "@/lib/email";
 import { hasStoreCapability, type Storefront } from "@/lib/storefront";
+import { manufacturingRequirements } from "@/lib/manufacturing";
 
 export type CheckoutItemInput = { variantId: string; quantity: number; personalisation?: Record<string, string> };
 export type CheckoutCustomerInput = {
@@ -132,7 +133,7 @@ export async function settleCheckoutEvent(input: { eventId: string; eventType: s
   const result = await db.$transaction(async tx => {
     const seen = await tx.webhookEvent.findUnique({ where: { id: input.eventId } });
     if (seen) return { duplicate: true };
-    const payment = await tx.payment.findUnique({ where: { providerSessionId: input.providerSessionId }, include: { order: { include: { items: { include: { variant: true } } } } } });
+    const payment = await tx.payment.findUnique({ where: { providerSessionId: input.providerSessionId }, include: { order: { include: { store: { select: { capabilities: true } }, items: { include: { variant: true } } } } } });
     if (!payment || payment.orderId !== input.orderId || payment.order.storeId !== input.storeId) throw new CheckoutError("Payment does not match an order", 409);
     if (payment.amountCents !== input.amountCents || payment.currency.toLowerCase() !== input.currency.toLowerCase()) throw new CheckoutError("Payment total does not match the order", 409);
     if (payment.status === "SUCCEEDED") {
@@ -157,6 +158,11 @@ export async function settleCheckoutEvent(input: { eventId: string; eventType: s
     await tx.payment.update({ where: { id: payment.id }, data: { status: "SUCCEEDED", providerPaymentIntentId: input.paymentIntentId ?? null } });
     await tx.order.update({ where: { id: payment.orderId }, data: { status: "PAID" } });
     await tx.orderStatusHistory.create({ data: { orderId: payment.orderId, fromStatus: "PAYMENT_PENDING", toStatus: "PAID" } });
+    const jobs = payment.order.items.flatMap(item => {
+      const requirements = manufacturingRequirements(payment.order.store.capabilities, item.productType);
+      return requirements ? [{ storeId: payment.order.storeId, orderItemId: item.id, productVariantId: item.variantId, quantity: item.quantity, material: item.variant.material, colour: item.variant.colour, requiresNfc: requirements.requiresNfc }] : [];
+    });
+    if (jobs.length) await tx.manufacturingJob.createMany({ data: jobs, skipDuplicates: true });
     await tx.webhookEvent.create({ data: { id: input.eventId, provider: "stripe", eventType: input.eventType } });
     return { duplicate: false };
   }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });

@@ -22,9 +22,11 @@ function captureCookies(response, jar) {
   for (const value of setCookies) { const [pair] = value.split(";", 1); const separator = pair.indexOf("="); if (separator > 0) jar.set(pair.slice(0, separator), pair.slice(separator + 1)); }
 }
 
-async function request(path, { method = "GET", json, body, headers = {}, jar = new Map(), redirect = "follow" } = {}) {
+async function request(path, { method = "GET", json, body, headers = {}, jar = new Map(), redirect = "follow", host } = {}) {
   const requestHeaders = new Headers(headers);
-  if (method !== "GET" && method !== "HEAD") requestHeaders.set("origin", origin);
+  const requestHost = host ? `${host}:${new URL(origin).port || "3000"}` : new URL(origin).host;
+  if (host) requestHeaders.set("host", requestHost);
+  if (method !== "GET" && method !== "HEAD") requestHeaders.set("origin", `${new URL(origin).protocol}//${requestHost}`);
   if (json !== undefined) { requestHeaders.set("content-type", "application/json"); body = JSON.stringify(json); }
   const cookies = cookieHeader(jar); if (cookies) requestHeaders.set("cookie", cookies);
   const response = await fetch(new URL(path, origin), { method, headers: requestHeaders, body, redirect });
@@ -63,11 +65,20 @@ async function main() {
   const guestEmail = `e2e-guest-${suffix}@example.test`;
   const guestPassword = "GuestPassword123";
   const customerJar = new Map(); const adminJar = new Map();
+  const tapkinStore = await db.store.findUnique({ where: { slug: "tapkin" } });
+  const homeStore = await db.store.findUnique({ where: { slug: "home-demo" } });
+  assert(Boolean(tapkinStore) && Boolean(homeStore), "Development seed contains isolated Tapkin and Home Demo Stores");
 
   // FLOW A — guest purchase through the real HTTP boundary and test payment settlement.
   for (const path of ["/", "/pet", "/categories/pet-tags", "/shop?category=pet", "/products/round-nfc-pet-tag", "/cart", "/checkout"]) {
     const response = await request(path); assert(response.status === 200, `Guest can browse ${path}`);
   }
+  const homePage = await bodyText(await request("/", { host: "home.localhost" }));
+  assert(homePage.text.includes("Home Demo") && !homePage.text.includes("Activate a product"), "Home Demo resolves by Host with isolated branding and no NFC CTA");
+  const homeProduct = await request("/products/minimal-phone-stand", { host: "home.localhost" });
+  const leakedTapkinProduct = await request("/products/round-nfc-pet-tag", { host: "home.localhost" });
+  const leakedHomeProduct = await request("/products/minimal-phone-stand");
+  assert(homeProduct.status === 200 && leakedTapkinProduct.status === 404 && leakedHomeProduct.status === 404, "Product routes cannot leak across Stores");
   const seededVariant = await db.productVariant.findUnique({ where: { sku: "PET-ROUND" } });
   assert(Boolean(seededVariant), "Seeded checkout variant exists");
   await jsonResponse(await request("/api/checkout", { method: "POST", json: { items: [{ variantId: seededVariant.id, quantity: 0 }], customer: { name: "E2E Guest", email: guestEmail, shipping: { line1: "1 Test Street", suburb: "Adelaide", state: "SA", postcode: "5000", country: "AU" } } } }), 400, "Checkout rejects invalid quantities");
@@ -82,10 +93,13 @@ async function main() {
   const orderNumber = successUrl.pathname.split("/").at(-2); const claimToken = successUrl.searchParams.get("token");
   const paidOrder = await db.order.findUnique({ where: { orderNumber } });
   assert(paidOrder?.status === "PAID", "Server settled paid order state");
+  assert(paidOrder?.storeId === tapkinStore.id, "Order snapshots the server-resolved Tapkin Store");
   assert(paidOrder?.totalCents !== 1, "Client price tampering is ignored");
+  const manufacturingJob = await db.manufacturingJob.findFirst({ where: { orderItem: { orderId: paidOrder.id } } });
+  assert(manufacturingJob?.storeId === tapkinStore.id && manufacturingJob.requiresNfc, "Paid Tapkin item creates Store-scoped 3D and NFC manufacturing work");
   const payment = await db.payment.findFirst({ where: { orderId: paidOrder.id } });
   const stripeEventId = `evt_e2e_${suffix}`;
-  const stripePayload = JSON.stringify({ id: stripeEventId, object: "event", type: "checkout.session.completed", data: { object: { id: payment.providerSessionId, object: "checkout.session", metadata: { orderId: paidOrder.id }, payment_status: "paid", amount_total: paidOrder.totalCents, currency: "aud", payment_intent: `pi_e2e_${suffix}` } } });
+  const stripePayload = JSON.stringify({ id: stripeEventId, object: "event", type: "checkout.session.completed", data: { object: { id: payment.providerSessionId, object: "checkout.session", metadata: { orderId: paidOrder.id, storeId: tapkinStore.id, storeSlug: tapkinStore.slug }, payment_status: "paid", amount_total: paidOrder.totalCents, currency: "aud", payment_intent: `pi_e2e_${suffix}` } } });
   await jsonResponse(await request("/api/stripe/webhook", { method: "POST", body: stripePayload, headers: { "content-type": "application/json", "stripe-signature": "invalid" } }), 400, "Stripe webhook rejects an invalid signature");
   const stripe = new Stripe("e2e-not-a-real-stripe-key");
   const stripeSignature = stripe.webhooks.generateTestHeaderString({ payload: stripePayload, secret: stripeWebhookSecret });
@@ -100,6 +114,8 @@ async function main() {
   assert([302, 303, 307, 308].includes(verification.status), "Email ownership verification completes");
   const dashboard = await bodyText(await request("/dashboard", { jar: customerJar }));
   assert(dashboard.text.includes(orderNumber), "Previous guest purchase appears in the account");
+  const crossStoreDashboard = await request("/dashboard", { host: "home.localhost", jar: customerJar, redirect: "manual" });
+  assert([302, 303, 307, 308].includes(crossStoreDashboard.status), "A Tapkin session is not accepted by Home Demo");
   await jsonResponse(await request("/api/admin/products", { method: "POST", jar: customerJar, json: {} }), 403, "Customer cannot escalate into Product Admin");
 
   // FLOW C — tag/account management is never available anonymously.
@@ -110,7 +126,7 @@ async function main() {
   await jsonResponse(await request("/api/admin/products", { method: "POST", json: {} }), 403, "Customerless request is rejected by Product Admin");
   const login = await jsonResponse(await request("/api/auth/login", { method: "POST", jar: adminJar, json: { email: adminEmail, password: adminPassword } }), 200, "Development administrator can sign in");
   assert(login.user.role === "ADMIN", "Administrator role is enforced");
-  const e2eCategory = await db.productCategory.findUnique({ where: { slug: "pet" } });
+  const e2eCategory = await db.productCategory.findUnique({ where: { storeId_slug: { storeId: tapkinStore.id, slug: "pet" } } });
   assert(e2eCategory?.status === "PUBLISHED", "Published category exists for the product journey");
   const slug = `e2e-nfc-tag-${suffix}`; const sku = `E2E-${suffix.toUpperCase()}`.slice(0, 50);
   const productPayload = { name: `E2E NFC Tag ${suffix}`, slug, description: "A test-only NFC tag used by the integrated business journey.", fullDescription: "Created through Product Admin, imaged, stocked, published and then used in the NFC manufacturing flow.", categoryId: e2eCategory.id, type: "PET", status: "DRAFT", featured: false, shopVisible: false, brand: "Tapkin", gstInclusive: true, seoTitle: `E2E NFC Tag ${suffix}`, seoDescription: "Integrated test product for NFC commerce and manufacturing.", ogImageUrl: "", canonicalUrl: "", indexable: false,
@@ -128,6 +144,10 @@ async function main() {
   await jsonResponse(await request(`/api/admin/products/${product.id}`, { method: "PATCH", jar: adminJar, json: { ...productPayload, status: "ACTIVE", shopVisible: true, indexable: true, variants: [{ ...productPayload.variants[0], id: variant.id }] } }), 200, "Administrator publishes the product");
   const storeProduct = await bodyText(await request(`/products/${slug}`));
   assert(storeProduct.text.includes(productPayload.name), "Published product appears in the store");
+  const homeAdminJar = new Map();
+  await jsonResponse(await request("/api/auth/login", { method: "POST", host: "home.localhost", jar: homeAdminJar, json: { email: adminEmail, password: adminPassword } }), 200, "Same administrator identity can establish a separate Home Demo session");
+  const homeAdmin = await bodyText(await request("/admin", { host: "home.localhost", jar: homeAdminJar }));
+  assert(homeAdmin.text.includes("Home Demo") && !homeAdmin.text.includes("NFC production batches"), "Home Demo Admin keeps its Store context and hides NFC operations");
 
   // FLOW E — manufacture, program, verify, activate, configure and scan a tag.
   const batch = await jsonResponse(await request("/api/admin/tags/batch", { method: "POST", jar: adminJar, json: { productId: product.id, productVariantId: variant.id, quantity: 1, notes: "Automated E2E batch" } }), 201, "Manufacturing creates a secure production batch");

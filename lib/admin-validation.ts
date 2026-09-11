@@ -17,7 +17,7 @@ export const adminProductSchema = z.object({
   status: z.enum(["DRAFT", "ACTIVE", "HIDDEN", "OUT_OF_STOCK", "ARCHIVED"]),
   featured: z.boolean().default(false),
   shopVisible: z.boolean().default(true),
-  brand: z.string().trim().min(1).max(80).default("Tapkin"),
+  brand: z.string().trim().min(1).max(80),
   gstInclusive: z.boolean().default(true),
   seoTitle: z.string().trim().max(70).nullable().optional(),
   seoDescription: z.string().trim().max(170).nullable().optional(),
