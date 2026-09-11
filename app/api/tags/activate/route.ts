@@ -7,21 +7,24 @@ import { rateLimit } from "@/lib/rate-limit";
 import { activationSchema } from "@/lib/validation";
 import { isActivatable } from "@/lib/policies";
 import { isManagedProfileType } from "@/lib/product-types";
+import { getCurrentStorefront, hasStoreCapability } from "@/lib/storefront";
+import { StoreCapability } from "@prisma/client";
 
 export async function POST(request: NextRequest) {
   if (!assertSameOrigin(request)) return jsonError("Invalid request origin", 403);
-  const user = await getCurrentUser();
+  const [user, store] = await Promise.all([getCurrentUser(), getCurrentStorefront()]);
   if (!user) return jsonError("Sign in before activating a tag", 401);
+  if (!hasStoreCapability(store, StoreCapability.NFC)) return jsonError("NFC activation is not available for this store", 404);
   const ip = getClientIp(request);
   const [ipLimit, userLimit] = await Promise.all([
     rateLimit("activate-ip", ip, 12, 60 * 60 * 1000),
-    rateLimit("activate-user", user.id, 8, 60 * 60 * 1000),
+    rateLimit("activate-user", `${store.id}:${user.id}`, 8, 60 * 60 * 1000),
   ]);
   if (!ipLimit.allowed || !userLimit.allowed) return jsonError("Too many activation attempts. Try again later.", 429);
 
   const parsed = activationSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return jsonError("Tag ID or activation code is invalid");
-  const tag = await db.nFCTag.findUnique({ where: { publicTagId: parsed.data.publicTagId } });
+  const tag = await db.nFCTag.findFirst({ where: { storeId: store.id, publicTagId: parsed.data.publicTagId } });
   const valid = tag
     && isActivatable(tag)
     && (!tag.activationLockedUntil || tag.activationLockedUntil <= new Date())
@@ -40,7 +43,7 @@ export async function POST(request: NextRequest) {
   try {
     await db.$transaction(async (tx) => {
       const claimed = await tx.nFCTag.updateMany({
-        where: { id: tag.id, ownerId: null, status: "UNCLAIMED" },
+        where: { id: tag.id, storeId: store.id, ownerId: null, status: "UNCLAIMED" },
         data: { ownerId: user.id, status: "ACTIVE", activatedAt: new Date(), activationLockedUntil: null },
       });
       if (claimed.count !== 1) throw new Error("TAG_ALREADY_CLAIMED");
@@ -51,7 +54,7 @@ export async function POST(request: NextRequest) {
       if (tag.productType === "BUSINESS") await tx.businessProfile.create({ data: { tagProfileId: profile.id } });
       if (tag.productType === "LUGGAGE") await tx.luggageProfile.create({ data: { tagProfileId: profile.id } });
       await tx.tagActivation.create({ data: { tagId: tag.id, userId: user.id, success: true, ipHash: privacyHash(ip) } });
-      await tx.auditLog.create({ data: { actorId: user.id, action: "TAG_ACTIVATED", entityType: "NFCTag", entityId: tag.id } });
+      await tx.auditLog.create({ data: { actorId: user.id, storeId: store.id, action: "TAG_ACTIVATED", entityType: "NFCTag", entityId: tag.id } });
     });
   } catch {
     return jsonError("This tag can no longer be activated", 409);

@@ -14,6 +14,10 @@ export async function POST(request: NextRequest) {
   const data = parsed.data;
   try {
     const product = await db.$transaction(async tx => {
+      if (data.categoryId) {
+        const category = await tx.productCategory.findFirst({ where: { id: data.categoryId, storeId: store.id }, select: { id: true } });
+        if (!category) throw new Error("INVALID_CATEGORY");
+      }
       const created = await tx.product.create({ data: {
         storeId: store.id, name: data.name, slug: data.slug, description: data.description, shortDescription: data.description, fullDescription: data.fullDescription || null,
         categoryId: data.categoryId || null, type: data.type, status: data.status, featured: data.featured, shopVisible: data.shopVisible, brand: data.brand, gstInclusive: data.gstInclusive,
@@ -26,6 +30,7 @@ export async function POST(request: NextRequest) {
     });
     return NextResponse.json({ product }, { status: 201 });
   } catch (error) {
+    if (error instanceof Error && error.message === "INVALID_CATEGORY") return jsonError("Category does not belong to this store", 409);
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") return jsonError("Slug or SKU is already in use", 409);
     return jsonError("Product could not be created", 500);
   }

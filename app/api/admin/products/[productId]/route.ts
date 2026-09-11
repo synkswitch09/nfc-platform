@@ -44,6 +44,10 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   const data = parsed.data;
   try {
     await db.$transaction(async tx => {
+      if (data.categoryId) {
+        const category = await tx.productCategory.findFirst({ where: { id: data.categoryId, storeId: store.id }, select: { id: true } });
+        if (!category) throw new Error("INVALID_CATEGORY");
+      }
       await tx.product.update({ where: { id: productId }, data: { name: data.name, slug: data.slug, description: data.description, shortDescription: data.description, fullDescription: data.fullDescription || null, categoryId: data.categoryId || null, type: data.type, status: data.status, featured: data.featured, shopVisible: data.shopVisible, brand: data.brand, gstInclusive: data.gstInclusive, seoTitle: data.seoTitle || null, seoDescription: data.seoDescription || null, ogImageUrl: data.ogImageUrl || null, canonicalUrl: data.canonicalUrl || null, indexable: data.indexable } });
       const variantIds = data.variants.flatMap(variant => variant.id ? [variant.id] : []);
       await tx.productVariant.updateMany({ where: { productId, id: { notIn: variantIds } }, data: { active: false } });
@@ -69,6 +73,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     });
     return NextResponse.json({ ok: true });
   } catch (error) {
+    if (error instanceof Error && error.message === "INVALID_CATEGORY") return jsonError("Category does not belong to this store", 409);
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") return jsonError("Slug, SKU or option code is already in use", 409);
     return jsonError("Product could not be updated", 500);
   }

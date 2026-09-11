@@ -1,6 +1,7 @@
 import { getCurrentUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { getCurrentStorefront } from "@/lib/storefront";
+import { redirect } from "next/navigation";
 
 export async function getAdminApiUser() {
   const user = await getCurrentUser();
@@ -15,4 +16,10 @@ export async function getAdminApiContext() {
     if (!membership || !["STAFF", "ADMIN"].includes(membership.role)) return null;
   }
   return { user, store };
+}
+
+export async function requireAdminPageContext() {
+  const context = await getAdminApiContext();
+  if (!context) redirect("/dashboard");
+  return context;
 }

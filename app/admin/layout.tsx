@@ -1,8 +1,10 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { Archive, Boxes, ClipboardList, Factory, FileClock, Gauge, PackageSearch, ScanLine, Settings, ShieldCheck, Tags, Users } from "lucide-react";
-import { requireRole } from "@/lib/auth";
+import { requireAdminPageContext } from "@/lib/admin";
 import { getRuntimeConfig } from "@/lib/config";
+import { hasStoreCapability } from "@/lib/storefront";
+import { StoreCapability } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Operations", robots: { index: false, follow: false } };
@@ -17,7 +19,8 @@ const groups = [
 ];
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
-  await requireRole(["STAFF", "ADMIN"]);
+  const { store } = await requireAdminPageContext();
   const environment = getRuntimeConfig().appEnv;
-  return <div className="admin-shell"><aside className="admin-sidebar"><Link href="/admin" className="admin-brand"><span>TK</span><div>Tapkin<small>Operations</small></div></Link>{groups.map(group => <div className="admin-nav-group" key={group.label}><p>{group.label}</p>{group.links.map(({ href, label, icon: Icon }) => <Link href={href} key={href}><Icon size={18} />{label}</Link>)}</div>)}<Link href="/" className="admin-store-link">← View storefront</Link></aside><main className="admin-main">{environment !== "production" && <div className={`environment-banner ${environment}`} role="status">{environment.toUpperCase()} ENVIRONMENT</div>}{children}</main></div>;
+  const visibleGroups = groups.filter(group => group.label !== "NFC" || hasStoreCapability(store, StoreCapability.NFC));
+  return <div className="admin-shell"><aside className="admin-sidebar"><Link href="/admin" className="admin-brand"><span>{store.displayName.slice(0, 2).toUpperCase()}</span><div>{store.displayName}<small>Operations</small></div></Link><div className="admin-store-context"><small>STORE</small><strong>{store.displayName}</strong></div>{visibleGroups.map(group => <div className="admin-nav-group" key={group.label}><p>{group.label}</p>{group.links.map(({ href, label, icon: Icon }) => <Link href={href} key={href}><Icon size={18} />{label}</Link>)}</div>)}<Link href="/" className="admin-store-link">← View storefront</Link></aside><main className="admin-main">{environment !== "production" && <div className={`environment-banner ${environment}`} role="status">{environment.toUpperCase()} ENVIRONMENT · STORE: {store.displayName.toUpperCase()}</div>}{children}</main></div>;
 }

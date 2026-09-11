@@ -2,14 +2,14 @@ import { notFound } from "next/navigation";
 import { AdminProductForm, type AdminProductInitial } from "@/components/admin-product-form";
 import { ProductImageManager } from "@/components/product-image-manager";
 import { db } from "@/lib/db";
-import { getCurrentUser } from "@/lib/auth";
+import { requireAdminPageContext } from "@/lib/admin";
 
 export default async function EditProductPage({ params }: { params: Promise<{ productId: string }> }) {
   const { productId } = await params;
-  const [product, categories, user] = await Promise.all([
-    db.product.findUnique({ where: { id: productId }, include: { images: { orderBy: { sortOrder: "asc" } }, variants: { orderBy: { createdAt: "asc" } }, options: { include: { values: { where: { active: true }, orderBy: { sortOrder: "asc" } } }, orderBy: { sortOrder: "asc" } } } }),
-    db.productCategory.findMany({ select: { id: true, name: true }, orderBy: [{ sortOrder: "asc" }, { name: "asc" }] }),
-    getCurrentUser(),
+  const { user, store } = await requireAdminPageContext();
+  const [product, categories] = await Promise.all([
+    db.product.findFirst({ where: { id: productId, storeId: store.id }, include: { images: { orderBy: { sortOrder: "asc" } }, variants: { orderBy: { createdAt: "asc" } }, options: { include: { values: { where: { active: true }, orderBy: { sortOrder: "asc" } } }, orderBy: { sortOrder: "asc" } } } }),
+    db.productCategory.findMany({ where: { storeId: store.id }, select: { id: true, name: true }, orderBy: [{ sortOrder: "asc" }, { name: "asc" }] }),
   ]);
   if (!product) notFound();
   const initial: AdminProductInitial = {

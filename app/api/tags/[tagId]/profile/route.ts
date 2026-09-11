@@ -3,6 +3,7 @@ import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { assertSameOrigin, jsonError } from "@/lib/http";
+import { getCurrentStorefront } from "@/lib/storefront";
 
 const optionalText = z.string().trim().max(500).optional().nullable();
 const optionalPhone = z.string().trim().max(30).regex(/^[+()\d\s-]*$/).optional().nullable();
@@ -24,11 +25,11 @@ const profileSchema = z.discriminatedUnion("type", [
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ tagId: string }> }) {
   if (!assertSameOrigin(request)) return jsonError("Invalid request origin", 403);
-  const user = await getCurrentUser(); if (!user) return jsonError("Unauthorised", 401);
+  const [user, store] = await Promise.all([getCurrentUser(), getCurrentStorefront()]); if (!user) return jsonError("Unauthorised", 401);
   const parsed = profileSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return jsonError(parsed.error.issues[0]?.message ?? "Invalid profile");
   const { tagId } = await params;
-  const tag = await db.nFCTag.findFirst({ where: { id: tagId, ownerId: user.id }, include: { profile: true } });
+  const tag = await db.nFCTag.findFirst({ where: { id: tagId, storeId: store.id, ownerId: user.id }, include: { profile: true } });
   if (!tag?.profile || tag.productType !== parsed.data.type) return jsonError("Tag not found", 404);
   const { displayName, contacts, details, type } = parsed.data;
   await db.$transaction(async tx => {
@@ -40,7 +41,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     if (type === "SOCIAL" || type === "REVIEW" || type === "CUSTOM") await tx.socialProfile.update({ where: { tagProfileId: tag.profile!.id }, data: details });
     if (type === "BUSINESS") await tx.businessProfile.update({ where: { tagProfileId: tag.profile!.id }, data: details });
     if (type === "LUGGAGE") await tx.luggageProfile.update({ where: { tagProfileId: tag.profile!.id }, data: details });
-    await tx.auditLog.create({ data: { actorId: user.id, action: "TAG_PROFILE_UPDATED", entityType: "NFCTag", entityId: tag.id } });
+    await tx.auditLog.create({ data: { actorId: user.id, storeId: store.id, action: "TAG_PROFILE_UPDATED", entityType: "NFCTag", entityId: tag.id } });
   });
   return NextResponse.json({ ok: true });
 }

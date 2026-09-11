@@ -4,6 +4,7 @@ import { CategoryLanding } from "@/components/category-landing";
 import { categoryFaq } from "@/lib/category-content";
 import { categoryPublicPath, getPublicCategory } from "@/lib/category-query";
 import { getRuntimeConfig, searchEnginePolicy } from "@/lib/config";
+import { getCurrentStorefront } from "@/lib/storefront";
 
 export async function generateMetadata({ params }: { params: Promise<{ categorySlug: string }> }): Promise<Metadata> {
   const category = await getPublicCategory((await params).categorySlug);
@@ -25,7 +26,7 @@ export default async function PublicCategoryPage({ params }: { params: Promise<{
   if (!category) notFound();
   if (categorySlug !== category.slug) permanentRedirect(categoryPublicPath(category.slug));
 
-  const origin = getRuntimeConfig().appUrl;
+  const origin = (await getCurrentStorefront()).origin;
   const faq = categoryFaq(category.faq);
   const products = category.showInShop ? category.products : [];
   const structuredData = {

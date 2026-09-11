@@ -8,6 +8,7 @@ import { PublicActions } from "@/components/public-actions";
 import { rateLimit } from "@/lib/rate-limit";
 import type { Metadata } from "next";
 import { publicTagState } from "@/lib/catalog-policy";
+import { getCurrentStorefront } from "@/lib/storefront";
 
 export const metadata: Metadata = { robots: { index: false, follow: false } };
 
@@ -16,10 +17,11 @@ function validRedirect(value?: string | null) { try { const url = new URL(value 
 
 export default async function PublicTagPage({ params }: { params: Promise<{ publicTagId: string }> }) {
   const { publicTagId } = await params;
-  const tag = await db.nFCTag.findUnique({ where: { publicTagId: publicTagId.toUpperCase() }, include: { profile: { include: { pet: true, child: true, social: true, business: true, luggage: true, contacts: { orderBy: { priority: "asc" } } } } } });
+  const store = await getCurrentStorefront();
+  const tag = await db.nFCTag.findFirst({ where: { storeId: store.id, publicTagId: publicTagId.toUpperCase() }, include: { profile: { include: { pet: true, child: true, social: true, business: true, luggage: true, contacts: { orderBy: { priority: "asc" } } } } } });
   if (!tag) notFound();
   const state = publicTagState(tag.status, tag.profile?.isPublic ?? false);
-  if (state === "ACTIVATION") return <div className="public-profile"><div className="profile-card"><Radio size={38} /><h1 style={{fontSize:"2.5rem"}}>Ready to activate</h1><p className="muted">This Tapkin product has not been linked to an account yet.</p><Link className="button" href={`/activate?tag=${tag.publicTagId}`}>Activate this product</Link></div></div>;
+  if (state === "ACTIVATION") return <div className="public-profile"><div className="profile-card"><Radio size={38} /><h1 style={{fontSize:"2.5rem"}}>Ready to activate</h1><p className="muted">This {store.displayName} product has not been linked to an account yet.</p><Link className="button" href={`/activate?tag=${tag.publicTagId}`}>Activate this product</Link></div></div>;
   if (state === "UNAVAILABLE" || !tag.profile) return <div className="public-profile"><div className="profile-card"><ShieldCheck size={38} /><h1 style={{fontSize:"2.5rem"}}>Tag unavailable</h1><p className="muted">The owner has disabled this tag. No personal information is available.</p></div></div>;
 
   const h = await headers(); const now = new Date(); const dayBucket = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));

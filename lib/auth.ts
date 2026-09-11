@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { createOpaqueToken, sha256 } from "@/lib/crypto";
 import { getRuntimeConfig } from "@/lib/config";
 import { getCurrentStorefront, type Storefront } from "@/lib/storefront";
+import { belongsToStore } from "@/lib/store-isolation";
 
 export const SESSION_COOKIE = "nfc_session";
 const SESSION_DAYS = 30;
@@ -39,7 +40,7 @@ export async function getCurrentUser() {
   });
   if (!session) return null;
   const store = await getCurrentStorefront();
-  if (session.storeId !== store.id) return null;
+  if (!belongsToStore(session.storeId, store.id)) return null;
   if (session.expiresAt <= new Date()) {
     await db.session.delete({ where: { id: session.id } }).catch(() => undefined);
     return null;
