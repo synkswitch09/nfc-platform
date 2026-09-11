@@ -6,6 +6,34 @@ import { currentAppEnvironment } from "../lib/config";
 const db = new PrismaClient();
 const TAPKIN_STORE_ID = "00000000-0000-4000-8000-000000000001";
 const HOME_DEMO_STORE_ID = "00000000-0000-4000-8000-000000000002";
+
+async function seedShipping(storeId: string, flatRateCents: number, freeOverCents: number, development: boolean) {
+  await db.shippingOrigin.upsert({
+    where: { storeId_name: { storeId, name: "Primary dispatch" } },
+    update: { active: true, isDefault: true },
+    create: { storeId, name: "Primary dispatch", senderName: "Dispatch team", company: "Store operations", line1: "Configure before live fulfilment", suburb: "Adelaide", state: "SA", postcode: "5000", country: "AU", active: true, isDefault: true },
+  });
+  const parcel = await db.packaging.upsert({
+    where: { storeId_code: { storeId, code: "SMALL-PARCEL" } },
+    update: { active: true, lengthMm: 220, widthMm: 160, heightMm: 60, emptyWeightGrams: 80 },
+    create: { storeId, code: "SMALL-PARCEL", name: "Small recyclable parcel", lengthMm: 220, widthMm: 160, heightMm: 60, emptyWeightGrams: 80, maxWeightGrams: 5000, active: true },
+  });
+  const zone = await db.shippingZone.upsert({
+    where: { storeId_name: { storeId, name: "Australia" } },
+    update: { countries: ["AU"], states: [], postcodeRules: [], active: true },
+    create: { storeId, name: "Australia", countries: ["AU"], states: [], postcodeRules: [], priority: 0, active: true },
+  });
+  const provider = await db.shippingProvider.upsert({
+    where: { storeId_key: { storeId, key: development ? "mock-auspost" : "manual" } },
+    update: { active: true, supportsRates: true, supportsLabels: development },
+    create: { storeId, key: development ? "mock-auspost" : "manual", name: development ? "Mock Australia Post" : "Manual fallback", kind: development ? "MOCK" : "MANUAL", active: true, supportsRates: true, supportsLabels: development },
+  });
+  await db.shippingRate.upsert({
+    where: { storeId_zoneId_serviceCode_packagingId: { storeId, zoneId: zone.id, serviceCode: "STANDARD", packagingId: parcel.id } },
+    update: { providerId: provider.id, amountCents: flatRateCents, freeOverCents, active: true },
+    create: { storeId, zoneId: zone.id, providerId: provider.id, packagingId: parcel.id, serviceCode: "STANDARD", serviceName: "Standard parcel delivery", amountCents: flatRateCents, freeOverCents, estimatedDaysMin: 2, estimatedDaysMax: 6, active: true },
+  });
+}
 const categories = [
   {
     slug: "pet", legacySlugs: ["pet-tags"], name: "Pet", icon: "dog", visualTheme: CategoryVisualTheme.CORAL, landingLayout: CategoryLandingLayout.EDITORIAL,
@@ -97,6 +125,7 @@ async function seedHomeDemo() {
     },
   });
   await db.storeDomain.upsert({ where: { environment_hostname: { environment: DeploymentEnvironment.DEVELOPMENT, hostname: "home.localhost" } }, update: { storeId: store.id, protocol: "http", port: 3000, isPrimary: true }, create: { storeId: store.id, environment: DeploymentEnvironment.DEVELOPMENT, hostname: "home.localhost", protocol: "http", port: 3000, isPrimary: true } });
+  await seedShipping(store.id, 1100, 7500, true);
 
   const categorySeeds = [
     { slug: "desk-organization", name: "Desk & Organization", icon: "layout-grid", visualTheme: CategoryVisualTheme.MIDNIGHT, landingLayout: CategoryLandingLayout.EDITORIAL, shortDescription: "Purpose-built forms that give everyday desk objects a calm, practical place.", heroEyebrow: "A clearer place to work", heroHeadline: "Organise the small things that interrupt your day.", heroDescription: "Functional stands and organisers printed in small batches for cables, devices and focused workspaces.", cardTitle: "Desk & Organization", cardText: "Phone stands, cable control and considered storage for a calmer surface.", benefits: [{ icon: "layout-grid", title: "Purposeful footprint", description: "Useful capacity without taking over the desk.", order: 0, visible: true }, { icon: "palette", title: "Made to fit", description: "Choose practical colours and sizes for the space.", order: 1, visible: true }], howItWorks: [{ title: "Choose the problem", description: "Start with the device, cable or surface that needs a better place.", order: 0, visible: true }, { title: "Select the finish", description: "Pick a colour and configuration suited to the setup.", order: 1, visible: true }, { title: "Made in small batches", description: "The item is printed, finished and checked before packing.", order: 2, visible: true }] },
@@ -142,6 +171,7 @@ async function main() {
   const deployment = environment.toUpperCase() as DeploymentEnvironment;
   const hostname = environment === "staging" ? "staging.tapkin.com.au" : "localhost";
   await db.storeDomain.upsert({ where: { environment_hostname: { environment: deployment, hostname } }, update: { storeId: store.id, isPrimary: true, protocol: environment === "development" ? "http" : "https", port: environment === "development" ? 3000 : null }, create: { storeId: store.id, environment: deployment, hostname, isPrimary: true, protocol: environment === "development" ? "http" : "https", port: environment === "development" ? 3000 : null } });
+  await seedShipping(store.id, 900, 6000, environment === "development");
   const categoryIds = new Map<string, string>();
   for (const [sortOrder, item] of categories.entries()) {
     const ctaHref = `/shop?category=${item.slug}`;

@@ -1,26 +1,27 @@
 import { randomUUID } from "node:crypto";
 import { Prisma, StoreCapability, StoreStatus } from "@prisma/client";
 import { availableInventory, CatalogValidationError, normalisePersonalisation } from "@/lib/catalog";
-import { calculateOrderTotals } from "@/lib/commerce";
+import { calculateQuotedOrderTotals } from "@/lib/commerce";
 import { createOpaqueToken, sha256 } from "@/lib/crypto";
 import { db } from "@/lib/db";
 import { sendTransactionalEmail } from "@/lib/email";
 import { hasStoreCapability, type Storefront } from "@/lib/storefront";
 import { manufacturingRequirements } from "@/lib/manufacturing";
+import { shippingCartHash, shippingDestinationHash } from "@/lib/shipping";
 
 export type CheckoutItemInput = { variantId: string; quantity: number; personalisation?: Record<string, string> };
 export type CheckoutCustomerInput = {
   userId?: string;
   email: string;
   name: string;
-  shipping: { line1: string; line2?: string; suburb: string; state: string; postcode: string; country: string };
+  shipping: { line1: string; line2?: string; suburb: string; state: string; postcode: string; country: "AU" };
 };
 
 export class CheckoutError extends Error {
   constructor(message: string, readonly status = 400) { super(message); }
 }
 
-export async function createPendingOrder(items: CheckoutItemInput[], customer: CheckoutCustomerInput, store: Storefront) {
+export async function createPendingOrder(items: CheckoutItemInput[], customer: CheckoutCustomerInput, store: Storefront, shippingQuoteToken: string) {
   if (store.status !== StoreStatus.ACTIVE || !hasStoreCapability(store, StoreCapability.COMMERCE)) throw new CheckoutError("This store is not accepting orders", 409);
   const claimToken = customer.userId ? null : createOpaqueToken();
   return db.$transaction(async tx => {
@@ -39,7 +40,7 @@ export async function createPendingOrder(items: CheckoutItemInput[], customer: C
       catch (error) { throw new CheckoutError(error instanceof CatalogValidationError ? error.message : "Invalid personalisation"); }
       const unitPriceCents = variant.priceCents + normalised.priceDeltaCents;
       if (unitPriceCents < 0) throw new CheckoutError("Invalid product price", 409);
-      return { item, variant, unitPriceCents, personalisation: normalised.personalisation };
+      return { item, variant, unitPriceCents, personalisation: normalised.personalisation, selectedOptions: normalised.selectedOptions };
     });
 
     const requestedByVariant = new Map<string, number>();
@@ -51,7 +52,11 @@ export async function createPendingOrder(items: CheckoutItemInput[], customer: C
       }
     }
 
-    const totals = calculateOrderTotals(lines.map(line => ({ unitPriceCents: line.unitPriceCents, quantity: line.item.quantity })), store.shippingConfig);
+    const quote = await tx.shippingQuote.findFirst({ where: { tokenHash: sha256(shippingQuoteToken), storeId: store.id, status: "ACTIVE", expiresAt: { gt: new Date() } } });
+    if (!quote || quote.cartHash !== shippingCartHash(items) || quote.destinationHash !== shippingDestinationHash(customer.shipping)) throw new CheckoutError("Your delivery quote expired or no longer matches this order", 409);
+    const consumed = await tx.shippingQuote.updateMany({ where: { id: quote.id, status: "ACTIVE", expiresAt: { gt: new Date() } }, data: { status: "CONSUMED", consumedAt: new Date() } });
+    if (consumed.count !== 1) throw new CheckoutError("Your delivery quote has already been used", 409);
+    const totals = calculateQuotedOrderTotals(lines.map(line => ({ unitPriceCents: line.unitPriceCents, quantity: line.item.quantity })), quote.amountCents);
     const order = await tx.order.create({
       data: {
         orderNumber: `${store.slug === "tapkin" ? "TK" : store.slug.slice(0, 4).toUpperCase()}-${randomUUID().replaceAll("-", "").slice(0, 10).toUpperCase()}`,
@@ -71,10 +76,17 @@ export async function createPendingOrder(items: CheckoutItemInput[], customer: C
         shippingState: customer.shipping.state,
         shippingPostcode: customer.shipping.postcode,
         shippingCountry: customer.shipping.country,
+        shippingProviderKey: quote.providerKey,
+        shippingServiceCode: quote.serviceCode,
+        shippingServiceName: quote.serviceName,
+        shippingQuoteId: quote.id,
+        shippingQuoteSnapshot: { amountCents: quote.amountCents, currency: quote.currency, serviceCode: quote.serviceCode, serviceName: quote.serviceName, estimatedDaysMin: quote.estimatedDaysMin, estimatedDaysMax: quote.estimatedDaysMax, createdAt: quote.createdAt.toISOString() },
+        packagingSnapshot: quote.packagingSnapshot as Prisma.InputJsonValue,
+        shippingOriginSnapshot: quote.originSnapshot as Prisma.InputJsonValue,
         status: "PAYMENT_PENDING",
         currency: store.currency,
         ...totals,
-        items: { create: lines.map(({ item, variant, unitPriceCents, personalisation }) => ({
+        items: { create: lines.map(({ item, variant, unitPriceCents, personalisation, selectedOptions }) => ({
           variantId: variant.id,
           quantity: item.quantity,
           unitPriceCents,
@@ -83,6 +95,9 @@ export async function createPendingOrder(items: CheckoutItemInput[], customer: C
           sku: variant.sku,
           productType: variant.product.type,
           personalisation,
+          personalisationMode: variant.product.personalisationMode,
+          selectedOptions,
+          shippingSnapshot: { weightGrams: variant.weightGrams ?? variant.product.weightGrams, lengthMm: variant.lengthMm ?? variant.product.lengthMm, widthMm: variant.widthMm ?? variant.product.widthMm, heightMm: variant.heightMm ?? variant.product.heightMm, shipsSeparately: variant.product.shipsSeparately, specialHandling: variant.product.specialHandling },
         })) },
         payments: { create: { amountCents: totals.totalCents, currency: store.currency } },
         statusHistory: { create: { toStatus: "PAYMENT_PENDING" } },

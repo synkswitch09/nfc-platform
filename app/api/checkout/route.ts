@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
 
   let checkout;
   try {
-    checkout = await createPendingOrder(parsed.data.items, { ...customer, userId: user?.id }, store);
+    checkout = await createPendingOrder(parsed.data.items, { ...customer, userId: user?.id }, store, parsed.data.shippingQuoteToken);
   } catch (error) {
     if (error instanceof CheckoutError) return jsonError(error.message, error.status);
     return jsonError("Checkout could not be prepared", 500);
@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
       metadata: { orderId: checkout.order.id, storeId: store.id, storeSlug: store.slug },
       line_items: [
         ...checkout.lines.map(({ item, variant, unitPriceCents }) => ({ quantity: item.quantity, price_data: { currency: store.currency.toLowerCase(), unit_amount: unitPriceCents, product_data: { name: `${variant.product.name} — ${variant.name}`, metadata: { variantId: variant.id, storeId: store.id } } } })),
-        ...(checkout.order.shippingCents ? [{ quantity: 1, price_data: { currency: store.currency.toLowerCase(), unit_amount: checkout.order.shippingCents, product_data: { name: "Standard shipping" } } }] : []),
+        ...(checkout.order.shippingCents ? [{ quantity: 1, price_data: { currency: store.currency.toLowerCase(), unit_amount: checkout.order.shippingCents, product_data: { name: checkout.order.shippingServiceName ?? "Shipping" } } }] : []),
       ],
       shipping_address_collection: { allowed_countries: ["AU"] },
       success_url: `${origin}${successPath}`,

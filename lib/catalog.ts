@@ -20,6 +20,7 @@ export function normalisePersonalisation(options: CheckoutOption[], input: Recor
   if (Object.keys(submitted).some(code => !allowedCodes.has(code))) throw new CatalogValidationError("Unknown personalisation option");
 
   const personalisation: Record<string, string> = {};
+  const selectedOptions: Record<string, string> = {};
   let priceDeltaCents = 0;
 
   for (const option of activeOptions) {
@@ -32,17 +33,18 @@ export function normalisePersonalisation(options: CheckoutOption[], input: Recor
       const selected = option.values.find(candidate => candidate.active && candidate.value === value);
       if (!selected) throw new CatalogValidationError(`${option.code} has an invalid value`);
       priceDeltaCents += selected.priceDeltaCents;
+      selectedOptions[option.code] = value;
     } else if (option.type === "CHECKBOX") {
       if (!["true", "false"].includes(value)) throw new CatalogValidationError(`${option.code} has an invalid value`);
       personalisation[option.code] = value;
       if (value === "false") continue;
     }
 
-    personalisation[option.code] = value;
+    if (!["SELECT", "RADIO", "COLOUR"].includes(option.type)) personalisation[option.code] = value;
     priceDeltaCents += option.priceDeltaCents;
   }
 
-  return { personalisation, priceDeltaCents };
+  return { personalisation, selectedOptions, priceDeltaCents };
 }
 
 export function availableInventory(variant: { inventory: number; reservedInventory: number }) {

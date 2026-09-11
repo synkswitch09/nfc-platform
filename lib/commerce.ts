@@ -3,3 +3,8 @@ export function calculateOrderTotals(items: Array<{ unitPriceCents: number; quan
   const shippingCents = subtotalCents >= shipping.freeOverCents ? 0 : shipping.flatRateCents;
   return { subtotalCents, shippingCents, totalCents: subtotalCents + shippingCents };
 }
+
+export function calculateQuotedOrderTotals(items: Array<{ unitPriceCents: number; quantity: number }>, shippingCents: number) {
+  const subtotalCents = items.reduce((sum, item) => sum + item.unitPriceCents * item.quantity, 0);
+  return { subtotalCents, shippingCents, totalCents: subtotalCents + shippingCents };
+}

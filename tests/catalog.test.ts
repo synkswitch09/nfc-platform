@@ -8,7 +8,7 @@ const options = [
 
 describe("catalog personalisation", () => {
   it("normalises valid selections and calculates server-side price additions", () => {
-    expect(normalisePersonalisation(options, { "pet-name": " Max ", colour: "ocean" })).toEqual({ personalisation: { "pet-name": "Max", colour: "ocean" }, priceDeltaCents: 150 });
+    expect(normalisePersonalisation(options, { "pet-name": " Max ", colour: "ocean" })).toEqual({ personalisation: { "pet-name": "Max" }, selectedOptions: { colour: "ocean" }, priceDeltaCents: 150 });
   });
   it("rejects missing required and unknown options", () => {
     expect(() => normalisePersonalisation(options, { colour: "ocean" })).toThrow(CatalogValidationError);

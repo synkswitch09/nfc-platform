@@ -111,11 +111,16 @@ async function main() {
   assert(homeProduct.status === 200 && leakedTapkinProduct.status === 404 && leakedHomeProduct.status === 404, "Product routes cannot leak across Stores");
   const seededVariant = await db.productVariant.findUnique({ where: { sku: "PET-ROUND" } });
   assert(Boolean(seededVariant), "Seeded checkout variant exists");
-  await jsonResponse(await request("/api/checkout", { method: "POST", json: { items: [{ variantId: seededVariant.id, quantity: 0 }], customer: { name: "E2E Guest", email: guestEmail, shipping: { line1: "1 Test Street", suburb: "Adelaide", state: "SA", postcode: "5000", country: "AU" } } } }), 400, "Checkout rejects invalid quantities");
-  await jsonResponse(await request("/api/checkout", { method: "POST", json: { items: [{ variantId: "00000000-0000-4000-8000-000000000000", quantity: 1 }], customer: { name: "E2E Guest", email: guestEmail, shipping: { line1: "1 Test Street", suburb: "Adelaide", state: "SA", postcode: "5000", country: "AU" } } } }), 409, "Checkout rejects unavailable variants");
+  const destination = { line1: "1 Test Street", suburb: "Adelaide", state: "SA", postcode: "5000", country: "AU" };
+  await jsonResponse(await request("/api/shipping/quotes", { method: "POST", json: { items: [{ variantId: seededVariant.id, quantity: 0 }], destination } }), 400, "Shipping quote rejects invalid quantities");
+  await jsonResponse(await request("/api/shipping/quotes", { method: "POST", json: { items: [{ variantId: "00000000-0000-4000-8000-000000000000", quantity: 1 }], destination } }), 409, "Shipping quote rejects unavailable variants");
+  const quotedItems = [{ variantId: seededVariant.id, quantity: 1, unitPriceCents: 1, personalisation: { "pet-name": "Pixel", colour: "ocean" } }];
+  const shippingQuotes = await jsonResponse(await request("/api/shipping/quotes", { method: "POST", json: { items: quotedItems, destination } }), 200, "Server returns Store-scoped delivery quotes");
+  assert(shippingQuotes.quotes.length > 0 && shippingQuotes.quotes[0].token, "Delivery quote includes an opaque checkout token");
   const checkout = await jsonResponse(await request("/api/checkout", { method: "POST", json: {
-    items: [{ variantId: seededVariant.id, quantity: 1, unitPriceCents: 1, personalisation: { "pet-name": "Pixel", colour: "ocean" } }],
-    customer: { name: "E2E Guest", email: guestEmail, shipping: { line1: "1 Test Street", suburb: "Adelaide", state: "SA", postcode: "5000", country: "AU" } },
+    items: quotedItems,
+    shippingQuoteToken: shippingQuotes.quotes[0].token,
+    customer: { name: "E2E Guest", email: guestEmail, shipping: destination },
   } }), 200, "Guest checkout succeeds without an account");
   assert(checkout.testMode === true, "Test payment flow settles the order");
   const successUrl = new URL(checkout.url); const successPage = await bodyText(await request(`${successUrl.pathname}${successUrl.search}`));
