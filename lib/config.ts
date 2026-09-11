@@ -152,10 +152,10 @@ export function searchEnginePolicy(environment: AppEnvironment) {
     : { index: false, follow: false, noarchive: true };
 }
 
-export function oauthCallbackUrl(provider: "google" | "apple", config: Pick<RuntimeConfig, "appUrl"> = getRuntimeConfig()) {
+export function oauthCallbackUrl(provider: "google" | "apple", config: Pick<RuntimeConfig, "appUrl">) {
   return `${config.appUrl}/api/auth/oauth/${provider}/callback`;
 }
 
-export function publicTagUrl(publicTagId: string, config: Pick<RuntimeConfig, "appUrl"> = getRuntimeConfig()) {
+export function publicTagUrl(publicTagId: string, config: Pick<RuntimeConfig, "appUrl">) {
   return `${config.appUrl}/t/${publicTagId}`;
 }

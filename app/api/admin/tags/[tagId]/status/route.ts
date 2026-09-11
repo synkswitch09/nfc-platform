@@ -3,6 +3,8 @@ import { z } from "zod";
 import { getAdminApiContext } from "@/lib/admin";
 import { db } from "@/lib/db";
 import { assertSameOrigin, jsonError } from "@/lib/http";
+import { StoreCapability } from "@prisma/client";
+import { hasStoreCapability } from "@/lib/storefront";
 
 const schema = z.object({ status: z.enum(["ACTIVE", "DISABLED", "LOST", "REPLACED"]), reason: z.string().trim().min(3).max(300) });
 const transitions = { MANUFACTURED: ["DISABLED", "REPLACED"], UNCLAIMED: ["DISABLED", "REPLACED"], ACTIVE: ["DISABLED", "LOST", "REPLACED"], DISABLED: ["ACTIVE", "REPLACED"], LOST: ["ACTIVE", "REPLACED"], REPLACED: [] } as const;
@@ -10,6 +12,7 @@ const transitions = { MANUFACTURED: ["DISABLED", "REPLACED"], UNCLAIMED: ["DISAB
 export async function POST(request: NextRequest, { params }: { params: Promise<{ tagId: string }> }) {
   if (!assertSameOrigin(request)) return jsonError("Invalid request origin", 403);
   const context = await getAdminApiContext(); if (!context) return jsonError("Forbidden", 403); const { user, store } = context;
+  if (!hasStoreCapability(store, StoreCapability.NFC)) return jsonError("NFC is not enabled for this store", 404);
   const parsed = schema.safeParse(await request.json().catch(() => null)); if (!parsed.success) return jsonError(parsed.error.issues[0]?.message ?? "Invalid tag status");
   const { tagId } = await params;
   const tag = await db.nFCTag.findFirst({ where: { id: tagId, storeId: store.id }, select: { status: true, ownerId: true } });

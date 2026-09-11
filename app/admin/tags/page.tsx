@@ -1,8 +1,10 @@
 import Link from "next/link";
-import { Prisma } from "@prisma/client";
+import { Prisma, StoreCapability } from "@prisma/client";
 import { Search } from "lucide-react";
 import { db } from "@/lib/db";
 import { requireAdminPageContext } from "@/lib/admin";
+import { hasStoreCapability } from "@/lib/storefront";
+import { notFound } from "next/navigation";
 
 const statuses = ["MANUFACTURED", "UNCLAIMED", "ACTIVE", "LOST", "DISABLED", "REPLACED"] as const;
 const PAGE_SIZE = 50;
@@ -11,6 +13,7 @@ function date(value?: string, end = false) { if (!value || !/^\d{4}-\d{2}-\d{2}$
 
 export default async function AdminTagsPage({ searchParams }: { searchParams: Promise<{ q?: string; status?: string; product?: string; category?: string; batch?: string; createdFrom?: string; createdTo?: string; activatedFrom?: string; activatedTo?: string; page?: string }> }) {
   const { store } = await requireAdminPageContext();
+  if (!hasStoreCapability(store, StoreCapability.NFC)) notFound();
   const params = await searchParams; const q = params.q?.trim() ?? ""; const status = statuses.find(value => value === params.status); const page = Math.max(1, Number(params.page) || 1);
   const createdFrom = date(params.createdFrom); const createdTo = date(params.createdTo, true); const activatedFrom = date(params.activatedFrom); const activatedTo = date(params.activatedTo, true);
   const where: Prisma.NFCTagWhereInput = { storeId: store.id, ...(q ? { OR: [{ publicTagId: { contains: q, mode: "insensitive" } }, { owner: { is: { name: { contains: q, mode: "insensitive" } } } }, { owner: { is: { email: { contains: q, mode: "insensitive" } } } }, { product: { is: { name: { contains: q, mode: "insensitive" } } } }, { productVariant: { is: { sku: { contains: q, mode: "insensitive" } } } }, { manufacturingBatch: { is: { batchNumber: { contains: q, mode: "insensitive" } } } }, { orderItem: { is: { order: { is: { orderNumber: { contains: q, mode: "insensitive" } } } } } }] } : {}), ...(status ? { status } : {}), ...(params.product ? { productId: params.product } : {}), ...(params.category ? { product: { storeId: store.id, categoryId: params.category } } : {}), ...(params.batch ? { manufacturingBatchId: params.batch } : {}), ...(createdFrom || createdTo ? { createdAt: { ...(createdFrom ? { gte: createdFrom } : {}), ...(createdTo ? { lte: createdTo } : {}) } } : {}), ...(activatedFrom || activatedTo ? { activatedAt: { ...(activatedFrom ? { gte: activatedFrom } : {}), ...(activatedTo ? { lte: activatedTo } : {}) } } : {}) };

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import Image from "next/image";
 import { ShieldCheck, Radio, Shapes } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth";
 import { CartLink } from "@/components/cart-link";
@@ -28,12 +29,12 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
       <body data-store={store.slug} data-theme-style={store.theme.fontStyle} style={storeThemeStyle(store.theme)}>
         <CartProvider storageKey={`commerce-cart:${store.id}:v1`}>
         <header className="site-header">
-          <Link href="/" className="brand"><span className="brand-mark"><BrandIcon size={18} /></span>{settings.storeName}</Link>
+          <Link href="/" className="brand" aria-label={`${settings.storeName} home`}>{store.logoUrl ? <Image className="brand-logo" src={store.logoUrl} alt="" width={168} height={48} unoptimized /> : <><span className="brand-mark"><BrandIcon size={18} /></span>{settings.storeName}</>}</Link>
           <nav aria-label="Main navigation">
             {commerce && <Link href="/shop">Shop</Link>}
             {categories.map(category => <Link className="category-nav-link" href={`/${category.slug}`} key={category.slug}>{category.name}</Link>)}
-            <Link href="/#how-it-works">How it works</Link>
-            <CartLink />
+            {commerce && <Link href="/#how-it-works">How it works</Link>}
+            {commerce && <CartLink />}
             {user ? <Link className="nav-cta" href="/dashboard">My products</Link> : <Link className="nav-cta" href="/login">Sign in</Link>}
           </nav>
         </header>

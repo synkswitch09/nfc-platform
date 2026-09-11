@@ -2,9 +2,13 @@ import Link from "next/link";
 import { BatchGenerator } from "@/components/batch-generator";
 import { db } from "@/lib/db";
 import { requireAdminPageContext } from "@/lib/admin";
+import { StoreCapability } from "@prisma/client";
+import { hasStoreCapability } from "@/lib/storefront";
+import { notFound } from "next/navigation";
 
 export default async function ManufacturingBatchesPage() {
   const { store } = await requireAdminPageContext();
+  if (!hasStoreCapability(store, StoreCapability.NFC)) notFound();
   const [products, batches] = await Promise.all([
     db.product.findMany({ where: { storeId: store.id, status: { in: ["ACTIVE", "DRAFT"] }, type: { not: "ACCESSORY" } }, select: { id: true, name: true, variants: { where: { active: true }, select: { id: true, name: true, sku: true } } }, orderBy: { name: "asc" } }),
     db.manufacturingBatch.findMany({ where: { storeId: store.id }, take: 100, orderBy: { createdAt: "desc" }, include: { product: { select: { name: true } }, productVariant: { select: { name: true, sku: true } }, createdBy: { select: { name: true } }, _count: { select: { tags: true } } } }),

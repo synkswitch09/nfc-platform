@@ -2,7 +2,6 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { createOpaqueToken, sha256 } from "@/lib/crypto";
-import { getRuntimeConfig } from "@/lib/config";
 import { getCurrentStorefront, type Storefront } from "@/lib/storefront";
 import { belongsToStore } from "@/lib/store-isolation";
 
@@ -17,7 +16,7 @@ export async function createSession(userId: string, storefront?: Storefront) {
   const jar = await cookies();
   jar.set(SESSION_COOKIE, token, {
     httpOnly: true,
-    secure: getRuntimeConfig().appUrl.startsWith("https://"),
+    secure: store.origin.startsWith("https://"),
     sameSite: "lax",
     path: "/",
     expires: expiresAt,

@@ -1,7 +1,5 @@
 import { getCurrentStorefront, type Storefront } from "@/lib/storefront";
 
-export const defaultStoreSettings = { storeName: "Tapkin", businessName: null as string | null, supportEmail: "hello@example.com", currency: "AUD", defaultCountry: "AU", siteTitle: "Tapkin Smart Products", siteDescription: "Personalised smart products combining 3D printing, NFC, QR and secure digital profiles.", defaultSocialImageUrl: null as string | null, socialLinks: {} as Record<string, string>, shippingConfig: { flatRateCents: 900, freeOverCents: 6000 } as Record<string, number> };
-
 export async function getStoreSettings(storefront?: Storefront) {
   const store = storefront ?? await getCurrentStorefront();
   return {

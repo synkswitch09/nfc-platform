@@ -4,10 +4,10 @@ import { exchangeOAuthCode, findOrCreateOAuthUser, getOAuthConfig, OAUTH_COOKIE,
 import { getCurrentStorefront } from "@/lib/storefront";
 
 async function callback(request: NextRequest, providerValue: string, values: URLSearchParams) {
-  const fallback = new URL("/login?oauth=failed", request.url);
+  const store = await getCurrentStorefront();
+  const fallback = new URL("/login?oauth=failed", store.origin);
   if (providerValue !== "google" && providerValue !== "apple") return NextResponse.redirect(fallback);
   const provider = providerValue as OAuthProviderName; const transaction = readOAuthTransaction(request.cookies.get(OAUTH_COOKIE)?.value);
-  const store = await getCurrentStorefront();
   const code = values.get("code"); const state = values.get("state"); const error = values.get("error");
   if (!transaction || transaction.provider !== provider || transaction.storeId !== store.id || transaction.origin !== store.origin || !code || !state || state !== transaction.state || error) return clear(NextResponse.redirect(fallback));
   const config = getOAuthConfig(provider); if (!config) return clear(NextResponse.redirect(fallback));

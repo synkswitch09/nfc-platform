@@ -16,6 +16,6 @@ export function publicTagState(status: TagStatus, isPublic: boolean) {
   return "PROFILE" as const;
 }
 
-export function canHardDeleteProduct(history: { orderItems: number; tags: number; batches: number; inventoryMovements: number }) {
-  return history.orderItems === 0 && history.tags === 0 && history.batches === 0 && history.inventoryMovements === 0;
+export function canHardDeleteProduct(history: { orderItems: number; tags: number; batches: number; inventoryMovements: number; manufacturingJobs: number }) {
+  return history.orderItems === 0 && history.tags === 0 && history.batches === 0 && history.inventoryMovements === 0 && history.manufacturingJobs === 0;
 }

@@ -6,9 +6,9 @@ import { getCurrentStorefront } from "@/lib/storefront";
 export async function GET(request: NextRequest) {
   const store = await getCurrentStorefront();
   const token = request.nextUrl.searchParams.get("token");
-  if (!token) return NextResponse.redirect(new URL("/login?verified=invalid", request.url));
+  if (!token) return NextResponse.redirect(new URL("/login?verified=invalid", store.origin));
   const record = await db.emailVerification.findUnique({ where: { tokenHash: sha256(token) }, include: { user: true } });
-  if (!record || record.storeId !== store.id || record.usedAt || record.expiresAt <= new Date()) return NextResponse.redirect(new URL("/login?verified=invalid", request.url));
+  if (!record || record.storeId !== store.id || record.usedAt || record.expiresAt <= new Date()) return NextResponse.redirect(new URL("/login?verified=invalid", store.origin));
 
   let claimedOrderId: string | null = null;
   await db.$transaction(async tx => {
@@ -26,5 +26,5 @@ export async function GET(request: NextRequest) {
     }
   });
   const destination = claimedOrderId ? `/dashboard/orders/${claimedOrderId}?claimed=true` : "/dashboard?verified=true";
-  return NextResponse.redirect(new URL(destination, request.url));
+  return NextResponse.redirect(new URL(destination, store.origin));
 }

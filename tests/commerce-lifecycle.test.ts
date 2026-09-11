@@ -21,9 +21,10 @@ describe("independent commerce and NFC lifecycles", () => {
     expect(isProductAvailableForNewSale("HIDDEN", true)).toBe(false);
   });
   it("allows hard deletion only without historical records", () => {
-    expect(canHardDeleteProduct({ orderItems: 0, tags: 0, batches: 0, inventoryMovements: 0 })).toBe(true);
-    expect(canHardDeleteProduct({ orderItems: 1, tags: 0, batches: 0, inventoryMovements: 0 })).toBe(false);
-    expect(canHardDeleteProduct({ orderItems: 0, tags: 1, batches: 0, inventoryMovements: 0 })).toBe(false);
-    expect(canHardDeleteProduct({ orderItems: 0, tags: 0, batches: 1, inventoryMovements: 0 })).toBe(false);
+    expect(canHardDeleteProduct({ orderItems: 0, tags: 0, batches: 0, inventoryMovements: 0, manufacturingJobs: 0 })).toBe(true);
+    expect(canHardDeleteProduct({ orderItems: 1, tags: 0, batches: 0, inventoryMovements: 0, manufacturingJobs: 0 })).toBe(false);
+    expect(canHardDeleteProduct({ orderItems: 0, tags: 1, batches: 0, inventoryMovements: 0, manufacturingJobs: 0 })).toBe(false);
+    expect(canHardDeleteProduct({ orderItems: 0, tags: 0, batches: 1, inventoryMovements: 0, manufacturingJobs: 0 })).toBe(false);
+    expect(canHardDeleteProduct({ orderItems: 0, tags: 0, batches: 0, inventoryMovements: 0, manufacturingJobs: 1 })).toBe(false);
   });
 });

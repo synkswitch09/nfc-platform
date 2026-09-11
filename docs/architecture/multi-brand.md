@@ -94,6 +94,8 @@ Current `ADMIN` users act as platform administrators. `STAFF` access is scoped t
 
 Every store-owned Admin mutation checks both the role and Store scope. An All Stores view is read-only/aggregate unless a specific Store is selected. The selector navigates to the Store's allow-listed canonical domain instead of placing a client-controlled Store ID in a cookie or query string. Because sessions are host-only, the same identity establishes a separate session on each unrelated brand domain.
 
+Store staff see only the selected Store's customer relationship, orders and owned products. Authentication methods and shared-identity suspension are Platform Admin concerns because changing them affects every Store session. Per-Store suspension can be added later to `StoreMembership` without weakening this boundary.
+
 ## Checkout, orders and payments
 
 Checkout resolves Store server-side from the trusted request context. Submitted variant IDs must belong to that Store. The Order snapshots Store, source domain, environment, currency, product name, variant, SKU, price, tax-relevant values and personalisation. Guest claims match email, claim token and Store.
@@ -111,6 +113,8 @@ Homepage content is a small ordered set of typed modules (hero, categories, feat
 ## Capabilities and NFC continuity
 
 Capabilities control navigation and creation workflows, not historical service availability. Initial capabilities include commerce, 3D printing and optional NFC/digital-profile modules. Stores without NFC do not see NFC Admin navigation or NFC product types.
+
+Capability-specific Admin pages and mutations also fail closed when reached directly. Existing Tapkin-only editorial guides remain explicitly owned by Tapkin until a Store-owned editorial-content model is introduced; merely enabling NFC for a future Store must not publish Tapkin content there.
 
 Every existing Tapkin tag retains its `publicTagId`, owner, profile and `/t/{publicTagId}` URL. The migration adds Tapkin Store context without regenerating credentials. Tag resolution is authorised by tag status/profile rules and exact Store-domain association; Store commerce status is ignored for an already issued service. Hiding Home Demo cannot affect Tapkin tags, and hiding Tapkin commerce cannot disable them.
 

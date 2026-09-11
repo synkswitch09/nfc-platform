@@ -24,6 +24,7 @@ button { cursor: pointer; }
 .site-header { height: 74px; max-width: 1180px; margin: auto; padding: 0 24px; display: flex; align-items: center; justify-content: space-between; }
 .brand { display: inline-flex; align-items: center; gap: 9px; font-weight: 800; letter-spacing: -.03em; font-size: 1.2rem; }
 .brand-mark { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 11px; background: var(--ink); color: var(--lime); }
+.brand-logo { display: block; width: auto; max-width: 168px; height: 42px; object-fit: contain; }
 nav { display: flex; align-items: center; gap: 24px; font-size: .94rem; font-weight: 650; }
 .nav-cta, .button { border-radius: 999px; background: var(--ink); color: white; padding: 11px 18px; border: 0; display: inline-flex; align-items: center; justify-content: center; gap: 8px; font-weight: 750; }
 .button.secondary { background: transparent; color: var(--ink); border: 1px solid var(--line); }
@@ -147,6 +148,7 @@ body:has(.admin-shell) .site-header, body:has(.admin-shell) > footer { display: 
 .admin-sidebar { position: sticky; top: 0; height: 100vh; padding: 28px 18px; background: var(--ink); color: #dce7e2; display: flex; flex-direction: column; gap: 23px; overflow-y: auto; }
 .admin-brand { display: flex; align-items: center; gap: 11px; padding: 0 8px 12px; color: white; font-weight: 850; font-size: 1.08rem; }
 .admin-brand > span { width: 38px; height: 38px; display: grid; place-items: center; border-radius: 11px; background: var(--lime); color: var(--ink); font-size: .85rem; }
+.admin-brand-logo { display: block; width: auto; max-width: 72px; height: 38px; object-fit: contain; }
 .admin-brand div { display: grid; line-height: 1.1; }.admin-brand small { color: #92a59d; font-size: .68rem; font-weight: 650; letter-spacing: .08em; text-transform: uppercase; margin-top: 5px; }
 .admin-store-switcher { position: relative; }.admin-store-switcher summary { list-style: none; border: 1px solid rgba(255,255,255,.16); border-radius: 12px; padding: 10px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; }.admin-store-switcher summary::-webkit-details-marker { display: none; }.admin-store-switcher summary span { display: grid; }.admin-store-switcher summary small { color: #92a59d; font-size: .62rem; letter-spacing: .12em; }.admin-store-switcher summary strong { color: white; font-size: .86rem; }.admin-store-menu { position: absolute; z-index: 20; left: 0; top: calc(100% + 7px); width: 260px; padding: 7px; border-radius: 13px; background: white; color: var(--ink); box-shadow: var(--shadow); border: 1px solid var(--line); }.admin-store-menu a { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 9px; padding: 9px; border-radius: 9px; }.admin-store-menu a:hover { background: var(--paper); }.admin-store-menu a span { display: grid; }.admin-store-menu a small { color: var(--muted); font-size: .66rem; }
 .admin-nav-group { display: grid; gap: 4px; }.admin-nav-group > p { margin: 0 9px 5px; color: #82968e; font-size: .68rem; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }

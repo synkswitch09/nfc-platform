@@ -4,12 +4,15 @@ import { getAdminApiContext } from "@/lib/admin";
 import { db } from "@/lib/db";
 import { assertSameOrigin, jsonError } from "@/lib/http";
 import { canTransitionManufacturing } from "@/lib/manufacturing";
+import { StoreCapability } from "@prisma/client";
+import { hasStoreCapability } from "@/lib/storefront";
 
 const schema = z.object({ status: z.enum(["GENERATED", "PROGRAMMED", "VERIFIED", "ASSEMBLED", "READY", "ASSIGNED", "SOLD"]) });
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ tagId: string }> }) {
   if (!assertSameOrigin(request)) return jsonError("Invalid request origin", 403);
   const context = await getAdminApiContext(); if (!context) return jsonError("Forbidden", 403); const { user, store } = context;
+  if (!hasStoreCapability(store, StoreCapability.NFC)) return jsonError("NFC is not enabled for this store", 404);
   const parsed = schema.safeParse(await request.json().catch(() => null)); if (!parsed.success) return jsonError("Invalid manufacturing status");
   const { tagId } = await params;
   const tag = await db.nFCTag.findFirst({ where: { id: tagId, storeId: store.id }, select: { manufacturingStatus: true, manufacturingBatchId: true } });

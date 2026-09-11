@@ -8,12 +8,15 @@ import { ManufacturingStatusForm } from "@/components/manufacturing-status-form"
 import { db } from "@/lib/db";
 import { manufacturingTransitions } from "@/lib/manufacturing";
 import { requireAdminPageContext } from "@/lib/admin";
+import { StoreCapability } from "@prisma/client";
+import { hasStoreCapability } from "@/lib/storefront";
 
 const statusTransitions = { MANUFACTURED: ["DISABLED", "REPLACED"], UNCLAIMED: ["DISABLED", "REPLACED"], ACTIVE: ["DISABLED", "LOST", "REPLACED"], DISABLED: ["ACTIVE", "REPLACED"], LOST: ["ACTIVE", "REPLACED"], REPLACED: [] };
 
 export default async function AdminTagPage({ params }: { params: Promise<{ tagId: string }> }) {
   const { tagId } = await params;
   const { user: actor, store } = await requireAdminPageContext();
+  if (!hasStoreCapability(store, StoreCapability.NFC)) notFound();
   const [tag, auditEvents] = await Promise.all([
     db.nFCTag.findFirst({ where: { id: tagId, storeId: store.id }, include: { product: { include: { category: true } }, productVariant: true, owner: { select: { id: true, name: true, email: true } }, orderItem: { include: { order: true } }, manufacturingBatch: true, profile: { select: { displayName: true, isPublic: true } }, activations: { take: 20, orderBy: { attemptedAt: "desc" } }, scans: { take: 20, orderBy: { scannedAt: "desc" } }, _count: { select: { scans: true, activations: true } } } }),
     db.auditLog.findMany({ where: { storeId: store.id, entityType: "NFCTag", entityId: tagId }, include: { actor: { select: { name: true, email: true } } }, orderBy: { createdAt: "desc" }, take: 20 }),
