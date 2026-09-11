@@ -3,7 +3,7 @@
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 
-export function OrderStatusForm({ orderId, options }: { orderId: string; options: string[] }) {
+export function OrderStatusForm({ orderId, options, shipping }: { orderId: string; options: string[]; shipping?: { carrier: string | null; trackingNumber: string | null } }) {
   const router = useRouter(); const [message, setMessage] = useState(""); const [pending, setPending] = useState(false); const [selected, setSelected] = useState(options[0] ?? "");
   if (!options.length) return <p className="muted">No further operational transition is available.</p>;
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -14,5 +14,5 @@ export function OrderStatusForm({ orderId, options }: { orderId: string; options
     if (!response.ok) return setMessage(result.error ?? "Order could not be updated");
     router.refresh();
   }
-  return <form className="status-update" onSubmit={submit}><select name="status" aria-label="Next status" value={selected} onChange={event => setSelected(event.target.value)}>{options.map(option => <option key={option}>{option}</option>)}</select>{selected === "SHIPPED" && <><input name="carrier" placeholder="Carrier" maxLength={80} required /><input name="trackingNumber" placeholder="Tracking number" maxLength={100} required /></>}<input name="note" placeholder="Optional internal note" maxLength={500} /><button className="button" disabled={pending}>{pending ? "Updating…" : "Update status"}</button>{message && <span className="form-error">{message}</span>}</form>;
+  return <form className="status-update" onSubmit={submit}><select name="status" aria-label="Next status" value={selected} onChange={event => setSelected(event.target.value)}>{options.map(option => <option key={option}>{option}</option>)}</select>{selected === "SHIPPED" && <><input name="carrier" placeholder="Carrier" maxLength={80} defaultValue={shipping?.carrier ?? ""} required /><input name="trackingNumber" placeholder="Tracking number" maxLength={100} defaultValue={shipping?.trackingNumber ?? ""} required /></>}<input name="note" placeholder="Optional internal note" maxLength={500} /><button className="button" disabled={pending}>{pending ? "Updating…" : "Update status"}</button>{message && <span className="form-error">{message}</span>}</form>;
 }

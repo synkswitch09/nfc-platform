@@ -4,10 +4,10 @@ import { availableInventory, CatalogValidationError, normalisePersonalisation } 
 import { calculateQuotedOrderTotals } from "@/lib/commerce";
 import { createOpaqueToken, sha256 } from "@/lib/crypto";
 import { db } from "@/lib/db";
-import { sendTransactionalEmail } from "@/lib/email";
 import { hasStoreCapability, type Storefront } from "@/lib/storefront";
 import { manufacturingRequirements } from "@/lib/manufacturing";
 import { shippingCartHash, shippingDestinationHash } from "@/lib/shipping";
+import { notifyPaidOrder } from "@/lib/order-notifications";
 
 export type CheckoutItemInput = { variantId: string; quantity: number; personalisation?: Record<string, string> };
 export type CheckoutCustomerInput = {
@@ -181,10 +181,6 @@ export async function settleCheckoutEvent(input: { eventId: string; eventType: s
     await tx.webhookEvent.create({ data: { id: input.eventId, provider: "stripe", eventType: input.eventType } });
     return { duplicate: false };
   }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
-  if (!result.duplicate) {
-    const order = await db.order.findUnique({ where: { id: input.orderId }, select: { orderNumber: true, storeDisplayName: true, guestEmail: true, user: { select: { email: true } } } });
-    const email = order?.user?.email ?? order?.guestEmail;
-    if (email && order) await sendTransactionalEmail({ to: email, subject: `${order.storeDisplayName} order ${order.orderNumber} confirmed`, text: `Thanks for your ${order.storeDisplayName} order. We have received payment for ${order.orderNumber} and will let you know when production begins.` }).catch(() => undefined);
-  }
+  if (!result.duplicate) await notifyPaidOrder(input.orderId);
   return result;
 }

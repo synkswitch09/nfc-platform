@@ -1,7 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import type { Metadata } from "next";
-import { Archive, Boxes, Building2, ClipboardList, Factory, FileClock, Gauge, PackageSearch, ScanLine, Settings, ShieldCheck, Tags, Users } from "lucide-react";
+import { Archive, Boxes, Building2, ClipboardList, Factory, FileClock, Gauge, PackageSearch, ScanLine, Settings, ShieldCheck, Tags, Truck, Users } from "lucide-react";
 import { canManageStore, getAccessibleAdminStores, requireAdminPageContext } from "@/lib/admin";
 import { getRuntimeConfig } from "@/lib/config";
 import { hasStoreCapability } from "@/lib/storefront";
@@ -14,7 +14,7 @@ export const metadata: Metadata = { title: "Operations", robots: { index: false,
 const groups = [
   { label: "Overview", links: [{ href: "/admin", label: "Dashboard", icon: Gauge }] },
   { label: "Catalog", links: [{ href: "/admin/products", label: "Products", icon: PackageSearch }, { href: "/admin/inventory", label: "Inventory", icon: Boxes }] },
-  { label: "Sales", links: [{ href: "/admin/orders", label: "Orders", icon: ClipboardList }, { href: "/admin/customers", label: "Customers", icon: Users }] },
+  { label: "Sales", links: [{ href: "/admin/orders", label: "Orders", icon: ClipboardList }, { href: "/admin/shipping", label: "Shipping", icon: Truck }, { href: "/admin/customers", label: "Customers", icon: Users }] },
   { label: "Manufacturing", links: [{ href: "/admin/manufacturing", label: "Production queue", icon: Factory }] },
   { label: "NFC", links: [{ href: "/admin/tags", label: "Tags", icon: Tags }, { href: "/admin/manufacturing/batches", label: "NFC production batches", icon: ScanLine }] },
   { label: "Content", links: [{ href: "/admin/categories", label: "Categories & landings", icon: Archive }] },

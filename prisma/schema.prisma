@@ -976,6 +976,7 @@ model ShippingQuote {
 
 model Shipment {
   id                  String         @id @default(uuid()) @db.Uuid
+  idempotencyKey      String         @unique
   storeId             String         @db.Uuid
   orderId             String         @db.Uuid
   originId            String?        @db.Uuid
