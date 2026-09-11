@@ -20,7 +20,8 @@ export async function POST(request: NextRequest) {
   }
   const session = event.data.object;
   const orderId = session.metadata?.orderId;
-  if (!orderId || session.payment_status !== "paid" || !session.amount_total || !session.currency) {
+  const storeId = session.metadata?.storeId;
+  if (!orderId || !storeId || session.payment_status !== "paid" || !session.amount_total || !session.currency) {
     return NextResponse.json({ error: "Incomplete checkout event" }, { status: 400 });
   }
 
@@ -30,11 +31,12 @@ export async function POST(request: NextRequest) {
       eventType: event.type,
       providerSessionId: session.id,
       orderId,
+      storeId,
       amountCents: session.amount_total,
       currency: session.currency,
       paymentIntentId: typeof session.payment_intent === "string" ? session.payment_intent : null,
     });
-    logEvent("info", "stripe.webhook_processed", { requestId: request.headers.get("x-request-id"), eventId: event.id, orderId, duplicate: result.duplicate });
+    logEvent("info", "stripe.webhook_processed", { requestId: request.headers.get("x-request-id"), eventId: event.id, orderId, storeId, duplicate: result.duplicate });
   } catch (error) {
     logEvent("error", "stripe.webhook_failed", { requestId: request.headers.get("x-request-id"), eventId: event.id, orderId, reason: error instanceof CheckoutError ? "checkout_conflict" : "internal_error" });
     const status = error instanceof CheckoutError ? error.status : 500;

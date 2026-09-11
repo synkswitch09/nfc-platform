@@ -1,25 +1,26 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
-import { getAdminApiUser } from "@/lib/admin";
+import { getAdminApiContext } from "@/lib/admin";
 import { adminCategorySchema } from "@/lib/admin-validation";
 import { db } from "@/lib/db";
 import { assertSameOrigin, jsonError } from "@/lib/http";
 
 export async function POST(request: NextRequest) {
   if (!assertSameOrigin(request)) return jsonError("Invalid request origin", 403);
-  const user = await getAdminApiUser();
-  if (!user) return jsonError("Forbidden", 403);
+  const context = await getAdminApiContext();
+  if (!context) return jsonError("Forbidden", 403);
+  const { user, store } = context;
   const parsed = adminCategorySchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return jsonError(parsed.error.issues[0]?.message ?? "Invalid category");
   try {
     const category = await db.$transaction(async tx => {
       const collision = await tx.productCategory.findFirst({
-        where: { OR: [{ slug: parsed.data.slug }, { legacySlugs: { has: parsed.data.slug } }] },
+        where: { storeId: store.id, OR: [{ slug: parsed.data.slug }, { legacySlugs: { has: parsed.data.slug } }] },
         select: { id: true },
       });
       if (collision) throw new Error("CATEGORY_SLUG_CONFLICT");
-      const created = await tx.productCategory.create({ data: parsed.data });
-      await tx.auditLog.create({ data: { actorId: user.id, action: "CATEGORY_CREATED", entityType: "ProductCategory", entityId: created.id, metadata: { status: created.status } } });
+      const created = await tx.productCategory.create({ data: { ...parsed.data, storeId: store.id } });
+      await tx.auditLog.create({ data: { actorId: user.id, storeId: store.id, action: "CATEGORY_CREATED", entityType: "ProductCategory", entityId: created.id, metadata: { status: created.status } } });
       return created;
     });
     return NextResponse.json({ category }, { status: 201 });

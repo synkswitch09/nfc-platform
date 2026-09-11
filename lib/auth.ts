@@ -3,14 +3,16 @@ import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { createOpaqueToken, sha256 } from "@/lib/crypto";
 import { getRuntimeConfig } from "@/lib/config";
+import { getCurrentStorefront, type Storefront } from "@/lib/storefront";
 
 export const SESSION_COOKIE = "nfc_session";
 const SESSION_DAYS = 30;
 
-export async function createSession(userId: string) {
+export async function createSession(userId: string, storefront?: Storefront) {
+  const store = storefront ?? await getCurrentStorefront();
   const token = createOpaqueToken();
   const expiresAt = new Date(Date.now() + SESSION_DAYS * 86_400_000);
-  await db.session.create({ data: { tokenHash: sha256(token), userId, expiresAt } });
+  await db.session.create({ data: { tokenHash: sha256(token), userId, storeId: store.id, expiresAt } });
   const jar = await cookies();
   jar.set(SESSION_COOKIE, token, {
     httpOnly: true,
@@ -36,6 +38,8 @@ export async function getCurrentUser() {
     include: { user: { select: { id: true, email: true, name: true, role: true, status: true, emailVerifiedAt: true } } },
   });
   if (!session) return null;
+  const store = await getCurrentStorefront();
+  if (session.storeId !== store.id) return null;
   if (session.expiresAt <= new Date()) {
     await db.session.delete({ where: { id: session.id } }).catch(() => undefined);
     return null;

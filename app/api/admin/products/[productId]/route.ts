@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
-import { getAdminApiUser } from "@/lib/admin";
+import { getAdminApiContext } from "@/lib/admin";
 import { adminProductSchema } from "@/lib/admin-validation";
 import { db } from "@/lib/db";
 import { assertSameOrigin, jsonError } from "@/lib/http";
@@ -10,18 +10,19 @@ import { deleteStoredImage } from "@/lib/uploads";
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ productId: string }> }) {
   if (!assertSameOrigin(request)) return jsonError("Invalid request origin", 403);
-  const user = await getAdminApiUser(); if (!user) return jsonError("Forbidden", 403);
+  const context = await getAdminApiContext(); if (!context) return jsonError("Forbidden", 403);
+  const { user, store } = context;
   const { productId } = await params;
-  const source = await db.product.findUnique({ where: { id: productId }, include: { variants: true, options: { include: { values: true } } } });
+  const source = await db.product.findFirst({ where: { id: productId, storeId: store.id }, include: { variants: true, options: { include: { values: true } } } });
   if (!source) return jsonError("Product not found", 404);
   const suffix = createPublicTagId().slice(0, 6).toLowerCase();
   try {
     const duplicate = await db.$transaction(async tx => {
-      const product = await tx.product.create({ data: { name: `${source.name} (copy)`, slug: `${source.slug.slice(0, 150)}-${suffix}`, description: source.description, shortDescription: source.shortDescription, fullDescription: source.fullDescription, categoryId: source.categoryId, type: source.type, status: "DRAFT", featured: false, shopVisible: false, brand: source.brand, gstInclusive: source.gstInclusive, seoTitle: source.seoTitle, seoDescription: source.seoDescription, ogImageUrl: source.ogImageUrl, canonicalUrl: null, indexable: false,
+      const product = await tx.product.create({ data: { storeId: store.id, name: `${source.name} (copy)`, slug: `${source.slug.slice(0, 150)}-${suffix}`, description: source.description, shortDescription: source.shortDescription, fullDescription: source.fullDescription, categoryId: source.categoryId, type: source.type, status: "DRAFT", featured: false, shopVisible: false, brand: source.brand, gstInclusive: source.gstInclusive, seoTitle: source.seoTitle, seoDescription: source.seoDescription, ogImageUrl: source.ogImageUrl, canonicalUrl: null, indexable: false,
         variants: { create: source.variants.map(variant => ({ sku: `${variant.sku.slice(0, 42)}-${suffix.toUpperCase()}`, name: variant.name, colour: variant.colour, size: variant.size, material: variant.material, priceCents: variant.priceCents, compareAtPriceCents: variant.compareAtPriceCents, costCents: variant.costCents, inventory: 0, reservedInventory: 0, trackInventory: variant.trackInventory, lowStockThreshold: variant.lowStockThreshold, backorderPolicy: variant.backorderPolicy, active: variant.active })) },
         options: { create: source.options.map(option => ({ name: option.name, code: option.code, type: option.type, required: option.required, maxLength: option.maxLength, priceDeltaCents: option.priceDeltaCents, helpText: option.helpText, sortOrder: option.sortOrder, active: option.active, values: { create: option.values.map(value => ({ label: value.label, value: value.value, priceDeltaCents: value.priceDeltaCents, sortOrder: value.sortOrder, active: value.active })) } })) },
       } });
-      await tx.auditLog.create({ data: { actorId: user.id, action: "PRODUCT_DUPLICATED", entityType: "Product", entityId: product.id, metadata: { sourceProductId: source.id } } });
+      await tx.auditLog.create({ data: { actorId: user.id, storeId: store.id, action: "PRODUCT_DUPLICATED", entityType: "Product", entityId: product.id, metadata: { sourceProductId: source.id } } });
       return product;
     });
     return NextResponse.json({ product: { id: duplicate.id } }, { status: 201 });
@@ -33,11 +34,12 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ productId: string }> }) {
   if (!assertSameOrigin(request)) return jsonError("Invalid request origin", 403);
-  const user = await getAdminApiUser(); if (!user) return jsonError("Forbidden", 403);
+  const context = await getAdminApiContext(); if (!context) return jsonError("Forbidden", 403);
+  const { user, store } = context;
   const parsed = adminProductSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return jsonError(parsed.error.issues[0]?.message ?? "Invalid product");
   const { productId } = await params;
-  const existing = await db.product.findUnique({ where: { id: productId }, select: { id: true, status: true, variants: { select: { id: true, priceCents: true, inventory: true } } } });
+  const existing = await db.product.findFirst({ where: { id: productId, storeId: store.id }, select: { id: true, status: true, variants: { select: { id: true, priceCents: true, inventory: true } } } });
   if (!existing) return jsonError("Product not found", 404);
   const data = parsed.data;
   try {
@@ -60,10 +62,10 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
           if (option.values.length) await tx.productOptionValue.createMany({ data: option.values.map((value, valueOrder) => ({ optionId: option.id!, label: value.label, value: value.value, priceDeltaCents: value.priceDeltaCents, active: value.active, sortOrder: valueOrder })) });
         } else await tx.productOption.create({ data: { ...values, productId, values: { create: option.values.map((value, valueOrder) => ({ label: value.label, value: value.value, priceDeltaCents: value.priceDeltaCents, active: value.active, sortOrder: valueOrder })) } } });
       }
-      await tx.auditLog.create({ data: { actorId: user.id, action: existing.status === data.status ? "PRODUCT_UPDATED" : "PRODUCT_STATUS_CHANGED", entityType: "Product", entityId: productId, metadata: { fromStatus: existing.status, toStatus: data.status } } });
+      await tx.auditLog.create({ data: { actorId: user.id, storeId: store.id, action: existing.status === data.status ? "PRODUCT_UPDATED" : "PRODUCT_STATUS_CHANGED", entityType: "Product", entityId: productId, metadata: { fromStatus: existing.status, toStatus: data.status } } });
       const previous = new Map(existing.variants.map(variant => [variant.id, variant]));
-      if (data.variants.some(variant => !variant.id || previous.get(variant.id)?.priceCents !== variant.priceCents)) await tx.auditLog.create({ data: { actorId: user.id, action: "PRODUCT_PRICE_CHANGED", entityType: "Product", entityId: productId } });
-      if (data.variants.some(variant => !variant.id || previous.get(variant.id)?.inventory !== variant.inventory)) await tx.auditLog.create({ data: { actorId: user.id, action: "PRODUCT_INVENTORY_CHANGED", entityType: "Product", entityId: productId } });
+      if (data.variants.some(variant => !variant.id || previous.get(variant.id)?.priceCents !== variant.priceCents)) await tx.auditLog.create({ data: { actorId: user.id, storeId: store.id, action: "PRODUCT_PRICE_CHANGED", entityType: "Product", entityId: productId } });
+      if (data.variants.some(variant => !variant.id || previous.get(variant.id)?.inventory !== variant.inventory)) await tx.auditLog.create({ data: { actorId: user.id, storeId: store.id, action: "PRODUCT_INVENTORY_CHANGED", entityType: "Product", entityId: productId } });
     });
     return NextResponse.json({ ok: true });
   } catch (error) {
@@ -74,9 +76,10 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
 export async function DELETE(request: NextRequest, { params }: { params: Promise<{ productId: string }> }) {
   if (!assertSameOrigin(request)) return jsonError("Invalid request origin", 403);
-  const user = await getAdminApiUser(); if (!user || user.role !== "ADMIN") return jsonError("Administrator access required", 403);
+  const context = await getAdminApiContext(); if (!context || context.user.role !== "ADMIN") return jsonError("Administrator access required", 403);
+  const { user, store } = context;
   const { productId } = await params;
-  const product = await db.product.findUnique({ where: { id: productId }, include: { images: { select: { storageKey: true } }, variants: { select: { id: true, _count: { select: { orderItems: true, inventoryMovements: true } } } }, _count: { select: { tags: true, batches: true } } } });
+  const product = await db.product.findFirst({ where: { id: productId, storeId: store.id }, include: { images: { select: { storageKey: true } }, variants: { select: { id: true, _count: { select: { orderItems: true, inventoryMovements: true } } } }, _count: { select: { tags: true, batches: true } } } });
   if (!product) return jsonError("Product not found", 404);
   const history = { orderItems: product.variants.reduce((sum, variant) => sum + variant._count.orderItems, 0), inventoryMovements: product.variants.reduce((sum, variant) => sum + variant._count.inventoryMovements, 0), tags: product._count.tags, batches: product._count.batches };
   if (!canHardDeleteProduct(history)) return jsonError("This product has historical data and cannot be permanently deleted. Archive it instead.", 409);
@@ -85,7 +88,7 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     if (variantIds.length) await tx.cartItem.deleteMany({ where: { variantId: { in: variantIds } } });
     await tx.productVariant.deleteMany({ where: { productId } });
     await tx.product.delete({ where: { id: productId } });
-    await tx.auditLog.create({ data: { actorId: user.id, action: "PRODUCT_DELETED", entityType: "Product", entityId: productId, metadata: { name: product.name } } });
+    await tx.auditLog.create({ data: { actorId: user.id, storeId: store.id, action: "PRODUCT_DELETED", entityType: "Product", entityId: productId, metadata: { name: product.name } } });
   });
   await Promise.all(product.images.map(image => deleteStoredImage(image.storageKey)));
   return NextResponse.json({ ok: true });

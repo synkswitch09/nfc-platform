@@ -1,9 +1,10 @@
-import { CategoryLandingLayout, CategoryVisualTheme, CustomisationFieldType, PrismaClient, ProductType, Role } from "@prisma/client";
+import { CategoryLandingLayout, CategoryVisualTheme, CustomisationFieldType, DeploymentEnvironment, PrismaClient, ProductType, Role, StoreCapability } from "@prisma/client";
 import { hashPassword } from "../lib/crypto";
 import { passwordSchema } from "../lib/validation";
 import { currentAppEnvironment } from "../lib/config";
 
 const db = new PrismaClient();
+const TAPKIN_STORE_ID = "00000000-0000-4000-8000-000000000001";
 const categories = [
   {
     slug: "pet", legacySlugs: ["pet-tags"], name: "Pet", icon: "dog", visualTheme: CategoryVisualTheme.CORAL, landingLayout: CategoryLandingLayout.EDITORIAL,
@@ -80,14 +81,24 @@ async function main() {
   if (environment === "staging" && process.env.ALLOW_STAGING_SEED !== "true") throw new Error("Set ALLOW_STAGING_SEED=true explicitly to load controlled staging data");
   if (environment !== "development" && (process.env.DEV_ADMIN_EMAIL || process.env.DEV_ADMIN_PASSWORD)) throw new Error("Development administrator credentials are allowed only in DEVELOPMENT");
   if (environment !== "staging" && (process.env.STAGING_ADMIN_EMAIL || process.env.STAGING_ADMIN_PASSWORD)) throw new Error("Staging administrator credentials are allowed only in STAGING");
+  const store = await db.store.upsert({
+    where: { slug: "tapkin" },
+    update: { displayName: "Tapkin", status: "ACTIVE", capabilities: [StoreCapability.COMMERCE, StoreCapability.NFC, StoreCapability.DIGITAL_PROFILE, StoreCapability.PET_PROFILE, StoreCapability.CHILD_SAFETY, StoreCapability.SOCIAL_PROFILE, StoreCapability.BUSINESS_PROFILE, StoreCapability.CUSTOM_PERSONALISATION, StoreCapability.PRINT_3D, StoreCapability.INVENTORY] },
+    create: { id: TAPKIN_STORE_ID, slug: "tapkin", name: "Tapkin", displayName: "Tapkin", status: "ACTIVE", supportEmail: "hello@example.com", seoTitle: "Tapkin Smart Products", seoDescription: "Personalised smart products combining 3D printing, NFC, QR and secure digital profiles.", theme: { accent: "#ee6c4d", accentSecondary: "#2f7f77", background: "#f7f3eb", foreground: "#14213d", radius: "1.25rem", fontStyle: "editorial" }, homepage: { variant: "tapkin", heroEyebrow: "Smart products, thoughtfully connected", heroHeadline: "Useful objects with a digital superpower", heroDescription: "Personalised products made in Australia with 3D printing, NFC and QR.", primaryCtaLabel: "Shop smart products", primaryCtaHref: "/shop" }, organization: { type: "Organization", name: "Tapkin" }, shippingConfig: { flatRateCents: 900, freeOverCents: 6000 }, capabilities: [StoreCapability.COMMERCE, StoreCapability.NFC, StoreCapability.DIGITAL_PROFILE, StoreCapability.PET_PROFILE, StoreCapability.CHILD_SAFETY, StoreCapability.SOCIAL_PROFILE, StoreCapability.BUSINESS_PROFILE, StoreCapability.CUSTOM_PERSONALISATION, StoreCapability.PRINT_3D, StoreCapability.INVENTORY] },
+  });
+  const deployment = environment.toUpperCase() as DeploymentEnvironment;
+  const hostname = environment === "staging" ? "staging.tapkin.com.au" : "localhost";
+  await db.storeDomain.upsert({ where: { environment_hostname: { environment: deployment, hostname } }, update: { storeId: store.id, isPrimary: true, protocol: environment === "development" ? "http" : "https" }, create: { storeId: store.id, environment: deployment, hostname, isPrimary: true, protocol: environment === "development" ? "http" : "https" } });
   const categoryIds = new Map<string, string>();
   for (const [sortOrder, item] of categories.entries()) {
     const ctaHref = `/shop?category=${item.slug}`;
-    const category = await db.productCategory.upsert({ where: { slug: item.slug }, update: { ...item, ctaHref, finalCtaHref: ctaHref, sortOrder, status: "PUBLISHED", showOnHomepage: true, showInNavigation: true, showInShop: true, showLanding: true, indexable: true, seoTitle: `${item.name} NFC Products Australia`, seoDescription: item.shortDescription }, create: { ...item, ctaHref, finalCtaHref: ctaHref, sortOrder, status: "PUBLISHED", seoTitle: `${item.name} NFC Products Australia`, seoDescription: item.shortDescription } });
+    const category = await db.productCategory.upsert({ where: { storeId_slug: { storeId: store.id, slug: item.slug } }, update: { ...item, ctaHref, finalCtaHref: ctaHref, sortOrder, status: "PUBLISHED", showOnHomepage: true, showInNavigation: true, showInShop: true, showLanding: true, indexable: true, seoTitle: `${item.name} NFC Products Australia`, seoDescription: item.shortDescription }, create: { ...item, storeId: store.id, ctaHref, finalCtaHref: ctaHref, sortOrder, status: "PUBLISHED", seoTitle: `${item.name} NFC Products Australia`, seoDescription: item.shortDescription } });
     categoryIds.set(item.slug, category.id);
   }
   for (const item of catalog) {
-    const productRecord = await db.product.upsert({ where: { slug: item.slug }, update: { name: item.name, description: item.description, shortDescription: item.description, type: item.type, categoryId: categoryIds.get(item.category), status: "ACTIVE", shopVisible: true, featured: item.featured, brand: "Tapkin" }, create: { slug: item.slug, name: item.name, description: item.description, shortDescription: item.description, type: item.type, categoryId: categoryIds.get(item.category), status: "ACTIVE", shopVisible: true, featured: item.featured, brand: "Tapkin" } });
+    const categoryId = categoryIds.get(item.category);
+    if (!categoryId) throw new Error(`Seed category ${item.category} is missing`);
+    const productRecord = await db.product.upsert({ where: { storeId_slug: { storeId: store.id, slug: item.slug } }, update: { name: item.name, description: item.description, shortDescription: item.description, type: item.type, categoryId, status: "ACTIVE", shopVisible: true, featured: item.featured, brand: "Tapkin" }, create: { storeId: store.id, slug: item.slug, name: item.name, description: item.description, shortDescription: item.description, type: item.type, categoryId, status: "ACTIVE", shopVisible: true, featured: item.featured, brand: "Tapkin" } });
     await db.productVariant.upsert({ where: { sku: item.sku }, update: { productId: productRecord.id, name: "Standard", priceCents: item.priceCents, active: true }, create: { productId: productRecord.id, sku: item.sku, name: "Standard", priceCents: item.priceCents, inventory: 100 } });
     for (const [sortOrder, optionSeed] of item.options.entries()) {
       const option = await db.productOption.upsert({ where: { productId_code: { productId: productRecord.id, code: optionSeed.code } }, update: { name: optionSeed.name, type: optionSeed.type, required: optionSeed.required ?? false, maxLength: optionSeed.maxLength, sortOrder, active: true }, create: { productId: productRecord.id, code: optionSeed.code, name: optionSeed.name, type: optionSeed.type, required: optionSeed.required ?? false, maxLength: optionSeed.maxLength, sortOrder } });
@@ -99,7 +110,7 @@ async function main() {
   const passwordName = environment === "staging" ? "STAGING_ADMIN_PASSWORD" : "DEV_ADMIN_PASSWORD";
   const email = process.env[emailName]?.trim().toLowerCase(); const password = process.env[passwordName];
   if (Boolean(email) !== Boolean(password)) throw new Error(`Set both ${emailName} and ${passwordName}, or leave both empty`);
-  if (email && password) { const parsedPassword = passwordSchema.safeParse(password); if (!parsedPassword.success) throw new Error(parsedPassword.error.issues[0]?.message ?? "Invalid administrator password"); const passwordHash = await hashPassword(parsedPassword.data); await db.user.upsert({ where: { email }, update: { role: Role.ADMIN, passwordHash, emailVerifiedAt: new Date() }, create: { email, name: environment === "staging" ? "Staging Admin" : "Development Admin", role: Role.ADMIN, passwordHash, emailVerifiedAt: new Date() } }); }
+  if (email && password) { const parsedPassword = passwordSchema.safeParse(password); if (!parsedPassword.success) throw new Error(parsedPassword.error.issues[0]?.message ?? "Invalid administrator password"); const passwordHash = await hashPassword(parsedPassword.data); const admin = await db.user.upsert({ where: { email }, update: { role: Role.ADMIN, passwordHash, emailVerifiedAt: new Date() }, create: { email, name: environment === "staging" ? "Staging Admin" : "Development Admin", role: Role.ADMIN, passwordHash, emailVerifiedAt: new Date() } }); await db.storeMembership.upsert({ where: { storeId_userId: { storeId: store.id, userId: admin.id } }, update: { role: "ADMIN" }, create: { storeId: store.id, userId: admin.id, role: "ADMIN" } }); }
 }
 
 main().catch(error => { console.error(error instanceof Error ? error.message : "Database seed failed"); process.exitCode = 1; }).finally(() => db.$disconnect());

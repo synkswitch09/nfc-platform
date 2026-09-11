@@ -1,11 +1,11 @@
 import { randomUUID } from "node:crypto";
-import { Prisma } from "@prisma/client";
+import { Prisma, StoreCapability, StoreStatus } from "@prisma/client";
 import { availableInventory, CatalogValidationError, normalisePersonalisation } from "@/lib/catalog";
 import { calculateOrderTotals } from "@/lib/commerce";
 import { createOpaqueToken, sha256 } from "@/lib/crypto";
 import { db } from "@/lib/db";
-import { getStoreSettings } from "@/lib/settings";
 import { sendTransactionalEmail } from "@/lib/email";
+import { hasStoreCapability, type Storefront } from "@/lib/storefront";
 
 export type CheckoutItemInput = { variantId: string; quantity: number; personalisation?: Record<string, string> };
 export type CheckoutCustomerInput = {
@@ -19,13 +19,13 @@ export class CheckoutError extends Error {
   constructor(message: string, readonly status = 400) { super(message); }
 }
 
-export async function createPendingOrder(items: CheckoutItemInput[], customer: CheckoutCustomerInput) {
+export async function createPendingOrder(items: CheckoutItemInput[], customer: CheckoutCustomerInput, store: Storefront) {
+  if (store.status !== StoreStatus.ACTIVE || !hasStoreCapability(store, StoreCapability.COMMERCE)) throw new CheckoutError("This store is not accepting orders", 409);
   const claimToken = customer.userId ? null : createOpaqueToken();
-  const settings = await getStoreSettings();
   return db.$transaction(async tx => {
     const ids = [...new Set(items.map(item => item.variantId))];
     const variants = await tx.productVariant.findMany({
-      where: { id: { in: ids }, active: true, product: { status: "ACTIVE", shopVisible: true, category: { status: "PUBLISHED" } } },
+      where: { id: { in: ids }, active: true, product: { storeId: store.id, status: "ACTIVE", shopVisible: true, category: { storeId: store.id, status: "PUBLISHED" } } },
       include: { product: { include: { options: { where: { active: true }, include: { values: true } } } } },
     });
     if (variants.length !== ids.length) throw new CheckoutError("One or more products are unavailable", 409);
@@ -50,11 +50,15 @@ export async function createPendingOrder(items: CheckoutItemInput[], customer: C
       }
     }
 
-    const totals = calculateOrderTotals(lines.map(line => ({ unitPriceCents: line.unitPriceCents, quantity: line.item.quantity })), { flatRateCents: settings.shippingConfig.flatRateCents ?? 900, freeOverCents: settings.shippingConfig.freeOverCents ?? 6000 });
+    const totals = calculateOrderTotals(lines.map(line => ({ unitPriceCents: line.unitPriceCents, quantity: line.item.quantity })), store.shippingConfig);
     const order = await tx.order.create({
       data: {
-        orderNumber: `TK-${randomUUID().replaceAll("-", "").slice(0, 10).toUpperCase()}`,
+        orderNumber: `${store.slug === "tapkin" ? "TK" : store.slug.slice(0, 4).toUpperCase()}-${randomUUID().replaceAll("-", "").slice(0, 10).toUpperCase()}`,
         userId: customer.userId,
+        storeId: store.id,
+        sourceDomain: store.hostname,
+        checkoutEnvironment: store.environment,
+        storeDisplayName: store.displayName,
         guestEmail: customer.userId ? null : customer.email,
         customerName: customer.name,
         claimTokenHash: claimToken ? sha256(claimToken) : null,
@@ -67,6 +71,7 @@ export async function createPendingOrder(items: CheckoutItemInput[], customer: C
         shippingPostcode: customer.shipping.postcode,
         shippingCountry: customer.shipping.country,
         status: "PAYMENT_PENDING",
+        currency: store.currency,
         ...totals,
         items: { create: lines.map(({ item, variant, unitPriceCents, personalisation }) => ({
           variantId: variant.id,
@@ -78,7 +83,7 @@ export async function createPendingOrder(items: CheckoutItemInput[], customer: C
           productType: variant.product.type,
           personalisation,
         })) },
-        payments: { create: { amountCents: totals.totalCents, currency: "AUD" } },
+        payments: { create: { amountCents: totals.totalCents, currency: store.currency } },
         statusHistory: { create: { toStatus: "PAYMENT_PENDING" } },
       },
       include: { payments: true },
@@ -119,16 +124,16 @@ export async function cancelPendingOrder(orderId: string, reason: string, actorI
     await tx.payment.updateMany({ where: { orderId, status: "PENDING" }, data: { status: "FAILED" } });
     await tx.order.update({ where: { id: orderId }, data: { status: "CANCELLED" } });
     await tx.orderStatusHistory.create({ data: { orderId, fromStatus: "PAYMENT_PENDING", toStatus: "CANCELLED", actorId, note: reason } });
-    if (actorId) await tx.auditLog.create({ data: { actorId, action: "ORDER_CANCELLED", entityType: "Order", entityId: orderId, metadata: { reason } } });
+    if (actorId) await tx.auditLog.create({ data: { actorId, storeId: order.storeId, action: "ORDER_CANCELLED", entityType: "Order", entityId: orderId, metadata: { reason } } });
   });
 }
 
-export async function settleCheckoutEvent(input: { eventId: string; eventType: string; providerSessionId: string; orderId: string; amountCents: number; currency: string; paymentIntentId?: string | null }) {
+export async function settleCheckoutEvent(input: { eventId: string; eventType: string; providerSessionId: string; orderId: string; storeId: string; amountCents: number; currency: string; paymentIntentId?: string | null }) {
   const result = await db.$transaction(async tx => {
     const seen = await tx.webhookEvent.findUnique({ where: { id: input.eventId } });
     if (seen) return { duplicate: true };
     const payment = await tx.payment.findUnique({ where: { providerSessionId: input.providerSessionId }, include: { order: { include: { items: { include: { variant: true } } } } } });
-    if (!payment || payment.orderId !== input.orderId) throw new CheckoutError("Payment does not match an order", 409);
+    if (!payment || payment.orderId !== input.orderId || payment.order.storeId !== input.storeId) throw new CheckoutError("Payment does not match an order", 409);
     if (payment.amountCents !== input.amountCents || payment.currency.toLowerCase() !== input.currency.toLowerCase()) throw new CheckoutError("Payment total does not match the order", 409);
     if (payment.status === "SUCCEEDED") {
       await tx.webhookEvent.create({ data: { id: input.eventId, provider: "stripe", eventType: input.eventType } });
@@ -156,9 +161,9 @@ export async function settleCheckoutEvent(input: { eventId: string; eventType: s
     return { duplicate: false };
   }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
   if (!result.duplicate) {
-    const order = await db.order.findUnique({ where: { id: input.orderId }, select: { orderNumber: true, guestEmail: true, user: { select: { email: true } } } });
+    const order = await db.order.findUnique({ where: { id: input.orderId }, select: { orderNumber: true, storeDisplayName: true, guestEmail: true, user: { select: { email: true } } } });
     const email = order?.user?.email ?? order?.guestEmail;
-    if (email && order) await sendTransactionalEmail({ to: email, subject: `Order ${order.orderNumber} confirmed`, text: `Thanks for your order. We have received payment for ${order.orderNumber} and will let you know when production begins.` }).catch(() => undefined);
+    if (email && order) await sendTransactionalEmail({ to: email, subject: `${order.storeDisplayName} order ${order.orderNumber} confirmed`, text: `Thanks for your ${order.storeDisplayName} order. We have received payment for ${order.orderNumber} and will let you know when production begins.` }).catch(() => undefined);
   }
   return result;
 }

@@ -1,21 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
-import { getAdminApiUser } from "@/lib/admin";
+import { getAdminApiContext } from "@/lib/admin";
 import { adminCategorySchema } from "@/lib/admin-validation";
 import { db } from "@/lib/db";
 import { assertSameOrigin, jsonError } from "@/lib/http";
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ categoryId: string }> }) {
   if (!assertSameOrigin(request)) return jsonError("Invalid request origin", 403);
-  const user = await getAdminApiUser(); if (!user) return jsonError("Forbidden", 403);
+  const context = await getAdminApiContext(); if (!context) return jsonError("Forbidden", 403);
+  const { user, store } = context;
   const parsed = adminCategorySchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return jsonError(parsed.error.issues[0]?.message ?? "Invalid category");
   const { categoryId } = await params;
   try {
-    const existing = await db.productCategory.findUnique({ where: { id: categoryId }, select: { status: true, slug: true, legacySlugs: true } });
+    const existing = await db.productCategory.findFirst({ where: { id: categoryId, storeId: store.id }, select: { status: true, slug: true, legacySlugs: true } });
     if (!existing) return jsonError("Category not found", 404);
     const collision = await db.productCategory.findFirst({
-      where: { id: { not: categoryId }, OR: [{ slug: parsed.data.slug }, { legacySlugs: { has: parsed.data.slug } }] },
+      where: { storeId: store.id, id: { not: categoryId }, OR: [{ slug: parsed.data.slug }, { legacySlugs: { has: parsed.data.slug } }] },
       select: { id: true },
     });
     if (collision) return jsonError("That category slug is already in use", 409);
@@ -32,7 +33,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     const action = existing.status === next ? "CATEGORY_UPDATED" : next === "PUBLISHED" ? "CATEGORY_PUBLISHED" : next === "HIDDEN" ? "CATEGORY_HIDDEN" : next === "ARCHIVED" ? "CATEGORY_ARCHIVED" : "CATEGORY_DRAFTED";
     await db.$transaction([
       db.productCategory.update({ where: { id: categoryId }, data: categoryData }),
-      db.auditLog.create({ data: { actorId: user.id, action, entityType: "ProductCategory", entityId: categoryId, metadata: { fromStatus: existing.status, toStatus: next, fromSlug: existing.slug, toSlug: parsed.data.slug } } }),
+      db.auditLog.create({ data: { actorId: user.id, storeId: store.id, action, entityType: "ProductCategory", entityId: categoryId, metadata: { fromStatus: existing.status, toStatus: next, fromSlug: existing.slug, toSlug: parsed.data.slug } } }),
     ]);
     return NextResponse.json({ ok: true });
   } catch (error) {

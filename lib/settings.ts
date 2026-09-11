@@ -1,10 +1,26 @@
-import { db } from "@/lib/db";
+import { getCurrentStorefront, type Storefront } from "@/lib/storefront";
 
 export const defaultStoreSettings = { storeName: "Tapkin", businessName: null as string | null, supportEmail: "hello@example.com", currency: "AUD", defaultCountry: "AU", siteTitle: "Tapkin Smart Products", siteDescription: "Personalised smart products combining 3D printing, NFC, QR and secure digital profiles.", defaultSocialImageUrl: null as string | null, socialLinks: {} as Record<string, string>, shippingConfig: { flatRateCents: 900, freeOverCents: 6000 } as Record<string, number> };
 
-export async function getStoreSettings() {
-  if (!process.env.DATABASE_URL) return defaultStoreSettings;
-  const settings = await db.storeSettings.findUnique({ where: { id: "default" } }).catch(() => null);
-  if (!settings) return defaultStoreSettings;
-  return { ...settings, socialLinks: settings.socialLinks as Record<string, string>, shippingConfig: settings.shippingConfig as Record<string, number> };
+export async function getStoreSettings(storefront?: Storefront) {
+  const store = storefront ?? await getCurrentStorefront();
+  return {
+    id: store.id,
+    slug: store.slug,
+    storeName: store.displayName,
+    businessName: store.legalName,
+    supportEmail: store.supportEmail,
+    currency: store.currency,
+    defaultCountry: store.country,
+    timezone: store.timezone,
+    siteTitle: store.seoTitle,
+    siteDescription: store.seoDescription,
+    defaultSocialImageUrl: store.socialImageUrl,
+    socialLinks: store.socialLinks,
+    shippingConfig: store.shippingConfig,
+    theme: store.theme,
+    homepage: store.homepage,
+    capabilities: store.capabilities,
+    origin: store.origin,
+  };
 }

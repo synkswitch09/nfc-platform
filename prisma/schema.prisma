@@ -13,6 +13,38 @@ enum Role {
   ADMIN
 }
 
+enum StoreStatus {
+  DRAFT
+  ACTIVE
+  HIDDEN
+  ARCHIVED
+}
+
+enum StoreCapability {
+  COMMERCE
+  NFC
+  DIGITAL_PROFILE
+  PET_PROFILE
+  CHILD_SAFETY
+  SOCIAL_PROFILE
+  BUSINESS_PROFILE
+  CUSTOM_PERSONALISATION
+  PRINT_3D
+  INVENTORY
+}
+
+enum StoreMembershipRole {
+  CUSTOMER
+  STAFF
+  ADMIN
+}
+
+enum DeploymentEnvironment {
+  DEVELOPMENT
+  STAGING
+  PRODUCTION
+}
+
 enum AccountStatus {
   ACTIVE
   SUSPENDED
@@ -164,6 +196,78 @@ model User {
   auditLogs            AuditLog[]
   emailTokens          EmailVerification[]
   passwordResets       PasswordReset[]
+  storeMemberships     StoreMembership[]
+}
+
+model Store {
+  id                   String               @id @default(uuid()) @db.Uuid
+  slug                 String               @unique
+  name                 String
+  displayName          String
+  legalName            String?
+  status               StoreStatus          @default(DRAFT)
+  logoUrl              String?
+  faviconUrl           String?
+  supportEmail         String?
+  country              String               @default("AU") @db.Char(2)
+  currency             String               @default("AUD") @db.Char(3)
+  timezone             String               @default("Australia/Adelaide")
+  theme                Json                 @default("{}")
+  homepage             Json                 @default("{}")
+  seoTitle             String
+  seoDescription       String
+  socialImageUrl       String?
+  organization         Json                 @default("{}")
+  socialLinks          Json                 @default("{}")
+  shippingConfig       Json                 @default("{}")
+  capabilities         StoreCapability[]    @default([])
+  paymentProfileKey    String?
+  createdAt            DateTime             @default(now())
+  updatedAt            DateTime             @updatedAt
+  domains              StoreDomain[]
+  memberships          StoreMembership[]
+  sessions             Session[]
+  emailTokens          EmailVerification[]
+  passwordResets       PasswordReset[]
+  categories           ProductCategory[]
+  products             Product[]
+  carts                Cart[]
+  orders               Order[]
+  tags                 NFCTag[]
+  manufacturingBatches ManufacturingBatch[]
+  auditLogs            AuditLog[]
+
+  @@index([status, name])
+}
+
+model StoreDomain {
+  id          String                @id @default(uuid()) @db.Uuid
+  storeId     String                @db.Uuid
+  environment DeploymentEnvironment
+  hostname    String
+  protocol    String                @default("https")
+  isPrimary   Boolean               @default(false)
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
+  store       Store                 @relation(fields: [storeId], references: [id], onDelete: Restrict)
+
+  @@unique([environment, hostname])
+  @@index([storeId, environment, isPrimary])
+}
+
+model StoreMembership {
+  id                 String              @id @default(uuid()) @db.Uuid
+  storeId            String              @db.Uuid
+  userId             String              @db.Uuid
+  role               StoreMembershipRole @default(CUSTOMER)
+  marketingConsentAt DateTime?
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  store              Store               @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  user               User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([storeId, userId])
+  @@index([userId, role])
 }
 
 model OAuthAccount {
@@ -185,12 +289,14 @@ model Session {
   id        String   @id @default(uuid()) @db.Uuid
   tokenHash String   @unique
   userId    String   @db.Uuid
+  storeId   String   @db.Uuid
   expiresAt DateTime
   createdAt DateTime @default(now())
   lastSeen  DateTime @default(now())
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  store     Store    @relation(fields: [storeId], references: [id], onDelete: Restrict)
 
-  @@index([userId])
+  @@index([userId, storeId])
   @@index([expiresAt])
 }
 
@@ -198,13 +304,15 @@ model EmailVerification {
   id           String    @id @default(uuid()) @db.Uuid
   tokenHash    String    @unique
   userId       String    @db.Uuid
+  storeId      String    @db.Uuid
   expiresAt    DateTime
   createdAt    DateTime  @default(now())
   usedAt       DateTime?
   orderClaimId String?   @db.Uuid
   user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  store        Store     @relation(fields: [storeId], references: [id], onDelete: Restrict)
 
-  @@index([userId, expiresAt])
+  @@index([userId, storeId, expiresAt])
   @@index([orderClaimId])
 }
 
@@ -212,12 +320,14 @@ model PasswordReset {
   id        String    @id @default(uuid()) @db.Uuid
   tokenHash String    @unique
   userId    String    @db.Uuid
+  storeId   String    @db.Uuid
   expiresAt DateTime
   createdAt DateTime  @default(now())
   usedAt    DateTime?
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  store     Store     @relation(fields: [storeId], references: [id], onDelete: Restrict)
 
-  @@index([userId, expiresAt])
+  @@index([userId, storeId, expiresAt])
 }
 
 model Address {
@@ -241,7 +351,8 @@ model Address {
 
 model Product {
   id               String               @id @default(uuid()) @db.Uuid
-  slug             String               @unique
+  storeId          String               @db.Uuid
+  slug             String
   name             String
   description      String
   shortDescription String?
@@ -261,19 +372,22 @@ model Product {
   createdAt        DateTime             @default(now())
   updatedAt        DateTime             @updatedAt
   category         ProductCategory?     @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  store            Store                @relation(fields: [storeId], references: [id], onDelete: Restrict)
   variants         ProductVariant[]
   images           ProductImage[]
   options          ProductOption[]
   tags             NFCTag[]
   batches          ManufacturingBatch[]
 
-  @@index([categoryId, status])
-  @@index([status, featured])
+  @@unique([storeId, slug])
+  @@index([storeId, categoryId, status])
+  @@index([storeId, status, featured])
 }
 
 model ProductCategory {
   id                  String                @id @default(uuid()) @db.Uuid
-  slug                String                @unique
+  storeId             String                @db.Uuid
+  slug                String
   legacySlugs         String[]              @default([])
   name                String
   shortDescription    String?
@@ -320,11 +434,13 @@ model ProductCategory {
   createdAt           DateTime              @default(now())
   updatedAt           DateTime              @updatedAt
   products            Product[]
+  store               Store                 @relation(fields: [storeId], references: [id], onDelete: Restrict)
 
-  @@index([status, sortOrder])
-  @@index([status, showOnHomepage, sortOrder])
-  @@index([status, showInNavigation, sortOrder])
-  @@index([status, showInShop, sortOrder])
+  @@unique([storeId, slug])
+  @@index([storeId, status, sortOrder])
+  @@index([storeId, status, showOnHomepage, sortOrder])
+  @@index([storeId, status, showInNavigation, sortOrder])
+  @@index([storeId, status, showInShop, sortOrder])
   @@index([legacySlugs], type: Gin)
 }
 
@@ -416,15 +532,17 @@ model ProductVariant {
 model Cart {
   id             String     @id @default(uuid()) @db.Uuid
   userId         String?    @db.Uuid
+  storeId        String     @db.Uuid
   sessionKeyHash String?    @unique
   currency       String     @default("AUD")
   expiresAt      DateTime
   createdAt      DateTime   @default(now())
   updatedAt      DateTime   @updatedAt
   user           User?      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  store          Store      @relation(fields: [storeId], references: [id], onDelete: Restrict)
   items          CartItem[]
 
-  @@index([userId, updatedAt])
+  @@index([storeId, userId, updatedAt])
   @@index([expiresAt])
 }
 
@@ -444,42 +562,47 @@ model CartItem {
 }
 
 model Order {
-  id                 String               @id @default(uuid()) @db.Uuid
-  orderNumber        String               @unique
-  userId             String?              @db.Uuid
-  guestEmail         String?
-  customerName       String?
-  claimTokenHash     String?              @unique
-  claimExpiresAt     DateTime?
-  claimedAt          DateTime?
-  shippingAddressId  String?              @db.Uuid
-  shippingName       String?
-  shippingLine1      String?
-  shippingLine2      String?
-  shippingSuburb     String?
-  shippingState      String?
-  shippingPostcode   String?
-  shippingCountry    String               @default("AU")
-  shippingCarrier    String?
-  trackingNumber     String?
-  shippedAt          DateTime?
-  status             OrderStatus          @default(PENDING)
-  currency           String               @default("AUD")
-  subtotalCents      Int
-  shippingCents      Int                  @default(0)
-  totalCents         Int
-  createdAt          DateTime             @default(now())
-  updatedAt          DateTime             @updatedAt
-  user               User?                @relation(fields: [userId], references: [id], onDelete: Restrict)
-  shippingAddress    Address?             @relation(fields: [shippingAddressId], references: [id], onDelete: SetNull)
-  items              OrderItem[]
-  payments           Payment[]
-  statusHistory      OrderStatusHistory[]
-  inventoryMovements InventoryMovement[]
+  id                  String                @id @default(uuid()) @db.Uuid
+  orderNumber         String                @unique
+  userId              String?               @db.Uuid
+  storeId             String                @db.Uuid
+  sourceDomain        String
+  checkoutEnvironment DeploymentEnvironment
+  storeDisplayName    String
+  guestEmail          String?
+  customerName        String?
+  claimTokenHash      String?               @unique
+  claimExpiresAt      DateTime?
+  claimedAt           DateTime?
+  shippingAddressId   String?               @db.Uuid
+  shippingName        String?
+  shippingLine1       String?
+  shippingLine2       String?
+  shippingSuburb      String?
+  shippingState       String?
+  shippingPostcode    String?
+  shippingCountry     String                @default("AU")
+  shippingCarrier     String?
+  trackingNumber      String?
+  shippedAt           DateTime?
+  status              OrderStatus           @default(PENDING)
+  currency            String                @default("AUD")
+  subtotalCents       Int
+  shippingCents       Int                   @default(0)
+  totalCents          Int
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
+  user                User?                 @relation(fields: [userId], references: [id], onDelete: Restrict)
+  store               Store                 @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  shippingAddress     Address?              @relation(fields: [shippingAddressId], references: [id], onDelete: SetNull)
+  items               OrderItem[]
+  payments            Payment[]
+  statusHistory       OrderStatusHistory[]
+  inventoryMovements  InventoryMovement[]
 
-  @@index([userId, createdAt])
-  @@index([guestEmail, createdAt])
-  @@index([status, createdAt])
+  @@index([storeId, userId, createdAt])
+  @@index([storeId, guestEmail, createdAt])
+  @@index([storeId, status, createdAt])
   @@index([trackingNumber])
 }
 
@@ -535,6 +658,7 @@ model InventoryMovement {
 model ManufacturingBatch {
   id               String              @id @default(uuid()) @db.Uuid
   batchNumber      String              @unique
+  storeId          String              @db.Uuid
   productId        String              @db.Uuid
   productVariantId String?             @db.Uuid
   quantity         Int
@@ -544,12 +668,13 @@ model ManufacturingBatch {
   createdAt        DateTime            @default(now())
   updatedAt        DateTime            @updatedAt
   product          Product             @relation(fields: [productId], references: [id], onDelete: Restrict)
+  store            Store               @relation(fields: [storeId], references: [id], onDelete: Restrict)
   productVariant   ProductVariant?     @relation(fields: [productVariantId], references: [id], onDelete: SetNull)
   createdBy        User?               @relation("ManufacturingCreator", fields: [createdById], references: [id], onDelete: SetNull)
   tags             NFCTag[]
 
-  @@index([status, createdAt])
-  @@index([productId, createdAt])
+  @@index([storeId, status, createdAt])
+  @@index([storeId, productId, createdAt])
 }
 
 model Payment {
@@ -571,6 +696,7 @@ model Payment {
 model NFCTag {
   id                          String              @id @default(uuid()) @db.Uuid
   publicTagId                 String              @unique @db.VarChar(24)
+  storeId                     String              @db.Uuid
   activationCodeHash          String
   activationCodeVersion       Int                 @default(1)
   activationCodeRegeneratedAt DateTime?
@@ -591,6 +717,7 @@ model NFCTag {
   createdAt                   DateTime            @default(now())
   updatedAt                   DateTime            @updatedAt
   owner                       User?               @relation(fields: [ownerId], references: [id], onDelete: SetNull)
+  store                       Store               @relation(fields: [storeId], references: [id], onDelete: Restrict)
   product                     Product             @relation(fields: [productId], references: [id], onDelete: Restrict)
   productVariant              ProductVariant?     @relation(fields: [productVariantId], references: [id], onDelete: SetNull)
   orderItem                   OrderItem?          @relation(fields: [orderItemId], references: [id], onDelete: SetNull)
@@ -600,8 +727,8 @@ model NFCTag {
   scans                       ScanEvent[]
 
   @@unique([manufacturingBatchId, batchSequence])
-  @@index([ownerId, status])
-  @@index([productId, status])
+  @@index([storeId, ownerId, status])
+  @@index([storeId, productId, status])
   @@index([orderItemId])
   @@index([manufacturingStatus, createdAt])
 }
@@ -727,14 +854,17 @@ model ScanEvent {
 model AuditLog {
   id         BigInt   @id @default(autoincrement())
   actorId    String?  @db.Uuid
+  storeId    String?  @db.Uuid
   action     String
   entityType String
   entityId   String?
   metadata   Json?
   createdAt  DateTime @default(now())
   actor      User?    @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  store      Store?   @relation(fields: [storeId], references: [id], onDelete: SetNull)
 
   @@index([actorId, createdAt])
+  @@index([storeId, createdAt])
   @@index([entityType, entityId])
 }
 
