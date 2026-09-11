@@ -1,4 +1,5 @@
 import { readFile } from "node:fs/promises";
+import { request as httpRequest } from "node:http";
 import { PrismaClient } from "@prisma/client";
 import Stripe from "stripe";
 
@@ -22,6 +23,32 @@ function captureCookies(response, jar) {
   for (const value of setCookies) { const [pair] = value.split(";", 1); const separator = pair.indexOf("="); if (separator > 0) jar.set(pair.slice(0, separator), pair.slice(separator + 1)); }
 }
 
+async function requestThroughLoopback(url, { method, headers, body, redirect }) {
+  if (body instanceof FormData) throw new Error("Host-routed E2E requests do not support multipart bodies");
+  const response = await new Promise((resolve, reject) => {
+    const outgoing = httpRequest({ hostname: url.hostname, port: url.port, path: `${url.pathname}${url.search}`, method, headers: Object.fromEntries(headers.entries()) }, incoming => {
+      const chunks = [];
+      incoming.on("data", chunk => chunks.push(chunk));
+      incoming.on("end", () => {
+        const responseHeaders = new Headers();
+        for (const [name, value] of Object.entries(incoming.headers)) {
+          for (const item of Array.isArray(value) ? value : [value]) if (item !== undefined) responseHeaders.append(name, item);
+        }
+        resolve(new Response(Buffer.concat(chunks), { status: incoming.statusCode ?? 500, headers: responseHeaders }));
+      });
+    });
+    outgoing.on("error", reject);
+    outgoing.end(body);
+  });
+  const location = response.headers.get("location");
+  if (redirect !== "manual" && location && [301, 302, 303, 307, 308].includes(response.status)) {
+    const nextUrl = new URL(location, url);
+    const nextMethod = response.status === 303 ? "GET" : method;
+    return requestThroughLoopback(nextUrl, { method: nextMethod, headers, body: nextMethod === "GET" ? undefined : body, redirect });
+  }
+  return response;
+}
+
 async function request(path, { method = "GET", json, body, headers = {}, jar = new Map(), redirect = "follow", host } = {}) {
   const requestHeaders = new Headers(headers);
   const requestHost = host ? `${host}:${new URL(origin).port || "3000"}` : new URL(origin).host;
@@ -29,7 +56,10 @@ async function request(path, { method = "GET", json, body, headers = {}, jar = n
   if (method !== "GET" && method !== "HEAD") requestHeaders.set("origin", `${new URL(origin).protocol}//${requestHost}`);
   if (json !== undefined) { requestHeaders.set("content-type", "application/json"); body = JSON.stringify(json); }
   const cookies = cookieHeader(jar); if (cookies) requestHeaders.set("cookie", cookies);
-  const response = await fetch(new URL(path, origin), { method, headers: requestHeaders, body, redirect });
+  const url = new URL(path, origin);
+  const response = host
+    ? await requestThroughLoopback(url, { method, headers: requestHeaders, body, redirect })
+    : await fetch(url, { method, headers: requestHeaders, body, redirect });
   captureCookies(response, jar);
   return response;
 }
