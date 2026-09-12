@@ -1,1 +1,6 @@
-export default function PrivacyPage() { return <article className="section"><h1>Privacy policy</h1><p className="lead">This placeholder must be replaced with legal advice covering the Australian Privacy Act, data retention, children’s information, processors and user rights before launch.</p></article>; }
+import { StoreCapability } from "@prisma/client";
+import { ModularPageRenderer } from "@/components/landing-section-renderer";
+import { db } from "@/lib/db";
+import { getCurrentStorefront, hasStoreCapability } from "@/lib/storefront";
+
+export default async function PrivacyPage() { const store = await getCurrentStorefront(); const page = process.env.DATABASE_URL ? await db.contentPage.findFirst({ where: { storeId: store.id, kind: "LEGAL", slug: "privacy", status: "PUBLISHED" }, include: { sections: { where: { visible: true }, orderBy: { sortOrder: "asc" } } } }).catch(() => null) : null; if (page?.sections.length) return <ModularPageRenderer name={page.name} sections={page.sections} products={[]} categories={[]} store={{ displayName: store.displayName, currency: store.currency, nfcEnabled: hasStoreCapability(store, StoreCapability.NFC) }} breadcrumbs={[{ label: "Home", href: "/" }, { label: page.name }]} />; return <article className="section article-page"><h1>Privacy policy</h1><p className="lead"><strong>LEGAL REVIEW REQUIRED BEFORE PRODUCTION.</strong> This placeholder must be replaced with reviewed terms covering the Australian Privacy Act, data retention, children’s information, processors and user rights before launch.</p></article>; }

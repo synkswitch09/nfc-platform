@@ -1,7 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import type { Metadata } from "next";
-import { Archive, Boxes, Building2, ClipboardList, Factory, FileClock, Gauge, PackageSearch, ScanLine, Settings, ShieldCheck, Tags, Truck, Users } from "lucide-react";
+import { Archive, Boxes, Building2, ClipboardList, Factory, FileClock, Files, Gauge, PackageSearch, ScanLine, Settings, ShieldCheck, Tags, Truck, Users } from "lucide-react";
 import { canManageStore, getAccessibleAdminStores, requireAdminPageContext } from "@/lib/admin";
 import { getRuntimeConfig } from "@/lib/config";
 import { hasStoreCapability } from "@/lib/storefront";
@@ -17,7 +17,7 @@ const groups = [
   { label: "Sales", links: [{ href: "/admin/orders", label: "Orders", icon: ClipboardList }, { href: "/admin/shipping", label: "Shipping", icon: Truck }, { href: "/admin/customers", label: "Customers", icon: Users }] },
   { label: "Manufacturing", links: [{ href: "/admin/manufacturing", label: "Production queue", icon: Factory }] },
   { label: "NFC", links: [{ href: "/admin/tags", label: "Tags", icon: Tags }, { href: "/admin/manufacturing/batches", label: "NFC production batches", icon: ScanLine }] },
-  { label: "Content", links: [{ href: "/admin/categories", label: "Categories & landings", icon: Archive }] },
+  { label: "Content", links: [{ href: "/admin/pages", label: "Pages", icon: Files }, { href: "/admin/categories", label: "Categories & landings", icon: Archive }] },
   { label: "System", links: [{ href: "/admin/settings", label: "Store settings", icon: Settings }] },
 ];
 

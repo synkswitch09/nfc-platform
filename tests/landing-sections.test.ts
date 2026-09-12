@@ -59,4 +59,10 @@ describe("typed modular landing content", () => {
     expect(blankLandingSection("PRODUCT_GRID")).toMatchObject({ type: "PRODUCT_GRID", visible: true, content: { limit: 6, featuredOnly: false } });
     expect(landingSectionTypes.map(type => blankLandingSection(type).type)).toEqual(landingSectionTypes);
   });
+
+  it("prevents multiple visible heroes from creating multiple H1 headings", () => {
+    const hero = { type: "HERO" as const, name: "Hero", visible: true, content: {} };
+    expect(() => validateLandingSections([hero, { ...hero, name: "Second hero" }])).toThrow("only one visible Hero");
+    expect(validateLandingSections([hero, { ...hero, name: "Hidden hero", visible: false }])).toHaveLength(2);
+  });
 });

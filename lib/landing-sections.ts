@@ -81,7 +81,9 @@ export type LandingSectionDraft = { id?: string; type: LandingSectionType; name:
 
 export function validateLandingSections(value: unknown): LandingSectionDraft[] {
   const rows = z.array(sectionSchema).max(30).parse(value);
-  return rows.map(row => ({ ...row, content: contentSchemas[row.type].parse(row.content) as Record<string, unknown> }));
+  const sections = rows.map(row => ({ ...row, content: contentSchemas[row.type].parse(row.content) as Record<string, unknown> }));
+  if (sections.filter(section => section.visible && section.type === "HERO").length > 1) throw new Error("A page can have only one visible Hero section");
+  return sections;
 }
 
 export function parseLandingContent(type: LandingSectionType, value: Prisma.JsonValue) {
