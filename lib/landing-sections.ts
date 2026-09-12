@@ -1,6 +1,8 @@
 import { LandingSectionType, Prisma } from "@prisma/client";
 import { z } from "zod";
 
+export const landingSectionTypes = ["HERO", "FEATURE_BADGES", "BENEFITS", "STEPS", "PRODUCT_SHOWCASE", "FEATURE_LIST", "MEDIA_CONTENT", "STORY_PROCESS", "FAQ", "CTA_BANNER", "PRODUCT_GRID", "CATEGORY_GRID", "RICH_TEXT", "TRUST_STRIP", "STATS"] satisfies LandingSectionType[];
+
 const safePath = z.string().trim().regex(/^\/(?!\/)[A-Za-z0-9/_?&=.%+-]*$/).or(z.literal("")).default("");
 const imageUrl = z.string().trim().url().refine(value => /^https?:\/\//i.test(value)).or(z.literal("")).default("");
 const baseCopy = {

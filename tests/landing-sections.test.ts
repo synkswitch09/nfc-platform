@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { blankLandingSection, modularFaq, parseLandingContent, validateLandingSections } from "@/lib/landing-sections";
+import { blankLandingSection, landingSectionTypes, modularFaq, parseLandingContent, validateLandingSections } from "@/lib/landing-sections";
 
 describe("typed modular landing content", () => {
   it("accepts ordered structured sections without arbitrary HTML", () => {
@@ -25,5 +25,6 @@ describe("typed modular landing content", () => {
 
   it("provides safe typed defaults for newly added sections", () => {
     expect(blankLandingSection("PRODUCT_GRID")).toMatchObject({ type: "PRODUCT_GRID", visible: true, content: { limit: 6, featuredOnly: false } });
+    expect(landingSectionTypes.map(type => blankLandingSection(type).type)).toEqual(landingSectionTypes);
   });
 });

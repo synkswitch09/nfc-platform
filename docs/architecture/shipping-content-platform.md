@@ -37,6 +37,8 @@ The explicit `SHIPPED` transition moves any label-ready Shipment to `IN_TRANSIT`
 
 `LandingPageSection` is a typed, ordered category child record rather than arbitrary HTML. The supported registry covers hero, badges, benefits, steps, product showcase, feature/media stories, FAQ, CTA, product/category grids, trust and stats. Admin may add, edit, hide/show, reorder, duplicate and remove sections. Public rendering validates stored JSON and escapes text; CTA destinations must be safe internal paths.
 
+The category editor keeps identity, lifecycle, homepage-card, visibility and SEO settings separate from landing content. Existing legacy landing fields remain stored for rollback compatibility and continue to render only when a category has no modular sections; they are not exposed as a second content editor.
+
 Legacy category JSON remains readable as a fallback during migration. Seed/upsert migrates the five Tapkin category experiences into section records without changing their stable slugs or product/tag relationships.
 
 ## Product configuration
