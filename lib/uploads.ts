@@ -45,7 +45,7 @@ export function productImageDimensions(bytes: Uint8Array, mimeType: string) {
 
 export function uploadDirectory() { return path.resolve(/* turbopackIgnore: true */ getRuntimeConfig().storage.uploadDir ?? path.join(process.cwd(), "data", "uploads")); }
 
-export async function validateAndStoreImage(file: File, storeSlug: string) {
+export async function validateAndStoreImage(file: File, storeSlug: string, purpose = "product-image") {
   if (!file.size || file.size > MAX_PRODUCT_IMAGE_BYTES) throw new Error("IMAGE_SIZE");
   const bytes = new Uint8Array(await file.arrayBuffer()); const format = detectProductImageFormat(bytes);
   if (!format || file.type !== format.mime) throw new Error("IMAGE_FORMAT");
@@ -53,7 +53,7 @@ export async function validateAndStoreImage(file: File, storeSlug: string) {
   if (!dimensions || dimensions.width < 1 || dimensions.height < 1 || dimensions.width > 10_000 || dimensions.height > 10_000 || dimensions.width * dimensions.height > 40_000_000) throw new Error("IMAGE_DIMENSIONS");
   const runtime = getRuntimeConfig();
   const storageKey = createStorageKey(runtime.appEnv, storeSlug, randomUUID(), format.extension as "png" | "jpg" | "webp");
-  await getStorageProvider(runtime).put(storageKey, bytes, { contentType: format.mime, cacheControl: "public, max-age=31536000, immutable", metadata: { environment: runtime.appEnv, store: storeSlug, purpose: "product-image" } });
+  await getStorageProvider(runtime).put(storageKey, bytes, { contentType: format.mime, cacheControl: "public, max-age=31536000, immutable", metadata: { environment: runtime.appEnv, store: storeSlug, purpose } });
   return { storageKey, mimeType: format.mime, byteSize: bytes.byteLength, ...dimensions };
 }
 

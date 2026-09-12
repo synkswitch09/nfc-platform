@@ -13,7 +13,7 @@ Changing a category slug from Admin stores the previous slug as a historical ali
 The editor provides structured, validated fields rather than arbitrary HTML:
 
 - **General:** name, slug, icon, status, display order, visual theme and landing composition.
-- **Homepage card:** title, copy, image URL and alt text.
+- **Homepage card:** title, copy, uploaded image (or approved HTTPS URL) and alt text.
 - **Landing hero:** eyebrow, headline, description, primary/secondary CTA, images and alt text.
 - **Benefits, use cases and how it works:** ordered, individually visible items.
 - **Content sections:** ordered image/text or text-only blocks with bullet points and an optional CTA.
@@ -34,7 +34,7 @@ Shop and checkout apply commercial category/product policy. `/t/{publicTagId}` a
 
 Products are assigned or moved through **Admin → Catalog → Products → Product details → Category**. Any number of products can share one category.
 
-The seed deliberately uses licensed-safe visual placeholders rather than third-party photography. Before launch, upload product media through Admin and provide owned category photography from an approved HTTPS media host, then set meaningful alt text. A unified category-media upload picker remains a visual-operations enhancement. Recommended assets are:
+The seed deliberately uses licensed-safe visual placeholders rather than third-party photography. Before launch, upload product media through Admin and upload owned category photography directly from the category Homepage card, SEO and modular landing section fields, then set meaningful alt text. Approved external HTTPS image URLs remain supported. Recommended assets are:
 
 - one landscape hero image per category (approximately 1600 × 1200 px);
 - one landscape Home card image per category (approximately 1200 × 800 px);

@@ -309,6 +309,7 @@ model Store {
   passwordResets       PasswordReset[]
   categories           ProductCategory[]
   products             Product[]
+  categoryImages       CategoryImage[]
   carts                Cart[]
   orders               Order[]
   tags                 NFCTag[]
@@ -535,6 +536,7 @@ model ProductCategory {
   products            Product[]
   store               Store                 @relation(fields: [storeId], references: [id], onDelete: Restrict)
   landingSections     LandingPageSection[]
+  images              CategoryImage[]
 
   @@unique([storeId, slug])
   @@index([storeId, status, sortOrder])
@@ -565,6 +567,24 @@ model ProductImage {
 
   @@index([productId, sortOrder])
   @@index([productId, optionValueId, sortOrder])
+}
+
+model CategoryImage {
+  id         String          @id @default(uuid()) @db.Uuid
+  storeId    String          @db.Uuid
+  categoryId String          @db.Uuid
+  storageKey String          @unique
+  url        String
+  mimeType   String
+  byteSize   Int
+  width      Int
+  height     Int
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @updatedAt
+  store      Store           @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  category   ProductCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@index([storeId, categoryId, createdAt])
 }
 
 model ProductOption {

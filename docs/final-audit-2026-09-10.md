@@ -12,7 +12,7 @@ Admin can create or edit a category's identity, lifecycle, order, Home card, ima
 
 The public category renderer is shared, but each composition has a different storytelling order and the five seed records carry distinct messages, icons, benefits, use cases and theme tokens. Home, navigation, Shop, products, breadcrumbs, canonicals, structured data and sitemap all use the clean category URLs.
 
-No unlicensed photography was added. Styled, accessible Tapkin placeholders keep layouts complete until owned category photography is provided. Product images can already be uploaded in Admin; category images currently use validated HTTPS URLs. A unified category-media upload picker is the remaining media-operations enhancement.
+No unlicensed photography was added. Styled, accessible Tapkin placeholders keep layouts complete until owned category photography is provided. Product images can already be uploaded in Admin. Update (12 September 2026): category Homepage card, social sharing and modular landing images can now also be uploaded directly in Admin; validated HTTPS URLs remain supported.
 
 ## Privacy and continuity
 

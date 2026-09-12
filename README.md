@@ -52,7 +52,7 @@ docker compose --profile tools run --rm seed
 
 Terminate TLS at a trusted reverse proxy (for example Caddy, Traefik or a NAS proxy), set `APP_URL` to the public HTTPS origin, and set `TRUST_PROXY=true` only when direct access to the app port is blocked and the proxy overwrites forwarded-client headers. PostgreSQL is bound only to host loopback for local administration. Back up both the `postgres_data` and `product_uploads` volumes, and test restores regularly.
 
-Product uploads accept content-verified PNG, JPEG and WebP files up to 5 MB. Local Docker persists them in `product_uploads`; staging and production require the Azure Blob provider (or a future provider implementing the same interface), because container filesystems are ephemeral. Uploaded originals must be included in the backup and restore plan.
+Product and category landing uploads accept content-verified PNG, JPEG and WebP files up to 5 MB. Category editors can upload directly from the Homepage card, SEO social image and modular landing section controls; the saved `/api/media/...` URL is Store-scoped and does not require a public image host. Local Docker persists uploads in `product_uploads`; staging and production require the Azure Blob provider (or a future provider implementing the same interface), because container filesystems are ephemeral. Uploaded originals must be included in the backup and restore plan.
 
 The production runtime image is non-root and does not run migrations. Compose and cloud releases use the dedicated `migrator` target once before starting/updating the app. Health endpoints are `/api/health/live` and `/api/health/ready`; `/api/health` remains a readiness-compatible alias.
 

@@ -26,6 +26,13 @@ describe("admin validation", () => {
     expect(adminCategorySchema.safeParse({ ...category, ctaHref: "javascript:alert(1)" }).success).toBe(false);
     expect(adminCategorySchema.safeParse({ ...category, slug: "admin" }).success).toBe(false);
   });
+  it("accepts uploaded category media and rejects arbitrary internal paths", () => {
+    const category = { name: "Pet", slug: "pet", sortOrder: 0, status: "PUBLISHED", visualTheme: "CORAL", landingLayout: "EDITORIAL", showOnHomepage: true, showInNavigation: true, showInShop: true, showLanding: true, indexable: true, benefits: [], useCases: [], howItWorks: [], contentSections: [], faq: [] };
+    const cardImageUrl = "/api/media/development-tapkin-550e8400-e29b-41d4-a716-446655440000.webp";
+    expect(adminCategorySchema.safeParse({ ...category, cardImageUrl, ogImageUrl: cardImageUrl }).success).toBe(true);
+    expect(adminCategorySchema.safeParse({ ...category, cardImageUrl: "/api/admin/users" }).success).toBe(false);
+    expect(adminCategorySchema.safeParse({ ...category, cardImageUrl: "http://insecure.example/image.jpg" }).success).toBe(false);
+  });
   it("requires explicit identity verification before credential regeneration", () => {
     const request = { reason: "CUSTOMER_LOST_CODE", note: "Verified against the original order", confirmedIdentity: true };
     expect(activationRegenerationSchema.safeParse(request).success).toBe(true);

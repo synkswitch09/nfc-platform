@@ -29,7 +29,7 @@ Category landing content is structured JSON validated by Zod (benefits, use case
 
 Generic `ManufacturingJob` records are created idempotently per paid order item for Stores with `PRINT_3D`. They track the current print/finishing/QA/packing queue and whether NFC work is also required. `ManufacturingBatch` remains the separate Tapkin NFC identity generation/programming workflow; sellable inventory and future raw-material/spool inventory remain different concepts.
 
-Catalogue media is referenced in PostgreSQL but stored in a durable private volume and served through a content-type-controlled route. Uploads are checked by content signature, decoded dimensions and pixel limits; metadata records dimensions, primary image and ordering. This keeps the first NAS deployment self-contained while preserving a clean migration path to a resizing/scanning S3-compatible pipeline.
+Catalogue and category landing media is referenced in PostgreSQL but stored in a durable private volume and served through a content-type-controlled, Store-scoped route. Uploads are checked by content signature, decoded dimensions and pixel limits; product metadata records primary image and ordering while category image records retain category ownership. This keeps the first NAS deployment self-contained while preserving a clean migration path to a resizing/scanning S3-compatible pipeline.
 
 ## Scale path
 

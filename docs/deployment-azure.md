@@ -111,7 +111,7 @@ The literal sample `admin@example.local` / `DevAdmin123!` is never stored by the
 4. The current portable Azure provider uses a container-scoped SAS held as a Container App secret. Grant only create/write/read/delete rights actually needed, HTTPS only, with an expiry and rotation calendar. Never commit it. Managed Identity with a future token-based provider is the preferred next hardening step once the first deployment is stable.
 5. Use a different SAS per environment. Because the containers and new object keys are environment-separated, development cannot overwrite production media.
 
-Product uploads are content-signature checked PNG/JPEG/WebP, limited to 5 MB and 40 megapixels, assigned random safe keys, and served through `/api/media/{storageKey}`. Containers remain private. Category/profile fields that accept remote images remain URL references; they are not copied into Blob Storage yet. Add thumbnails/WebP conversion and orphan cleanup only after measuring real media volume; do not add an always-running processor initially.
+Product and category landing uploads are content-signature checked PNG/JPEG/WebP, limited to 5 MB and 40 megapixels, assigned random safe keys, and served through `/api/media/{storageKey}`. Containers remain private, and database ownership checks prevent one Store from reading another Store's media. Approved external HTTPS references remain supported. Add thumbnails/WebP conversion and orphan cleanup only after measuring real media volume; do not add an always-running processor initially.
 
 ## 6. Container Apps and migration jobs
 
