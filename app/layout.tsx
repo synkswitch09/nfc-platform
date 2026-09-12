@@ -1,10 +1,8 @@
 import type { Metadata } from "next";
-import Link from "next/link";
-import Image from "next/image";
-import { ShieldCheck, Radio, Shapes } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth";
-import { CartLink } from "@/components/cart-link";
 import { CartProvider } from "@/components/cart-provider";
+import { SiteHeader } from "@/components/site-header";
+import { SiteFooter } from "@/components/site-footer";
 import { getStoreSettings } from "@/lib/settings";
 import { db } from "@/lib/db";
 import { getRuntimeConfig, searchEnginePolicy } from "@/lib/config";
@@ -23,26 +21,14 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   const store = await getCurrentStorefront();
   const [user, settings, categories] = await Promise.all([getCurrentUser(), getStoreSettings(store), process.env.DATABASE_URL && store.status === StoreStatus.ACTIVE ? db.productCategory.findMany({ where: { storeId: store.id, status: "PUBLISHED", showInNavigation: true }, select: { name: true, slug: true }, orderBy: [{ sortOrder: "asc" }, { name: "asc" }], take: 6 }).catch(() => []) : []]);
   const commerce = isStoreCommerceAvailable(store);
-  const BrandIcon = hasStoreCapability(store, StoreCapability.NFC) ? Radio : Shapes;
+  const nfcEnabled = hasStoreCapability(store, StoreCapability.NFC);
   return (
     <html lang="en-AU">
       <body data-store={store.slug} data-theme-style={store.theme.fontStyle} style={storeThemeStyle(store.theme)}>
         <CartProvider storageKey={`commerce-cart:${store.id}:v1`}>
-        <header className="site-header">
-          <Link href="/" className="brand" aria-label={`${settings.storeName} home`}>{store.logoUrl ? <Image className="brand-logo" src={store.logoUrl} alt="" width={168} height={48} unoptimized /> : <><span className="brand-mark"><BrandIcon size={18} /></span>{settings.storeName}</>}</Link>
-          <nav aria-label="Main navigation">
-            {commerce && <Link href="/shop">Shop</Link>}
-            {categories.map(category => <Link className="category-nav-link" href={`/${category.slug}`} key={category.slug}>{category.name}</Link>)}
-            {commerce && <Link href="/#how-it-works">How it works</Link>}
-            {commerce && <CartLink />}
-            {user ? <Link className="nav-cta" href="/dashboard">My products</Link> : <Link className="nav-cta" href="/login">Sign in</Link>}
-          </nav>
-        </header>
+        <SiteHeader config={settings.headerConfig} storeName={settings.storeName} storeLogoUrl={store.logoUrl} categories={categories} commerce={commerce} nfcEnabled={nfcEnabled} authenticated={Boolean(user)} />
         <main>{children}</main>
-        <footer>
-          <div><span className="brand"><ShieldCheck size={18} />{settings.storeName}</span><p>Thoughtful products, designed and made in Australia.</p></div>
-          <div className="footer-links"><Link href="/privacy">Privacy</Link><Link href="/terms">Terms</Link><a href={`mailto:${settings.supportEmail}`}>Contact</a></div>
-        </footer>
+        <SiteFooter config={settings.footerConfig} storeName={settings.storeName} storeLogoUrl={store.logoUrl} socialLinks={settings.socialLinks} nfcEnabled={nfcEnabled} />
         </CartProvider>
       </body>
     </html>

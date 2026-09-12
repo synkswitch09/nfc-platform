@@ -1,10 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { ShoppingBag } from "lucide-react";
+import { ShoppingCart } from "lucide-react";
 import { useCart } from "@/components/cart-provider";
 
 export function CartLink() {
   const { count } = useCart();
-  return <Link href="/cart" className="cart-link" aria-label={`Cart with ${count} items`}><ShoppingBag size={18} /> Cart{count > 0 && <span>{count}</span>}</Link>;
+  return <Link href="/cart" className="cart-link" aria-label={`Cart with ${count} items`}><ShoppingCart size={18} aria-hidden="true" /> Cart{count > 0 && <span>{count}</span>}</Link>;
 }
