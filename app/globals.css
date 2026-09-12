@@ -278,7 +278,52 @@ body:has(.admin-shell) .site-header, body:has(.admin-shell) > footer { display: 
 .admin-image-grid .field.compact { gap: 4px; font-size: .7rem; }
 .option-values { display: grid; gap: 10px; padding-top: 4px; }
 .option-value-row { display: grid; grid-template-columns: 1fr 1fr .7fr repeat(3, .8fr) auto; gap: 10px; align-items: end; }
-.colour-field input[type="color"] { min-height: 40px; padding: 3px; }
+.colour-field > span { display: grid; grid-template-columns: 52px 1fr; gap: 8px; }
+.colour-field input[type="color"] { min-height: 44px; padding: 3px; }
+.landing-builder-add > span { flex: 1; color: var(--muted); font-size: .82rem; }
+.admin-subpanel { border: 1px solid var(--line); border-radius: 14px; padding: 12px; background: white; }
+.admin-subpanel > summary { cursor: pointer; font-weight: 800; }
+.admin-subpanel > .field-grid { margin-top: 14px; }
+.row-actions { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 10px; }
+.danger-text { color: var(--danger); }
+.modular-landing { padding-bottom: 90px; }
+.modular-landing > section { max-width: 1180px; margin-left: auto; margin-right: auto; }
+.modular-landing .section-head > p { color: var(--muted); max-width: 760px; }
+.modular-hero-features { display: flex; flex-wrap: wrap; gap: 18px; margin-top: 30px; }
+.modular-hero-features > div { display: grid; justify-items: center; align-content: start; gap: 4px; width: 72px; text-align: center; }
+.modular-hero-features span { width: 45px; height: 45px; display: grid; place-items: center; border-radius: 50%; background: var(--category-soft); color: var(--category-deep); }
+.modular-hero-features small { line-height: 1.15; font-weight: 750; }
+.modular-hero-features em { color: var(--muted); font-size: .65rem; font-style: normal; line-height: 1.15; }
+.hero-supporting { display: block; color: var(--muted); margin-top: 8px; }
+.modular-benefits .benefit-grid article, .modular-feature-badges .benefit-grid article, .modular-trust-strip .benefit-grid article { display: grid; grid-template-columns: auto 1fr; gap: 16px; align-items: start; border: 0; box-shadow: none; }
+.modular-benefits .benefit-grid .icon, .modular-feature-badges .benefit-grid .icon, .modular-trust-strip .benefit-grid .icon { margin: 0; border-radius: 16px; }
+.modular-benefits .benefit-grid p, .modular-feature-badges .benefit-grid p, .modular-trust-strip .benefit-grid p { margin: 3px 0 0; }
+.modular-item-image { margin: -72px auto 4px; width: min(88%, 280px); position: relative; z-index: 1; }
+.modular-item-image img { width: 100%; height: 190px; object-fit: contain; border-radius: 16px; }
+.modular-steps { padding-top: 130px; }
+.modular-steps .step-grid { margin-top: 90px; }
+.modular-steps .step-grid article { display: grid; grid-template-columns: auto 1fr; gap: 16px; align-items: start; background: var(--category-soft); }
+.modular-steps .modular-item-image { grid-column: 1 / -1; }
+.modular-steps .step-number { margin: 0; background: white; color: var(--ink); }
+.modular-story-process { padding: 60px 38px !important; margin-top: 94px; background: var(--category-soft); }
+.modular-story-process .benefit-grid article { border: 0; background: transparent; text-align: center; padding: 12px; }
+.modular-story-process .benefit-grid .icon { margin: 0 auto 20px; }
+.modular-story-process .modular-item-image { margin: 0 auto 18px; }
+.modular-faq-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px 28px; }
+.modular-faq-grid details { border: 1px solid var(--line); border-radius: 12px; padding: 16px; background: white; }
+.modular-faq-grid details[open] { grid-row: span 2; }
+.modular-faq-grid summary { list-style-position: outside; }
+.modular-category-grid .category-card-grid { grid-template-columns: repeat(3, 1fr); }
+.modular-category-grid .category-card { display: grid; padding: 18px; border: 1px solid var(--line); border-radius: 22px; background: white; }
+.modular-category-grid .category-card img { width: 100%; height: 210px; object-fit: cover; border-radius: 15px; margin-bottom: 18px; }
+.modular-category-grid .category-card p { color: var(--muted); }
+.modular-category-grid .category-card strong { color: var(--brand); }
+.modular-promo { position: relative; isolation: isolate; overflow: hidden; min-height: 250px; display: grid; align-items: center; text-align: left; }
+.modular-promo > img { z-index: -2; object-fit: cover; }
+.modular-promo::after { content: ""; position: absolute; inset: 0; z-index: -1; background: linear-gradient(90deg, rgba(255,255,255,.94), rgba(255,255,255,.16)); }
+.modular-promo > div { max-width: 620px; }
+.modular-promo .section-head { margin-bottom: 0; }
+.modular-promo .section-head h2, .modular-promo .section-head p { margin-left: 0; }
 @media (max-width: 1050px) and (min-width: 801px) {
   .category-nav-link { display: none; }
   .category-card-grid { grid-template-columns: repeat(2, 1fr); }

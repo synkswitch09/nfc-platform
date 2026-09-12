@@ -5,6 +5,15 @@ import { getCurrentStorefront } from "@/lib/storefront";
 
 const publicCategoryArgs = Prisma.validator<Prisma.ProductCategoryDefaultArgs>()({
   include: {
+    store: {
+      select: {
+        categories: {
+          where: { status: CategoryStatus.PUBLISHED, showLanding: true },
+          orderBy: { sortOrder: "asc" },
+          select: { id: true, slug: true, name: true, shortDescription: true, cardTitle: true, cardText: true, cardImageUrl: true, cardImageAlt: true, icon: true },
+        },
+      },
+    },
     landingSections: { where: { visible: true }, orderBy: { sortOrder: "asc" } },
     products: {
       where: { status: ProductStatus.ACTIVE, shopVisible: true },
