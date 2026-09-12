@@ -20,6 +20,7 @@ export async function POST(request: NextRequest) {
       });
       if (collision) throw new Error("CATEGORY_SLUG_CONFLICT");
       const created = await tx.productCategory.create({ data: { ...parsed.data, storeId: store.id } });
+      await tx.contentPage.create({ data: { id: created.id, storeId: store.id, categoryId: created.id, kind: "CATEGORY", slug: created.slug, name: created.name, status: created.status, sortOrder: created.sortOrder, defaultLocale: store.defaultLocale, seoTitle: created.seoTitle, seoDescription: created.seoDescription, ogImageUrl: created.ogImageUrl, canonicalUrl: created.canonicalUrl, indexable: created.indexable } });
       await tx.auditLog.create({ data: { actorId: user.id, storeId: store.id, action: "CATEGORY_CREATED", entityType: "ProductCategory", entityId: created.id, metadata: { status: created.status } } });
       return created;
     });

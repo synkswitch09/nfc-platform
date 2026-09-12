@@ -33,6 +33,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     const action = existing.status === next ? "CATEGORY_UPDATED" : next === "PUBLISHED" ? "CATEGORY_PUBLISHED" : next === "HIDDEN" ? "CATEGORY_HIDDEN" : next === "ARCHIVED" ? "CATEGORY_ARCHIVED" : "CATEGORY_DRAFTED";
     await db.$transaction([
       db.productCategory.update({ where: { id: categoryId }, data: categoryData }),
+      db.contentPage.upsert({ where: { categoryId }, update: { slug: parsed.data.slug, name: parsed.data.name, status: parsed.data.status, sortOrder: parsed.data.sortOrder, seoTitle: parsed.data.seoTitle, seoDescription: parsed.data.seoDescription, ogImageUrl: parsed.data.ogImageUrl, canonicalUrl: parsed.data.canonicalUrl, indexable: parsed.data.indexable }, create: { id: categoryId, storeId: store.id, categoryId, kind: "CATEGORY", slug: parsed.data.slug, name: parsed.data.name, status: parsed.data.status, sortOrder: parsed.data.sortOrder, defaultLocale: store.defaultLocale, seoTitle: parsed.data.seoTitle, seoDescription: parsed.data.seoDescription, ogImageUrl: parsed.data.ogImageUrl, canonicalUrl: parsed.data.canonicalUrl, indexable: parsed.data.indexable } }),
       db.auditLog.create({ data: { actorId: user.id, storeId: store.id, action, entityType: "ProductCategory", entityId: categoryId, metadata: { fromStatus: existing.status, toStatus: next, fromSlug: existing.slug, toSlug: parsed.data.slug } } }),
     ]);
     return NextResponse.json({ ok: true });

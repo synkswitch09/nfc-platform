@@ -35,9 +35,14 @@ async function seedShipping(storeId: string, flatRateCents: number, freeOverCent
   });
 }
 
-type LandingSeed = { name: string; heroEyebrow?: string; heroHeadline?: string; heroDescription?: string; heroImageUrl?: string; heroImageAlt?: string; ctaLabel?: string; benefits?: Array<{ icon: string; title: string; description: string }>; useCases?: Array<{ icon: string; title: string; description: string }>; howItWorks?: Array<{ title: string; description: string; imageUrl?: string }>; contentSections?: Array<{ layout: string; eyebrow?: string; heading: string; copy: string; bulletPoints?: string[]; imageUrl?: string; ctaLabel?: string; ctaHref?: string }>; faq?: Array<{ question: string; answer: string }>; finalCtaEyebrow?: string; finalCtaHeadline?: string; finalCtaDescription?: string; finalCtaLabel?: string };
+type LandingSeed = { slug: string; name: string; heroEyebrow?: string; heroHeadline?: string; heroDescription?: string; heroImageUrl?: string; heroImageAlt?: string; ctaLabel?: string; benefits?: Array<{ icon: string; title: string; description: string }>; useCases?: Array<{ icon: string; title: string; description: string }>; howItWorks?: Array<{ title: string; description: string; imageUrl?: string }>; contentSections?: Array<{ layout: string; eyebrow?: string; heading: string; copy: string; bulletPoints?: string[]; imageUrl?: string; ctaLabel?: string; ctaHref?: string }>; faq?: Array<{ question: string; answer: string }>; finalCtaEyebrow?: string; finalCtaHeadline?: string; finalCtaDescription?: string; finalCtaLabel?: string };
 
 async function seedLandingSections(storeId: string, categoryId: string, item: LandingSeed, shopHref: string) {
+  await db.contentPage.upsert({
+    where: { categoryId },
+    update: { slug: item.slug, name: item.name, status: "PUBLISHED" },
+    create: { id: categoryId, storeId, categoryId, kind: "CATEGORY", slug: item.slug, name: item.name, status: "PUBLISHED", defaultLocale: "en-AU" },
+  });
   if (await db.landingPageSection.count({ where: { storeId, categoryId } })) return;
   const sections = [
     { type: "HERO" as const, name: "Hero", content: { layout: "IMAGE_RIGHT", eyebrow: item.heroEyebrow ?? "Made for real life", headline: item.heroHeadline ?? item.name, copy: item.heroDescription ?? "", imageUrl: item.heroImageUrl ?? "", imageAlt: item.heroImageAlt ?? "", ctaLabel: item.ctaLabel ?? `Shop ${item.name}`, ctaHref: shopHref, bullets: [] } },
@@ -49,7 +54,7 @@ async function seedLandingSections(storeId: string, categoryId: string, item: La
     { type: "FAQ" as const, name: "FAQ", content: { eyebrow: "Helpful answers", headline: "Frequently asked questions", copy: "", imageUrl: "", imageAlt: "", ctaLabel: "", ctaHref: "", items: (item.faq ?? []).map(value => ({ question: value.question, answer: value.answer })) } },
     { type: "CTA_BANNER" as const, name: "Final call to action", content: { layout: "CENTRED", eyebrow: item.finalCtaEyebrow ?? "Made for real life", headline: item.finalCtaHeadline ?? `Discover the ${item.name} collection.`, copy: item.finalCtaDescription ?? "", imageUrl: "", imageAlt: "", ctaLabel: item.finalCtaLabel ?? `Shop ${item.name}`, ctaHref: shopHref, bullets: [] } },
   ];
-  await db.landingPageSection.createMany({ data: sections.map((section, sortOrder) => ({ storeId, categoryId, type: section.type, name: section.name, visible: true, sortOrder, content: section.content })) });
+  await db.landingPageSection.createMany({ data: sections.map((section, sortOrder) => ({ storeId, pageId: categoryId, categoryId, type: section.type, name: section.name, visible: true, sortOrder, content: section.content })) });
 }
 const categories = [
   {

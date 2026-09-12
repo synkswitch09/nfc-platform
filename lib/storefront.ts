@@ -51,6 +51,10 @@ export type Storefront = {
   organization: Record<string, unknown>;
   socialLinks: Record<string, string>;
   shippingConfig: { flatRateCents: number; freeOverCents: number };
+  headerConfig: Record<string, unknown>;
+  footerConfig: Record<string, unknown>;
+  defaultLocale: string;
+  enabledLocales: string[];
   capabilities: StoreCapability[];
   paymentProfileKey: string | null;
   hostname: string;
@@ -113,6 +117,10 @@ function mapStorefront(row: StoreWithDomains, hostname: string, environment: Dep
       flatRateCents: typeof shipping.flatRateCents === "number" ? shipping.flatRateCents : 900,
       freeOverCents: typeof shipping.freeOverCents === "number" ? shipping.freeOverCents : 6000,
     },
+    headerConfig: asObject(row.headerConfig),
+    footerConfig: asObject(row.footerConfig),
+    defaultLocale: row.defaultLocale,
+    enabledLocales: row.enabledLocales,
     capabilities: row.capabilities,
     paymentProfileKey: row.paymentProfileKey,
     hostname,
@@ -143,6 +151,10 @@ function developmentFallback(hostname: string): Storefront {
     organization: { type: "Organization", name: "Tapkin" },
     socialLinks: {},
     shippingConfig: { flatRateCents: 900, freeOverCents: 6000 },
+    headerConfig: {},
+    footerConfig: {},
+    defaultLocale: "en-AU",
+    enabledLocales: ["en-AU", "es-CO"],
     capabilities: Object.values(StoreCapability),
     paymentProfileKey: null,
     hostname,

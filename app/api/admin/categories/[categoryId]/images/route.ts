@@ -13,7 +13,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   if (contentLength > MAX_PRODUCT_IMAGE_BYTES + 100_000) return jsonError("Images must be 5 MB or smaller", 413);
 
   const { categoryId } = await params;
-  const category = await db.productCategory.findFirst({ where: { id: categoryId, storeId: store.id }, select: { id: true } });
+  const category = await db.productCategory.findFirst({ where: { id: categoryId, storeId: store.id }, select: { id: true, contentPage: { select: { id: true } } } });
   if (!category) return jsonError("Category not found", 404);
 
   const form = await request.formData();
@@ -30,7 +30,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
   try {
     const image = await db.$transaction(async tx => {
-      const created = await tx.categoryImage.create({ data: { storeId: store.id, categoryId, storageKey: stored.storageKey, url: `/api/media/${stored.storageKey}`, mimeType: stored.mimeType, byteSize: stored.byteSize, width: stored.width, height: stored.height } });
+      const created = await tx.categoryImage.create({ data: { storeId: store.id, categoryId, pageId: category.contentPage?.id, storageKey: stored.storageKey, url: `/api/media/${stored.storageKey}`, purpose: "category-image", mimeType: stored.mimeType, byteSize: stored.byteSize, width: stored.width, height: stored.height } });
       await tx.auditLog.create({ data: { actorId: user.id, storeId: store.id, action: "CATEGORY_IMAGE_ADDED", entityType: "CategoryImage", entityId: created.id, metadata: { categoryId, byteSize: stored.byteSize } } });
       return created;
     });

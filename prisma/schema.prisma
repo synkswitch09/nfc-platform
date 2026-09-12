@@ -177,6 +177,14 @@ enum LandingSectionType {
   STATS
 }
 
+enum ContentPageKind {
+  HOME
+  CATEGORY
+  CAMPAIGN
+  COLLECTION
+  LEGAL
+}
+
 enum TagStatus {
   MANUFACTURED
   UNCLAIMED
@@ -298,6 +306,10 @@ model Store {
   organization         Json                 @default("{}")
   socialLinks          Json                 @default("{}")
   shippingConfig       Json                 @default("{}")
+  headerConfig         Json                 @default("{}")
+  footerConfig         Json                 @default("{}")
+  defaultLocale        String               @default("en-AU")
+  enabledLocales       String[]             @default(["en-AU"])
   capabilities         StoreCapability[]    @default([])
   paymentProfileKey    String?
   createdAt            DateTime             @default(now())
@@ -310,6 +322,8 @@ model Store {
   categories           ProductCategory[]
   products             Product[]
   categoryImages       CategoryImage[]
+  contentPages         ContentPage[]
+  locales              StoreLocale[]
   carts                Cart[]
   orders               Order[]
   tags                 NFCTag[]
@@ -537,6 +551,7 @@ model ProductCategory {
   store               Store                 @relation(fields: [storeId], references: [id], onDelete: Restrict)
   landingSections     LandingPageSection[]
   images              CategoryImage[]
+  contentPage         ContentPage?
 
   @@unique([storeId, slug])
   @@index([storeId, status, sortOrder])
@@ -572,9 +587,12 @@ model ProductImage {
 model CategoryImage {
   id         String          @id @default(uuid()) @db.Uuid
   storeId    String          @db.Uuid
-  categoryId String          @db.Uuid
+  categoryId String?         @db.Uuid
+  pageId     String?         @db.Uuid
   storageKey String          @unique
   url        String
+  altText    String?
+  purpose    String          @default("content-image")
   mimeType   String
   byteSize   Int
   width      Int
@@ -582,9 +600,11 @@ model CategoryImage {
   createdAt  DateTime        @default(now())
   updatedAt  DateTime        @updatedAt
   store      Store           @relation(fields: [storeId], references: [id], onDelete: Restrict)
-  category   ProductCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  category   ProductCategory? @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  page       ContentPage?    @relation(fields: [pageId], references: [id], onDelete: SetNull)
 
   @@index([storeId, categoryId, createdAt])
+  @@index([storeId, pageId, createdAt])
 }
 
 model ProductOption {
@@ -1081,7 +1101,8 @@ model PrintJob {
 model LandingPageSection {
   id         String             @id @default(uuid()) @db.Uuid
   storeId    String             @db.Uuid
-  categoryId String             @db.Uuid
+  pageId     String             @db.Uuid
+  categoryId String?            @db.Uuid
   type       LandingSectionType
   name       String
   visible    Boolean            @default(true)
@@ -1090,9 +1111,83 @@ model LandingPageSection {
   createdAt  DateTime           @default(now())
   updatedAt  DateTime           @updatedAt
   store      Store              @relation(fields: [storeId], references: [id], onDelete: Restrict)
-  category   ProductCategory    @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  page       ContentPage        @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  category   ProductCategory?   @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  translations LandingPageSectionTranslation[]
 
+  @@index([storeId, pageId, visible, sortOrder])
   @@index([storeId, categoryId, visible, sortOrder])
+}
+
+model ContentPage {
+  id             String          @id @default(uuid()) @db.Uuid
+  storeId        String          @db.Uuid
+  categoryId     String?         @unique @db.Uuid
+  kind           ContentPageKind
+  slug           String
+  name           String
+  status         CategoryStatus  @default(DRAFT)
+  sortOrder      Int             @default(0)
+  defaultLocale  String          @default("en-AU")
+  seoTitle       String?
+  seoDescription String?
+  ogImageUrl     String?
+  canonicalUrl   String?
+  indexable      Boolean         @default(true)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  store          Store           @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  category       ProductCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  sections       LandingPageSection[]
+  translations   ContentPageTranslation[]
+  images         CategoryImage[]
+
+  @@unique([storeId, slug])
+  @@index([storeId, kind, status, sortOrder])
+}
+
+model ContentPageTranslation {
+  id             String      @id @default(uuid()) @db.Uuid
+  pageId         String      @db.Uuid
+  locale         String
+  name           String?
+  seoTitle       String?
+  seoDescription String?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+  page           ContentPage @relation(fields: [pageId], references: [id], onDelete: Cascade)
+
+  @@unique([pageId, locale])
+  @@index([locale])
+}
+
+model LandingPageSectionTranslation {
+  id        String             @id @default(uuid()) @db.Uuid
+  sectionId String             @db.Uuid
+  locale    String
+  content   Json               @default("{}")
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+  section   LandingPageSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+
+  @@unique([sectionId, locale])
+  @@index([locale])
+}
+
+model StoreLocale {
+  id        String   @id @default(uuid()) @db.Uuid
+  storeId   String   @db.Uuid
+  code      String
+  name      String
+  isDefault Boolean  @default(false)
+  active    Boolean  @default(true)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  store     Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@unique([storeId, code])
+  @@index([storeId, active, sortOrder])
 }
 
 model Payment {
