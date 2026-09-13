@@ -118,12 +118,14 @@ export function LandingSectionEditor({
   endpoint,
   mediaUploadEndpoint,
   structureLocked = false,
+  anchorId = "sections",
 }: {
   categoryId?: string;
   initial: LandingSectionDraft[];
   endpoint?: string;
   mediaUploadEndpoint?: string;
   structureLocked?: boolean;
+  anchorId?: string;
 }) {
   const router = useRouter();
   const listRef = useRef<HTMLDivElement>(null);
@@ -188,7 +190,7 @@ export function LandingSectionEditor({
     "Conversion",
   ] as const;
   return (
-    <section className="admin-panel landing-builder">
+    <section className="admin-panel landing-builder" id={anchorId}>
       <div className="panel-heading">
         <div>
           <h2>{structureLocked ? "Localized sections" : "Sections"}</h2>

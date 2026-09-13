@@ -3,7 +3,7 @@
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { MediaUploadField } from "@/components/media-upload-field";
-import { parseFooterLinks } from "@/lib/site-chrome";
+import type { FooterConfig, HeaderConfig } from "@/lib/site-chrome";
 
 type Settings = {
   status: string;
@@ -20,56 +20,375 @@ type Settings = {
   defaultSocialImageUrl: string | null;
   socialLinks: Record<string, string | null>;
   shippingConfig: Record<string, number>;
-  theme: { accent: string; accentSecondary: string; background: string; foreground: string; radius: string; fontStyle: string };
-  homepage: { heroEyebrow: string; heroHeadline: string; heroDescription: string; primaryCtaLabel: string; primaryCtaHref: string };
-  headerConfig: { logoUrl: string; homeLabel: string; faqLabel: string; faqHref: string; shopLabel: string; signInLabel: string; accountLabel: string; showHome: boolean; showFaq: boolean; showCart: boolean; backgroundColour: string; textColour: string; activeColour: string; shopBackgroundColour: string; shopTextColour: string; accountBackgroundColour: string; accountTextColour: string; accountBorderColour: string };
-  footerConfig: { logoUrl: string; copyright: string; tagline: string; termsLabel: string; privacyLabel: string; showTerms: boolean; showPrivacy: boolean; customLinks: Array<{ label: string; href: string; visible: boolean; order: number }>; backgroundColour: string; textColour: string; linkColour: string; borderColour: string };
+  theme: {
+    accent: string;
+    accentSecondary: string;
+    background: string;
+    foreground: string;
+    radius: string;
+    fontStyle: string;
+  };
+  homepage: {
+    heroEyebrow: string;
+    heroHeadline: string;
+    heroDescription: string;
+    primaryCtaLabel: string;
+    primaryCtaHref: string;
+  };
+  headerConfig: HeaderConfig;
+  footerConfig: FooterConfig;
   capabilities: string[];
 };
 
-type Domain = { id: string; environment: string; hostname: string; protocol: string; port: number | null; isPrimary: boolean };
+type Domain = {
+  id: string;
+  environment: string;
+  hostname: string;
+  protocol: string;
+  port: number | null;
+  isPrimary: boolean;
+};
 
-export function StoreSettingsForm({ settings, domains, platformAdmin, availableCapabilities }: { settings: Settings; domains: Domain[]; platformAdmin: boolean; availableCapabilities: string[] }) {
+export function StoreSettingsForm({
+  settings,
+  domains,
+  platformAdmin,
+  availableCapabilities,
+}: {
+  settings: Settings;
+  domains: Domain[];
+  platformAdmin: boolean;
+  availableCapabilities: string[];
+}) {
   const router = useRouter();
   const [message, setMessage] = useState("");
   const [logoUrl, setLogoUrl] = useState(settings.logoUrl ?? "");
   const [faviconUrl, setFaviconUrl] = useState(settings.faviconUrl ?? "");
-  const [socialImageUrl, setSocialImageUrl] = useState(settings.defaultSocialImageUrl ?? "");
-  const [headerLogoUrl, setHeaderLogoUrl] = useState(settings.headerConfig.logoUrl);
-  const [footerLogoUrl, setFooterLogoUrl] = useState(settings.footerConfig.logoUrl);
+  const [socialImageUrl, setSocialImageUrl] = useState(
+    settings.defaultSocialImageUrl ?? "",
+  );
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     setMessage("");
     const payload = {
-      storeName: form.get("storeName"), businessName: form.get("businessName"), supportEmail: form.get("supportEmail"), currency: String(form.get("currency")).toUpperCase(), defaultCountry: String(form.get("defaultCountry")).toUpperCase(), timezone: form.get("timezone"),
-      logoUrl: form.get("logoUrl"), faviconUrl: form.get("faviconUrl"), siteTitle: form.get("siteTitle"), siteDescription: form.get("siteDescription"), defaultSocialImageUrl: form.get("defaultSocialImageUrl"),
-      instagram: form.get("instagram"), facebook: form.get("facebook"), tiktok: form.get("tiktok"), linkedin: form.get("linkedin"), flatRateCents: Math.round(Number(form.get("flatRate")) * 100), freeOverCents: Math.round(Number(form.get("freeOver")) * 100),
-      theme: { accent: form.get("accent"), accentSecondary: form.get("accentSecondary"), background: form.get("background"), foreground: form.get("foreground"), radius: form.get("radius"), fontStyle: form.get("fontStyle") },
-      homepage: { heroEyebrow: form.get("heroEyebrow"), heroHeadline: form.get("heroHeadline"), heroDescription: form.get("heroDescription"), primaryCtaLabel: form.get("primaryCtaLabel"), primaryCtaHref: form.get("primaryCtaHref") },
-      headerConfig: { logoUrl: form.get("headerLogoUrl"), homeLabel: form.get("homeLabel"), faqLabel: form.get("faqLabel"), faqHref: form.get("faqHref"), shopLabel: form.get("shopLabel"), signInLabel: form.get("signInLabel"), accountLabel: form.get("accountLabel"), showHome: form.get("showHome") === "on", showFaq: form.get("showFaq") === "on", showCart: form.get("showCart") === "on", backgroundColour: form.get("headerBackgroundColour"), textColour: form.get("headerTextColour"), activeColour: form.get("headerActiveColour"), shopBackgroundColour: form.get("headerShopBackgroundColour"), shopTextColour: form.get("headerShopTextColour"), accountBackgroundColour: form.get("headerAccountBackgroundColour"), accountTextColour: form.get("headerAccountTextColour"), accountBorderColour: form.get("headerAccountBorderColour") },
-      footerConfig: { logoUrl: form.get("footerLogoUrl"), copyright: form.get("copyright"), tagline: form.get("tagline"), termsLabel: form.get("termsLabel"), privacyLabel: form.get("privacyLabel"), showTerms: form.get("showTerms") === "on", showPrivacy: form.get("showPrivacy") === "on", customLinks: parseFooterLinks(String(form.get("customFooterLinks") ?? "")), backgroundColour: form.get("footerBackgroundColour"), textColour: form.get("footerTextColour"), linkColour: form.get("footerLinkColour"), borderColour: form.get("footerBorderColour") },
-      ...(platformAdmin ? { status: form.get("status"), capabilities: form.getAll("capabilities") } : {}),
+      storeName: form.get("storeName"),
+      businessName: form.get("businessName"),
+      supportEmail: form.get("supportEmail"),
+      currency: String(form.get("currency")).toUpperCase(),
+      defaultCountry: String(form.get("defaultCountry")).toUpperCase(),
+      timezone: form.get("timezone"),
+      logoUrl: form.get("logoUrl"),
+      faviconUrl: form.get("faviconUrl"),
+      siteTitle: form.get("siteTitle"),
+      siteDescription: form.get("siteDescription"),
+      defaultSocialImageUrl: form.get("defaultSocialImageUrl"),
+      instagram: settings.socialLinks.instagram ?? "",
+      facebook: settings.socialLinks.facebook ?? "",
+      tiktok: settings.socialLinks.tiktok ?? "",
+      linkedin: settings.socialLinks.linkedin ?? "",
+      flatRateCents: Math.round(Number(form.get("flatRate")) * 100),
+      freeOverCents: Math.round(Number(form.get("freeOver")) * 100),
+      theme: {
+        accent: form.get("accent"),
+        accentSecondary: form.get("accentSecondary"),
+        background: form.get("background"),
+        foreground: form.get("foreground"),
+        radius: form.get("radius"),
+        fontStyle: form.get("fontStyle"),
+      },
+      homepage: settings.homepage,
+      headerConfig: settings.headerConfig,
+      footerConfig: settings.footerConfig,
+      ...(platformAdmin
+        ? {
+            status: form.get("status"),
+            capabilities: form.getAll("capabilities"),
+          }
+        : {}),
     };
-    const response = await fetch("/api/admin/settings", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(payload) });
+    const response = await fetch("/api/admin/settings", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(payload),
+    });
     const result = await response.json().catch(() => ({}));
-    if (!response.ok) return setMessage(result.error ?? "Settings could not be saved");
+    if (!response.ok)
+      return setMessage(result.error ?? "Settings could not be saved");
     setMessage("Settings saved");
     router.refresh();
   }
-  return <form className="admin-form" onSubmit={submit}>
-    <section className="admin-panel"><div className="panel-heading"><div><h2>General</h2><p>Public identity, market and support contact for this Store.</p></div></div><div className="field-grid"><label className="field">Store name<input name="storeName" defaultValue={settings.storeName} required /></label><label className="field">Legal business name<input name="businessName" defaultValue={settings.businessName ?? ""} /></label><label className="field">Support email<input name="supportEmail" type="email" defaultValue={settings.supportEmail ?? ""} required /></label><label className="field">Timezone<input name="timezone" defaultValue={settings.timezone} required /></label><label className="field">Country code<input name="defaultCountry" defaultValue={settings.defaultCountry} minLength={2} maxLength={2} required /></label><label className="field">Currency<input name="currency" defaultValue={settings.currency} minLength={3} maxLength={3} required /></label>{platformAdmin && <label className="field">Store lifecycle<select name="status" defaultValue={settings.status}><option>DRAFT</option><option>ACTIVE</option><option>HIDDEN</option><option>ARCHIVED</option></select></label>}</div></section>
-    <section className="admin-panel"><div className="panel-heading"><div><h2>Branding and theme</h2><p>Shared components consume these Store-specific design tokens and the existing media storage.</p></div></div><div className="field-grid"><MediaUploadField uploadEndpoint="/api/admin/settings/images" disabledMessage="Store media upload is unavailable." label="Default logo" name="logoUrl" value={logoUrl} onChange={setLogoUrl} /><MediaUploadField uploadEndpoint="/api/admin/settings/images" disabledMessage="Store media upload is unavailable." label="Favicon" name="faviconUrl" value={faviconUrl} onChange={setFaviconUrl} /><label className="field">Accent<input name="accent" type="color" defaultValue={settings.theme.accent} /></label><label className="field">Secondary accent<input name="accentSecondary" type="color" defaultValue={settings.theme.accentSecondary} /></label><label className="field">Background<input name="background" type="color" defaultValue={settings.theme.background} /></label><label className="field">Foreground<input name="foreground" type="color" defaultValue={settings.theme.foreground} /></label><label className="field">Corner radius<input name="radius" defaultValue={settings.theme.radius} pattern="[0-9.]+(px|rem)" /></label><label className="field">Typography style<select name="fontStyle" defaultValue={settings.theme.fontStyle}><option value="editorial">Editorial</option><option value="modern">Modern</option><option value="technical">Technical</option></select></label></div></section>
-    <section className="admin-panel"><div className="panel-heading"><div><h2>Header</h2><p>Logo, navigation labels, visibility and independent colours for the header actions.</p></div></div><div className="field-grid"><MediaUploadField uploadEndpoint="/api/admin/settings/images" disabledMessage="Store media upload is unavailable." label="Header logo" name="headerLogoUrl" value={headerLogoUrl} onChange={setHeaderLogoUrl} /><label className="field">Home label<input name="homeLabel" defaultValue={settings.headerConfig.homeLabel} /></label><label className="field">FAQs label<input name="faqLabel" defaultValue={settings.headerConfig.faqLabel} /></label><label className="field">FAQs destination<input name="faqHref" defaultValue={settings.headerConfig.faqHref} /></label><label className="field">Shop label<input name="shopLabel" defaultValue={settings.headerConfig.shopLabel} /></label><label className="field">Sign in label<input name="signInLabel" defaultValue={settings.headerConfig.signInLabel} /></label><label className="field">Account label<input name="accountLabel" defaultValue={settings.headerConfig.accountLabel} /></label><OptionalColour name="headerBackgroundColour" label="Header background" value={settings.headerConfig.backgroundColour} /><OptionalColour name="headerTextColour" label="Navigation text" value={settings.headerConfig.textColour} /><OptionalColour name="headerActiveColour" label="Active navigation" value={settings.headerConfig.activeColour} /><OptionalColour name="headerShopBackgroundColour" label="Shop button background" value={settings.headerConfig.shopBackgroundColour} /><OptionalColour name="headerShopTextColour" label="Shop button text" value={settings.headerConfig.shopTextColour} /><OptionalColour name="headerAccountBackgroundColour" label="Account button background" value={settings.headerConfig.accountBackgroundColour} /><OptionalColour name="headerAccountTextColour" label="Account button text" value={settings.headerConfig.accountTextColour} /><OptionalColour name="headerAccountBorderColour" label="Account button border" value={settings.headerConfig.accountBorderColour} /></div><div className="check-row"><Check name="showHome" label="Show Home" checked={settings.headerConfig.showHome} /><Check name="showFaq" label="Show FAQs" checked={settings.headerConfig.showFaq} /><Check name="showCart" label="Show Cart" checked={settings.headerConfig.showCart} /></div></section>
-    <section className="admin-panel"><div className="panel-heading"><div><h2>Footer</h2><p>Logo, copy, legal links, custom links and footer-specific colours.</p></div></div><div className="field-grid"><MediaUploadField uploadEndpoint="/api/admin/settings/images" disabledMessage="Store media upload is unavailable." label="Footer logo" name="footerLogoUrl" value={footerLogoUrl} onChange={setFooterLogoUrl} /><label className="field">Copyright<input name="copyright" defaultValue={settings.footerConfig.copyright} placeholder={`© ${new Date().getFullYear()} Store. All rights reserved.`} /></label><label className="field wide">Tagline<textarea name="tagline" defaultValue={settings.footerConfig.tagline} /></label><label className="field">Terms label<input name="termsLabel" defaultValue={settings.footerConfig.termsLabel} /></label><label className="field">Privacy label<input name="privacyLabel" defaultValue={settings.footerConfig.privacyLabel} /></label><label className="field wide">Custom links<textarea name="customFooterLinks" defaultValue={settings.footerConfig.customLinks.sort((a, b) => a.order - b.order).map(link => `${link.label} | ${link.href}`).join("\n")} /></label><OptionalColour name="footerBackgroundColour" label="Footer background" value={settings.footerConfig.backgroundColour} /><OptionalColour name="footerTextColour" label="Footer text" value={settings.footerConfig.textColour} /><OptionalColour name="footerLinkColour" label="Footer links and icons" value={settings.footerConfig.linkColour} /><OptionalColour name="footerBorderColour" label="Footer top border" value={settings.footerConfig.borderColour} /></div><div className="check-row"><Check name="showTerms" label="Show Terms" checked={settings.footerConfig.showTerms} /><Check name="showPrivacy" label="Show Privacy" checked={settings.footerConfig.showPrivacy} /></div></section>
-    <section className="admin-panel"><div className="panel-heading"><div><h2>Homepage hero</h2><p>Structured content keeps each brand distinctive without a generic page builder.</p></div></div><div className="field-grid"><label className="field">Eyebrow<input name="heroEyebrow" defaultValue={settings.homepage.heroEyebrow} maxLength={100} required /></label><label className="field">Primary CTA label<input name="primaryCtaLabel" defaultValue={settings.homepage.primaryCtaLabel} maxLength={50} required /></label><label className="field wide">Headline<input name="heroHeadline" defaultValue={settings.homepage.heroHeadline} maxLength={180} required /></label><label className="field wide">Description<textarea name="heroDescription" defaultValue={settings.homepage.heroDescription} maxLength={360} required /></label><label className="field">CTA path<input name="primaryCtaHref" defaultValue={settings.homepage.primaryCtaHref} pattern="/(?!/).*" required /></label></div></section>
-    <section className="admin-panel"><div className="panel-heading"><div><h2>Search defaults</h2><p>Store-specific metadata used when a page has no override.</p></div></div><label className="field">Site title<input name="siteTitle" defaultValue={settings.siteTitle} maxLength={70} required /></label><label className="field">Site description<textarea name="siteDescription" defaultValue={settings.siteDescription} maxLength={170} required /></label><MediaUploadField uploadEndpoint="/api/admin/settings/images" disabledMessage="Store media upload is unavailable." label="Default social image" name="defaultSocialImageUrl" value={socialImageUrl} onChange={setSocialImageUrl} /></section>
-    <section className="admin-panel"><div className="panel-heading"><div><h2>Shipping and social</h2><p>Store-level checkout defaults and public channels.</p></div></div><div className="field-grid"><label className="field">Flat shipping {settings.currency}<input name="flatRate" inputMode="decimal" defaultValue={((settings.shippingConfig.flatRateCents ?? 900) / 100).toFixed(2)} required /></label><label className="field">Free shipping over {settings.currency}<input name="freeOver" inputMode="decimal" defaultValue={((settings.shippingConfig.freeOverCents ?? 6000) / 100).toFixed(2)} required /></label><label className="field">Instagram URL<input name="instagram" type="url" defaultValue={settings.socialLinks.instagram ?? ""} /></label><label className="field">Facebook URL<input name="facebook" type="url" defaultValue={settings.socialLinks.facebook ?? ""} /></label><label className="field">TikTok URL<input name="tiktok" type="url" defaultValue={settings.socialLinks.tiktok ?? ""} /></label><label className="field">LinkedIn URL<input name="linkedin" type="url" defaultValue={settings.socialLinks.linkedin ?? ""} /></label></div></section>
-    <section className="admin-panel"><div className="panel-heading"><div><h2>Domains</h2><p>Trusted host allowlist by deployment environment. Changes require platform-level domain verification.</p></div></div><div className="domain-list">{domains.map(domain => <div key={domain.id}><span className="admin-status">{domain.environment}</span><code>{domain.protocol}://{domain.hostname}{domain.port ? `:${domain.port}` : ""}</code>{domain.isPrimary && <strong>Primary</strong>}</div>)}</div></section>
-    {platformAdmin && <section className="admin-panel"><div className="panel-heading"><div><h2>Capabilities</h2><p>Modules exposed by this Store. Issued NFC identities prevent unsafe NFC removal.</p></div></div><div className="capability-grid">{availableCapabilities.map(capability => <label className="check-field" key={capability}><input type="checkbox" name="capabilities" value={capability} defaultChecked={settings.capabilities.includes(capability)} />{capability.replaceAll("_", " ")}</label>)}</div></section>}
-    {message && <div className={message === "Settings saved" ? "notice" : "form-error"}>{message}</div>}<div className="admin-form-actions"><button className="button">Save settings</button></div>
-  </form>;
+  return (
+    <form className="admin-form" onSubmit={submit}>
+      <section className="admin-panel">
+        <div className="panel-heading">
+          <div>
+            <h2>General</h2>
+            <p>Public identity, market and support contact for this Store.</p>
+          </div>
+        </div>
+        <div className="field-grid">
+          <label className="field">
+            Store name
+            <input
+              name="storeName"
+              defaultValue={settings.storeName}
+              required
+            />
+          </label>
+          <label className="field">
+            Legal business name
+            <input
+              name="businessName"
+              defaultValue={settings.businessName ?? ""}
+            />
+          </label>
+          <label className="field">
+            Support email
+            <input
+              name="supportEmail"
+              type="email"
+              defaultValue={settings.supportEmail ?? ""}
+              required
+            />
+          </label>
+          <label className="field">
+            Timezone
+            <input name="timezone" defaultValue={settings.timezone} required />
+          </label>
+          <label className="field">
+            Country code
+            <input
+              name="defaultCountry"
+              defaultValue={settings.defaultCountry}
+              minLength={2}
+              maxLength={2}
+              required
+            />
+          </label>
+          <label className="field">
+            Currency
+            <input
+              name="currency"
+              defaultValue={settings.currency}
+              minLength={3}
+              maxLength={3}
+              required
+            />
+          </label>
+          {platformAdmin && (
+            <label className="field">
+              Store lifecycle
+              <select name="status" defaultValue={settings.status}>
+                <option>DRAFT</option>
+                <option>ACTIVE</option>
+                <option>HIDDEN</option>
+                <option>ARCHIVED</option>
+              </select>
+            </label>
+          )}
+        </div>
+      </section>
+      <section className="admin-panel">
+        <div className="panel-heading">
+          <div>
+            <h2>Branding and theme</h2>
+            <p>
+              Shared components consume these Store-specific design tokens and
+              the existing media storage.
+            </p>
+          </div>
+        </div>
+        <div className="field-grid">
+          <MediaUploadField
+            uploadEndpoint="/api/admin/settings/images"
+            disabledMessage="Store media upload is unavailable."
+            label="Default logo"
+            name="logoUrl"
+            value={logoUrl}
+            onChange={setLogoUrl}
+          />
+          <MediaUploadField
+            uploadEndpoint="/api/admin/settings/images"
+            disabledMessage="Store media upload is unavailable."
+            label="Favicon"
+            name="faviconUrl"
+            value={faviconUrl}
+            onChange={setFaviconUrl}
+          />
+          <label className="field">
+            Accent
+            <input
+              name="accent"
+              type="color"
+              defaultValue={settings.theme.accent}
+            />
+          </label>
+          <label className="field">
+            Secondary accent
+            <input
+              name="accentSecondary"
+              type="color"
+              defaultValue={settings.theme.accentSecondary}
+            />
+          </label>
+          <label className="field">
+            Background
+            <input
+              name="background"
+              type="color"
+              defaultValue={settings.theme.background}
+            />
+          </label>
+          <label className="field">
+            Foreground
+            <input
+              name="foreground"
+              type="color"
+              defaultValue={settings.theme.foreground}
+            />
+          </label>
+          <label className="field">
+            Corner radius
+            <input
+              name="radius"
+              defaultValue={settings.theme.radius}
+              pattern="[0-9.]+(px|rem)"
+            />
+          </label>
+          <label className="field">
+            Typography style
+            <select name="fontStyle" defaultValue={settings.theme.fontStyle}>
+              <option value="editorial">Editorial</option>
+              <option value="modern">Modern</option>
+              <option value="technical">Technical</option>
+            </select>
+          </label>
+        </div>
+      </section>
+      <section className="admin-panel">
+        <div className="panel-heading">
+          <div>
+            <h2>Search defaults</h2>
+            <p>Store-specific metadata used when a page has no override.</p>
+          </div>
+        </div>
+        <label className="field">
+          Site title
+          <input
+            name="siteTitle"
+            defaultValue={settings.siteTitle}
+            maxLength={70}
+            required
+          />
+        </label>
+        <label className="field">
+          Site description
+          <textarea
+            name="siteDescription"
+            defaultValue={settings.siteDescription}
+            maxLength={170}
+            required
+          />
+        </label>
+        <MediaUploadField
+          uploadEndpoint="/api/admin/settings/images"
+          disabledMessage="Store media upload is unavailable."
+          label="Default social image"
+          name="defaultSocialImageUrl"
+          value={socialImageUrl}
+          onChange={setSocialImageUrl}
+        />
+      </section>
+      <section className="admin-panel">
+        <div className="panel-heading">
+          <div>
+            <h2>Shipping</h2>
+            <p>Store-level checkout defaults.</p>
+          </div>
+        </div>
+        <div className="field-grid">
+          <label className="field">
+            Flat shipping {settings.currency}
+            <input
+              name="flatRate"
+              inputMode="decimal"
+              defaultValue={(
+                (settings.shippingConfig.flatRateCents ?? 900) / 100
+              ).toFixed(2)}
+              required
+            />
+          </label>
+          <label className="field">
+            Free shipping over {settings.currency}
+            <input
+              name="freeOver"
+              inputMode="decimal"
+              defaultValue={(
+                (settings.shippingConfig.freeOverCents ?? 6000) / 100
+              ).toFixed(2)}
+              required
+            />
+          </label>
+        </div>
+      </section>
+      <section className="admin-panel">
+        <div className="panel-heading">
+          <div>
+            <h2>Domains</h2>
+            <p>
+              Trusted host allowlist by deployment environment. Changes require
+              platform-level domain verification.
+            </p>
+          </div>
+        </div>
+        <div className="domain-list">
+          {domains.map((domain) => (
+            <div key={domain.id}>
+              <span className="admin-status">{domain.environment}</span>
+              <code>
+                {domain.protocol}://{domain.hostname}
+                {domain.port ? `:${domain.port}` : ""}
+              </code>
+              {domain.isPrimary && <strong>Primary</strong>}
+            </div>
+          ))}
+        </div>
+      </section>
+      {platformAdmin && (
+        <section className="admin-panel">
+          <div className="panel-heading">
+            <div>
+              <h2>Capabilities</h2>
+              <p>
+                Modules exposed by this Store. Issued NFC identities prevent
+                unsafe NFC removal.
+              </p>
+            </div>
+          </div>
+          <div className="capability-grid">
+            {availableCapabilities.map((capability) => (
+              <label className="check-field" key={capability}>
+                <input
+                  type="checkbox"
+                  name="capabilities"
+                  value={capability}
+                  defaultChecked={settings.capabilities.includes(capability)}
+                />
+                {capability.replaceAll("_", " ")}
+              </label>
+            ))}
+          </div>
+        </section>
+      )}
+      {message && (
+        <div className={message === "Settings saved" ? "notice" : "form-error"}>
+          {message}
+        </div>
+      )}
+      <div className="admin-form-actions">
+        <button className="button">Save settings</button>
+      </div>
+    </form>
+  );
 }
-
-function Check({ name, label, checked }: { name: string; label: string; checked: boolean }) { return <label className="check-field"><input type="checkbox" name={name} defaultChecked={checked} /><span>{label}</span></label>; }
-function OptionalColour({ name, label, value }: { name: string; label: string; value: string }) { const [colour, setColour] = useState(value); return <label className="field colour-field">{label}<span><input type="color" aria-label={`${label} picker`} value={colour || "#ffffff"} onChange={event => setColour(event.target.value)} /><input name={name} value={colour} placeholder="Use theme default" pattern="#[0-9A-Fa-f]{6}" onChange={event => setColour(event.target.value)} /></span></label>; }

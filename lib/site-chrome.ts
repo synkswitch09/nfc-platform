@@ -66,6 +66,10 @@ export const headerConfigSchema = z.object({
 });
 
 const footerLinkSchema = z.object({
+  id: z
+    .string()
+    .uuid()
+    .default(() => crypto.randomUUID()),
   label: z.string().trim().min(1).max(60),
   href: linkHref,
   visible: z.boolean().default(true),
@@ -102,14 +106,61 @@ export function parseFooterConfig(value: unknown): FooterConfig {
   return footerConfigSchema.parse(value);
 }
 
-export function parseFooterLinks(value: string) {
+export function parseFooterLinks(
+  value: string,
+  existing: FooterConfig["customLinks"] = [],
+) {
+  const available = [...existing].sort((a, b) => a.order - b.order);
+  const used = new Set<string>();
   return value
     .split("\n")
     .map((line, order) => {
       const [label = "", href = ""] = line
         .split("|")
         .map((part) => part.trim());
-      return { label, href, visible: true, order };
+      const exact = available.find(
+        (link) =>
+          !used.has(link.id) && link.label === label && link.href === href,
+      );
+      const row = available.find((link) => !used.has(link.id));
+      const id = exact?.id ?? row?.id ?? crypto.randomUUID();
+      used.add(id);
+      return { id, label, href, visible: true, order };
+    })
+    .filter((link) => link.label && link.href);
+}
+
+export function parseHeaderLinks(
+  value: string,
+  existing: HeaderConfig["customLinks"] = [],
+) {
+  const available = [...existing].sort((a, b) => a.order - b.order);
+  const used = new Set<string>();
+  return value
+    .split("\n")
+    .map((line, order) => {
+      const [label = "", href = "", audience = "ALL"] = line
+        .split("|")
+        .map((part) => part.trim());
+      const exact = available.find(
+        (link) =>
+          !used.has(link.id) && link.label === label && link.href === href,
+      );
+      const row = available.find((link) => !used.has(link.id));
+      const id = exact?.id ?? row?.id ?? crypto.randomUUID();
+      used.add(id);
+      return {
+        id,
+        label,
+        href,
+        visible: true,
+        order: 30 + order,
+        audience: ["ALL", "GUEST", "AUTHENTICATED"].includes(
+          audience.toUpperCase(),
+        )
+          ? (audience.toUpperCase() as "ALL" | "GUEST" | "AUTHENTICATED")
+          : ("ALL" as const),
+      };
     })
     .filter((link) => link.label && link.href);
 }

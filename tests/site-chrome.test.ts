@@ -4,6 +4,7 @@ import {
   parseFooterConfig,
   parseFooterLinks,
   parseHeaderConfig,
+  parseHeaderLinks,
 } from "@/lib/site-chrome";
 
 describe("site chrome configuration", () => {
@@ -55,11 +56,10 @@ describe("site chrome configuration", () => {
   });
 
   it("keeps footer link order and only complete rows", () => {
-    expect(
-      parseFooterLinks(
-        "About | /about\nBroken\nHelp | https://example.com/help",
-      ),
-    ).toEqual([
+    const links = parseFooterLinks(
+      "About | /about\nBroken\nHelp | https://example.com/help",
+    );
+    expect(links).toMatchObject([
       { label: "About", href: "/about", visible: true, order: 0 },
       {
         label: "Help",
@@ -68,6 +68,23 @@ describe("site chrome configuration", () => {
         order: 2,
       },
     ]);
+    expect(links[0].id).not.toBe(links[1].id);
+  });
+
+  it("parses custom header links with audience and persistent identities", () => {
+    const links = parseHeaderLinks(
+      "About | /about | ALL\nOrders | /dashboard/orders | AUTHENTICATED",
+    );
+    expect(links).toMatchObject([
+      { label: "About", href: "/about", audience: "ALL", order: 30 },
+      {
+        label: "Orders",
+        href: "/dashboard/orders",
+        audience: "AUTHENTICATED",
+        order: 31,
+      },
+    ]);
+    expect(links[0].id).not.toBe(links[1].id);
   });
 
   it("derives active navigation from the current route", () => {
