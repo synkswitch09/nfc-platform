@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { blankLandingSection, landingSectionTypes, modularFaq, parseLandingContent, validateLandingSections } from "@/lib/landing-sections";
-import { createLandingSectionFromTemplate, landingSectionTemplates } from "@/lib/landing-section-templates";
+import { blankLandingSection, landingColourThemes, landingSectionTypes, modularFaq, parseLandingContent, validateLandingSections } from "@/lib/landing-sections";
 
 describe("typed modular landing content", () => {
   it("accepts ordered structured sections without arbitrary HTML", () => {
@@ -40,27 +39,18 @@ describe("typed modular landing content", () => {
   });
 
   it("accepts controlled colours and rejects CSS injection", () => {
-    const [section] = validateLandingSections([{ type: "HERO", name: "Styled hero", visible: true, content: { backgroundColour: "#fffaf5", textColour: "#17212b", radius: "EXTRA_LARGE", layoutVariant: "PASTEL_EDITORIAL", sectionWidth: "WIDE", spacing: "COMPACT", headingScale: "LARGE", imageFit: "CONTAIN", columns: 4, anchorId: "pet-hero" } }]);
-    expect(section?.content).toMatchObject({ backgroundColour: "#fffaf5", textColour: "#17212b", radius: "EXTRA_LARGE", layoutVariant: "PASTEL_EDITORIAL", sectionWidth: "WIDE", spacing: "COMPACT", headingScale: "LARGE", imageFit: "CONTAIN", columns: 4, anchorId: "pet-hero" });
+    const [section] = validateLandingSections([{ type: "HERO", name: "Styled hero", visible: true, content: { backgroundColour: "#fffaf5", textColour: "#17212b", eyebrowColour: "#5f6866", headlineColour: "#111111", copyColour: "#67716f", radius: "EXTRA_LARGE", layoutVariant: "PASTEL_EDITORIAL", colourTheme: "MINT", sectionWidth: "WIDE", spacing: "COMPACT", headingScale: "LARGE", imageFit: "CONTAIN", columns: 4, anchorId: "pet-hero" } }]);
+    expect(section?.content).toMatchObject({ backgroundColour: "#fffaf5", textColour: "#17212b", eyebrowColour: "#5f6866", headlineColour: "#111111", copyColour: "#67716f", radius: "EXTRA_LARGE", layoutVariant: "PASTEL_EDITORIAL", colourTheme: "MINT", sectionWidth: "WIDE", spacing: "COMPACT", headingScale: "LARGE", imageFit: "CONTAIN", columns: 4, anchorId: "pet-hero" });
     expect(() => validateLandingSections([{ type: "HERO", name: "Unsafe style", visible: true, content: { backgroundColour: "red; background:url(javascript:alert(1))" } }])).toThrow();
     expect(() => validateLandingSections([{ type: "HERO", name: "Unsafe anchor", visible: true, content: { anchorId: "bad anchor" } }])).toThrow();
     expect(() => validateLandingSections([{ type: "FAQ", name: "Too many columns", visible: true, content: { columns: 12 } }])).toThrow();
   });
 
-  it("offers independent, safely validated section templates", () => {
-    expect(landingSectionTemplates.map(template => template.label)).toEqual(expect.arrayContaining([
-      "Hero — text + large image",
-      "Cards — pastel feature grid",
-      "Steps — cards with floating images",
-      "FAQ — compact accordion row",
-      "CTA — panoramic image banner",
-    ]));
-    for (const template of landingSectionTemplates) {
-      const section = createLandingSectionFromTemplate(template.id);
-      expect(section.type).toBe(template.type);
-      expect(section.content.layoutVariant).toBe("PASTEL_EDITORIAL");
-    }
-    expect(createLandingSectionFromTemplate("FAQ_COMPACT_ROW").content).toMatchObject({ columns: 4, anchorId: "faqs" });
+  it("offers inheritable pastel themes with per-element colour overrides", () => {
+    expect(landingColourThemes).toEqual(["INHERIT", "MINT", "SKY", "PEACH", "BLUSH", "LILAC", "BUTTER"]);
+    const [section] = validateLandingSections([{ type: "FEATURE_BADGES", name: "Editable cards", visible: true, content: { colourTheme: "BLUSH", cardBackgroundColour: "#fff8f8", cardTextColour: "#292323", cardBorderColour: "#efdada", items: [{ title: "Custom card", textColour: "#222222", backgroundColour: "#ffeeee", ctaLabel: "Open", ctaHref: "/shop", ctaBackground: "#333333", ctaTextColour: "#ffffff", ctaBorderColour: "#333333" }] } }]);
+    expect(section?.content).toMatchObject({ colourTheme: "BLUSH", cardBackgroundColour: "#fff8f8", cardTextColour: "#292323", cardBorderColour: "#efdada", items: [expect.objectContaining({ textColour: "#222222", backgroundColour: "#ffeeee", ctaBackground: "#333333", ctaTextColour: "#ffffff" })] });
+    expect(() => validateLandingSections([{ type: "HERO", name: "Unknown theme", visible: true, content: { colourTheme: "NEON" } }])).toThrow();
   });
 
   it("keeps ordered item visibility as typed data", () => {

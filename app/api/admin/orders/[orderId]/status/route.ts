@@ -7,7 +7,7 @@ import { cancelPendingOrder } from "@/lib/order-service";
 import { canTransitionOrder } from "@/lib/order-status";
 import { sendTransactionalEmail } from "@/lib/email";
 
-const schema = z.object({ status: z.enum(["PENDING", "PAYMENT_PENDING", "PAID", "PROCESSING", "READY_TO_SHIP", "SHIPPED", "DELIVERED", "COMPLETED", "CANCELLED", "REFUNDED"]), note: z.string().trim().max(500).optional(), carrier: z.string().trim().max(80).optional(), trackingNumber: z.string().trim().max(100).regex(/^[A-Za-z0-9 ._\/-]*$/).optional() }).superRefine((value, context) => { if (value.status === "SHIPPED" && (!value.carrier || !value.trackingNumber)) context.addIssue({ code: "custom", message: "Carrier and tracking number are required when shipping" }); });
+const schema = z.object({ status: z.enum(["PENDING", "PAYMENT_PENDING", "PAID", "PROCESSING", "READY_TO_SHIP", "SHIPPED", "DELIVERED", "COMPLETED", "CANCELLED", "REFUNDED"]), note: z.string().trim().max(500).optional(), carrier: z.string().trim().max(80).optional(), trackingNumber: z.string().trim().max(100).regex(/^[A-Za-z0-9 ._/-]*$/).optional() }).superRefine((value, context) => { if (value.status === "SHIPPED" && (!value.carrier || !value.trackingNumber)) context.addIssue({ code: "custom", message: "Carrier and tracking number are required when shipping" }); });
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ orderId: string }> }) {
   if (!assertSameOrigin(request)) return jsonError("Invalid request origin", 403);

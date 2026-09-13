@@ -24,7 +24,7 @@ function runPrint(file) {
 }
 
 async function request(path, init = {}) {
-  return fetch(`${origin}${path}`, { ...init, headers: { authorization: `Bearer ${token}`, ...(init.headers ?? {}) } });
+  return fetch(`${origin}${path}`, { ...init, headers: { authorization: `Bearer ${token}`, ...init.headers } });
 }
 
 async function poll() {
