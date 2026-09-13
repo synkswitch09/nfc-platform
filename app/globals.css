@@ -21,13 +21,13 @@ body { margin: 0; color: var(--ink); background: var(--paper); font-family: Aria
 a { color: inherit; text-decoration: none; }
 button, input, select, textarea { font: inherit; }
 button { cursor: pointer; }
-.site-header { min-height: 92px; max-width: 1280px; margin: auto; padding: 0 42px; display: flex; align-items: center; justify-content: space-between; gap: 36px; color: var(--header-text, var(--ink)); background: var(--header-background, var(--paper)); }
+.site-header { min-height: 92px; max-width: 1280px; margin: auto; padding: 0 32px; display: flex; align-items: center; justify-content: space-between; gap: 24px; color: var(--header-text, var(--ink)); background: var(--header-background, var(--paper)); }
 .brand { display: inline-flex; align-items: center; gap: 9px; font-weight: 800; letter-spacing: -.03em; font-size: 1.2rem; }
 .brand-mark { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 11px; background: var(--ink); color: var(--lime); }
 .brand-logo { display: block; width: auto; max-width: 168px; height: 42px; object-fit: contain; }
 nav { display: flex; align-items: center; gap: 42px; font-size: .94rem; font-weight: 650; }
 .site-header nav { flex: 1; justify-content: flex-end; }
-.nav-centre, .nav-actions { display: flex; align-items: center; gap: 28px; }
+.nav-centre, .nav-actions { display: flex; align-items: center; gap: 20px; }
 .language-selector { min-height: 42px; display: inline-flex; align-items: center; gap: 6px; padding: 0 8px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
 .language-selector select { min-width: 72px; border: 0; padding: 0; background: transparent; font: inherit; color: inherit; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
@@ -36,7 +36,18 @@ nav { display: flex; align-items: center; gap: 42px; font-size: .94rem; font-wei
 .nav-centre a:hover, .nav-centre a.active { color: var(--header-active, var(--ink)); opacity: 1; }
 .nav-centre a.active { font-weight: 850; }
 .nav-centre a.active::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 2px; border-radius: 2px; background: var(--header-active, var(--ink)); }
-.nav-shop, .nav-account, .nav-cta, .button { border-radius: 12px; background: var(--ink); color: white; padding: 12px 22px; border: 1px solid var(--ink); display: inline-flex; align-items: center; justify-content: center; gap: 8px; font-weight: 750; }
+.nav-categories { position: relative; }
+.nav-categories > summary { min-height: 46px; display: inline-flex; align-items: center; gap: 5px; position: relative; color: var(--header-text, var(--muted)); opacity: .72; cursor: pointer; list-style: none; white-space: nowrap; }
+.nav-categories > summary::-webkit-details-marker { display: none; }
+.nav-categories[open] > summary, .nav-categories.active > summary { color: var(--header-active, var(--ink)); opacity: 1; font-weight: 850; }
+.nav-categories.active > summary::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 2px; border-radius: 2px; background: var(--header-active, var(--ink)); }
+.nav-categories[open] > summary svg { transform: rotate(180deg); }
+.nav-categories > div { min-width: 190px; position: absolute; z-index: 70; top: calc(100% + 4px); left: 50%; translate: -50% 0; display: grid; padding: 8px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); color: var(--ink); box-shadow: var(--shadow); }
+.nav-categories:not([open]) > div { display: none; }
+.nav-categories > div a { min-height: 40px; padding: 0 10px; border-radius: 8px; }
+.nav-categories > div a::after { display: none; }
+.nav-categories > div a:hover, .nav-categories > div a.active { background: var(--category-soft, #eef7f3); }
+.nav-shop, .nav-account, .nav-cta, .button { border-radius: 12px; background: var(--ink); color: white; padding: 12px 22px; border: 1px solid var(--ink); display: inline-flex; align-items: center; justify-content: center; gap: 8px; font-weight: 750; white-space: nowrap; }
 .nav-shop { background: var(--header-shop-background, var(--ink)); color: var(--header-shop-text, white); border-color: var(--header-shop-background, var(--ink)); }
 .nav-account { min-width: 108px; background: var(--header-account-background, transparent); color: var(--header-account-text, var(--ink)); border-color: var(--header-account-border, var(--ink)); }
 .mobile-nav-toggle { display: none; width: 44px; height: 44px; place-items: center; border: 1px solid var(--line); border-radius: 11px; color: var(--ink); background: var(--surface); }
@@ -450,6 +461,10 @@ body:has(.admin-shell) .site-header, body:has(.admin-shell) > footer { display: 
 .modular-promo[data-variant="pastel-editorial"] { min-height: 255px; margin-top: var(--section-space, 56px); padding: 34px 48px; border: 0; border-radius: 30px !important; }
 .modular-promo[data-variant="pastel-editorial"] .section-head h2 { font-size: clamp(1.7rem, 3vw, 2.6rem); }
 @media (max-width: 1050px) and (min-width: 801px) {
+  .site-header { padding-inline: 22px; gap: 16px; }
+  .site-header nav, .nav-centre, .nav-actions { gap: 12px; }
+  .language-selector { max-width: 132px; }
+  .language-selector select { min-width: 0; max-width: 92px; }
   .category-nav-link { display: none; }
   .category-card-grid { grid-template-columns: repeat(2, 1fr); }
   .category-landing-hero, .category-landing[data-layout="journey"] .category-landing-hero { grid-template-columns: 1fr; }
@@ -466,6 +481,9 @@ body:has(.admin-shell) .site-header, body:has(.admin-shell) > footer { display: 
   .site-header nav { display: none; position: absolute; z-index: 50; left: 16px; right: 16px; top: calc(100% - 4px); padding: 18px; border: 1px solid var(--line); border-radius: 18px; background: var(--surface); box-shadow: var(--shadow); }
   .site-header nav.is-open { display: grid; gap: 14px; }
   .nav-centre, .nav-actions { display: grid; gap: 4px; }
+  .nav-categories > summary { width: 100%; min-height: 44px; padding: 0 10px; justify-content: space-between; }
+  .nav-categories.active > summary::after { left: 10px; right: auto; width: 28px; }
+  .nav-categories > div { position: static; min-width: 0; translate: none; margin: 0 8px 8px; box-shadow: none; }
   .nav-centre a { min-height: 44px; padding: 0 10px; }
   .nav-centre a.active::after { left: 10px; right: auto; width: 28px; }
   .nav-shop, .nav-account { width: 100%; }
