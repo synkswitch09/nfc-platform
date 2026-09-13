@@ -1,12 +1,16 @@
 import { createHash } from "node:crypto";
 
 export type ShippingDestination = {
+  company?: string;
   line1: string;
   line2?: string;
-  suburb: string;
-  state: string;
+  dependentLocality?: string;
+  locality: string;
+  administrativeArea?: string;
   postcode: string;
-  country: "AU";
+  country: string;
+  phone?: string;
+  formattedAddress?: string;
 };
 
 export type ShippingCartInput = {
@@ -48,8 +52,9 @@ export function shippingDestinationHash(destination: ShippingDestination) {
   const canonical = {
     line1: destination.line1.trim().toLowerCase(),
     line2: destination.line2?.trim().toLowerCase() ?? "",
-    suburb: destination.suburb.trim().toLowerCase(),
-    state: destination.state.trim().toUpperCase(),
+    dependentLocality: destination.dependentLocality?.trim().toLowerCase() ?? "",
+    locality: destination.locality.trim().toLowerCase(),
+    administrativeArea: destination.administrativeArea?.trim().toUpperCase() ?? "",
     postcode: destination.postcode.trim(),
     country: destination.country,
   };
@@ -68,9 +73,9 @@ export function postcodeMatches(postcode: string, rules: unknown): boolean {
   });
 }
 
-export function zoneMatches(destination: Pick<ShippingDestination, "country" | "state" | "postcode">, zone: { countries: string[]; states: string[]; postcodeRules: unknown }) {
+export function zoneMatches(destination: Pick<ShippingDestination, "country" | "administrativeArea" | "postcode">, zone: { countries: string[]; states: string[]; postcodeRules: unknown }) {
   return zone.countries.includes(destination.country)
-    && (!zone.states.length || zone.states.includes(destination.state))
+    && (!zone.states.length || Boolean(destination.administrativeArea && zone.states.includes(destination.administrativeArea)))
     && postcodeMatches(destination.postcode, zone.postcodeRules);
 }
 

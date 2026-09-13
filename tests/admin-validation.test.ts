@@ -12,6 +12,10 @@ describe("admin validation", () => {
     const result = adminProductSchema.parse({ ...validProduct, slug: "pet-tag", variants: [{ ...validProduct.variants[0], sku: "pet-001" }] });
     expect(result.variants[0].sku).toBe("PET-001");
   });
+  it("accepts carrier-ready customs data and rejects malformed HS codes", () => {
+    expect(adminProductSchema.safeParse({ ...validProduct, countryOfOrigin: "au", customsDescription: "Personalised plastic pet tag", hsCode: "392690", customsValueCents: 2495, dutiesHandling: "RECIPIENT_PAYS", restrictedItem: false }).success).toBe(true);
+    expect(adminProductSchema.safeParse({ ...validProduct, hsCode: "not-a-code" }).success).toBe(false);
+  });
   it("rejects duplicate SKUs and unsafe URLs", () => {
     expect(adminProductSchema.safeParse({ ...validProduct, variants: [validProduct.variants[0], validProduct.variants[0]] }).success).toBe(false);
     expect(adminProductSchema.safeParse({ ...validProduct, canonicalUrl: "javascript:alert(1)" }).success).toBe(false);

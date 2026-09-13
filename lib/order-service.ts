@@ -8,13 +8,14 @@ import { hasStoreCapability, type Storefront } from "@/lib/storefront";
 import { manufacturingRequirements } from "@/lib/manufacturing";
 import { shippingCartHash, shippingDestinationHash } from "@/lib/shipping";
 import { notifyPaidOrder } from "@/lib/order-notifications";
+import type { ShippingDestination } from "@/lib/shipping";
 
 export type CheckoutItemInput = { variantId: string; quantity: number; personalisationChoice?: "BASIC" | "PERSONALISED"; personalisation?: Record<string, string> };
 export type CheckoutCustomerInput = {
   userId?: string;
   email: string;
   name: string;
-  shipping: { line1: string; line2?: string; suburb: string; state: string; postcode: string; country: "AU" };
+  shipping: ShippingDestination;
 };
 
 export class CheckoutError extends Error {
@@ -75,12 +76,18 @@ export async function createPendingOrder(items: CheckoutItemInput[], customer: C
         claimTokenHash: claimToken ? sha256(claimToken) : null,
         claimExpiresAt: claimToken ? new Date(Date.now() + 30 * 86_400_000) : null,
         shippingName: customer.name,
+        shippingCompany: customer.shipping.company || null,
         shippingLine1: customer.shipping.line1,
         shippingLine2: customer.shipping.line2 || null,
-        shippingSuburb: customer.shipping.suburb,
-        shippingState: customer.shipping.state,
+        shippingSuburb: customer.shipping.locality,
+        shippingState: customer.shipping.administrativeArea || null,
+        shippingLocality: customer.shipping.locality,
+        shippingDependentLocality: customer.shipping.dependentLocality || null,
+        shippingAdministrativeArea: customer.shipping.administrativeArea || null,
         shippingPostcode: customer.shipping.postcode,
         shippingCountry: customer.shipping.country,
+        shippingPhone: customer.shipping.phone || null,
+        shippingFormattedAddress: customer.shipping.formattedAddress || null,
         shippingProviderKey: quote.providerKey,
         shippingServiceCode: quote.serviceCode,
         shippingServiceName: quote.serviceName,
@@ -103,7 +110,7 @@ export async function createPendingOrder(items: CheckoutItemInput[], customer: C
           personalisationMode: variant.product.personalisationMode,
           personalisationChoice,
           selectedOptions,
-          shippingSnapshot: { weightGrams: variant.weightGrams ?? variant.product.weightGrams, lengthMm: variant.lengthMm ?? variant.product.lengthMm, widthMm: variant.widthMm ?? variant.product.widthMm, heightMm: variant.heightMm ?? variant.product.heightMm, shipsSeparately: variant.product.shipsSeparately, specialHandling: variant.product.specialHandling },
+          shippingSnapshot: { weightGrams: variant.weightGrams ?? variant.product.weightGrams, lengthMm: variant.lengthMm ?? variant.product.lengthMm, widthMm: variant.widthMm ?? variant.product.widthMm, heightMm: variant.heightMm ?? variant.product.heightMm, shipsSeparately: variant.product.shipsSeparately, specialHandling: variant.product.specialHandling, customs: { countryOfOrigin: variant.product.countryOfOrigin, description: variant.product.customsDescription, hsCode: variant.product.hsCode, valueCents: variant.product.customsValueCents, dutiesHandling: variant.product.dutiesHandling, restrictedItem: variant.product.restrictedItem } },
         })) },
         payments: { create: { amountCents: totals.totalCents, currency: store.currency } },
         statusHistory: { create: { toStatus: "PAYMENT_PENDING" } },

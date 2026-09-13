@@ -56,7 +56,6 @@ export async function POST(request: NextRequest) {
         ...checkout.lines.map(({ item, variant, unitPriceCents }) => ({ quantity: item.quantity, price_data: { currency: store.currency.toLowerCase(), unit_amount: unitPriceCents, product_data: { name: `${variant.product.name} — ${variant.name}`, metadata: { variantId: variant.id, storeId: store.id } } } })),
         ...(checkout.order.shippingCents ? [{ quantity: 1, price_data: { currency: store.currency.toLowerCase(), unit_amount: checkout.order.shippingCents, product_data: { name: checkout.order.shippingServiceName ?? "Shipping" } } }] : []),
       ],
-      shipping_address_collection: { allowed_countries: ["AU"] },
       success_url: `${origin}${successPath}`,
       cancel_url: `${origin}/checkout?cancelled=true`,
     });

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { countryAddressSchema } from "@/lib/address-validation";
 
 export const passwordSchema = z.string()
   .min(12, "Use at least 12 characters")
@@ -34,14 +35,7 @@ export const checkoutItemsSchema = z.array(z.object({
     personalisation: z.record(z.string(), z.string().trim().max(80)).optional(),
   })).min(1).max(20);
 
-export const shippingAddressSchema = z.object({
-  line1: z.string().trim().min(3).max(120),
-  line2: z.string().trim().max(120).optional(),
-  suburb: z.string().trim().min(2).max(80),
-  state: z.enum(["ACT", "NSW", "NT", "QLD", "SA", "TAS", "VIC", "WA"]),
-  postcode: z.string().trim().regex(/^\d{4}$/),
-  country: z.literal("AU").default("AU"),
-});
+export const shippingAddressSchema = countryAddressSchema;
 
 export const shippingQuoteSchema = z.object({
   items: checkoutItemsSchema,

@@ -11,15 +11,15 @@ describe("shipping security and packing", () => {
   });
 
   it("binds a quote to the complete normalised delivery address", () => {
-    const destination = { line1: "1 Test Street", suburb: "Adelaide", state: "SA", postcode: "5000", country: "AU" as const };
+    const destination = { line1: "1 Test Street", locality: "Adelaide", administrativeArea: "SA", postcode: "5000", country: "AU" };
     expect(shippingDestinationHash(destination)).toBe(shippingDestinationHash({ ...destination, line1: " 1 TEST STREET " }));
     expect(shippingDestinationHash(destination)).not.toBe(shippingDestinationHash({ ...destination, postcode: "5001" }));
   });
 
   it("matches zones by country, state and inclusive postcode ranges", () => {
     expect(postcodeMatches("5000", [{ from: 5000, to: 5999 }])).toBe(true);
-    expect(zoneMatches({ country: "AU", state: "SA", postcode: "5000" }, { countries: ["AU"], states: ["SA"], postcodeRules: [{ from: 5000, to: 5999 }] })).toBe(true);
-    expect(zoneMatches({ country: "AU", state: "VIC", postcode: "3000" }, { countries: ["AU"], states: ["SA"], postcodeRules: [] })).toBe(false);
+    expect(zoneMatches({ country: "AU", administrativeArea: "SA", postcode: "5000" }, { countries: ["AU"], states: ["SA"], postcodeRules: [{ from: 5000, to: 5999 }] })).toBe(true);
+    expect(zoneMatches({ country: "AU", administrativeArea: "VIC", postcode: "3000" }, { countries: ["AU"], states: ["SA"], postcodeRules: [] })).toBe(false);
   });
 
   it("packs combined and separately shipped lines without dropping quantity", () => {
@@ -33,7 +33,7 @@ describe("shipping security and packing", () => {
   });
 
   it("applies only configured manual rates and free-shipping thresholds", async () => {
-    const rates = await shippingProviderAdapter("MANUAL").quote({ destination: { line1: "1 Test Street", suburb: "Adelaide", state: "SA", postcode: "5000", country: "AU" }, parcels: [{ quantity: 1, weightGrams: 250, lengthMm: 100, widthMm: 80, heightMm: 40 }], subtotalCents: 6000, currency: "AUD" }, [{ providerKey: "manual", serviceCode: "STANDARD", serviceName: "Standard", amountCents: 900, freeOverCents: 6000, minWeightGrams: null, maxWeightGrams: 500, estimatedDaysMin: 2, estimatedDaysMax: 6 }]);
+    const rates = await shippingProviderAdapter("MANUAL").quote({ destination: { line1: "1 Test Street", locality: "Adelaide", administrativeArea: "SA", postcode: "5000", country: "AU" }, parcels: [{ quantity: 1, weightGrams: 250, lengthMm: 100, widthMm: 80, heightMm: 40 }], subtotalCents: 6000, currency: "AUD" }, [{ providerKey: "manual", serviceCode: "STANDARD", serviceName: "Standard", amountCents: 900, freeOverCents: 6000, minWeightGrams: null, maxWeightGrams: 500, estimatedDaysMin: 2, estimatedDaysMax: 6 }]);
     expect(rates[0]?.amountCents).toBe(0);
   });
 });

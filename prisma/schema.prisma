@@ -78,6 +78,12 @@ enum ProductStatus {
   ARCHIVED
 }
 
+enum CustomsDutiesHandling {
+  UNDETERMINED
+  RECIPIENT_PAYS
+  SENDER_PAYS
+}
+
 enum CategoryStatus {
   DRAFT
   PUBLISHED
@@ -280,9 +286,9 @@ model User {
   emailTokens               EmailVerification[]
   passwordResets            PasswordReset[]
   storeMemberships          StoreMembership[]
-  createdShippingOrigins    ShippingOrigin[]      @relation("ShippingOriginCreator")
-  createdShipments          Shipment[]            @relation("ShipmentCreator")
-  createdPrintAgents        PrintAgent[]          @relation("PrintAgentCreator")
+  createdShippingOrigins    ShippingOrigin[]     @relation("ShippingOriginCreator")
+  createdShipments          Shipment[]           @relation("ShipmentCreator")
+  createdPrintAgents        PrintAgent[]         @relation("PrintAgentCreator")
 }
 
 model Store {
@@ -436,62 +442,74 @@ model PasswordReset {
 }
 
 model Address {
-  id        String   @id @default(uuid()) @db.Uuid
-  userId    String   @db.Uuid
-  label     String?
-  recipient String
-  line1     String
-  line2     String?
-  suburb    String
-  state     String
-  postcode  String
-  country   String   @default("AU")
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  orders    Order[]
+  id                 String   @id @default(uuid()) @db.Uuid
+  userId             String   @db.Uuid
+  label              String?
+  recipient          String
+  company            String?
+  line1              String
+  line2              String?
+  suburb             String?
+  state              String?
+  locality           String
+  dependentLocality  String?
+  administrativeArea String?
+  postcode           String
+  country            String   @default("AU")
+  phone              String?
+  formattedAddress   String?  @db.Text
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orders             Order[]
 
   @@index([userId])
 }
 
 model Product {
-  id               String               @id @default(uuid()) @db.Uuid
-  storeId          String               @db.Uuid
-  slug             String
-  name             String
-  description      String
-  shortDescription String?
-  fullDescription  String?              @db.Text
-  type             ProductType
-  status           ProductStatus        @default(DRAFT)
-  featured         Boolean              @default(false)
-  shopVisible      Boolean              @default(true)
-  categoryId       String?              @db.Uuid
-  seoTitle         String?
-  seoDescription   String?
-  ogImageUrl       String?
-  canonicalUrl     String?
-  indexable        Boolean              @default(true)
-  brand            String
-  gstInclusive     Boolean              @default(true)
-  personalisationMode PersonalisationMode @default(NONE)
-  weightGrams      Int?
-  lengthMm         Int?
-  widthMm          Int?
-  heightMm         Int?
-  defaultPackagingId String?            @db.Uuid
-  shipsSeparately  Boolean              @default(false)
-  specialHandling  String?
-  createdAt        DateTime             @default(now())
-  updatedAt        DateTime             @updatedAt
-  category         ProductCategory?     @relation(fields: [categoryId], references: [id], onDelete: SetNull)
-  store            Store                @relation(fields: [storeId], references: [id], onDelete: Restrict)
-  variants         ProductVariant[]
-  images           ProductImage[]
-  options          ProductOption[]
-  tags             NFCTag[]
-  batches          ManufacturingBatch[]
-  defaultPackaging Packaging?           @relation(fields: [defaultPackagingId], references: [id], onDelete: SetNull)
+  id                  String                @id @default(uuid()) @db.Uuid
+  storeId             String                @db.Uuid
+  slug                String
+  name                String
+  description         String
+  shortDescription    String?
+  fullDescription     String?               @db.Text
+  type                ProductType
+  status              ProductStatus         @default(DRAFT)
+  featured            Boolean               @default(false)
+  shopVisible         Boolean               @default(true)
+  categoryId          String?               @db.Uuid
+  seoTitle            String?
+  seoDescription      String?
+  ogImageUrl          String?
+  canonicalUrl        String?
+  indexable           Boolean               @default(true)
+  brand               String
+  gstInclusive        Boolean               @default(true)
+  personalisationMode PersonalisationMode   @default(NONE)
+  weightGrams         Int?
+  lengthMm            Int?
+  widthMm             Int?
+  heightMm            Int?
+  defaultPackagingId  String?               @db.Uuid
+  shipsSeparately     Boolean               @default(false)
+  specialHandling     String?
+  countryOfOrigin     String?
+  customsDescription  String?
+  hsCode              String?
+  customsValueCents   Int?
+  dutiesHandling      CustomsDutiesHandling @default(UNDETERMINED)
+  restrictedItem      Boolean               @default(false)
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
+  category            ProductCategory?      @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  store               Store                 @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  variants            ProductVariant[]
+  images              ProductImage[]
+  options             ProductOption[]
+  tags                NFCTag[]
+  batches             ManufacturingBatch[]
+  defaultPackaging    Packaging?            @relation(fields: [defaultPackagingId], references: [id], onDelete: SetNull)
 
   @@unique([storeId, slug])
   @@index([storeId, categoryId, status])
@@ -562,46 +580,46 @@ model ProductCategory {
 }
 
 model ProductImage {
-  id         String           @id @default(uuid()) @db.Uuid
-  productId  String           @db.Uuid
-  storageKey String           @unique
-  url        String
-  altText    String
-  mimeType   String
-  byteSize   Int
-  width      Int?
-  height     Int?
-  sortOrder  Int              @default(0)
-  isPrimary  Boolean          @default(false)
-  optionValueId String?       @db.Uuid
-  createdAt  DateTime         @default(now())
-  updatedAt  DateTime         @updatedAt
-  product    Product          @relation(fields: [productId], references: [id], onDelete: Cascade)
-  variants   ProductVariant[] @relation("VariantImage")
-  optionValue ProductOptionValue? @relation(fields: [optionValueId], references: [id], onDelete: SetNull)
+  id            String              @id @default(uuid()) @db.Uuid
+  productId     String              @db.Uuid
+  storageKey    String              @unique
+  url           String
+  altText       String
+  mimeType      String
+  byteSize      Int
+  width         Int?
+  height        Int?
+  sortOrder     Int                 @default(0)
+  isPrimary     Boolean             @default(false)
+  optionValueId String?             @db.Uuid
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+  product       Product             @relation(fields: [productId], references: [id], onDelete: Cascade)
+  variants      ProductVariant[]    @relation("VariantImage")
+  optionValue   ProductOptionValue? @relation(fields: [optionValueId], references: [id], onDelete: SetNull)
 
   @@index([productId, sortOrder])
   @@index([productId, optionValueId, sortOrder])
 }
 
 model CategoryImage {
-  id         String          @id @default(uuid()) @db.Uuid
-  storeId    String          @db.Uuid
-  categoryId String?         @db.Uuid
-  pageId     String?         @db.Uuid
-  storageKey String          @unique
+  id         String           @id @default(uuid()) @db.Uuid
+  storeId    String           @db.Uuid
+  categoryId String?          @db.Uuid
+  pageId     String?          @db.Uuid
+  storageKey String           @unique
   url        String
   altText    String?
-  purpose    String          @default("content-image")
+  purpose    String           @default("content-image")
   mimeType   String
   byteSize   Int
   width      Int
   height     Int
-  createdAt  DateTime        @default(now())
-  updatedAt  DateTime        @updatedAt
-  store      Store           @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+  store      Store            @relation(fields: [storeId], references: [id], onDelete: Restrict)
   category   ProductCategory? @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  page       ContentPage?    @relation(fields: [pageId], references: [id], onDelete: SetNull)
+  page       ContentPage?     @relation(fields: [pageId], references: [id], onDelete: SetNull)
 
   @@index([storeId, categoryId, createdAt])
   @@index([storeId, pageId, createdAt])
@@ -627,18 +645,18 @@ model ProductOption {
 }
 
 model ProductOptionValue {
-  id              String        @id @default(uuid()) @db.Uuid
-  optionId        String        @db.Uuid
-  label           String
-  value           String
-  priceDeltaCents Int           @default(0)
-  sortOrder       Int           @default(0)
-  active          Boolean       @default(true)
-  swatchHex       String?
+  id                 String         @id @default(uuid()) @db.Uuid
+  optionId           String         @db.Uuid
+  label              String
+  value              String
+  priceDeltaCents    Int            @default(0)
+  sortOrder          Int            @default(0)
+  active             Boolean        @default(true)
+  swatchHex          String?
   swatchHexSecondary String?
-  swatchImageUrl  String?
-  option          ProductOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
-  images          ProductImage[]
+  swatchImageUrl     String?
+  option             ProductOption  @relation(fields: [optionId], references: [id], onDelete: Cascade)
+  images             ProductImage[]
 
   @@unique([optionId, value])
   @@index([optionId, active, sortOrder])
@@ -718,52 +736,58 @@ model CartItem {
 }
 
 model Order {
-  id                  String                @id @default(uuid()) @db.Uuid
-  orderNumber         String                @unique
-  userId              String?               @db.Uuid
-  storeId             String                @db.Uuid
-  sourceDomain        String
-  checkoutEnvironment DeploymentEnvironment
-  storeDisplayName    String
-  guestEmail          String?
-  customerName        String?
-  claimTokenHash      String?               @unique
-  claimExpiresAt      DateTime?
-  claimedAt           DateTime?
-  shippingAddressId   String?               @db.Uuid
-  shippingName        String?
-  shippingLine1       String?
-  shippingLine2       String?
-  shippingSuburb      String?
-  shippingState       String?
-  shippingPostcode    String?
-  shippingCountry     String                @default("AU")
-  shippingCarrier     String?
-  trackingNumber      String?
-  shippingProviderKey String?
-  shippingServiceCode String?
-  shippingServiceName String?
-  shippingQuoteId     String?               @unique @db.Uuid
-  shippingQuoteSnapshot Json?
-  packagingSnapshot  Json?
-  shippingOriginSnapshot Json?
-  shippedAt           DateTime?
-  status              OrderStatus           @default(PENDING)
-  currency            String                @default("AUD")
-  subtotalCents       Int
-  shippingCents       Int                   @default(0)
-  totalCents          Int
-  createdAt           DateTime              @default(now())
-  updatedAt           DateTime              @updatedAt
-  user                User?                 @relation(fields: [userId], references: [id], onDelete: Restrict)
-  store               Store                 @relation(fields: [storeId], references: [id], onDelete: Restrict)
-  shippingAddress     Address?              @relation(fields: [shippingAddressId], references: [id], onDelete: SetNull)
-  items               OrderItem[]
-  payments            Payment[]
-  statusHistory       OrderStatusHistory[]
-  inventoryMovements  InventoryMovement[]
-  shippingQuote       ShippingQuote?        @relation(fields: [shippingQuoteId], references: [id], onDelete: SetNull)
-  shipments           Shipment[]
+  id                         String                @id @default(uuid()) @db.Uuid
+  orderNumber                String                @unique
+  userId                     String?               @db.Uuid
+  storeId                    String                @db.Uuid
+  sourceDomain               String
+  checkoutEnvironment        DeploymentEnvironment
+  storeDisplayName           String
+  guestEmail                 String?
+  customerName               String?
+  claimTokenHash             String?               @unique
+  claimExpiresAt             DateTime?
+  claimedAt                  DateTime?
+  shippingAddressId          String?               @db.Uuid
+  shippingName               String?
+  shippingCompany            String?
+  shippingLine1              String?
+  shippingLine2              String?
+  shippingSuburb             String?
+  shippingState              String?
+  shippingLocality           String?
+  shippingDependentLocality  String?
+  shippingAdministrativeArea String?
+  shippingPostcode           String?
+  shippingCountry            String                @default("AU")
+  shippingPhone              String?
+  shippingFormattedAddress   String?               @db.Text
+  shippingCarrier            String?
+  trackingNumber             String?
+  shippingProviderKey        String?
+  shippingServiceCode        String?
+  shippingServiceName        String?
+  shippingQuoteId            String?               @unique @db.Uuid
+  shippingQuoteSnapshot      Json?
+  packagingSnapshot          Json?
+  shippingOriginSnapshot     Json?
+  shippedAt                  DateTime?
+  status                     OrderStatus           @default(PENDING)
+  currency                   String                @default("AUD")
+  subtotalCents              Int
+  shippingCents              Int                   @default(0)
+  totalCents                 Int
+  createdAt                  DateTime              @default(now())
+  updatedAt                  DateTime              @updatedAt
+  user                       User?                 @relation(fields: [userId], references: [id], onDelete: Restrict)
+  store                      Store                 @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  shippingAddress            Address?              @relation(fields: [shippingAddressId], references: [id], onDelete: SetNull)
+  items                      OrderItem[]
+  payments                   Payment[]
+  statusHistory              OrderStatusHistory[]
+  inventoryMovements         InventoryMovement[]
+  shippingQuote              ShippingQuote?        @relation(fields: [shippingQuoteId], references: [id], onDelete: SetNull)
+  shipments                  Shipment[]
 
   @@index([storeId, userId, createdAt])
   @@index([storeId, guestEmail, createdAt])
@@ -772,24 +796,24 @@ model Order {
 }
 
 model OrderItem {
-  id                String             @id @default(uuid()) @db.Uuid
-  orderId           String             @db.Uuid
-  variantId         String             @db.Uuid
-  quantity          Int
-  unitPriceCents    Int
-  productName       String
-  variantName       String
-  sku               String
-  productType       ProductType
-  personalisation   Json?
-  personalisationMode PersonalisationMode @default(NONE)
+  id                    String                @id @default(uuid()) @db.Uuid
+  orderId               String                @db.Uuid
+  variantId             String                @db.Uuid
+  quantity              Int
+  unitPriceCents        Int
+  productName           String
+  variantName           String
+  sku                   String
+  productType           ProductType
+  personalisation       Json?
+  personalisationMode   PersonalisationMode   @default(NONE)
   personalisationChoice PersonalisationChoice @default(BASIC)
-  selectedOptions   Json?
-  shippingSnapshot  Json?
-  order             Order              @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  variant           ProductVariant     @relation(fields: [variantId], references: [id], onDelete: Restrict)
-  tags              NFCTag[]
-  manufacturingJobs ManufacturingJob[]
+  selectedOptions       Json?
+  shippingSnapshot      Json?
+  order                 Order                 @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  variant               ProductVariant        @relation(fields: [variantId], references: [id], onDelete: Restrict)
+  tags                  NFCTag[]
+  manufacturingJobs     ManufacturingJob[]
 
   @@index([orderId])
 }
@@ -880,8 +904,8 @@ model ManufacturingJob {
 }
 
 model ShippingOrigin {
-  id          String   @id @default(uuid()) @db.Uuid
-  storeId     String   @db.Uuid
+  id          String     @id @default(uuid()) @db.Uuid
+  storeId     String     @db.Uuid
   name        String
   senderName  String
   company     String?
@@ -890,16 +914,16 @@ model ShippingOrigin {
   suburb      String
   state       String
   postcode    String
-  country     String   @default("AU") @db.Char(2)
+  country     String     @default("AU") @db.Char(2)
   phone       String?
   email       String?
-  isDefault   Boolean  @default(false)
-  active      Boolean  @default(true)
-  createdById String?  @db.Uuid
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  store       Store    @relation(fields: [storeId], references: [id], onDelete: Restrict)
-  createdBy   User?    @relation("ShippingOriginCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  isDefault   Boolean    @default(false)
+  active      Boolean    @default(true)
+  createdById String?    @db.Uuid
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  store       Store      @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  createdBy   User?      @relation("ShippingOriginCreator", fields: [createdById], references: [id], onDelete: SetNull)
   shipments   Shipment[]
 
   @@unique([storeId, name])
@@ -907,41 +931,41 @@ model ShippingOrigin {
 }
 
 model Packaging {
-  id              String   @id @default(uuid()) @db.Uuid
-  storeId         String   @db.Uuid
-  name            String
-  code            String
-  lengthMm        Int
-  widthMm         Int
-  heightMm        Int
-  emptyWeightGrams Int     @default(0)
-  maxWeightGrams  Int?
-  costCents       Int      @default(0)
-  active          Boolean  @default(true)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  store           Store    @relation(fields: [storeId], references: [id], onDelete: Restrict)
-  products        Product[]
-  variants        ProductVariant[]
-  shippingRates   ShippingRate[]
+  id               String           @id @default(uuid()) @db.Uuid
+  storeId          String           @db.Uuid
+  name             String
+  code             String
+  lengthMm         Int
+  widthMm          Int
+  heightMm         Int
+  emptyWeightGrams Int              @default(0)
+  maxWeightGrams   Int?
+  costCents        Int              @default(0)
+  active           Boolean          @default(true)
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+  store            Store            @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  products         Product[]
+  variants         ProductVariant[]
+  shippingRates    ShippingRate[]
 
   @@unique([storeId, code])
   @@index([storeId, active, name])
 }
 
 model ShippingZone {
-  id             String   @id @default(uuid()) @db.Uuid
-  storeId        String   @db.Uuid
-  name           String
-  countries      String[] @default(["AU"])
-  states         String[] @default([])
-  postcodeRules  Json     @default("[]")
-  priority       Int      @default(0)
-  active         Boolean  @default(true)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-  store          Store    @relation(fields: [storeId], references: [id], onDelete: Restrict)
-  rates          ShippingRate[]
+  id            String         @id @default(uuid()) @db.Uuid
+  storeId       String         @db.Uuid
+  name          String
+  countries     String[]       @default(["AU"])
+  states        String[]       @default([])
+  postcodeRules Json           @default("[]")
+  priority      Int            @default(0)
+  active        Boolean        @default(true)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  store         Store          @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  rates         ShippingRate[]
 
   @@unique([storeId, name])
   @@index([storeId, active, priority])
@@ -968,27 +992,27 @@ model ShippingProvider {
 }
 
 model ShippingRate {
-  id                String   @id @default(uuid()) @db.Uuid
-  storeId           String   @db.Uuid
-  zoneId            String   @db.Uuid
-  providerId        String?  @db.Uuid
-  packagingId       String?  @db.Uuid
-  serviceCode       String
-  serviceName       String
-  amountCents       Int
-  freeOverCents     Int?
-  minWeightGrams    Int?
-  maxWeightGrams    Int?
-  estimatedDaysMin  Int?
-  estimatedDaysMax  Int?
-  priority          Int      @default(0)
-  active            Boolean  @default(true)
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-  store             Store    @relation(fields: [storeId], references: [id], onDelete: Restrict)
-  zone              ShippingZone @relation(fields: [zoneId], references: [id], onDelete: Restrict)
-  provider          ShippingProvider? @relation(fields: [providerId], references: [id], onDelete: SetNull)
-  packaging         Packaging? @relation(fields: [packagingId], references: [id], onDelete: SetNull)
+  id               String            @id @default(uuid()) @db.Uuid
+  storeId          String            @db.Uuid
+  zoneId           String            @db.Uuid
+  providerId       String?           @db.Uuid
+  packagingId      String?           @db.Uuid
+  serviceCode      String
+  serviceName      String
+  amountCents      Int
+  freeOverCents    Int?
+  minWeightGrams   Int?
+  maxWeightGrams   Int?
+  estimatedDaysMin Int?
+  estimatedDaysMax Int?
+  priority         Int               @default(0)
+  active           Boolean           @default(true)
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  store            Store             @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  zone             ShippingZone      @relation(fields: [zoneId], references: [id], onDelete: Restrict)
+  provider         ShippingProvider? @relation(fields: [providerId], references: [id], onDelete: SetNull)
+  packaging        Packaging?        @relation(fields: [packagingId], references: [id], onDelete: SetNull)
 
   @@unique([storeId, zoneId, serviceCode, packagingId])
   @@index([storeId, active, priority])
@@ -1021,32 +1045,32 @@ model ShippingQuote {
 }
 
 model Shipment {
-  id                  String         @id @default(uuid()) @db.Uuid
-  idempotencyKey      String         @unique
-  storeId             String         @db.Uuid
-  orderId             String         @db.Uuid
-  originId            String?        @db.Uuid
-  providerId          String?        @db.Uuid
-  providerShipmentId  String?
-  status              ShipmentStatus @default(DRAFT)
-  serviceCode         String
-  serviceName         String
-  trackingNumber      String?
-  trackingUrl         String?
-  labelStorageKey     String?
-  labelMimeType       String?
-  labelCreatedAt      DateTime?
-  createdById         String?        @db.Uuid
-  shippedAt           DateTime?
-  deliveredAt         DateTime?
-  createdAt           DateTime       @default(now())
-  updatedAt           DateTime       @updatedAt
-  store               Store          @relation(fields: [storeId], references: [id], onDelete: Restrict)
-  order               Order          @relation(fields: [orderId], references: [id], onDelete: Restrict)
-  origin              ShippingOrigin? @relation(fields: [originId], references: [id], onDelete: SetNull)
-  provider            ShippingProvider? @relation(fields: [providerId], references: [id], onDelete: SetNull)
-  createdBy           User?          @relation("ShipmentCreator", fields: [createdById], references: [id], onDelete: SetNull)
-  printJobs           PrintJob[]
+  id                 String            @id @default(uuid()) @db.Uuid
+  idempotencyKey     String            @unique
+  storeId            String            @db.Uuid
+  orderId            String            @db.Uuid
+  originId           String?           @db.Uuid
+  providerId         String?           @db.Uuid
+  providerShipmentId String?
+  status             ShipmentStatus    @default(DRAFT)
+  serviceCode        String
+  serviceName        String
+  trackingNumber     String?
+  trackingUrl        String?
+  labelStorageKey    String?
+  labelMimeType      String?
+  labelCreatedAt     DateTime?
+  createdById        String?           @db.Uuid
+  shippedAt          DateTime?
+  deliveredAt        DateTime?
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+  store              Store             @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  order              Order             @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  origin             ShippingOrigin?   @relation(fields: [originId], references: [id], onDelete: SetNull)
+  provider           ShippingProvider? @relation(fields: [providerId], references: [id], onDelete: SetNull)
+  createdBy          User?             @relation("ShipmentCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  printJobs          PrintJob[]
 
   @@index([storeId, status, createdAt])
   @@index([orderId, createdAt])
@@ -1054,18 +1078,18 @@ model Shipment {
 }
 
 model PrintAgent {
-  id          String   @id @default(uuid()) @db.Uuid
-  storeId     String   @db.Uuid
+  id          String     @id @default(uuid()) @db.Uuid
+  storeId     String     @db.Uuid
   name        String
-  tokenHash   String   @unique
-  active      Boolean  @default(true)
+  tokenHash   String     @unique
+  active      Boolean    @default(true)
   printerName String?
   lastSeenAt  DateTime?
-  createdById String?  @db.Uuid
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  store       Store    @relation(fields: [storeId], references: [id], onDelete: Restrict)
-  createdBy   User?    @relation("PrintAgentCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  createdById String?    @db.Uuid
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  store       Store      @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  createdBy   User?      @relation("PrintAgentCreator", fields: [createdById], references: [id], onDelete: SetNull)
   jobs        PrintJob[]
 
   @@unique([storeId, name])
@@ -1073,25 +1097,25 @@ model PrintAgent {
 }
 
 model PrintJob {
-  id           String            @id @default(uuid()) @db.Uuid
-  storeId      String            @db.Uuid
-  shipmentId   String            @db.Uuid
-  printAgentId String?           @db.Uuid
-  documentType PrintDocumentType @default(SHIPPING_LABEL)
-  status       PrintJobStatus    @default(QUEUED)
-  copies       Int               @default(1)
-  attempts     Int               @default(0)
+  id             String            @id @default(uuid()) @db.Uuid
+  storeId        String            @db.Uuid
+  shipmentId     String            @db.Uuid
+  printAgentId   String?           @db.Uuid
+  documentType   PrintDocumentType @default(SHIPPING_LABEL)
+  status         PrintJobStatus    @default(QUEUED)
+  copies         Int               @default(1)
+  attempts       Int               @default(0)
   leaseTokenHash String?
   leaseExpiresAt DateTime?
-  claimedAt    DateTime?
-  printedAt    DateTime?
-  failedAt     DateTime?
-  errorMessage String?
-  createdAt    DateTime          @default(now())
-  updatedAt    DateTime          @updatedAt
-  shipment     Shipment          @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
-  printAgent   PrintAgent?       @relation(fields: [printAgentId], references: [id], onDelete: SetNull)
-  store        Store             @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  claimedAt      DateTime?
+  printedAt      DateTime?
+  failedAt       DateTime?
+  errorMessage   String?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+  shipment       Shipment          @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+  printAgent     PrintAgent?       @relation(fields: [printAgentId], references: [id], onDelete: SetNull)
+  store          Store             @relation(fields: [storeId], references: [id], onDelete: Restrict)
 
   @@index([storeId, status, createdAt])
   @@index([printAgentId, status])
@@ -1099,20 +1123,20 @@ model PrintJob {
 }
 
 model LandingPageSection {
-  id         String             @id @default(uuid()) @db.Uuid
-  storeId    String             @db.Uuid
-  pageId     String             @db.Uuid
-  categoryId String?            @db.Uuid
-  type       LandingSectionType
-  name       String
-  visible    Boolean            @default(true)
-  sortOrder  Int                @default(0)
-  content    Json               @default("{}")
-  createdAt  DateTime           @default(now())
-  updatedAt  DateTime           @updatedAt
-  store      Store              @relation(fields: [storeId], references: [id], onDelete: Restrict)
-  page       ContentPage        @relation(fields: [pageId], references: [id], onDelete: Cascade)
-  category   ProductCategory?   @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  id           String                          @id @default(uuid()) @db.Uuid
+  storeId      String                          @db.Uuid
+  pageId       String                          @db.Uuid
+  categoryId   String?                         @db.Uuid
+  type         LandingSectionType
+  name         String
+  visible      Boolean                         @default(true)
+  sortOrder    Int                             @default(0)
+  content      Json                            @default("{}")
+  createdAt    DateTime                        @default(now())
+  updatedAt    DateTime                        @updatedAt
+  store        Store                           @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  page         ContentPage                     @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  category     ProductCategory?                @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   translations LandingPageSectionTranslation[]
 
   @@index([storeId, pageId, visible, sortOrder])
@@ -1120,24 +1144,24 @@ model LandingPageSection {
 }
 
 model ContentPage {
-  id             String          @id @default(uuid()) @db.Uuid
-  storeId        String          @db.Uuid
-  categoryId     String?         @unique @db.Uuid
+  id             String                   @id @default(uuid()) @db.Uuid
+  storeId        String                   @db.Uuid
+  categoryId     String?                  @unique @db.Uuid
   kind           ContentPageKind
   slug           String
   name           String
-  status         CategoryStatus  @default(DRAFT)
-  sortOrder      Int             @default(0)
-  defaultLocale  String          @default("en-AU")
+  status         CategoryStatus           @default(DRAFT)
+  sortOrder      Int                      @default(0)
+  defaultLocale  String                   @default("en-AU")
   seoTitle       String?
   seoDescription String?
   ogImageUrl     String?
   canonicalUrl   String?
-  indexable      Boolean         @default(true)
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
-  store          Store           @relation(fields: [storeId], references: [id], onDelete: Restrict)
-  category       ProductCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  indexable      Boolean                  @default(true)
+  createdAt      DateTime                 @default(now())
+  updatedAt      DateTime                 @updatedAt
+  store          Store                    @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  category       ProductCategory?         @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   sections       LandingPageSection[]
   translations   ContentPageTranslation[]
   images         CategoryImage[]
