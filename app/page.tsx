@@ -8,14 +8,17 @@ import { getCurrentStorefront, hasStoreCapability } from "@/lib/storefront";
 import { StoreCapability, StoreStatus } from "@prisma/client";
 import { StoreUnavailable } from "@/components/store-unavailable";
 import { ModularPageRenderer } from "@/components/landing-section-renderer";
+import { getRequestLocale } from "@/lib/request-locale";
+import { localizeContentPage } from "@/lib/i18n";
 
 export default async function Home() {
   const store = await getCurrentStorefront();
   if (store.status !== StoreStatus.ACTIVE) return <StoreUnavailable store={store} />;
+  const locale = await getRequestLocale(store);
   const [settings, categories, modularHome, products] = await Promise.all([
     getStoreSettings(store),
     process.env.DATABASE_URL ? db.productCategory.findMany({ where: { storeId: store.id, status: "PUBLISHED", showOnHomepage: true }, orderBy: [{ sortOrder: "asc" }, { name: "asc" }], take: 8 }).catch(() => []) : [],
-    process.env.DATABASE_URL ? db.contentPage.findFirst({ where: { storeId: store.id, kind: "HOME", status: "PUBLISHED" }, include: { sections: { where: { visible: true }, orderBy: { sortOrder: "asc" } } } }).catch(() => null) : null,
+    process.env.DATABASE_URL ? db.contentPage.findFirst({ where: { storeId: store.id, kind: "HOME", status: "PUBLISHED" }, include: { translations: { where: { locale } }, sections: { where: { visible: true }, include: { translations: { where: { locale } } }, orderBy: { sortOrder: "asc" } } } }).catch(() => null) : null,
     process.env.DATABASE_URL ? db.product.findMany({ where: { storeId: store.id, status: "ACTIVE", shopVisible: true }, include: { images: { where: { isPrimary: true }, take: 1 }, variants: { where: { active: true }, orderBy: { priceCents: "asc" }, take: 1 } }, orderBy: [{ featured: "desc" }, { name: "asc" }], take: 12 }).catch(() => []) : [],
   ]);
   const origin = store.origin;
@@ -30,7 +33,8 @@ export default async function Home() {
     closing: "Small objects. Noticeably better routines.", closingCopy: "Thoughtful proportions, useful materials and straightforward support from design through delivery.",
   };
   const structuredData = <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({ "@context": "https://schema.org", "@graph": [{ "@type": "Organization", "@id": `${origin}/#organization`, name: settings.businessName ?? settings.storeName, url: origin, email: settings.supportEmail, sameAs: Object.values(settings.socialLinks) }, { "@type": "WebSite", "@id": `${origin}/#website`, name: settings.siteTitle, url: origin, publisher: { "@id": `${origin}/#organization` } }] }).replaceAll("<", "\\u003c") }} />;
-  if (modularHome?.sections.length) return <>{structuredData}<ModularPageRenderer name={modularHome.name} sections={modularHome.sections} products={products} categories={categories} store={{ displayName: store.displayName, currency: store.currency, nfcEnabled }} fallbackHeadline={settings.homepage.heroHeadline} fallbackCopy={settings.homepage.heroDescription} /></>;
+  const localizedHome = modularHome ? localizeContentPage(modularHome, locale, store.defaultLocale) : null;
+  if (localizedHome?.sections.length) return <>{structuredData}<ModularPageRenderer name={localizedHome.name} sections={localizedHome.sections} products={products} categories={categories} store={{ displayName: store.displayName, currency: store.currency, nfcEnabled }} fallbackHeadline={settings.homepage.heroHeadline} fallbackCopy={settings.homepage.heroDescription} /></>;
   return <>
     {structuredData}
     <section className="hero platform-hero"><div><span className="eyebrow">{nfcEnabled ? <Radio size={15} /> : <Package size={15} />} {settings.homepage.heroEyebrow}</span><h1>{settings.homepage.heroHeadline}</h1><p className="lead">{settings.homepage.heroDescription}</p><div className="actions"><Link className="button lime" href={settings.homepage.primaryCtaHref}>{settings.homepage.primaryCtaLabel} <ArrowRight size={17} /></Link>{nfcEnabled && <Link className="button secondary" href="/activate">Activate a product</Link>}</div></div>{nfcEnabled ? <div className="tag-visual" aria-label={`${settings.storeName} connected product illustration`}><div className="physical-tag"><QrCode size={42} /><strong>{settings.storeName.toUpperCase()}</strong><small>Made for everyday use</small></div></div> : <div className="product-forms-visual" aria-label={`${settings.storeName} organised product forms`}><div><Package size={46} /><strong>Designed</strong></div><div><Boxes size={46} /><strong>Made</strong></div></div>}</section>

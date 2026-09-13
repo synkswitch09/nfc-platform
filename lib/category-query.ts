@@ -14,7 +14,8 @@ const publicCategoryArgs = Prisma.validator<Prisma.ProductCategoryDefaultArgs>()
         },
       },
     },
-    landingSections: { where: { visible: true }, orderBy: { sortOrder: "asc" } },
+    contentPage: { include: { translations: true } },
+    landingSections: { where: { visible: true }, include: { translations: true }, orderBy: { sortOrder: "asc" } },
     products: {
       where: { status: ProductStatus.ACTIVE, shopVisible: true },
       include: {
