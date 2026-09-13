@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { blankLandingSection, landingSectionTypes, modularFaq, parseLandingContent, validateLandingSections } from "@/lib/landing-sections";
+import { createLandingSectionFromTemplate, landingSectionTemplates } from "@/lib/landing-section-templates";
 
 describe("typed modular landing content", () => {
   it("accepts ordered structured sections without arbitrary HTML", () => {
@@ -39,9 +40,27 @@ describe("typed modular landing content", () => {
   });
 
   it("accepts controlled colours and rejects CSS injection", () => {
-    const [section] = validateLandingSections([{ type: "HERO", name: "Styled hero", visible: true, content: { backgroundColour: "#fffaf5", textColour: "#17212b", radius: "EXTRA_LARGE" } }]);
-    expect(section?.content).toMatchObject({ backgroundColour: "#fffaf5", textColour: "#17212b", radius: "EXTRA_LARGE" });
+    const [section] = validateLandingSections([{ type: "HERO", name: "Styled hero", visible: true, content: { backgroundColour: "#fffaf5", textColour: "#17212b", radius: "EXTRA_LARGE", layoutVariant: "PASTEL_EDITORIAL", sectionWidth: "WIDE", spacing: "COMPACT", headingScale: "LARGE", imageFit: "CONTAIN", columns: 4, anchorId: "pet-hero" } }]);
+    expect(section?.content).toMatchObject({ backgroundColour: "#fffaf5", textColour: "#17212b", radius: "EXTRA_LARGE", layoutVariant: "PASTEL_EDITORIAL", sectionWidth: "WIDE", spacing: "COMPACT", headingScale: "LARGE", imageFit: "CONTAIN", columns: 4, anchorId: "pet-hero" });
     expect(() => validateLandingSections([{ type: "HERO", name: "Unsafe style", visible: true, content: { backgroundColour: "red; background:url(javascript:alert(1))" } }])).toThrow();
+    expect(() => validateLandingSections([{ type: "HERO", name: "Unsafe anchor", visible: true, content: { anchorId: "bad anchor" } }])).toThrow();
+    expect(() => validateLandingSections([{ type: "FAQ", name: "Too many columns", visible: true, content: { columns: 12 } }])).toThrow();
+  });
+
+  it("offers independent, safely validated section templates", () => {
+    expect(landingSectionTemplates.map(template => template.label)).toEqual(expect.arrayContaining([
+      "Hero — text + large image",
+      "Cards — pastel feature grid",
+      "Steps — cards with floating images",
+      "FAQ — compact accordion row",
+      "CTA — panoramic image banner",
+    ]));
+    for (const template of landingSectionTemplates) {
+      const section = createLandingSectionFromTemplate(template.id);
+      expect(section.type).toBe(template.type);
+      expect(section.content.layoutVariant).toBe("PASTEL_EDITORIAL");
+    }
+    expect(createLandingSectionFromTemplate("FAQ_COMPACT_ROW").content).toMatchObject({ columns: 4, anchorId: "faqs" });
   });
 
   it("keeps ordered item visibility as typed data", () => {

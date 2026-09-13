@@ -22,15 +22,22 @@ export const landingSectionRegistry: Record<LandingSectionType, { label: string;
   CTA_BANNER: { label: "Promo banner", group: "Conversion", description: "Image-backed closing call to action." },
 };
 
-const safeLink = z.string().trim().regex(/^\/(?!\/)[A-Za-z0-9/_?&=.%+-]*$/).or(z.literal("")).default("");
+const safeLink = z.string().trim().regex(/^\/(?!\/)[A-Za-z0-9/_?&=.%+#-]*$/).or(z.literal("")).default("");
 const imageUrl = z.string().trim().refine(isSafeImageSource, "Use an uploaded image or an HTTP(S) image URL").default("");
 const colour = z.string().trim().regex(/^#[0-9a-f]{6}$/i).or(z.literal("")).default("");
 const radius = z.enum(["SMALL", "MEDIUM", "LARGE", "EXTRA_LARGE"]).default("LARGE");
+const layoutVariant = z.enum(["DEFAULT", "PASTEL_EDITORIAL"]).default("DEFAULT");
+const sectionWidth = z.enum(["FULL", "WIDE", "STANDARD", "NARROW"]).default("STANDARD");
+const spacing = z.enum(["COMPACT", "STANDARD", "RELAXED"]).default("STANDARD");
+const headingScale = z.enum(["COMPACT", "STANDARD", "LARGE"]).default("STANDARD");
+const imageFit = z.enum(["COVER", "CONTAIN"]).default("COVER");
+const columns = z.number().int().min(1).max(4).default(3);
 const order = z.number().int().min(0).max(100).default(0);
 const textBlockSchema = z.object({ type: z.enum(["EYEBROW", "HEADING", "SUBHEADING", "PARAGRAPH", "SUPPORTING_TEXT"]), text: z.string().trim().max(2_000), visible: z.boolean().default(true), order });
 const featureSchema = z.object({ icon: z.string().trim().max(40).default("sparkles"), label: z.string().trim().min(1).max(100), supportingText: z.string().trim().max(200).default(""), backgroundColour: colour, iconColour: colour, visible: z.boolean().default(true), order });
 const baseCopy = {
   eyebrow: z.string().trim().max(100).default(""),
+  anchorId: z.string().trim().regex(/^[a-z][a-z0-9-]*$/).or(z.literal("")).default(""),
   headline: z.string().trim().max(180).default(""),
   copy: z.string().trim().max(3_000).default(""),
   imageUrl,
@@ -50,6 +57,12 @@ const baseCopy = {
   backgroundColour: colour,
   textColour: colour,
   radius,
+  layoutVariant,
+  sectionWidth,
+  spacing,
+  headingScale,
+  imageFit,
+  columns,
 };
 const narrativeSchema = z.object({ ...baseCopy, layout: z.enum(["IMAGE_LEFT", "IMAGE_RIGHT", "TEXT_ONLY", "CENTRED"]).default("IMAGE_RIGHT"), textBlocks: z.array(textBlockSchema).max(12).default([]), features: z.array(featureSchema).max(8).default([]), bullets: z.array(z.string().trim().min(1).max(240)).max(12).default([]), mobileImageUrl: imageUrl, imagePosition: z.enum(["LEFT", "CENTRE", "RIGHT"]).default("CENTRE"), overlay: z.enum(["NONE", "LIGHT", "DARK"]).default("NONE"), contentPosition: z.enum(["LEFT", "CENTRE", "RIGHT"]).default("LEFT") });
 const itemSchema = z.object({ icon: z.string().trim().max(40).default("sparkles"), title: z.string().trim().min(1).max(120), description: z.string().trim().max(700).default(""), supportingText: z.string().trim().max(200).default(""), imageUrl, imageAlt: z.string().trim().max(180).default(""), ctaLabel: z.string().trim().max(60).default(""), ctaHref: safeLink, backgroundColour: colour, iconBackgroundColour: colour, iconColour: colour, imagePosition: z.number().min(-20).max(20).default(0), visible: z.boolean().default(true), order });

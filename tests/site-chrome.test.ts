@@ -5,7 +5,16 @@ describe("site chrome configuration", () => {
   it("provides safe minimal header and footer defaults", () => {
     expect(parseHeaderConfig({}).shopLabel).toBe("Shop");
     expect(parseHeaderConfig({}).showCart).toBe(true);
+    expect(parseHeaderConfig({}).shopBackgroundColour).toBe("");
     expect(parseFooterConfig({}).privacyLabel).toBe("Privacy Policy");
+    expect(parseFooterConfig({}).backgroundColour).toBe("");
+  });
+
+  it("accepts controlled chrome colours and rejects style injection", () => {
+    expect(parseHeaderConfig({ backgroundColour: "#fffaf5", shopBackgroundColour: "#17212b" })).toMatchObject({ backgroundColour: "#fffaf5", shopBackgroundColour: "#17212b" });
+    expect(parseFooterConfig({ textColour: "#67716f", linkColour: "#17212b" })).toMatchObject({ textColour: "#67716f", linkColour: "#17212b" });
+    expect(() => parseHeaderConfig({ activeColour: "red" })).toThrow();
+    expect(() => parseFooterConfig({ borderColour: "1px solid red" })).toThrow();
   });
 
   it("rejects unsafe navigation and footer links", () => {

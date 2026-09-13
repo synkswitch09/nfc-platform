@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { BriefcaseBusiness, Camera, Music2, Radio, Shapes, Users } from "lucide-react";
+import type { CSSProperties } from "react";
 import type { FooterConfig } from "@/lib/site-chrome";
 import { localizedPath, type SystemCopy } from "@/lib/i18n";
 
@@ -12,7 +13,8 @@ export function SiteFooter({ config, storeName, storeLogoUrl, socialLinks, nfcEn
   const links = config.customLinks.filter(link => link.visible).sort((a, b) => a.order - b.order);
   const socials = Object.entries(socialLinks).filter((entry): entry is [keyof typeof socialIcons, string] => Boolean(entry[1]) && entry[0] in socialIcons);
   const copyright = config.copyright || `© ${new Date().getUTCFullYear()} ${storeName}. All rights reserved.`;
-  return <footer className="site-footer">
+  const footerStyle = { "--footer-background": config.backgroundColour || undefined, "--footer-text": config.textColour || undefined, "--footer-link": config.linkColour || undefined, "--footer-border": config.borderColour || undefined } as CSSProperties;
+  return <footer className="site-footer" style={footerStyle}>
     <div className="footer-brand">{logoUrl ? <Image className="brand-logo" src={logoUrl} alt={storeName} width={168} height={48} unoptimized /> : <span className="brand"><span className="brand-mark"><BrandIcon size={18} /></span>{storeName}</span>}{config.tagline && <p>{config.tagline}</p>}</div>
     <p className="footer-copyright">{copyright}</p>
     <div className="footer-end">

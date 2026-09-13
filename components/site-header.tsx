@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Menu, Radio, Shapes, X } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
+import type { CSSProperties } from "react";
 import { CartLink } from "@/components/cart-link";
 import { isNavigationActive, type HeaderConfig } from "@/lib/site-chrome";
 import { LanguageSelector } from "@/components/language-selector";
@@ -20,7 +21,8 @@ export function SiteHeader({ config, storeName, storeLogoUrl, categories, commer
   const close = () => setOpen(false);
   const BrandIcon = nfcEnabled ? Radio : Shapes;
   const href = (path: string) => localizedPath(path, locale, defaultLocale);
-  return <header className="site-header">
+  const headerStyle = { "--header-background": config.backgroundColour || undefined, "--header-text": config.textColour || undefined, "--header-active": config.activeColour || undefined, "--header-shop-background": config.shopBackgroundColour || undefined, "--header-shop-text": config.shopTextColour || undefined, "--header-account-background": config.accountBackgroundColour || undefined, "--header-account-text": config.accountTextColour || undefined, "--header-account-border": config.accountBorderColour || undefined } as CSSProperties;
+  return <header className="site-header" style={headerStyle}>
     <Link href={href("/")} className="brand" aria-label={`${storeName} ${copy.home}`} onClick={close}>{logoUrl ? <Image className="brand-logo" src={logoUrl} alt={storeName} width={168} height={48} priority unoptimized /> : <><span className="brand-mark"><BrandIcon size={18} /></span>{storeName}</>}</Link>
     <button className="mobile-nav-toggle" type="button" aria-label={open ? copy.closeNavigation : copy.openNavigation} aria-expanded={open} aria-controls="main-navigation" onClick={() => setOpen(value => !value)}>{open ? <X /> : <Menu />}</button>
     <nav id="main-navigation" className={open ? "is-open" : ""} aria-label="Main navigation">

@@ -5,6 +5,7 @@ const internalHref = z.string().trim().regex(/^\/(?!\/)[A-Za-z0-9/_?&=.%+#-]*$/)
 const httpsHref = z.string().trim().url().refine(value => value.startsWith("https://"));
 const linkHref = internalHref.or(httpsHref);
 const optionalImage = z.string().trim().refine(isSafeImageSource).or(z.literal(""));
+const optionalColour = z.string().trim().regex(/^#[0-9a-f]{6}$/i).or(z.literal(""));
 
 export const headerConfigSchema = z.object({
   logoUrl: optionalImage.default(""),
@@ -17,6 +18,14 @@ export const headerConfigSchema = z.object({
   showHome: z.boolean().default(true),
   showFaq: z.boolean().default(true),
   showCart: z.boolean().default(true),
+  backgroundColour: optionalColour.default(""),
+  textColour: optionalColour.default(""),
+  activeColour: optionalColour.default(""),
+  shopBackgroundColour: optionalColour.default(""),
+  shopTextColour: optionalColour.default(""),
+  accountBackgroundColour: optionalColour.default(""),
+  accountTextColour: optionalColour.default(""),
+  accountBorderColour: optionalColour.default(""),
 });
 
 const footerLinkSchema = z.object({
@@ -35,6 +44,10 @@ export const footerConfigSchema = z.object({
   showTerms: z.boolean().default(true),
   showPrivacy: z.boolean().default(true),
   customLinks: z.array(footerLinkSchema).max(12).default([]),
+  backgroundColour: optionalColour.default(""),
+  textColour: optionalColour.default(""),
+  linkColour: optionalColour.default(""),
+  borderColour: optionalColour.default(""),
 });
 
 export type HeaderConfig = z.infer<typeof headerConfigSchema>;
