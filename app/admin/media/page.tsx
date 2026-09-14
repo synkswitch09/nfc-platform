@@ -1,5 +1,4 @@
-import Image from "next/image";
-import Link from "next/link";
+import { MediaLibrary } from "@/components/media-library";
 import { requireAdminPageContext } from "@/lib/admin";
 import { db } from "@/lib/db";
 
@@ -24,30 +23,7 @@ export default async function AdminMediaPage() {
           </p>
         </div>
       </div>
-      <section className="admin-media-grid">
-        {media.map((item) => {
-          const href = item.category
-            ? `/admin/categories/${item.category.id}#landing`
-            : item.page
-              ? `/admin/pages/${item.page.id}`
-              : "/admin/settings";
-          return (
-            <Link className="admin-media-card" href={href} key={item.id}>
-              <Image
-                src={item.url}
-                alt={item.altText ?? ""}
-                width={320}
-                height={200}
-                unoptimized
-              />
-              <strong>
-                {item.category?.name ?? item.page?.name ?? "Store media"}
-              </strong>
-              <small>{item.purpose.replaceAll("-", " ")}</small>
-            </Link>
-          );
-        })}
-      </section>
+      {media.length > 0 && <MediaLibrary initial={media} />}
       {!media.length && (
         <div className="admin-empty">
           No media has been uploaded for this Store yet.
