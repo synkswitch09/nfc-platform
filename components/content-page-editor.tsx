@@ -11,6 +11,7 @@ export type ContentPageEditorInitial = {
   kind: "HOME" | "CAMPAIGN" | "COLLECTION" | "LEGAL";
   status: "DRAFT" | "PUBLISHED" | "HIDDEN" | "ARCHIVED";
   sortOrder: number;
+  visualTheme: "CORAL" | "SKY" | "MIDNIGHT" | "VIOLET" | "AMBER";
   seoTitle: string;
   seoDescription: string;
   ogImageUrl: string;
@@ -38,6 +39,7 @@ export function ContentPageEditor({
       kind: form.get("kind"),
       status: form.get("status"),
       sortOrder: Number(form.get("sortOrder")),
+      visualTheme: form.get("visualTheme"),
       seoTitle: form.get("seoTitle"),
       seoDescription: form.get("seoDescription"),
       ogImageUrl: form.get("ogImageUrl"),
@@ -140,6 +142,16 @@ export function ContentPageEditor({
               min="0"
               defaultValue={initial.sortOrder}
             />
+          </label>
+          <label className="field">
+            Base visual theme
+            <select name="visualTheme" defaultValue={initial.visualTheme}>
+              <option value="CORAL">Pastel peach</option>
+              <option value="SKY">Pastel blue</option>
+              <option value="MIDNIGHT">Pastel green</option>
+              <option value="VIOLET">Pastel lilac</option>
+              <option value="AMBER">Pastel butter</option>
+            </select>
           </label>
         </div>
       </section>

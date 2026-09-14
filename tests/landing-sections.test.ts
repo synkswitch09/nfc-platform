@@ -187,7 +187,7 @@ describe("typed modular landing content", () => {
       copyColour: "#67716f",
       radius: "EXTRA_LARGE",
       layoutVariant: "PASTEL_EDITORIAL",
-      colourTheme: "MINT",
+      colourTheme: "MIDNIGHT",
       sectionWidth: "WIDE",
       spacing: "COMPACT",
       headingScale: "LARGE",
@@ -232,12 +232,11 @@ describe("typed modular landing content", () => {
   it("offers inheritable pastel themes with per-element colour overrides", () => {
     expect(landingColourThemes).toEqual([
       "INHERIT",
-      "MINT",
+      "CORAL",
       "SKY",
-      "PEACH",
-      "BLUSH",
-      "LILAC",
-      "BUTTER",
+      "MIDNIGHT",
+      "VIOLET",
+      "AMBER",
     ]);
     const [section] = validateLandingSections([
       {
@@ -265,7 +264,7 @@ describe("typed modular landing content", () => {
       },
     ]);
     expect(section?.content).toMatchObject({
-      colourTheme: "BLUSH",
+      colourTheme: "VIOLET",
       cardBackgroundColour: "#fff8f8",
       cardTextColour: "#292323",
       cardBorderColour: "#efdada",

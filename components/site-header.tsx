@@ -2,9 +2,9 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { ChevronDown, Menu, Radio, Shapes, X } from "lucide-react";
+import { Menu, Radio, Shapes, X } from "lucide-react";
 import { usePathname } from "next/navigation";
-import { Fragment, useState, type CSSProperties, type ReactNode } from "react";
+import { useState, type CSSProperties, type ReactNode } from "react";
 import { CartLink } from "@/components/cart-link";
 import { LanguageSelector } from "@/components/language-selector";
 import { localizedPath, type SystemCopy } from "@/lib/i18n";
@@ -45,9 +45,6 @@ export function SiteHeader({
   const close = () => setOpen(false);
   const BrandIcon = nfcEnabled ? Radio : Shapes;
   const href = (path: string) => localizedPath(path, locale, defaultLocale);
-  const categoryActive = categories.some((category) =>
-    active(`/${category.slug}`),
-  );
   const customLinks = config.customLinks.filter(
     (link) =>
       link.visible &&
@@ -73,39 +70,28 @@ export function SiteHeader({
           },
         ]
       : []),
-    ...(config.showCategories && categories.length
-      ? [
-          {
-            id: "categories",
-            order: config.categoriesOrder,
+    ...(config.showCategories
+      ? categories.map((category, position) => {
+          const path = `/${category.slug}`;
+          return {
+            id: `category:${category.slug}`,
+            order: config.categoriesOrder + position / 100,
             content: (
-              <details
-                className={`nav-categories${categoryActive ? " active" : ""}`}
+              <Link
+                className={
+                  active(path)
+                    ? "active category-nav-link"
+                    : "category-nav-link"
+                }
+                aria-current={active(path) ? "page" : undefined}
+                href={href(path)}
+                onClick={close}
               >
-                <summary aria-label={`${config.categoriesLabel} menu`}>
-                  {config.categoriesLabel}
-                  <ChevronDown size={14} aria-hidden="true" />
-                </summary>
-                <div>
-                  {categories.map((category) => {
-                    const path = `/${category.slug}`;
-                    return (
-                      <Link
-                        className={active(path) ? "active" : ""}
-                        aria-current={active(path) ? "page" : undefined}
-                        href={href(path)}
-                        key={category.slug}
-                        onClick={close}
-                      >
-                        {category.name}
-                      </Link>
-                    );
-                  })}
-                </div>
-              </details>
+                {category.name}
+              </Link>
             ),
-          },
-        ]
+          };
+        })
       : []),
     ...customLinks.map((link) => ({
       id: link.id,
@@ -212,7 +198,9 @@ export function SiteHeader({
       >
         <div className="nav-centre">
           {navItems.map((item) => (
-            <Fragment key={item.id}>{item.content}</Fragment>
+            <span className="nav-item" key={item.id}>
+              {item.content}
+            </span>
           ))}
         </div>
         <div className="nav-actions">

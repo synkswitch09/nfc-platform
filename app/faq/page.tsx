@@ -44,6 +44,7 @@ export default async function FaqPage() {
           currency: store.currency,
           nfcEnabled: hasStoreCapability(store, StoreCapability.NFC),
         }}
+        theme={localized.visualTheme.toLowerCase()}
         breadcrumbs={[{ label: "Home", href: "/" }, { label: localized.name }]}
       />
     );

@@ -25,12 +25,7 @@ export const landingSectionRegistry: Record<
   {
     label: string;
     group:
-      | "Hero"
-      | "Content"
-      | "Features"
-      | "Process"
-      | "Commerce"
-      | "Conversion";
+      "Hero" | "Content" | "Features" | "Process" | "Commerce" | "Conversion";
     description: string;
   }
 > = {
@@ -118,24 +113,22 @@ export const landingSectionRegistry: Record<
 
 export const landingColourThemes = [
   "INHERIT",
-  "MINT",
+  "CORAL",
   "SKY",
-  "PEACH",
-  "BLUSH",
-  "LILAC",
-  "BUTTER",
+  "MIDNIGHT",
+  "VIOLET",
+  "AMBER",
 ] as const;
 export const landingColourThemeLabels: Record<
   (typeof landingColourThemes)[number],
   string
 > = {
-  INHERIT: "Inherit category theme",
-  MINT: "Pastel mint",
-  SKY: "Pastel sky",
-  PEACH: "Pastel peach",
-  BLUSH: "Pastel blush",
-  LILAC: "Pastel lilac",
-  BUTTER: "Pastel butter",
+  INHERIT: "Use base page or category theme",
+  CORAL: "Pastel peach",
+  SKY: "Pastel blue",
+  MIDNIGHT: "Pastel green",
+  VIOLET: "Pastel lilac",
+  AMBER: "Pastel butter",
 };
 
 const safeLink = z
@@ -170,7 +163,21 @@ const headingScale = z
   .default("STANDARD");
 const imageFit = z.enum(["COVER", "CONTAIN"]).default("COVER");
 const columns = z.number().int().min(1).max(4).default(3);
-const colourTheme = z.enum(landingColourThemes).default("INHERIT");
+const legacyColourTheme = z.enum(["MINT", "PEACH", "BLUSH", "LILAC", "BUTTER"]);
+const legacyColourThemeMap: Partial<
+  Record<string, (typeof landingColourThemes)[number]>
+> = {
+  MINT: "MIDNIGHT",
+  PEACH: "CORAL",
+  BLUSH: "VIOLET",
+  LILAC: "VIOLET",
+  BUTTER: "AMBER",
+};
+const colourTheme = z
+  .union([z.enum(landingColourThemes), legacyColourTheme])
+  .transform((value) => legacyColourThemeMap[value] ?? value)
+  .pipe(z.enum(landingColourThemes))
+  .default("INHERIT");
 const order = z.number().int().min(0).max(100).default(0);
 const contentItemId = z
   .string()

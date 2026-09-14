@@ -53,6 +53,10 @@ export async function PATCH(
         },
       }),
     ]);
+    revalidatePath(existing.kind === "HOME" ? "/" : `/${parsed.data.slug}`);
+    if (existing.slug !== parsed.data.slug && existing.kind !== "HOME")
+      revalidatePath(`/${existing.slug}`);
+    revalidatePath(`/admin/pages/${pageId}`);
     return NextResponse.json({ ok: true });
   } catch (error) {
     return jsonError(

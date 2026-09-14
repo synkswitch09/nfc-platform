@@ -155,7 +155,7 @@ export function ModularPageRenderer({
           aria-label="Breadcrumb"
         >
           {breadcrumbs.map((item, index) => (
-            <span key={`${item.label}-${index}`}>
+            <span key={breadcrumbKey(item)}>
               {index > 0 && <i aria-hidden="true">/</i>}
               {item.href ? (
                 <Link href={item.href}>{item.label}</Link>
@@ -180,7 +180,7 @@ export function ModularPageRenderer({
               <section
                 className="category-landing-hero modular-hero"
                 {...presentation}
-                key={section.id}
+                key={renderSectionKey(section)}
               >
                 <div className="category-hero-copy">
                   <SectionCopy
@@ -235,7 +235,7 @@ export function ModularPageRenderer({
               <section
                 className="modular-feature-showcase"
                 {...presentation}
-                key={section.id}
+                key={renderSectionKey(section)}
               >
                 <div>
                   <Heading
@@ -287,7 +287,7 @@ export function ModularPageRenderer({
               <section
                 className="modular-story-process"
                 {...presentation}
-                key={section.id}
+                key={renderSectionKey(section)}
               >
                 <div className="story-process-copy">
                   <Heading
@@ -365,7 +365,7 @@ export function ModularPageRenderer({
               <section
                 className={`category-benefits ${className}`}
                 {...presentation}
-                key={section.id}
+                key={renderSectionKey(section)}
               >
                 <Heading
                   eyebrow={common.eyebrow}
@@ -442,7 +442,7 @@ export function ModularPageRenderer({
               <section
                 className="category-products"
                 {...presentation}
-                key={section.id}
+                key={renderSectionKey(section)}
               >
                 <Heading
                   eyebrow={common.eyebrow}
@@ -495,7 +495,7 @@ export function ModularPageRenderer({
               <section
                 className="category-benefits modular-category-grid"
                 {...presentation}
-                key={section.id}
+                key={renderSectionKey(section)}
               >
                 <Heading
                   eyebrow={common.eyebrow}
@@ -536,7 +536,7 @@ export function ModularPageRenderer({
               <section
                 className="faq-section category-faq"
                 {...presentation}
-                key={section.id}
+                key={renderSectionKey(section)}
               >
                 <Heading
                   eyebrow={common.eyebrow}
@@ -566,7 +566,7 @@ export function ModularPageRenderer({
                   value.contentPosition,
                   "LEFT",
                 ).toLowerCase()}
-                key={section.id}
+                key={renderSectionKey(section)}
               >
                 {common.imageUrl && (
                   <picture>
@@ -602,7 +602,7 @@ export function ModularPageRenderer({
             <section
               className={`category-story ${layout}`}
               {...presentation}
-              key={section.id}
+              key={renderSectionKey(section)}
             >
               <div>
                 <Heading
@@ -830,6 +830,26 @@ function PagePlaceholder({
     </div>
   );
 }
+
+function breadcrumbKey(item: { label: string; href?: string }) {
+  return `breadcrumb:${item.href || item.label}`;
+}
+
+function renderSectionKey(section: RenderSection) {
+  const id = String(section.id ?? "").trim();
+  if (id) return `section:${id}`;
+  return `legacy-section:${stableHash(`${section.type}:${section.name}:${JSON.stringify(section.content)}`)}`;
+}
+
+function stableHash(value: string) {
+  let hash = 2166136261;
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0).toString(36);
+}
+
 function readCommon(value: Record<string, unknown>, fallbackHeadline: string) {
   return {
     eyebrow: text(value.eyebrow),
@@ -869,8 +889,7 @@ function surfaceStyle(value: Record<string, unknown>): CSSProperties {
 function mediaStyle(value: Record<string, unknown>): CSSProperties {
   return {
     objectFit: text(value.imageFit, "COVER").toLowerCase() as
-      | "cover"
-      | "contain",
+      "cover" | "contain",
     objectPosition: text(value.imagePosition, "CENTRE")
       .toLowerCase()
       .replace("centre", "center"),

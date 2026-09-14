@@ -1152,6 +1152,7 @@ model ContentPage {
   name           String
   status         CategoryStatus           @default(DRAFT)
   sortOrder      Int                      @default(0)
+  visualTheme    CategoryVisualTheme      @default(CORAL)
   defaultLocale  String                   @default("en-AU")
   seoTitle       String?
   seoDescription String?

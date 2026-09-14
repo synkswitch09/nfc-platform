@@ -4,6 +4,10 @@ import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { MediaUploadField } from "@/components/media-upload-field";
 import type { FooterConfig, HeaderConfig } from "@/lib/site-chrome";
+import {
+  baseVisualThemeKeys,
+  type StorefrontTheme,
+} from "@/lib/storefront-theme";
 
 type Settings = {
   status: string;
@@ -20,14 +24,7 @@ type Settings = {
   defaultSocialImageUrl: string | null;
   socialLinks: Record<string, string | null>;
   shippingConfig: Record<string, number>;
-  theme: {
-    accent: string;
-    accentSecondary: string;
-    background: string;
-    foreground: string;
-    radius: string;
-    fontStyle: string;
-  };
+  theme: StorefrontTheme;
   homepage: {
     heroEyebrow: string;
     heroHeadline: string;
@@ -96,6 +93,17 @@ export function StoreSettingsForm({
         foreground: form.get("foreground"),
         radius: form.get("radius"),
         fontStyle: form.get("fontStyle"),
+        pageThemes: Object.fromEntries(
+          baseVisualThemeKeys.map((key) => [
+            key,
+            {
+              accent: form.get(`theme-${key}-accent`),
+              soft: form.get(`theme-${key}-soft`),
+              deep: form.get(`theme-${key}-deep`),
+              contrast: form.get(`theme-${key}-contrast`),
+            },
+          ]),
+        ),
       },
       homepage: settings.homepage,
       headerConfig: settings.headerConfig,
@@ -188,6 +196,7 @@ export function StoreSettingsForm({
             </label>
           )}
         </div>
+        <ThemePaletteFields theme={settings.theme} />
       </section>
       <section className="admin-panel">
         <div className="panel-heading">
@@ -391,4 +400,68 @@ export function StoreSettingsForm({
       </div>
     </form>
   );
+}
+
+function ThemePaletteFields({ theme }: { theme: StorefrontTheme }) {
+  return (
+    <details className="admin-subpanel">
+      <summary>Page palette families</summary>
+      <p className="field-hint">
+        These five base families are editable per Store. Pages and categories
+        inherit them unless a section explicitly overrides a colour.
+      </p>
+      <div className="admin-stack">
+        {baseVisualThemeKeys.map((key) => {
+          const palette = theme.pageThemes[key];
+          return (
+            <fieldset className="theme-palette-fields" key={key}>
+              <legend>{themeLabel(key)}</legend>
+              <label className="field">
+                Accent
+                <input
+                  name={`theme-${key}-accent`}
+                  type="color"
+                  defaultValue={palette.accent}
+                />
+              </label>
+              <label className="field">
+                Soft surface
+                <input
+                  name={`theme-${key}-soft`}
+                  type="color"
+                  defaultValue={palette.soft}
+                />
+              </label>
+              <label className="field">
+                Deep ink
+                <input
+                  name={`theme-${key}-deep`}
+                  type="color"
+                  defaultValue={palette.deep}
+                />
+              </label>
+              <label className="field">
+                Contrast text
+                <input
+                  name={`theme-${key}-contrast`}
+                  type="color"
+                  defaultValue={palette.contrast}
+                />
+              </label>
+            </fieldset>
+          );
+        })}
+      </div>
+    </details>
+  );
+}
+
+function themeLabel(key: (typeof baseVisualThemeKeys)[number]) {
+  return {
+    CORAL: "Pastel peach",
+    SKY: "Pastel blue",
+    MIDNIGHT: "Pastel green",
+    VIOLET: "Pastel lilac",
+    AMBER: "Pastel butter",
+  }[key];
 }

@@ -38,6 +38,7 @@ export default async function EditContentPage({
     kind: page.kind as ContentPageEditorInitial["kind"],
     status: page.status,
     sortOrder: page.sortOrder,
+    visualTheme: page.visualTheme,
     seoTitle: page.seoTitle ?? "",
     seoDescription: page.seoDescription ?? "",
     ogImageUrl: page.ogImageUrl ?? "",

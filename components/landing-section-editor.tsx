@@ -514,9 +514,34 @@ function SectionStyle({
     <details className="admin-subpanel" open>
       <summary>Theme, layout and colour overrides</summary>
       <p className="field-hint">
-        The theme supplies editable defaults. Any colour entered below overrides
-        only this section.
+        The inherited Store palette supplies the defaults. Any colour entered
+        below overrides only this section.
       </p>
+      <button
+        className="text-button"
+        type="button"
+        onClick={() =>
+          onChange({
+            colourTheme: "INHERIT",
+            backgroundColour: "",
+            textColour: "",
+            eyebrowColour: "",
+            headlineColour: "",
+            copyColour: "",
+            cardBackgroundColour: "",
+            cardTextColour: "",
+            cardBorderColour: "",
+            ctaBackground: "",
+            ctaTextColour: "",
+            ctaBorderColour: "",
+            secondaryCtaBackground: "",
+            secondaryCtaTextColour: "",
+            secondaryCtaBorderColour: "",
+          })
+        }
+      >
+        Reset to Base Theme
+      </button>
       <div className="field-grid">
         <label className="field">
           Colour theme

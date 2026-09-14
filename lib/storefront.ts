@@ -1,35 +1,61 @@
 import { cache } from "react";
 import type { CSSProperties } from "react";
 import { headers } from "next/headers";
-import { DeploymentEnvironment, Prisma, StoreCapability, StoreStatus } from "@prisma/client";
+import {
+  DeploymentEnvironment,
+  Prisma,
+  StoreCapability,
+  StoreStatus,
+} from "@prisma/client";
 import { z } from "zod";
-import { currentAppEnvironment, getRuntimeConfig, type AppEnvironment } from "@/lib/config";
+import {
+  currentAppEnvironment,
+  getRuntimeConfig,
+  type AppEnvironment,
+} from "@/lib/config";
 import { db } from "@/lib/db";
-import { parseFooterConfig, parseHeaderConfig, type FooterConfig, type HeaderConfig } from "@/lib/site-chrome";
+import {
+  parseFooterConfig,
+  parseHeaderConfig,
+  type FooterConfig,
+  type HeaderConfig,
+} from "@/lib/site-chrome";
+import {
+  storefrontThemeSchema,
+  type StorefrontTheme,
+} from "@/lib/storefront-theme";
+
+export {
+  baseVisualThemeKeys,
+  defaultStoreThemePalettes,
+  storefrontThemeSchema,
+} from "@/lib/storefront-theme";
+export type { BaseVisualTheme, StorefrontTheme } from "@/lib/storefront-theme";
 
 export const TAPKIN_STORE_ID = "00000000-0000-4000-8000-000000000001";
-
-const themeSchema = z.object({
-  accent: z.string().regex(/^#[0-9a-f]{6}$/i).default("#ee6c4d"),
-  accentSecondary: z.string().regex(/^#[0-9a-f]{6}$/i).default("#2f7f77"),
-  background: z.string().regex(/^#[0-9a-f]{6}$/i).default("#f7f3eb"),
-  foreground: z.string().regex(/^#[0-9a-f]{6}$/i).default("#14213d"),
-  radius: z.string().regex(/^\d+(?:\.\d+)?(?:px|rem)$/).default("1.25rem"),
-  fontStyle: z.enum(["editorial", "modern", "technical"]).default("editorial"),
-});
 
 const homepageSchema = z.object({
   variant: z.enum(["tapkin", "home-demo", "editorial"]).default("editorial"),
   heroEyebrow: z.string().trim().max(100).default("Thoughtfully made"),
-  heroHeadline: z.string().trim().max(180).default("Useful products for everyday life"),
-  heroDescription: z.string().trim().max(360).default("Designed with care and made for real life."),
+  heroHeadline: z
+    .string()
+    .trim()
+    .max(180)
+    .default("Useful products for everyday life"),
+  heroDescription: z
+    .string()
+    .trim()
+    .max(360)
+    .default("Designed with care and made for real life."),
   primaryCtaLabel: z.string().trim().max(50).default("Shop products"),
-  primaryCtaHref: z.string().regex(/^\/(?!\/)/).default("/shop"),
+  primaryCtaHref: z
+    .string()
+    .regex(/^\/(?!\/)/)
+    .default("/shop"),
 });
 
 type StoreWithDomains = Prisma.StoreGetPayload<{ include: { domains: true } }>;
 
-export type StorefrontTheme = z.infer<typeof themeSchema>;
 export type StorefrontHomepage = z.infer<typeof homepageSchema>;
 export type Storefront = {
   id: string;
@@ -69,16 +95,20 @@ export class UnknownStorefrontError extends Error {
   }
 }
 
-export function deploymentEnvironment(environment: AppEnvironment): DeploymentEnvironment {
+export function deploymentEnvironment(
+  environment: AppEnvironment,
+): DeploymentEnvironment {
   return environment.toUpperCase() as DeploymentEnvironment;
 }
 
 export function normaliseRequestHost(value: string): string {
   const raw = value.trim().toLowerCase();
-  if (!raw || raw.length > 253 || /[\s/@\\,]/.test(raw)) throw new UnknownStorefrontError("invalid-host");
+  if (!raw || raw.length > 253 || /[\s/@\\,]/.test(raw))
+    throw new UnknownStorefrontError("invalid-host");
   try {
     const hostname = new URL(`http://${raw}`).hostname.toLowerCase();
-    if (!hostname || hostname.includes("%") || hostname.endsWith(".")) throw new Error("invalid");
+    if (!hostname || hostname.includes("%") || hostname.endsWith("."))
+      throw new Error("invalid");
     return hostname;
   } catch {
     throw new UnknownStorefrontError("invalid-host");
@@ -86,12 +116,20 @@ export function normaliseRequestHost(value: string): string {
 }
 
 function asObject(value: Prisma.JsonValue): Record<string, unknown> {
-  return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
 }
 
-function mapStorefront(row: StoreWithDomains, hostname: string, environment: DeploymentEnvironment): Storefront {
-  const primary = row.domains.find(domain => domain.environment === environment && domain.isPrimary)
-    ?? row.domains.find(domain => domain.environment === environment);
+function mapStorefront(
+  row: StoreWithDomains,
+  hostname: string,
+  environment: DeploymentEnvironment,
+): Storefront {
+  const primary =
+    row.domains.find(
+      (domain) => domain.environment === environment && domain.isPrimary,
+    ) ?? row.domains.find((domain) => domain.environment === environment);
   if (!primary) throw new UnknownStorefrontError(hostname);
   const shipping = asObject(row.shippingConfig);
   return {
@@ -107,7 +145,7 @@ function mapStorefront(row: StoreWithDomains, hostname: string, environment: Dep
     country: row.country,
     currency: row.currency,
     timezone: row.timezone,
-    theme: themeSchema.parse(row.theme),
+    theme: storefrontThemeSchema.parse(row.theme),
     homepage: homepageSchema.parse(row.homepage),
     seoTitle: row.seoTitle,
     seoDescription: row.seoDescription,
@@ -115,8 +153,14 @@ function mapStorefront(row: StoreWithDomains, hostname: string, environment: Dep
     organization: asObject(row.organization),
     socialLinks: asObject(row.socialLinks) as Record<string, string>,
     shippingConfig: {
-      flatRateCents: typeof shipping.flatRateCents === "number" ? shipping.flatRateCents : 900,
-      freeOverCents: typeof shipping.freeOverCents === "number" ? shipping.freeOverCents : 6000,
+      flatRateCents:
+        typeof shipping.flatRateCents === "number"
+          ? shipping.flatRateCents
+          : 900,
+      freeOverCents:
+        typeof shipping.freeOverCents === "number"
+          ? shipping.freeOverCents
+          : 6000,
     },
     headerConfig: parseHeaderConfig(row.headerConfig),
     footerConfig: parseFooterConfig(row.footerConfig),
@@ -144,10 +188,18 @@ function developmentFallback(hostname: string): Storefront {
     country: "AU",
     currency: "AUD",
     timezone: "Australia/Adelaide",
-    theme: themeSchema.parse({}),
-    homepage: homepageSchema.parse({ variant: "tapkin", heroEyebrow: "Smart products, thoughtfully connected", heroHeadline: "Useful objects with a digital superpower", heroDescription: "Personalised products made in Australia with 3D printing, NFC and QR.", primaryCtaLabel: "Shop smart products" }),
+    theme: storefrontThemeSchema.parse({}),
+    homepage: homepageSchema.parse({
+      variant: "tapkin",
+      heroEyebrow: "Smart products, thoughtfully connected",
+      heroHeadline: "Useful objects with a digital superpower",
+      heroDescription:
+        "Personalised products made in Australia with 3D printing, NFC and QR.",
+      primaryCtaLabel: "Shop smart products",
+    }),
     seoTitle: "Tapkin Smart Products",
-    seoDescription: "Personalised smart products combining 3D printing, NFC, QR and secure digital profiles.",
+    seoDescription:
+      "Personalised smart products combining 3D printing, NFC, QR and secure digital profiles.",
     socialImageUrl: null,
     organization: { type: "Organization", name: "Tapkin" },
     socialLinks: {},
@@ -164,11 +216,18 @@ function developmentFallback(hostname: string): Storefront {
   };
 }
 
-export async function resolveStorefront(host: string, appEnvironment: AppEnvironment = currentAppEnvironment()): Promise<Storefront> {
+export async function resolveStorefront(
+  host: string,
+  appEnvironment: AppEnvironment = currentAppEnvironment(),
+): Promise<Storefront> {
   const hostname = normaliseRequestHost(host);
   const environment = deploymentEnvironment(appEnvironment);
   if (!process.env.DATABASE_URL) {
-    if (appEnvironment === "development" && ["localhost", "127.0.0.1"].includes(hostname)) return developmentFallback(hostname);
+    if (
+      appEnvironment === "development" &&
+      ["localhost", "127.0.0.1"].includes(hostname)
+    )
+      return developmentFallback(hostname);
     throw new UnknownStorefrontError(hostname);
   }
   const domain = await db.storeDomain.findUnique({
@@ -185,16 +244,28 @@ export const getCurrentStorefront = cache(async (): Promise<Storefront> => {
   return resolveStorefront(requestHeaders.get("host") ?? configuredHost);
 });
 
-export function hasStoreCapability(store: Pick<Storefront, "capabilities">, capability: StoreCapability) {
+export function hasStoreCapability(
+  store: Pick<Storefront, "capabilities">,
+  capability: StoreCapability,
+) {
   return store.capabilities.includes(capability);
 }
 
-export function storeDomainOrigin(domain: { protocol: string; hostname: string; port: number | null }) {
+export function storeDomainOrigin(domain: {
+  protocol: string;
+  hostname: string;
+  port: number | null;
+}) {
   return `${domain.protocol}://${domain.hostname}${domain.port ? `:${domain.port}` : ""}`;
 }
 
-export function isStoreCommerceAvailable(store: Pick<Storefront, "capabilities" | "status">) {
-  return store.status === StoreStatus.ACTIVE && hasStoreCapability(store, StoreCapability.COMMERCE);
+export function isStoreCommerceAvailable(
+  store: Pick<Storefront, "capabilities" | "status">,
+) {
+  return (
+    store.status === StoreStatus.ACTIVE &&
+    hasStoreCapability(store, StoreCapability.COMMERCE)
+  );
 }
 
 export function storeThemeStyle(theme: StorefrontTheme): CSSProperties {
@@ -204,5 +275,25 @@ export function storeThemeStyle(theme: StorefrontTheme): CSSProperties {
     "--store-background": theme.background,
     "--store-foreground": theme.foreground,
     "--store-radius": theme.radius,
+    "--theme-coral-accent": theme.pageThemes.CORAL.accent,
+    "--theme-coral-soft": theme.pageThemes.CORAL.soft,
+    "--theme-coral-deep": theme.pageThemes.CORAL.deep,
+    "--theme-coral-contrast": theme.pageThemes.CORAL.contrast,
+    "--theme-sky-accent": theme.pageThemes.SKY.accent,
+    "--theme-sky-soft": theme.pageThemes.SKY.soft,
+    "--theme-sky-deep": theme.pageThemes.SKY.deep,
+    "--theme-sky-contrast": theme.pageThemes.SKY.contrast,
+    "--theme-midnight-accent": theme.pageThemes.MIDNIGHT.accent,
+    "--theme-midnight-soft": theme.pageThemes.MIDNIGHT.soft,
+    "--theme-midnight-deep": theme.pageThemes.MIDNIGHT.deep,
+    "--theme-midnight-contrast": theme.pageThemes.MIDNIGHT.contrast,
+    "--theme-violet-accent": theme.pageThemes.VIOLET.accent,
+    "--theme-violet-soft": theme.pageThemes.VIOLET.soft,
+    "--theme-violet-deep": theme.pageThemes.VIOLET.deep,
+    "--theme-violet-contrast": theme.pageThemes.VIOLET.contrast,
+    "--theme-amber-accent": theme.pageThemes.AMBER.accent,
+    "--theme-amber-soft": theme.pageThemes.AMBER.soft,
+    "--theme-amber-deep": theme.pageThemes.AMBER.deep,
+    "--theme-amber-contrast": theme.pageThemes.AMBER.contrast,
   } as CSSProperties;
 }

@@ -20,6 +20,7 @@ export default async function NewContentPage({
     kind,
     status: "DRAFT",
     sortOrder: 0,
+    visualTheme: "CORAL",
     seoTitle: "",
     seoDescription: "",
     ogImageUrl: "",
