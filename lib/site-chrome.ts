@@ -21,6 +21,10 @@ const optionalColour = z
   .trim()
   .regex(/^#[0-9a-f]{6}$/i)
   .or(z.literal(""));
+const headerFontFamily = z
+  .enum(["INHERIT", "SANS", "SERIF", "MONO"])
+  .default("INHERIT");
+const headerTextSize = z.enum(["SMALL", "STANDARD", "LARGE"]).default("STANDARD");
 const navLinkSchema = z.object({
   id: z
     .string()
@@ -58,8 +62,11 @@ export const headerConfigSchema = z.object({
   backgroundColour: optionalColour.default(""),
   textColour: optionalColour.default(""),
   activeColour: optionalColour.default(""),
+  fontFamily: headerFontFamily,
+  textSize: headerTextSize,
   shopBackgroundColour: optionalColour.default(""),
   shopTextColour: optionalColour.default(""),
+  shopBorderColour: optionalColour.default(""),
   accountBackgroundColour: optionalColour.default(""),
   accountTextColour: optionalColour.default(""),
   accountBorderColour: optionalColour.default(""),

@@ -155,7 +155,7 @@ export function ModularPageRenderer({
           aria-label="Breadcrumb"
         >
           {breadcrumbs.map((item, index) => (
-            <span key={breadcrumbKey(item)}>
+            <span key={breadcrumbKey(item, index)}>
               {index > 0 && <i aria-hidden="true">/</i>}
               {item.href ? (
                 <Link href={item.href}>{item.label}</Link>
@@ -168,7 +168,7 @@ export function ModularPageRenderer({
       )}
       {sections
         .filter((section) => section.visible !== false)
-        .map((section) => {
+        .map((section, sectionIndex) => {
           const value = parseLandingContent(section.type, section.content);
           if (!value) return null;
           const common = readCommon(value, section.name);
@@ -180,7 +180,7 @@ export function ModularPageRenderer({
               <section
                 className="category-landing-hero modular-hero"
                 {...presentation}
-                key={renderSectionKey(section)}
+                key={renderSectionKey(section, sectionIndex)}
               >
                 <div className="category-hero-copy">
                   <SectionCopy
@@ -191,8 +191,8 @@ export function ModularPageRenderer({
                   />
                   {features.length ? (
                     <div className="modular-hero-features">
-                      {features.map((feature) => (
-                        <div key={feature.id}>
+                      {features.map((feature, index) => (
+                        <div key={collectionKey("hero-feature", feature, index)}>
                           <span
                             style={{
                               backgroundColor: colour(feature.backgroundColour),
@@ -235,7 +235,7 @@ export function ModularPageRenderer({
               <section
                 className="modular-feature-showcase"
                 {...presentation}
-                key={renderSectionKey(section)}
+                key={renderSectionKey(section, sectionIndex)}
               >
                 <div>
                   <Heading
@@ -258,10 +258,10 @@ export function ModularPageRenderer({
                   }
                 />
                 <ul>
-                  {items.map((item) => (
+                  {items.map((item, index) => (
                     <li
                       style={{ color: colour(item.textColour) }}
-                      key={item.id}
+                      key={collectionKey("feature-item", item, index)}
                     >
                       <span
                         style={{
@@ -287,7 +287,7 @@ export function ModularPageRenderer({
               <section
                 className="modular-story-process"
                 {...presentation}
-                key={renderSectionKey(section)}
+                key={renderSectionKey(section, sectionIndex)}
               >
                 <div className="story-process-copy">
                   <Heading
@@ -296,10 +296,10 @@ export function ModularPageRenderer({
                     copy={common.copy}
                   />
                   <div className="story-process-items">
-                    {items.map((item) => (
+                    {items.map((item, index) => (
                       <article
                         style={{ color: colour(item.textColour) }}
-                        key={item.id}
+                        key={collectionKey("story-item", item, index)}
                       >
                         {item.imageUrl ? (
                           <Image
@@ -365,7 +365,7 @@ export function ModularPageRenderer({
               <section
                 className={`category-benefits ${className}`}
                 {...presentation}
-                key={renderSectionKey(section)}
+                key={renderSectionKey(section, sectionIndex)}
               >
                 <Heading
                   eyebrow={common.eyebrow}
@@ -378,7 +378,10 @@ export function ModularPageRenderer({
                   }
                 >
                   {items.map((item, index) => (
-                    <article style={itemStyle(item)} key={item.id}>
+                    <article
+                      style={itemStyle(item)}
+                      key={collectionKey("benefit-item", item, index)}
+                    >
                       {item.imageUrl && (
                         <div
                           className="modular-item-image"
@@ -442,7 +445,7 @@ export function ModularPageRenderer({
               <section
                 className="category-products"
                 {...presentation}
-                key={renderSectionKey(section)}
+                key={renderSectionKey(section, sectionIndex)}
               >
                 <Heading
                   eyebrow={common.eyebrow}
@@ -450,8 +453,11 @@ export function ModularPageRenderer({
                   copy={common.copy}
                 />
                 <div className="shop-grid">
-                  {visibleProducts.map((product) => (
-                    <article className="card product-card" key={product.id}>
+                  {visibleProducts.map((product, index) => (
+                    <article
+                      className="card product-card"
+                      key={collectionKey("product", product, index)}
+                    >
                       {product.images[0] ? (
                         <Image
                           className="category-product-image"
@@ -495,7 +501,7 @@ export function ModularPageRenderer({
               <section
                 className="category-benefits modular-category-grid"
                 {...presentation}
-                key={renderSectionKey(section)}
+                key={renderSectionKey(section, sectionIndex)}
               >
                 <Heading
                   eyebrow={common.eyebrow}
@@ -503,11 +509,11 @@ export function ModularPageRenderer({
                   copy={common.copy}
                 />
                 <div className="category-card-grid">
-                  {categories.slice(0, number(value.limit, 6)).map((item) => (
+                  {categories.slice(0, number(value.limit, 6)).map((item, index) => (
                     <Link
                       className="category-card"
                       href={`/${item.slug}`}
-                      key={item.id}
+                      key={collectionKey("category", item, index)}
                     >
                       {item.cardImageUrl ? (
                         <Image
@@ -536,7 +542,7 @@ export function ModularPageRenderer({
               <section
                 className="faq-section category-faq"
                 {...presentation}
-                key={renderSectionKey(section)}
+                key={renderSectionKey(section, sectionIndex)}
               >
                 <Heading
                   eyebrow={common.eyebrow}
@@ -544,8 +550,8 @@ export function ModularPageRenderer({
                   copy={common.copy}
                 />
                 <div className="modular-faq-grid">
-                  {items.map((item) => (
-                    <details key={item.id}>
+                  {items.map((item, index) => (
+                    <details key={collectionKey("faq-item", item, index)}>
                       <summary>
                         <span>{item.question}</span>
                       </summary>
@@ -566,7 +572,7 @@ export function ModularPageRenderer({
                   value.contentPosition,
                   "LEFT",
                 ).toLowerCase()}
-                key={renderSectionKey(section)}
+                key={renderSectionKey(section, sectionIndex)}
               >
                 {common.imageUrl && (
                   <picture>
@@ -602,7 +608,7 @@ export function ModularPageRenderer({
             <section
               className={`category-story ${layout}`}
               {...presentation}
-              key={renderSectionKey(section)}
+              key={renderSectionKey(section, sectionIndex)}
             >
               <div>
                 <Heading
@@ -705,20 +711,20 @@ function SectionCopy({
         if (!block.text) return null;
         if (block.type === "EYEBROW")
           return (
-            <span className="eyebrow" key={block.id}>
+            <span className="eyebrow" key={collectionKey("text-block", block, index)}>
               {block.text}
             </span>
           );
         if (block.type === "HEADING" && index === headingIndex)
-          return <h1 key={block.id}>{block.text}</h1>;
+          return <h1 key={collectionKey("text-block", block, index)}>{block.text}</h1>;
         if (block.type === "HEADING" || block.type === "SUBHEADING")
-          return <h2 key={block.id}>{block.text}</h2>;
+          return <h2 key={collectionKey("text-block", block, index)}>{block.text}</h2>;
         return block.type === "SUPPORTING_TEXT" ? (
-          <small className="hero-supporting" key={block.id}>
+          <small className="hero-supporting" key={collectionKey("text-block", block, index)}>
             {block.text}
           </small>
         ) : (
-          <p className="lead" key={block.id}>
+          <p className="lead" key={collectionKey("text-block", block, index)}>
             {block.text}
           </p>
         );
@@ -831,14 +837,23 @@ function PagePlaceholder({
   );
 }
 
-function breadcrumbKey(item: { label: string; href?: string }) {
-  return `breadcrumb:${item.href || item.label}`;
+function breadcrumbKey(item: { label: string; href?: string }, index: number) {
+  return `breadcrumb:${item.href || item.label}:${index}`;
 }
 
-function renderSectionKey(section: RenderSection) {
+function renderSectionKey(section: RenderSection, index: number) {
   const id = String(section.id ?? "").trim();
-  if (id) return `section:${id}`;
-  return `legacy-section:${stableHash(`${section.type}:${section.name}:${JSON.stringify(section.content)}`)}`;
+  if (id) return `section:${id}:${index}`;
+  return `legacy-section:${stableHash(`${section.type}:${section.name}:${JSON.stringify(section.content)}`)}:${index}`;
+}
+
+function collectionKey(
+  namespace: string,
+  item: { id?: string },
+  index: number,
+) {
+  const id = text(item.id).trim();
+  return `${namespace}:${id || "missing"}:${index}`;
 }
 
 function stableHash(value: string) {

@@ -13,6 +13,18 @@ import { isNavigationActive, type HeaderConfig } from "@/lib/site-chrome";
 type CategoryLink = { name: string; slug: string };
 type OrderedNavItem = { id: string; order: number; content: ReactNode };
 
+const headerFontFamilies = {
+  INHERIT: undefined,
+  SANS: "Arial, Helvetica, sans-serif",
+  SERIF: "Georgia, 'Times New Roman', serif",
+  MONO: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+} as const;
+const headerTextSizes = {
+  SMALL: "0.84rem",
+  STANDARD: "0.94rem",
+  LARGE: "1.06rem",
+} as const;
+
 export function SiteHeader({
   config,
   storeName,
@@ -149,6 +161,7 @@ export function SiteHeader({
     "--header-active": config.activeColour || undefined,
     "--header-shop-background": config.shopBackgroundColour || undefined,
     "--header-shop-text": config.shopTextColour || undefined,
+    "--header-shop-border": config.shopBorderColour || undefined,
     "--header-account-background": config.accountBackgroundColour || undefined,
     "--header-account-text": config.accountTextColour || undefined,
     "--header-account-border": config.accountBorderColour || undefined,
@@ -161,6 +174,10 @@ export function SiteHeader({
         className="brand"
         aria-label={`${storeName} ${copy.home}`}
         onClick={close}
+        style={{
+          fontFamily: headerFontFamilies[config.fontFamily],
+          fontSize: `calc(${headerTextSizes[config.textSize]} + 0.26rem)`,
+        }}
       >
         {logoUrl ? (
           <Image
@@ -195,6 +212,10 @@ export function SiteHeader({
         id="main-navigation"
         className={open ? "is-open" : ""}
         aria-label="Main navigation"
+        style={{
+          fontFamily: headerFontFamilies[config.fontFamily],
+          fontSize: headerTextSizes[config.textSize],
+        }}
       >
         <div className="nav-centre">
           {navItems.map((item) => (
@@ -218,6 +239,7 @@ export function SiteHeader({
                 className="nav-shop"
                 href={href(config.shopHref)}
                 onClick={close}
+                style={{ borderColor: config.shopBorderColour || undefined }}
               >
                 {locale === defaultLocale ? config.shopLabel : copy.shop}
               </Link>
