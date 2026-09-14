@@ -111,7 +111,13 @@ async function main() {
   assert(homeProduct.status === 200 && leakedTapkinProduct.status === 404 && leakedHomeProduct.status === 404, "Product routes cannot leak across Stores");
   const seededVariant = await db.productVariant.findUnique({ where: { sku: "PET-ROUND" } });
   assert(Boolean(seededVariant), "Seeded checkout variant exists");
-  const destination = { line1: "1 Test Street", suburb: "Adelaide", state: "SA", postcode: "5000", country: "AU" };
+  const destination = {
+    line1: "1 Test Street",
+    locality: "Adelaide",
+    administrativeArea: "SA",
+    postcode: "5000",
+    country: "AU",
+  };
   await jsonResponse(await request("/api/shipping/quotes", { method: "POST", json: { items: [{ variantId: seededVariant.id, quantity: 0 }], destination } }), 400, "Shipping quote rejects invalid quantities");
   await jsonResponse(await request("/api/shipping/quotes", { method: "POST", json: { items: [{ variantId: "00000000-0000-4000-8000-000000000000", quantity: 1 }], destination } }), 409, "Shipping quote rejects unavailable variants");
   const quotedItems = [{ variantId: seededVariant.id, quantity: 1, unitPriceCents: 1, personalisationChoice: "PERSONALISED", personalisation: { "pet-name": "Pixel", colour: "ocean" } }];
