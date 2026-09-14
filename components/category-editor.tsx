@@ -71,27 +71,27 @@ const visualThemeOptions: Array<{
   {
     value: "CORAL",
     label: "Pastel peach",
-    colours: "peach, cream and charcoal",
+    colours: "pastel peach, black and white",
   },
   {
     value: "SKY",
     label: "Pastel sky",
-    colours: "powder blue, mist and charcoal",
+    colours: "pastel blue, black and white",
   },
   {
     value: "MIDNIGHT",
     label: "Pastel mint",
-    colours: "mint, soft green and charcoal",
+    colours: "pastel mint, black and white",
   },
   {
     value: "VIOLET",
     label: "Pastel lilac",
-    colours: "lilac, lavender and charcoal",
+    colours: "pastel lilac, black and white",
   },
   {
     value: "AMBER",
     label: "Pastel butter",
-    colours: "butter yellow, cream and charcoal",
+    colours: "pastel butter, black and white",
   },
 ];
 

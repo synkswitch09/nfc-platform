@@ -891,7 +891,6 @@ function sectionPresentation(value: Record<string, unknown>) {
 function surfaceStyle(value: Record<string, unknown>): CSSProperties {
   return {
     backgroundColor: colour(value.backgroundColour),
-    color: colour(value.textColour),
     borderRadius: radius(value.radius),
     "--section-columns": number(value.columns, 3),
     "--section-eyebrow": colour(value.eyebrowColour),
