@@ -15,15 +15,12 @@ type OrderedNavItem = { id: string; order: number; content: ReactNode };
 
 const headerFontFamilies = {
   INHERIT: undefined,
+  INTER: "var(--font-inter), Inter, Arial, Helvetica, sans-serif",
   SANS: "Arial, Helvetica, sans-serif",
   SERIF: "Georgia, 'Times New Roman', serif",
   MONO: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
 } as const;
-const headerTextSizes = {
-  SMALL: "0.84rem",
-  STANDARD: "0.94rem",
-  LARGE: "1.06rem",
-} as const;
+const headerWeights = { THIN: 100, LIGHT: 300, REGULAR: 400, MEDIUM: 500, BOLD: 700, BLACK: 900 } as const;
 
 export function SiteHeader({
   config,
@@ -176,7 +173,9 @@ export function SiteHeader({
         onClick={close}
         style={{
           fontFamily: headerFontFamilies[config.fontFamily],
-          fontSize: `calc(${headerTextSizes[config.textSize]} + 0.26rem)`,
+          fontSize: `calc(${config.textSizePx}px + 0.26rem)`,
+          fontWeight: headerWeights[config.textWeight],
+          fontStyle: config.textItalic ? "italic" : "normal",
         }}
       >
         {logoUrl ? (
@@ -214,7 +213,9 @@ export function SiteHeader({
         aria-label="Main navigation"
         style={{
           fontFamily: headerFontFamilies[config.fontFamily],
-          fontSize: headerTextSizes[config.textSize],
+          fontSize: `${config.textSizePx}px`,
+          fontWeight: headerWeights[config.textWeight],
+          fontStyle: config.textItalic ? "italic" : "normal",
         }}
       >
         <div className="nav-centre">

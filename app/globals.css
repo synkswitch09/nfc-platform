@@ -28,6 +28,62 @@ body {
   font-family: Arial, Helvetica, sans-serif;
   line-height: 1.5;
 }
+.storefront-main,
+.site-header,
+.site-footer {
+  font-family: var(--store-body-family, var(--font-inter), Arial, Helvetica, sans-serif);
+  font-size: var(--store-body-size, 16px);
+  font-weight: var(--store-body-weight, 400);
+  font-style: var(--store-body-style, normal);
+}
+.storefront-main :where(h1, h2, h3) {
+  font-family: var(--store-heading-family, inherit);
+  font-size: var(--store-heading-size, inherit);
+  font-weight: var(--store-heading-weight, 700);
+  font-style: var(--store-heading-style, normal);
+}
+.storefront-main .eyebrow {
+  font-family: var(--store-eyebrow-family, inherit);
+  font-size: var(--store-eyebrow-size, inherit);
+  font-weight: var(--store-eyebrow-weight, 500);
+  font-style: var(--store-eyebrow-style, normal);
+}
+.storefront-main :where(.button, button) {
+  font-family: var(--store-button-family, inherit);
+  font-size: var(--store-button-size, inherit);
+  font-weight: var(--store-button-weight, 500);
+  font-style: var(--store-button-style, normal);
+}
+.modular-landing > section .eyebrow {
+  font-family: var(--section-eyebrow-type-family, var(--store-eyebrow-family, inherit));
+  font-size: var(--section-eyebrow-type-size, var(--store-eyebrow-size, inherit));
+  font-weight: var(--section-eyebrow-type-weight, var(--store-eyebrow-weight, 500));
+  font-style: var(--section-eyebrow-type-style, var(--store-eyebrow-style, normal));
+}
+.modular-landing > section :where(.section-head h2, .category-hero-copy h1, .category-hero-copy h2) {
+  font-family: var(--section-headline-type-family, var(--store-heading-family, inherit));
+  font-size: var(--section-headline-type-size, var(--store-heading-size, inherit));
+  font-weight: var(--section-headline-type-weight, var(--store-heading-weight, 700));
+  font-style: var(--section-headline-type-style, var(--store-heading-style, normal));
+}
+.modular-landing > section :where(.section-head p, .category-hero-copy .lead, .category-hero-copy .hero-supporting) {
+  font-family: var(--section-copy-type-family, var(--store-body-family, inherit));
+  font-size: var(--section-copy-type-size, var(--store-body-size, inherit));
+  font-weight: var(--section-copy-type-weight, var(--store-body-weight, 400));
+  font-style: var(--section-copy-type-style, var(--store-body-style, normal));
+}
+.modular-landing > section :where(.actions .button, .item-cta) {
+  font-family: var(--section-button-type-family, var(--store-button-family, inherit));
+  font-size: var(--section-button-type-size, var(--store-button-size, inherit));
+  font-weight: var(--section-button-type-weight, var(--store-button-weight, 500));
+  font-style: var(--section-button-type-style, var(--store-button-style, normal));
+}
+.modular-landing > section :where(.benefit-grid article, .step-grid article, .story-process-items article, .modular-faq-grid, .category-card-grid) {
+  font-family: var(--section-card-type-family, var(--store-card-family, inherit));
+  font-size: var(--section-card-type-size, var(--store-card-size, inherit));
+  font-weight: var(--section-card-type-weight, var(--store-card-weight, 400));
+  font-style: var(--section-card-type-style, var(--store-card-style, normal));
+}
 a {
   color: inherit;
   text-decoration: none;

@@ -8,6 +8,7 @@ import {
   baseVisualThemeKeys,
   type StorefrontTheme,
 } from "@/lib/storefront-theme";
+import { fontFamilies, fontWeights, type Typography } from "@/lib/typography";
 
 type Settings = {
   status: string;
@@ -93,6 +94,17 @@ export function StoreSettingsForm({
         foreground: form.get("foreground"),
         radius: form.get("radius"),
         fontStyle: form.get("fontStyle"),
+        typography: Object.fromEntries(
+          (["body", "heading", "eyebrow", "button", "card"] as const).map((role) => [
+            role,
+            {
+              family: form.get(`type-${role}-family`),
+              weight: form.get(`type-${role}-weight`),
+              italic: form.get(`type-${role}-italic`) === "on",
+              sizePx: Number(form.get(`type-${role}-size`)),
+            },
+          ]),
+        ),
         pageThemes: Object.fromEntries(
           baseVisualThemeKeys.map((key) => [
             key,
@@ -274,6 +286,15 @@ export function StoreSettingsForm({
             </select>
           </label>
         </div>
+        <h3>Storefront typography</h3>
+        <p className="field-hint">Inter is the default. These values apply to Home, category and extra pages; individual CMS sections can override them.</p>
+        <div className="field-grid">
+          <TypographyFields label="Body text" name="body" value={settings.theme.typography.body} />
+          <TypographyFields label="Headings" name="heading" value={settings.theme.typography.heading} />
+          <TypographyFields label="Eyebrows" name="eyebrow" value={settings.theme.typography.eyebrow} />
+          <TypographyFields label="Buttons" name="button" value={settings.theme.typography.button} />
+          <TypographyFields label="Cards and FAQs" name="card" value={settings.theme.typography.card} />
+        </div>
       </section>
       <section className="admin-panel">
         <div className="panel-heading">
@@ -400,6 +421,10 @@ export function StoreSettingsForm({
       </div>
     </form>
   );
+}
+
+function TypographyFields({ label, name, value }: { label: string; name: string; value: Typography }) {
+  return <fieldset className="admin-subpanel"><legend>{label}</legend><div className="field-grid"><label className="field">Typeface<select name={`type-${name}-family`} defaultValue={value.family}>{fontFamilies.map((family) => <option key={family} value={family}>{family === "INTER" ? "Inter" : family[0] + family.slice(1).toLowerCase()}</option>)}</select></label><label className="field">Weight<select name={`type-${name}-weight`} defaultValue={value.weight}>{fontWeights.map((weight) => <option key={weight} value={weight}>{weight[0] + weight.slice(1).toLowerCase()}</option>)}</select></label><label className="field">Size (px)<input name={`type-${name}-size`} type="number" min="8" max="96" defaultValue={value.sizePx} required /></label><label className="check-field"><input name={`type-${name}-italic`} type="checkbox" defaultChecked={value.italic} /><span>Italic</span></label></div></fieldset>;
 }
 
 function ThemePaletteFields({ theme }: { theme: StorefrontTheme }) {
