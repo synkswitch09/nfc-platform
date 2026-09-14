@@ -9,6 +9,7 @@ import { CartLink } from "@/components/cart-link";
 import { LanguageSelector } from "@/components/language-selector";
 import { localizedPath, type SystemCopy } from "@/lib/i18n";
 import { isNavigationActive, type HeaderConfig } from "@/lib/site-chrome";
+import { typographyStyle } from "@/lib/typography";
 
 type CategoryLink = { name: string; slug: string };
 type OrderedNavItem = { id: string; order: number; content: ReactNode };
@@ -72,6 +73,7 @@ export function SiteHeader({
                 aria-current={active("/") ? "page" : undefined}
                 href={href("/")}
                 onClick={close}
+                style={typographyStyle(config.homeTypography)}
               >
                 {locale === defaultLocale ? config.homeLabel : copy.home}
               </Link>
@@ -95,6 +97,7 @@ export function SiteHeader({
                 aria-current={active(path) ? "page" : undefined}
                 href={href(path)}
                 onClick={close}
+                style={typographyStyle(config.categoriesTypography)}
               >
                 {category.name}
               </Link>
@@ -111,6 +114,7 @@ export function SiteHeader({
           aria-current={active(link.href) ? "page" : undefined}
           href={href(link.href)}
           onClick={close}
+          style={typographyStyle(config.customLinksTypography)}
         >
           {link.label}
         </Link>
@@ -127,6 +131,7 @@ export function SiteHeader({
                 aria-current={active(config.faqHref) ? "page" : undefined}
                 href={href(config.faqHref)}
                 onClick={close}
+                style={typographyStyle(config.faqTypography)}
               >
                 {locale === defaultLocale ? config.faqLabel : copy.faq}
               </Link>
@@ -140,7 +145,7 @@ export function SiteHeader({
             id: "cart",
             order: config.cartOrder,
             content: (
-              <span onClick={close}>
+              <span onClick={close} style={typographyStyle(config.cartTypography)}>
                 <CartLink
                   label={copy.cart}
                   itemsLabel={copy.items}
@@ -176,6 +181,7 @@ export function SiteHeader({
           fontSize: `calc(${config.textSizePx}px + 0.26rem)`,
           fontWeight: headerWeights[config.textWeight],
           fontStyle: config.textItalic ? "italic" : "normal",
+          ...typographyStyle(config.brandTypography),
         }}
       >
         {logoUrl ? (
@@ -240,7 +246,10 @@ export function SiteHeader({
                 className="nav-shop"
                 href={href(config.shopHref)}
                 onClick={close}
-                style={{ borderColor: config.shopBorderColour || undefined }}
+                style={{
+                  ...typographyStyle(config.shopTypography),
+                  borderColor: config.shopBorderColour || undefined,
+                }}
               >
                 {locale === defaultLocale ? config.shopLabel : copy.shop}
               </Link>
@@ -250,6 +259,11 @@ export function SiteHeader({
                   authenticated ? config.accountHref : config.signInHref,
                 )}
                 onClick={close}
+                style={typographyStyle(
+                  authenticated
+                    ? config.accountTypography
+                    : config.signInTypography,
+                )}
               >
                 {authenticated
                   ? locale === defaultLocale

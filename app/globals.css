@@ -819,6 +819,11 @@ h3 {
   height: 32px;
   border-radius: 8px;
 }
+.footer-social-icon-image {
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+}
 .footer-socials a:hover,
 .footer-links a:hover {
   color: var(--brand);

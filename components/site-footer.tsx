@@ -11,6 +11,7 @@ import {
 import type { CSSProperties } from "react";
 import type { FooterConfig } from "@/lib/site-chrome";
 import { localizedPath, type SystemCopy } from "@/lib/i18n";
+import { typographyStyle } from "@/lib/typography";
 
 const socialIcons = {
   instagram: Camera,
@@ -80,14 +81,24 @@ export function SiteFooter({
             {storeName}
           </span>
         )}
-        {config.tagline && <p>{config.tagline}</p>}
+        {config.tagline && (
+          <p style={typographyStyle(config.taglineTypography)}>
+            {config.tagline}
+          </p>
+        )}
       </div>
-      <p className="footer-copyright">{copyright}</p>
+      <p
+        className="footer-copyright"
+        style={typographyStyle(config.copyrightTypography)}
+      >
+        {copyright}
+      </p>
       <div className="footer-end">
         {socials.length > 0 && (
           <div className="footer-socials">
             {socials.map(([platform, href]) => {
               const Icon = socialIcons[platform];
+              const imageUrl = config.socialIcons[platform];
               return (
                 <a
                   href={href}
@@ -96,7 +107,18 @@ export function SiteFooter({
                   aria-label={platform}
                   key={platform}
                 >
-                  <Icon size={19} />
+                  {imageUrl ? (
+                    <Image
+                      className="footer-social-icon-image"
+                      src={imageUrl}
+                      alt=""
+                      width={20}
+                      height={20}
+                      unoptimized
+                    />
+                  ) : (
+                    <Icon size={19} />
+                  )}
                 </a>
               );
             })}
@@ -108,6 +130,7 @@ export function SiteFooter({
               <Link
                 href={localizedPath(link.href, locale, defaultLocale)}
                 key={link.id}
+                style={typographyStyle(config.customLinksTypography)}
               >
                 {link.label}
               </Link>
@@ -117,18 +140,25 @@ export function SiteFooter({
                 target="_blank"
                 rel="noreferrer"
                 key={link.id}
+                style={typographyStyle(config.customLinksTypography)}
               >
                 {link.label}
               </a>
             ),
           )}
           {config.showTerms && (
-            <Link href={localizedPath("/terms", locale, defaultLocale)}>
+            <Link
+              href={localizedPath("/terms", locale, defaultLocale)}
+              style={typographyStyle(config.termsTypography)}
+            >
               {locale === defaultLocale ? config.termsLabel : copy.terms}
             </Link>
           )}
           {config.showPrivacy && (
-            <Link href={localizedPath("/privacy", locale, defaultLocale)}>
+            <Link
+              href={localizedPath("/privacy", locale, defaultLocale)}
+              style={typographyStyle(config.privacyTypography)}
+            >
               {locale === defaultLocale ? config.privacyLabel : copy.privacy}
             </Link>
           )}

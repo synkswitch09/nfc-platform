@@ -9,6 +9,7 @@ import {
   type FooterConfig,
   type HeaderConfig,
 } from "@/lib/site-chrome";
+import { type TypographyOverride } from "@/lib/typography";
 
 type SocialLinks = Record<string, string | null>;
 
@@ -28,6 +29,9 @@ export function StorefrontChromeForm({
   const [pending, setPending] = useState(false);
   const [logoUrl, setLogoUrl] = useState(
     area === "header" ? (header?.logoUrl ?? "") : (footer?.logoUrl ?? ""),
+  );
+  const [socialIcons, setSocialIcons] = useState(
+    footer?.socialIcons ?? { instagram: "", facebook: "", tiktok: "", linkedin: "" },
   );
 
   async function save(event: FormEvent<HTMLFormElement>) {
@@ -71,6 +75,15 @@ export function StorefrontChromeForm({
             textSizePx: Number(form.get("textSizePx")),
             textWeight: form.get("textWeight"),
             textItalic: form.get("textItalic") === "on",
+            brandTypography: typographyFromForm(form, "brandTypography", header.brandTypography),
+            homeTypography: typographyFromForm(form, "homeTypography", header.homeTypography),
+            categoriesTypography: typographyFromForm(form, "categoriesTypography", header.categoriesTypography),
+            customLinksTypography: typographyFromForm(form, "customLinksTypography", header.customLinksTypography),
+            faqTypography: typographyFromForm(form, "faqTypography", header.faqTypography),
+            cartTypography: typographyFromForm(form, "cartTypography", header.cartTypography),
+            shopTypography: typographyFromForm(form, "shopTypography", header.shopTypography),
+            signInTypography: typographyFromForm(form, "signInTypography", header.signInTypography),
+            accountTypography: typographyFromForm(form, "accountTypography", header.accountTypography),
             shopBackgroundColour: form.get("shopBackgroundColour"),
             shopTextColour: form.get("shopTextColour"),
             shopBorderColour: form.get("shopBorderColour"),
@@ -100,6 +113,12 @@ export function StorefrontChromeForm({
               textSizePx: Number(form.get("textSizePx")),
               textWeight: form.get("textWeight"),
               textItalic: form.get("textItalic") === "on",
+              taglineTypography: typographyFromForm(form, "taglineTypography", footer.taglineTypography),
+              copyrightTypography: typographyFromForm(form, "copyrightTypography", footer.copyrightTypography),
+              customLinksTypography: typographyFromForm(form, "customLinksTypography", footer.customLinksTypography),
+              termsTypography: typographyFromForm(form, "termsTypography", footer.termsTypography),
+              privacyTypography: typographyFromForm(form, "privacyTypography", footer.privacyTypography),
+              socialIcons,
             }
           : null;
     const payload = {
@@ -151,7 +170,14 @@ export function StorefrontChromeForm({
         {area === "header" && header ? (
           <HeaderFields config={header} />
         ) : footer ? (
-          <FooterFields config={footer} socialLinks={socialLinks} />
+          <FooterFields
+            config={footer}
+            socialLinks={socialLinks}
+            socialIcons={socialIcons}
+            onSocialIconChange={(platform, value) =>
+              setSocialIcons((icons) => ({ ...icons, [platform]: value }))
+            }
+          />
         ) : null}
       </section>
       {message && (
@@ -291,6 +317,32 @@ function HeaderFields({ config }: { config: HeaderConfig }) {
           ]}
         />
       </div>
+      <IndividualTypographyPanel
+        title="Individual header text"
+        description="These settings override the default above for only the selected text. Category names use the Categories setting."
+        fields={[
+          ["brandTypography", "Store name"],
+          ["homeTypography", "Home"],
+          ["categoriesTypography", "Category names"],
+          ["customLinksTypography", "Custom navigation links"],
+          ["faqTypography", "FAQs"],
+          ["cartTypography", "Cart"],
+          ["shopTypography", "Shop button"],
+          ["signInTypography", "Sign in button"],
+          ["accountTypography", "Account button"],
+        ]}
+        values={{
+          brandTypography: config.brandTypography,
+          homeTypography: config.homeTypography,
+          categoriesTypography: config.categoriesTypography,
+          customLinksTypography: config.customLinksTypography,
+          faqTypography: config.faqTypography,
+          cartTypography: config.cartTypography,
+          shopTypography: config.shopTypography,
+          signInTypography: config.signInTypography,
+          accountTypography: config.accountTypography,
+        }}
+      />
       <h3>Colours</h3>
       <div className="field-grid three">
         <Colour
@@ -346,9 +398,13 @@ function HeaderFields({ config }: { config: HeaderConfig }) {
 function FooterFields({
   config,
   socialLinks,
+  socialIcons,
+  onSocialIconChange,
 }: {
   config: FooterConfig;
   socialLinks: SocialLinks;
+  socialIcons: FooterConfig["socialIcons"];
+  onSocialIconChange: (platform: keyof FooterConfig["socialIcons"], value: string) => void;
 }) {
   return (
     <>
@@ -401,6 +457,25 @@ function FooterFields({
           ),
         )}
       </div>
+      <div className="admin-stack compact-stack">
+        <p className="field-hint">
+          Optionally upload a custom icon for each network. The icon is used only
+          when that network has a destination URL above.
+        </p>
+        {(["instagram", "facebook", "tiktok", "linkedin"] as const).map(
+          (platform) => (
+            <MediaUploadField
+              key={platform}
+              uploadEndpoint="/api/admin/settings/images"
+              disabledMessage="Store media upload is unavailable."
+              label={`${platform[0].toUpperCase()}${platform.slice(1)} icon`}
+              name={`${platform}Icon`}
+              value={socialIcons[platform]}
+              onChange={(value) => onSocialIconChange(platform, value)}
+            />
+          ),
+        )}
+      </div>
       <h3>Colours</h3>
       <div className="field-grid">
         <Colour
@@ -427,7 +502,123 @@ function FooterFields({
         <NumberField name="textSizePx" label="Text size (px)" value={config.textSizePx} />
         <Check name="textItalic" label="Italic" checked={config.textItalic} />
       </div>
+      <IndividualTypographyPanel
+        title="Individual footer text"
+        description="Set a style for one text field only. Leave an option on Inherit to keep the footer default."
+        fields={[
+          ["taglineTypography", "Tagline"],
+          ["copyrightTypography", "Copyright"],
+          ["customLinksTypography", "Custom footer links"],
+          ["termsTypography", "Terms label"],
+          ["privacyTypography", "Privacy label"],
+        ]}
+        values={{
+          taglineTypography: config.taglineTypography,
+          copyrightTypography: config.copyrightTypography,
+          customLinksTypography: config.customLinksTypography,
+          termsTypography: config.termsTypography,
+          privacyTypography: config.privacyTypography,
+        }}
+      />
     </>
+  );
+}
+
+function typographyFromForm(
+  form: FormData,
+  prefix: string,
+  fallback: TypographyOverride,
+): TypographyOverride {
+  return {
+    family: String(form.get(`${prefix}-family`) ?? fallback.family) as TypographyOverride["family"],
+    weight: String(form.get(`${prefix}-weight`) ?? fallback.weight) as TypographyOverride["weight"],
+    italic: String(form.get(`${prefix}-italic`) ?? fallback.italic) as TypographyOverride["italic"],
+    sizePx: form.get(`${prefix}-size`) === "" ? null : Number(form.get(`${prefix}-size`) ?? fallback.sizePx),
+  };
+}
+
+function IndividualTypographyPanel({
+  title,
+  description,
+  fields,
+  values,
+}: {
+  title: string;
+  description: string;
+  fields: Array<[string, string]>;
+  values: Record<string, TypographyOverride>;
+}) {
+  return (
+    <details className="admin-panel compact-panel typography-overrides">
+      <summary>{title}</summary>
+      <p>{description}</p>
+      {fields.map(([prefix, label]) => (
+        <fieldset key={prefix} className="typography-fieldset">
+          <legend>{label}</legend>
+          <TypographyOverrideFields prefix={prefix} value={values[prefix]} />
+        </fieldset>
+      ))}
+    </details>
+  );
+}
+
+function TypographyOverrideFields({
+  prefix,
+  value,
+}: {
+  prefix: string;
+  value: TypographyOverride;
+}) {
+  return (
+    <div className="field-grid four">
+      <Select
+        name={`${prefix}-family`}
+        label="Typeface"
+        value={value.family}
+        options={[
+          ["INHERIT", "Inherit"],
+          ["INTER", "Inter"],
+          ["SYSTEM", "System"],
+          ["SERIF", "Serif"],
+          ["MONO", "Monospace"],
+        ]}
+      />
+      <Select
+        name={`${prefix}-weight`}
+        label="Weight"
+        value={value.weight}
+        options={[
+          ["INHERIT", "Inherit"],
+          ["THIN", "Thin"],
+          ["LIGHT", "Light"],
+          ["REGULAR", "Regular"],
+          ["MEDIUM", "Medium"],
+          ["BOLD", "Bold"],
+          ["BLACK", "Black / Heavy"],
+        ]}
+      />
+      <Select
+        name={`${prefix}-italic`}
+        label="Style"
+        value={value.italic}
+        options={[
+          ["INHERIT", "Inherit"],
+          ["NORMAL", "Normal"],
+          ["ITALIC", "Italic"],
+        ]}
+      />
+      <label className="field">
+        Size (px)
+        <input
+          name={`${prefix}-size`}
+          type="number"
+          min="8"
+          max="96"
+          defaultValue={value.sizePx ?? ""}
+          placeholder="Inherit"
+        />
+      </label>
+    </div>
   );
 }
 
