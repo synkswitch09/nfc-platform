@@ -13,9 +13,9 @@ export const metadata: Metadata = { title: "Frequently asked questions" };
 export default async function FaqPage() {
   const store = await getCurrentStorefront();
   const locale = await getRequestLocale(store);
-  const [page, categories] = process.env.DATABASE_URL
-    ? await Promise.all([
-        db.contentPage.findFirst({
+  const page = process.env.DATABASE_URL
+    ? await db.contentPage
+        .findFirst({
           where: {
             storeId: store.id,
             slug: "faq",
@@ -30,8 +30,12 @@ export default async function FaqPage() {
               orderBy: { sortOrder: "asc" },
             },
           },
-        }),
-        db.productCategory.findMany({
+        })
+        .catch(() => null)
+    : null;
+  const categories = process.env.DATABASE_URL
+    ? await db.productCategory
+        .findMany({
           where: {
             storeId: store.id,
             status: "PUBLISHED",
@@ -41,24 +45,20 @@ export default async function FaqPage() {
             id: true,
             faq: true,
             landingSections: {
-              where: { visible: true },
-              include: { translations: { where: { locale } } },
+              where: { visible: true, type: LandingSectionType.FAQ },
+              select: { type: true, visible: true, content: true },
               orderBy: { sortOrder: "asc" },
             },
           },
           orderBy: { sortOrder: "asc" },
-        }),
-      ]).catch(() => [null, []] as const)
-    : ([null, []] as const);
+        })
+        .catch(() => [])
+    : [];
   const localized = page
     ? localizeContentPage(page, locale, store.defaultLocale)
     : null;
   const categoryItems = categories.flatMap((category) => {
-    const sections = localizeSections(
-      category.landingSections,
-      locale,
-      store.defaultLocale,
-    );
+    const sections = localizeSections(category.landingSections, locale, store.defaultLocale);
     return sections.length ? modularFaq(sections) : categoryFaq(category.faq);
   });
   const uniqueCategoryItems = Array.from(
