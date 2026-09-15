@@ -35,6 +35,9 @@ export default async function AdminPagesPage() {
       pages: pages.filter((page) => pageGroup(page) === label),
     }))
     .filter((group) => group.pages.length > 0);
+  const hasFaqPage = pages.some(
+    (page) => !page.categoryId && page.slug === "faq",
+  );
 
   return (
     <div>
@@ -47,9 +50,16 @@ export default async function AdminPagesPage() {
             same structured section engine. Home lives under Storefront.
           </p>
         </div>
-        <Link className="button" href="/admin/pages/new">
-          Add page
-        </Link>
+        <div className="actions">
+          {!hasFaqPage && (
+            <Link className="button secondary" href="/admin/pages/new?kind=faq">
+              Set up FAQs
+            </Link>
+          )}
+          <Link className="button" href="/admin/pages/new">
+            Add page
+          </Link>
+        </div>
       </div>
       {groups.map((group) => (
         <section className="admin-panel" key={group.label}>
