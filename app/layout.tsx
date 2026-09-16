@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Inter } from "next/font/google";
 import { getCurrentUser } from "@/lib/auth";
 import { CartProvider } from "@/components/cart-provider";
 import { SiteHeader } from "@/components/site-header";
@@ -20,6 +21,13 @@ import {
   languageAlternates,
 } from "@/lib/i18n";
 import "./globals.css";
+
+const inter = Inter({
+  subsets: ["latin"],
+  style: ["normal", "italic"],
+  variable: "--font-inter",
+  display: "swap",
+});
 
 export async function generateMetadata(): Promise<Metadata> {
   const store = await getCurrentStorefront();
@@ -113,6 +121,7 @@ export default async function RootLayout({
   return (
     <html lang={locale}>
       <body
+        className={inter.variable}
         data-store={store.slug}
         data-theme-style={store.theme.fontStyle}
         style={storeThemeStyle(store.theme)}
@@ -134,7 +143,7 @@ export default async function RootLayout({
             }))}
             defaultLocale={store.defaultLocale}
           />
-          <main>{children}</main>
+          <main className="storefront-main">{children}</main>
           <SiteFooter
             config={settings.footerConfig}
             storeName={settings.storeName}

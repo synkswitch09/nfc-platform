@@ -1,6 +1,7 @@
 import { LandingSectionType, Prisma } from "@prisma/client";
 import { z } from "zod";
 import { isSafeImageSource } from "@/lib/image-source";
+import { typographyOverrideSchema } from "@/lib/typography";
 
 export const landingSectionTypes = [
   "HERO",
@@ -219,6 +220,11 @@ const baseCopy = {
   headlineColour: colour,
   copy: z.string().trim().max(3_000).default(""),
   copyColour: colour,
+  eyebrowTypography: typographyOverrideSchema,
+  headlineTypography: typographyOverrideSchema,
+  copyTypography: typographyOverrideSchema,
+  buttonTypography: typographyOverrideSchema,
+  cardTypography: typographyOverrideSchema,
   imageUrl,
   imageAlt: z.string().trim().max(180).default(""),
   ctaLabel: z.string().trim().max(60).default(""),

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { typographySchema } from "@/lib/typography";
 
 export const baseVisualThemeKeys = [
   "CORAL",
@@ -53,6 +54,14 @@ export const defaultStoreThemePalettes: Record<
   },
 };
 
+const defaultTypography = {
+  body: { family: "INTER" as const, weight: "REGULAR" as const, italic: false, sizePx: 16 },
+  heading: { family: "INTER" as const, weight: "BOLD" as const, italic: false, sizePx: 40 },
+  eyebrow: { family: "INTER" as const, weight: "MEDIUM" as const, italic: false, sizePx: 12 },
+  button: { family: "INTER" as const, weight: "MEDIUM" as const, italic: false, sizePx: 15 },
+  card: { family: "INTER" as const, weight: "REGULAR" as const, italic: false, sizePx: 16 },
+};
+
 export const storefrontThemeSchema = z.object({
   accent: z
     .string()
@@ -75,6 +84,13 @@ export const storefrontThemeSchema = z.object({
     .regex(/^\d+(?:\.\d+)?(?:px|rem)$/)
     .default("1.25rem"),
   fontStyle: z.enum(["editorial", "modern", "technical"]).default("editorial"),
+  typography: z.object({
+    body: typographySchema.default(defaultTypography.body),
+    heading: typographySchema.default(defaultTypography.heading),
+    eyebrow: typographySchema.default(defaultTypography.eyebrow),
+    button: typographySchema.default(defaultTypography.button),
+    card: typographySchema.default(defaultTypography.card),
+  }).default(defaultTypography),
   pageThemes: z
     .object({
       CORAL: storeThemePaletteSchema.default(defaultStoreThemePalettes.CORAL),

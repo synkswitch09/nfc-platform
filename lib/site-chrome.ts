@@ -22,9 +22,10 @@ const optionalColour = z
   .regex(/^#[0-9a-f]{6}$/i)
   .or(z.literal(""));
 const headerFontFamily = z
-  .enum(["INHERIT", "SANS", "SERIF", "MONO"])
+  .enum(["INHERIT", "INTER", "SANS", "SERIF", "MONO"])
   .default("INHERIT");
 const headerTextSize = z.enum(["SMALL", "STANDARD", "LARGE"]).default("STANDARD");
+const textWeight = z.enum(["THIN", "LIGHT", "REGULAR", "MEDIUM", "BOLD", "BLACK"]).default("REGULAR");
 const navLinkSchema = z.object({
   id: z
     .string()
@@ -64,6 +65,9 @@ export const headerConfigSchema = z.object({
   activeColour: optionalColour.default(""),
   fontFamily: headerFontFamily,
   textSize: headerTextSize,
+  textSizePx: z.number().int().min(8).max(96).default(15),
+  textWeight,
+  textItalic: z.boolean().default(false),
   shopBackgroundColour: optionalColour.default(""),
   shopTextColour: optionalColour.default(""),
   shopBorderColour: optionalColour.default(""),
@@ -100,6 +104,10 @@ export const footerConfigSchema = z.object({
   textColour: optionalColour.default(""),
   linkColour: optionalColour.default(""),
   borderColour: optionalColour.default(""),
+  fontFamily: headerFontFamily,
+  textSizePx: z.number().int().min(8).max(96).default(15),
+  textWeight,
+  textItalic: z.boolean().default(false),
 });
 
 export type HeaderConfig = z.infer<typeof headerConfigSchema>;

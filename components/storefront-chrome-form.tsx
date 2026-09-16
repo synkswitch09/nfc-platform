@@ -68,6 +68,9 @@ export function StorefrontChromeForm({
             activeColour: form.get("activeColour"),
             fontFamily: form.get("fontFamily"),
             textSize: form.get("textSize"),
+            textSizePx: Number(form.get("textSizePx")),
+            textWeight: form.get("textWeight"),
+            textItalic: form.get("textItalic") === "on",
             shopBackgroundColour: form.get("shopBackgroundColour"),
             shopTextColour: form.get("shopTextColour"),
             shopBorderColour: form.get("shopBorderColour"),
@@ -93,6 +96,10 @@ export function StorefrontChromeForm({
               textColour: form.get("textColour"),
               linkColour: form.get("linkColour"),
               borderColour: form.get("borderColour"),
+              fontFamily: form.get("fontFamily"),
+              textSizePx: Number(form.get("textSizePx")),
+              textWeight: form.get("textWeight"),
+              textItalic: form.get("textItalic") === "on",
             }
           : null;
     const payload = {
@@ -264,11 +271,15 @@ function HeaderFields({ config }: { config: HeaderConfig }) {
           value={config.fontFamily}
           options={[
             ["INHERIT", "Store default"],
+            ["INTER", "Inter"],
             ["SANS", "Sans serif"],
             ["SERIF", "Serif"],
             ["MONO", "Monospace"],
           ]}
         />
+        <Select name="textWeight" label="Text weight" value={config.textWeight} options={[["THIN", "Thin"], ["LIGHT", "Light"], ["REGULAR", "Regular"], ["MEDIUM", "Medium"], ["BOLD", "Bold"], ["BLACK", "Black / Heavy"]]} />
+        <NumberField name="textSizePx" label="Text size (px)" value={config.textSizePx} />
+        <Check name="textItalic" label="Italic" checked={config.textItalic} />
         <Select
           name="textSize"
           label="Header text size"
@@ -409,6 +420,13 @@ function FooterFields({
           value={config.borderColour}
         />
       </div>
+      <h3>Text</h3>
+      <div className="field-grid">
+        <Select name="fontFamily" label="Footer typeface" value={config.fontFamily} options={[["INHERIT", "Store default"], ["INTER", "Inter"], ["SANS", "Sans serif"], ["SERIF", "Serif"], ["MONO", "Monospace"]]} />
+        <Select name="textWeight" label="Text weight" value={config.textWeight} options={[["THIN", "Thin"], ["LIGHT", "Light"], ["REGULAR", "Regular"], ["MEDIUM", "Medium"], ["BOLD", "Bold"], ["BLACK", "Black / Heavy"]]} />
+        <NumberField name="textSizePx" label="Text size (px)" value={config.textSizePx} />
+        <Check name="textItalic" label="Italic" checked={config.textItalic} />
+      </div>
     </>
   );
 }
@@ -444,7 +462,7 @@ function NumberField({
   return (
     <label className="field">
       {label}
-      <input name={name} type="number" min="0" max="100" defaultValue={value} />
+      <input name={name} type="number" min="0" max={name === "textSizePx" ? "96" : "100"} defaultValue={value} />
     </label>
   );
 }

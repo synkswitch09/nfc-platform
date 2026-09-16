@@ -55,6 +55,10 @@ export function SiteFooter({
     "--footer-text": config.textColour || undefined,
     "--footer-link": config.linkColour || undefined,
     "--footer-border": config.borderColour || undefined,
+    fontFamily: config.fontFamily === "INTER" ? "var(--font-inter), Inter, Arial, Helvetica, sans-serif" : config.fontFamily === "SANS" ? "Arial, Helvetica, sans-serif" : config.fontFamily === "SERIF" ? "Georgia, 'Times New Roman', serif" : config.fontFamily === "MONO" ? "ui-monospace, monospace" : undefined,
+    fontWeight: ({ THIN: 100, LIGHT: 300, REGULAR: 400, MEDIUM: 500, BOLD: 700, BLACK: 900 } as const)[config.textWeight],
+    fontStyle: config.textItalic ? "italic" : "normal",
+    fontSize: `${config.textSizePx}px`,
   } as CSSProperties;
   return (
     <footer className="site-footer" style={footerStyle}>

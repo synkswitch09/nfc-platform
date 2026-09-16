@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { CategoryIcon } from "@/components/category-icon";
 import { parseLandingContent } from "@/lib/landing-sections";
+import { typographyVariables, type TypographyOverride } from "@/lib/typography";
 import type { PublicCategory } from "@/lib/category-query";
 import type { LandingSectionType, Prisma } from "@prisma/client";
 
@@ -899,6 +900,11 @@ function surfaceStyle(value: Record<string, unknown>): CSSProperties {
     "--section-card-bg": colour(value.cardBackgroundColour),
     "--section-card-text": colour(value.cardTextColour),
     "--section-card-border": colour(value.cardBorderColour),
+    ...typographyVariables("section-eyebrow-type", value.eyebrowTypography as TypographyOverride),
+    ...typographyVariables("section-headline-type", value.headlineTypography as TypographyOverride),
+    ...typographyVariables("section-copy-type", value.copyTypography as TypographyOverride),
+    ...typographyVariables("section-button-type", value.buttonTypography as TypographyOverride),
+    ...typographyVariables("section-card-type", value.cardTypography as TypographyOverride),
   } as CSSProperties;
 }
 function mediaStyle(value: Record<string, unknown>): CSSProperties {

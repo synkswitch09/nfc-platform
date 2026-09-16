@@ -24,6 +24,7 @@ import {
   storefrontThemeSchema,
   type StorefrontTheme,
 } from "@/lib/storefront-theme";
+import { typographyVariables } from "@/lib/typography";
 
 export {
   baseVisualThemeKeys,
@@ -295,5 +296,10 @@ export function storeThemeStyle(theme: StorefrontTheme): CSSProperties {
     "--theme-amber-soft": theme.pageThemes.AMBER.soft,
     "--theme-amber-deep": theme.pageThemes.AMBER.deep,
     "--theme-amber-contrast": theme.pageThemes.AMBER.contrast,
+    ...typographyVariables("store-body", theme.typography.body),
+    ...typographyVariables("store-heading", theme.typography.heading),
+    ...typographyVariables("store-eyebrow", theme.typography.eyebrow),
+    ...typographyVariables("store-button", theme.typography.button),
+    ...typographyVariables("store-card", theme.typography.card),
   } as CSSProperties;
 }

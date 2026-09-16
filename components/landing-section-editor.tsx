@@ -24,6 +24,7 @@ import {
   prepareLandingSectionDrafts,
   type LandingSectionDraft,
 } from "@/lib/landing-sections";
+import { fontFamilies, fontWeights, type TypographyOverride } from "@/lib/typography";
 
 const itemTypes = new Set<LandingSectionType>([
   "FEATURE_BADGES",
@@ -680,8 +681,19 @@ function SectionStyle({
           onChange={(cardBorderColour) => onChange({ cardBorderColour })}
         />
       </div>
+      <h4>Typography overrides</h4>
+      <p className="field-hint">Leave a value inherited to use Storefront Typography. Sizes are exact pixels.</p>
+      <div className="field-grid">
+        {([["eyebrowTypography", "Eyebrow"], ["headlineTypography", "Headline"], ["copyTypography", "Body copy"], ["buttonTypography", "Buttons"], ["cardTypography", "Cards and FAQs"]] as const).map(([name, label]) => (
+          <TypographyOverrideFields key={name} label={label} value={typographyOverride(section.content[name])} onChange={(value) => onChange({ [name]: value })} />
+        ))}
+      </div>
     </details>
   );
+}
+
+function TypographyOverrideFields({ label, value, onChange }: { label: string; value: TypographyOverride; onChange: (value: TypographyOverride) => void }) {
+  return <fieldset className="admin-subpanel"><legend>{label}</legend><div className="field-grid"><label className="field">Typeface<select value={value.family} onChange={(event) => onChange({ ...value, family: event.target.value as TypographyOverride["family"] })}><option value="INHERIT">Inherit</option>{fontFamilies.map((family) => <option key={family} value={family}>{family === "INTER" ? "Inter" : family[0] + family.slice(1).toLowerCase()}</option>)}</select></label><label className="field">Weight<select value={value.weight} onChange={(event) => onChange({ ...value, weight: event.target.value as TypographyOverride["weight"] })}><option value="INHERIT">Inherit</option>{fontWeights.map((weight) => <option key={weight} value={weight}>{weight[0] + weight.slice(1).toLowerCase()}</option>)}</select></label><label className="field">Style<select value={value.italic} onChange={(event) => onChange({ ...value, italic: event.target.value as TypographyOverride["italic"] })}><option value="INHERIT">Inherit</option><option value="NORMAL">Normal</option><option value="ITALIC">Italic</option></select></label><label className="field">Size (px)<input type="number" min="8" max="96" value={value.sizePx ?? ""} placeholder="Inherit" onChange={(event) => onChange({ ...value, sizePx: event.target.value ? Number(event.target.value) : null })} /></label></div></fieldset>;
 }
 
 function NarrativeFields({
@@ -1386,4 +1398,8 @@ function number(value: unknown, fallback: number) {
 }
 function array<T>(value: unknown) {
   return Array.isArray(value) ? (value as T[]) : [];
+}
+function typographyOverride(value: unknown): TypographyOverride {
+  const record = value && typeof value === "object" && !Array.isArray(value) ? value as Partial<TypographyOverride> : {};
+  return { family: record.family ?? "INHERIT", weight: record.weight ?? "INHERIT", italic: record.italic ?? "INHERIT", sizePx: record.sizePx ?? null };
 }
