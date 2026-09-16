@@ -7,8 +7,8 @@ import {
 import { ModularPageRenderer } from "@/components/landing-section-renderer";
 import { categoryFaq } from "@/lib/category-content";
 import { db } from "@/lib/db";
-import { localizeContentPage } from "@/lib/i18n";
-import { modularFaq } from "@/lib/landing-sections";
+import { localizeContentPage, localizeSections } from "@/lib/i18n";
+import { modularFaq, parseLandingContent } from "@/lib/landing-sections";
 import { getRequestLocale } from "@/lib/request-locale";
 import { getCurrentStorefront, hasStoreCapability } from "@/lib/storefront";
 
@@ -47,7 +47,7 @@ export default async function FaqPage() {
         faq: true,
         landingSections: {
           where: { visible: true, type: LandingSectionType.FAQ },
-          select: { type: true, visible: true, content: true },
+          include: { translations: { where: { locale } } },
           orderBy: { sortOrder: "asc" },
         },
       },
@@ -58,12 +58,17 @@ export default async function FaqPage() {
     ? localizeContentPage(page, locale, store.defaultLocale)
     : null;
   const categoryFaqSections = categories.flatMap((category) => {
+    const categorySections = localizeSections(
+      category.landingSections,
+      locale,
+      store.defaultLocale,
+    );
     // Keep the older category FAQ field available while a category is being
     // migrated to modular sections. A malformed modular section must never
     // make the category's valid questions disappear from /faq.
     const seen = new Set<string>();
     const items = [
-      ...modularFaq(category.landingSections),
+      ...modularFaq(categorySections),
       ...categoryFaq(category.faq),
     ].filter((item) => {
       const key = `${item.question}\u0000${item.answer}`;
@@ -72,6 +77,22 @@ export default async function FaqPage() {
       return true;
     });
     if (!items.length) return [];
+    // A category's FAQ module already owns its eyebrow and headline in the
+    // landing editor. Reuse those fields on the combined /faq page instead of
+    // replacing them with generated text. Legacy FAQ data keeps the defaults.
+    const categoryFaqContent = categorySections
+      .map((section) => parseLandingContent(section.type, section.content))
+      .find((content) => content && Array.isArray(content.items));
+    const eyebrow =
+      typeof categoryFaqContent?.eyebrow === "string" &&
+      categoryFaqContent.eyebrow.trim()
+        ? categoryFaqContent.eyebrow
+        : `${category.name} FAQs`;
+    const headline =
+      typeof categoryFaqContent?.headline === "string" &&
+      categoryFaqContent.headline.trim()
+        ? categoryFaqContent.headline
+        : `About ${category.name}`;
     return [
       {
         id: `category-faqs-${category.id}`,
@@ -79,8 +100,9 @@ export default async function FaqPage() {
         name: `${category.name} FAQs`,
         visible: true,
         content: {
-          eyebrow: `${category.name} FAQs`,
-          headline: `About ${category.name}`,
+          ...categoryFaqContent,
+          eyebrow,
+          headline,
           items: items.map((item, order) => ({
             question: item.question,
             answer: item.answer,
