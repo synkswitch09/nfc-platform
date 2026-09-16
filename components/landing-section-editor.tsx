@@ -190,9 +190,8 @@ export function LandingSectionEditor({
   const groups = [
     "Hero",
     "Content",
-    "Features",
-    "Process",
-    "Commerce",
+    "Cards",
+    "Products",
     "Conversion",
   ] as const;
   return (

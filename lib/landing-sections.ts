@@ -25,8 +25,7 @@ export const landingSectionRegistry: Record<
   LandingSectionType,
   {
     label: string;
-    group:
-      "Hero" | "Content" | "Features" | "Process" | "Commerce" | "Conversion";
+    group: "Hero" | "Content" | "Cards" | "Products" | "Conversion";
     description: string;
   }
 > = {
@@ -47,58 +46,58 @@ export const landingSectionRegistry: Record<
     description: "Long-form structured copy without arbitrary HTML.",
   },
   FEATURE_BADGES: {
-    label: "Cards — icon feature grid",
-    group: "Features",
+    label: "Cards — image or icon feature grid",
+    group: "Cards",
     description:
       "Independent cards with icon, title, copy, image and optional link.",
   },
   BENEFITS: {
-    label: "Benefits — horizontal icon row",
-    group: "Features",
+    label: "Cards — horizontal icon benefits",
+    group: "Cards",
     description: "Compact benefit blocks with strong icon tiles.",
   },
   FEATURE_LIST: {
     label: "Showcase — copy, image and checklist",
-    group: "Features",
+    group: "Content",
     description:
       "Editorial product presentation with central media and a checklist.",
   },
   TRUST_STRIP: {
-    label: "Trust — reassurance strip",
-    group: "Features",
+    label: "Cards — compact trust strip",
+    group: "Cards",
     description: "A compact row of short reassurance items.",
   },
   STATS: {
-    label: "Highlights — facts or numbers",
-    group: "Features",
+    label: "Cards — facts or numbers",
+    group: "Cards",
     description: "Short numerical or factual highlights.",
   },
   STEPS: {
-    label: "Steps — numbered image cards",
-    group: "Process",
+    label: "Cards — numbered image steps",
+    group: "Cards",
     description:
       "Numbered cards with an optional floating image and section action.",
   },
   STORY_PROCESS: {
-    label: "Process — illustrated story panel",
-    group: "Process",
+    label: "Cards — illustrated story journey",
+    group: "Cards",
     description:
       "Rounded story panel with illustrated moments and supporting media.",
   },
   PRODUCT_SHOWCASE: {
-    label: "Product showcase",
-    group: "Commerce",
-    description: "Featured products selected from the current context.",
+    label: "Products — spotlight cards",
+    group: "Products",
+    description: "A visual product spotlight with prominent individual cards.",
   },
   PRODUCT_GRID: {
-    label: "Product grid",
-    group: "Commerce",
-    description: "A responsive product collection grid.",
+    label: "Products — catalog grid",
+    group: "Products",
+    description: "A compact responsive grid for browsing multiple products.",
   },
   CATEGORY_GRID: {
-    label: "Category grid",
-    group: "Commerce",
-    description: "A responsive grid of Store categories.",
+    label: "Categories — browse grid",
+    group: "Products",
+    description: "A category browser for stores with more than one category.",
   },
   FAQ: {
     label: "FAQ — accordion row",
