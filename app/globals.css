@@ -1603,6 +1603,41 @@ body:has(.admin-shell) > footer {
   padding: 0;
   overflow: hidden;
 }
+.danger-panel {
+  border-color: color-mix(in srgb, var(--danger) 34%, var(--line));
+  background: #fffaf9;
+}
+.danger-panel .panel-heading h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--danger);
+}
+.reset-preview {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--line);
+  margin-bottom: 16px;
+}
+.reset-preview > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 11px 13px;
+  background: white;
+}
+.reset-preview span {
+  color: var(--muted);
+  font-size: 0.86rem;
+}
+.reset-preview strong {
+  font-variant-numeric: tabular-nums;
+}
 .panel-heading {
   display: flex;
   align-items: flex-start;

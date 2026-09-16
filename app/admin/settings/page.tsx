@@ -4,6 +4,7 @@ import { getStoreSettings } from "@/lib/settings";
 import { db } from "@/lib/db";
 import { StoreCapability } from "@prisma/client";
 import { notFound } from "next/navigation";
+import Link from "next/link";
 
 export default async function AdminSettingsPage() {
   const context = await requireAdminPageContext();
@@ -43,6 +44,15 @@ export default async function AdminSettingsPage() {
         platformAdmin={context.isPlatformAdmin}
         availableCapabilities={Object.values(StoreCapability)}
       />
+      <section className="admin-panel danger-panel">
+        <div className="panel-heading">
+          <div>
+            <h2>Start fresh</h2>
+            <p>Clear test catalog, NFC and order history for this store and create one out-of-stock Pets product.</p>
+          </div>
+          <Link className="button secondary" href="/admin/settings/reset">Open reset tool</Link>
+        </div>
+      </section>
     </div>
   );
 }
