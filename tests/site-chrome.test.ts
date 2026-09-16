@@ -14,6 +14,9 @@ describe("site chrome configuration", () => {
     expect(parseHeaderConfig({}).categoriesLabel).toBe("Categories");
     expect(parseHeaderConfig({}).showCart).toBe(true);
     expect(parseHeaderConfig({}).shopBackgroundColour).toBe("");
+    expect(parseHeaderConfig({}).shopBorderColour).toBe("");
+    expect(parseHeaderConfig({}).fontFamily).toBe("INHERIT");
+    expect(parseHeaderConfig({}).textSize).toBe("STANDARD");
     expect(parseFooterConfig({}).privacyLabel).toBe("Privacy Policy");
     expect(parseFooterConfig({}).backgroundColour).toBe("");
   });
@@ -23,15 +26,22 @@ describe("site chrome configuration", () => {
       parseHeaderConfig({
         backgroundColour: "#fffaf5",
         shopBackgroundColour: "#17212b",
+        shopBorderColour: "#f97316",
+        fontFamily: "SERIF",
+        textSize: "LARGE",
       }),
     ).toMatchObject({
       backgroundColour: "#fffaf5",
       shopBackgroundColour: "#17212b",
+      shopBorderColour: "#f97316",
+      fontFamily: "SERIF",
+      textSize: "LARGE",
     });
     expect(
       parseFooterConfig({ textColour: "#67716f", linkColour: "#17212b" }),
     ).toMatchObject({ textColour: "#67716f", linkColour: "#17212b" });
     expect(() => parseHeaderConfig({ activeColour: "red" })).toThrow();
+    expect(() => parseHeaderConfig({ fontFamily: "Comic Sans" })).toThrow();
     expect(() =>
       parseFooterConfig({ borderColour: "1px solid red" }),
     ).toThrow();

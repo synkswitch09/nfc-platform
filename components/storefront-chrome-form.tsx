@@ -66,8 +66,11 @@ export function StorefrontChromeForm({
             backgroundColour: form.get("backgroundColour"),
             textColour: form.get("textColour"),
             activeColour: form.get("activeColour"),
+            fontFamily: form.get("fontFamily"),
+            textSize: form.get("textSize"),
             shopBackgroundColour: form.get("shopBackgroundColour"),
             shopTextColour: form.get("shopTextColour"),
+            shopBorderColour: form.get("shopBorderColour"),
             accountBackgroundColour: form.get("accountBackgroundColour"),
             accountTextColour: form.get("accountTextColour"),
             accountBorderColour: form.get("accountBorderColour"),
@@ -253,6 +256,30 @@ function HeaderFields({ config }: { config: HeaderConfig }) {
           </small>
         </label>
       </div>
+      <h3>Text</h3>
+      <div className="field-grid">
+        <Select
+          name="fontFamily"
+          label="Header typeface"
+          value={config.fontFamily}
+          options={[
+            ["INHERIT", "Store default"],
+            ["SANS", "Sans serif"],
+            ["SERIF", "Serif"],
+            ["MONO", "Monospace"],
+          ]}
+        />
+        <Select
+          name="textSize"
+          label="Header text size"
+          value={config.textSize}
+          options={[
+            ["SMALL", "Small"],
+            ["STANDARD", "Standard"],
+            ["LARGE", "Large"],
+          ]}
+        />
+      </div>
       <h3>Colours</h3>
       <div className="field-grid three">
         <Colour
@@ -279,6 +306,11 @@ function HeaderFields({ config }: { config: HeaderConfig }) {
           name="shopTextColour"
           label="Shop text"
           value={config.shopTextColour}
+        />
+        <Colour
+          name="shopBorderColour"
+          label="Shop border"
+          value={config.shopBorderColour}
         />
         <Colour
           name="accountBackgroundColour"
@@ -413,6 +445,31 @@ function NumberField({
     <label className="field">
       {label}
       <input name={name} type="number" min="0" max="100" defaultValue={value} />
+    </label>
+  );
+}
+
+function Select({
+  name,
+  label,
+  value,
+  options,
+}: {
+  name: string;
+  label: string;
+  value: string;
+  options: Array<[string, string]>;
+}) {
+  return (
+    <label className="field">
+      {label}
+      <select name={name} defaultValue={value}>
+        {options.map(([optionValue, optionLabel]) => (
+          <option key={optionValue} value={optionValue}>
+            {optionLabel}
+          </option>
+        ))}
+      </select>
     </label>
   );
 }
