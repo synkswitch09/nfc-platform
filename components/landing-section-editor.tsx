@@ -46,6 +46,11 @@ const gridTypes = new Set<LandingSectionType>([
   "PRODUCT_GRID",
   "CATEGORY_GRID",
 ]);
+const cardStyleTypes = new Set<LandingSectionType>([
+  ...itemTypes,
+  ...gridTypes,
+  "FAQ",
+]);
 type SectionItem = {
   id?: string;
   icon?: string;
@@ -361,6 +366,12 @@ export function LandingSectionEditor({
               section={section}
               onChange={(changes) => content(index, changes)}
             />
+            {cardStyleTypes.has(section.type) && (
+              <CardStyle
+                section={section}
+                onChange={(changes) => content(index, changes)}
+              />
+            )}
             {narrativeTypes.has(section.type) && (
               <NarrativeFields
                 categoryId={categoryId}
@@ -370,54 +381,62 @@ export function LandingSectionEditor({
               />
             )}
             {gridTypes.has(section.type) && (
-              <div className="field-grid">
-                <label className="field">
-                  Maximum items
-                  <input
-                    type="number"
-                    min="1"
-                    max="24"
-                    value={number(section.content.limit, 6)}
-                    onChange={(event) =>
-                      content(index, { limit: Number(event.target.value) })
-                    }
-                  />
-                </label>
-                <label className="check-field">
-                  <input
-                    type="checkbox"
-                    checked={Boolean(section.content.featuredOnly)}
-                    onChange={(event) =>
-                      content(index, { featuredOnly: event.target.checked })
-                    }
-                  />
-                  <span>Featured only</span>
-                </label>
-              </div>
+              <details className="admin-subpanel">
+                <summary>Product or category collection</summary>
+                <div className="field-grid">
+                  <label className="field">
+                    Maximum items
+                    <input
+                      type="number"
+                      min="1"
+                      max="24"
+                      value={number(section.content.limit, 6)}
+                      onChange={(event) =>
+                        content(index, { limit: Number(event.target.value) })
+                      }
+                    />
+                  </label>
+                  <label className="check-field">
+                    <input
+                      type="checkbox"
+                      checked={Boolean(section.content.featuredOnly)}
+                      onChange={(event) =>
+                        content(index, { featuredOnly: event.target.checked })
+                      }
+                    />
+                    <span>Featured only</span>
+                  </label>
+                </div>
+              </details>
             )}
             {["FEATURE_LIST", "STORY_PROCESS"].includes(section.type) && (
-              <div className="field-grid">
-                <CategoryImageUploadField
-                  categoryId={categoryId}
-                  uploadEndpoint={mediaUploadEndpoint}
-                  label="Supporting image"
-                  value={string(section.content.imageUrl)}
-                  onChange={(imageUrl) => content(index, { imageUrl })}
-                />
-                <label className="field">
-                  Supporting image alt text
-                  <input
-                    value={string(section.content.imageAlt)}
-                    onChange={(event) =>
-                      content(index, { imageAlt: event.target.value })
-                    }
-                  />
-                </label>
+              <>
+                <details className="admin-subpanel">
+                  <summary>Supporting image</summary>
+                  <div className="field-grid">
+                    <CategoryImageUploadField
+                      categoryId={categoryId}
+                      uploadEndpoint={mediaUploadEndpoint}
+                      label="Supporting image"
+                      value={string(section.content.imageUrl)}
+                      onChange={(imageUrl) => content(index, { imageUrl })}
+                    />
+                    <label className="field">
+                      Supporting image alt text
+                      <input
+                        value={string(section.content.imageAlt)}
+                        onChange={(event) =>
+                          content(index, { imageAlt: event.target.value })
+                        }
+                      />
+                    </label>
+                  </div>
+                </details>
                 <CtaFields
                   section={section}
                   onChange={(changes) => content(index, changes)}
                 />
-              </div>
+              </>
             )}
             {itemTypes.has(section.type) && (
               <ItemsEditor
@@ -467,41 +486,85 @@ function CommonCopy({
   onChange: (changes: Record<string, unknown>) => void;
 }) {
   return (
-    <div className="field-grid">
-      <label className="field">
-        Eyebrow
-        <input
-          value={string(section.content.eyebrow)}
-          maxLength={100}
-          onChange={(event) => onChange({ eyebrow: event.target.value })}
+    <details className="admin-subpanel" open>
+      <summary>Text content and typography</summary>
+      <div className="field-grid">
+        <label className="field">
+          Eyebrow
+          <input
+            value={string(section.content.eyebrow)}
+            maxLength={100}
+            onChange={(event) => onChange({ eyebrow: event.target.value })}
+          />
+        </label>
+        <label className="field">
+          Section anchor
+          <input
+            value={string(section.content.anchorId)}
+            placeholder="how-it-works"
+            pattern="[a-z][a-z0-9-]*"
+            onChange={(event) => onChange({ anchorId: event.target.value })}
+          />
+        </label>
+        <label className="field wide">
+          Headline
+          <input
+            value={string(section.content.headline)}
+            maxLength={180}
+            onChange={(event) => onChange({ headline: event.target.value })}
+          />
+        </label>
+        <label className="field wide">
+          Copy
+          <textarea
+            value={string(section.content.copy)}
+            maxLength={3000}
+            onChange={(event) => onChange({ copy: event.target.value })}
+          />
+        </label>
+      </div>
+      <h4>Text style</h4>
+      <p className="field-hint">
+        Leave a value inherited to use the Storefront Typography. Sizes are exact pixels.
+      </p>
+      <div className="field-grid">
+        {([
+          ["eyebrowTypography", "Eyebrow"],
+          ["headlineTypography", "Headline"],
+          ["copyTypography", "Body copy"],
+        ] as const).map(([name, label]) => (
+          <TypographyOverrideFields
+            key={name}
+            label={label}
+            value={typographyOverride(section.content[name])}
+            onChange={(value) => onChange({ [name]: value })}
+          />
+        ))}
+      </div>
+      <h4>Text colour overrides</h4>
+      <div className="field-grid">
+        <ColourField
+          label="General text"
+          value={string(section.content.textColour)}
+          onChange={(textColour) => onChange({ textColour })}
         />
-      </label>
-      <label className="field">
-        Section anchor
-        <input
-          value={string(section.content.anchorId)}
-          placeholder="how-it-works"
-          pattern="[a-z][a-z0-9-]*"
-          onChange={(event) => onChange({ anchorId: event.target.value })}
+        <ColourField
+          label="Eyebrow"
+          value={string(section.content.eyebrowColour)}
+          onChange={(eyebrowColour) => onChange({ eyebrowColour })}
         />
-      </label>
-      <label className="field wide">
-        Headline
-        <input
-          value={string(section.content.headline)}
-          maxLength={180}
-          onChange={(event) => onChange({ headline: event.target.value })}
+        <ColourField
+          label="Headline"
+          value={string(section.content.headlineColour)}
+          onChange={(headlineColour) => onChange({ headlineColour })}
         />
-      </label>
-      <label className="field wide">
-        Copy
-        <textarea
-          value={string(section.content.copy)}
-          maxLength={3000}
-          onChange={(event) => onChange({ copy: event.target.value })}
+        <ColourField
+          label="Body copy"
+          value={string(section.content.copyColour)}
+          onChange={(copyColour) => onChange({ copyColour })}
         />
-      </label>
-    </div>
+      </div>
+    </details>
   );
 }
 function SectionStyle({
@@ -513,10 +576,10 @@ function SectionStyle({
 }) {
   return (
     <details className="admin-subpanel" open>
-      <summary>Theme, layout and colour overrides</summary>
+      <summary>Section theme and layout</summary>
       <p className="field-hint">
-        The inherited Store palette supplies the defaults. Any colour entered
-        below overrides only this section.
+        Pick one of the fixed pastel, black and white palettes, then adjust this
+        section's geometry. It inherits the Store base palette by default.
       </p>
       <button
         className="text-button"
@@ -541,7 +604,7 @@ function SectionStyle({
           })
         }
       >
-        Reset to Base Theme
+        Reset section to base palette
       </button>
       <div className="field-grid">
         <label className="field">
@@ -643,50 +706,42 @@ function SectionStyle({
           value={string(section.content.backgroundColour)}
           onChange={(backgroundColour) => onChange({ backgroundColour })}
         />
+      </div>
+    </details>
+  );
+}
+
+function CardStyle({
+  section,
+  onChange,
+}: {
+  section: LandingSectionDraft;
+  onChange: (changes: Record<string, unknown>) => void;
+}) {
+  return (
+    <details className="admin-subpanel">
+      <summary>Card and FAQ appearance</summary>
+      <div className="field-grid">
         <ColourField
-          label="General text override"
-          value={string(section.content.textColour)}
-          onChange={(textColour) => onChange({ textColour })}
-        />
-        <ColourField
-          label="Eyebrow override"
-          value={string(section.content.eyebrowColour)}
-          onChange={(eyebrowColour) => onChange({ eyebrowColour })}
-        />
-        <ColourField
-          label="Headline override"
-          value={string(section.content.headlineColour)}
-          onChange={(headlineColour) => onChange({ headlineColour })}
-        />
-        <ColourField
-          label="Body copy override"
-          value={string(section.content.copyColour)}
-          onChange={(copyColour) => onChange({ copyColour })}
-        />
-        <ColourField
-          label="Cards background override"
+          label="Card background"
           value={string(section.content.cardBackgroundColour)}
-          onChange={(cardBackgroundColour) =>
-            onChange({ cardBackgroundColour })
-          }
+          onChange={(cardBackgroundColour) => onChange({ cardBackgroundColour })}
         />
         <ColourField
-          label="Cards text override"
+          label="Card text"
           value={string(section.content.cardTextColour)}
           onChange={(cardTextColour) => onChange({ cardTextColour })}
         />
         <ColourField
-          label="Cards border override"
+          label="Card border"
           value={string(section.content.cardBorderColour)}
           onChange={(cardBorderColour) => onChange({ cardBorderColour })}
         />
-      </div>
-      <h4>Typography overrides</h4>
-      <p className="field-hint">Leave a value inherited to use Storefront Typography. Sizes are exact pixels.</p>
-      <div className="field-grid">
-        {([["eyebrowTypography", "Eyebrow"], ["headlineTypography", "Headline"], ["copyTypography", "Body copy"], ["buttonTypography", "Buttons"], ["cardTypography", "Cards and FAQs"]] as const).map(([name, label]) => (
-          <TypographyOverrideFields key={name} label={label} value={typographyOverride(section.content[name])} onChange={(value) => onChange({ [name]: value })} />
-        ))}
+        <TypographyOverrideFields
+          label="Cards and FAQs"
+          value={typographyOverride(section.content.cardTypography)}
+          onChange={(value) => onChange({ cardTypography: value })}
+        />
       </div>
     </details>
   );
@@ -711,7 +766,9 @@ function NarrativeFields({
   const features = array<FeatureItem>(section.content.features);
   return (
     <>
-      <div className="field-grid">
+      <details className="admin-subpanel" open>
+        <summary>Images and media layout</summary>
+        <div className="field-grid">
         <label className="field">
           Layout
           <select
@@ -787,7 +844,8 @@ function NarrativeFields({
             </label>
           </>
         )}
-      </div>
+        </div>
+      </details>
       {section.type === "HERO" && (
         <CollectionEditor
           title="Additional text blocks"
@@ -963,20 +1021,23 @@ function NarrativeFields({
         </CollectionEditor>
       )}
       <CtaFields section={section} onChange={onChange} />
-      <label className="field wide">
-        Bullets, one per line
-        <textarea
-          value={array<string>(section.content.bullets).join("\n")}
-          onChange={(event) =>
-            onChange({
-              bullets: event.target.value
-                .split("\n")
-                .map((value) => value.trim())
-                .filter(Boolean),
-            })
-          }
-        />
-      </label>
+      <details className="admin-subpanel">
+        <summary>Checklist</summary>
+        <label className="field wide">
+          Bullets, one per line
+          <textarea
+            value={array<string>(section.content.bullets).join("\n")}
+            onChange={(event) =>
+              onChange({
+                bullets: event.target.value
+                  .split("\n")
+                  .map((value) => value.trim())
+                  .filter(Boolean),
+              })
+            }
+          />
+        </label>
+      </details>
     </>
   );
 }
@@ -991,96 +1052,73 @@ function CtaFields({
   return (
     <details className="admin-subpanel" open>
       <summary>Buttons</summary>
-      <div className="field-grid">
-        <label className="field">
-          Primary label
-          <input
-            value={string(section.content.ctaLabel)}
-            onChange={(event) => onChange({ ctaLabel: event.target.value })}
-          />
-        </label>
-        <label className="field">
-          Primary destination
-          <input
-            value={string(section.content.ctaHref)}
-            placeholder="/shop or https://…"
-            onChange={(event) => onChange({ ctaHref: event.target.value })}
-          />
-        </label>
-        <ColourField
-          label="Primary background"
-          value={string(section.content.ctaBackground)}
-          onChange={(ctaBackground) => onChange({ ctaBackground })}
-        />
-        <ColourField
-          label="Primary text"
-          value={string(section.content.ctaTextColour)}
-          onChange={(ctaTextColour) => onChange({ ctaTextColour })}
-        />
-        <ColourField
-          label="Primary border"
-          value={string(section.content.ctaBorderColour)}
-          onChange={(ctaBorderColour) => onChange({ ctaBorderColour })}
-        />
-        <label className="check-field">
-          <input
-            type="checkbox"
-            checked={section.content.ctaVisible !== false}
-            onChange={(event) => onChange({ ctaVisible: event.target.checked })}
-          />
-          <span>Show primary button</span>
-        </label>
-        <label className="field">
-          Secondary label
-          <input
-            value={string(section.content.secondaryCtaLabel)}
-            onChange={(event) =>
-              onChange({ secondaryCtaLabel: event.target.value })
-            }
-          />
-        </label>
-        <label className="field">
-          Secondary destination
-          <input
-            value={string(section.content.secondaryCtaHref)}
-            placeholder="/activate or https://…"
-            onChange={(event) =>
-              onChange({ secondaryCtaHref: event.target.value })
-            }
-          />
-        </label>
-        <ColourField
-          label="Secondary background"
-          value={string(section.content.secondaryCtaBackground)}
-          onChange={(secondaryCtaBackground) =>
-            onChange({ secondaryCtaBackground })
-          }
-        />
-        <ColourField
-          label="Secondary text"
-          value={string(section.content.secondaryCtaTextColour)}
-          onChange={(secondaryCtaTextColour) =>
-            onChange({ secondaryCtaTextColour })
-          }
-        />
-        <ColourField
-          label="Secondary border"
-          value={string(section.content.secondaryCtaBorderColour)}
-          onChange={(secondaryCtaBorderColour) =>
-            onChange({ secondaryCtaBorderColour })
-          }
-        />
-        <label className="check-field">
-          <input
-            type="checkbox"
-            checked={section.content.secondaryCtaVisible !== false}
-            onChange={(event) =>
-              onChange({ secondaryCtaVisible: event.target.checked })
-            }
-          />
-          <span>Show secondary button</span>
-        </label>
-      </div>
+      <fieldset className="admin-subpanel">
+        <legend>Primary button</legend>
+        <div className="field-grid">
+          <label className="field">
+            Label
+            <input
+              value={string(section.content.ctaLabel)}
+              onChange={(event) => onChange({ ctaLabel: event.target.value })}
+            />
+          </label>
+          <label className="field">
+            Destination
+            <input
+              value={string(section.content.ctaHref)}
+              placeholder="/shop or https://…"
+              onChange={(event) => onChange({ ctaHref: event.target.value })}
+            />
+          </label>
+          <label className="check-field">
+            <input
+              type="checkbox"
+              checked={section.content.ctaVisible !== false}
+              onChange={(event) => onChange({ ctaVisible: event.target.checked })}
+            />
+            <span>Show primary button</span>
+          </label>
+          <ColourField label="Background" value={string(section.content.ctaBackground)} onChange={(ctaBackground) => onChange({ ctaBackground })} />
+          <ColourField label="Text" value={string(section.content.ctaTextColour)} onChange={(ctaTextColour) => onChange({ ctaTextColour })} />
+          <ColourField label="Border" value={string(section.content.ctaBorderColour)} onChange={(ctaBorderColour) => onChange({ ctaBorderColour })} />
+        </div>
+      </fieldset>
+      <fieldset className="admin-subpanel">
+        <legend>Secondary button</legend>
+        <div className="field-grid">
+          <label className="field">
+            Label
+            <input
+              value={string(section.content.secondaryCtaLabel)}
+              onChange={(event) => onChange({ secondaryCtaLabel: event.target.value })}
+            />
+          </label>
+          <label className="field">
+            Destination
+            <input
+              value={string(section.content.secondaryCtaHref)}
+              placeholder="/activate or https://…"
+              onChange={(event) => onChange({ secondaryCtaHref: event.target.value })}
+            />
+          </label>
+          <label className="check-field">
+            <input
+              type="checkbox"
+              checked={section.content.secondaryCtaVisible !== false}
+              onChange={(event) => onChange({ secondaryCtaVisible: event.target.checked })}
+            />
+            <span>Show secondary button</span>
+          </label>
+          <ColourField label="Background" value={string(section.content.secondaryCtaBackground)} onChange={(secondaryCtaBackground) => onChange({ secondaryCtaBackground })} />
+          <ColourField label="Text" value={string(section.content.secondaryCtaTextColour)} onChange={(secondaryCtaTextColour) => onChange({ secondaryCtaTextColour })} />
+          <ColourField label="Border" value={string(section.content.secondaryCtaBorderColour)} onChange={(secondaryCtaBorderColour) => onChange({ secondaryCtaBorderColour })} />
+        </div>
+      </fieldset>
+      <TypographyOverrideFields
+        label="Button text style"
+        value={typographyOverride(section.content.buttonTypography)}
+        onChange={(value) => onChange({ buttonTypography: value })}
+      />
     </details>
   );
 }

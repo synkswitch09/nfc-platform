@@ -21,6 +21,8 @@ import {
   type HeaderConfig,
 } from "@/lib/site-chrome";
 import {
+  baseVisualThemeKeys,
+  defaultStoreThemePalettes,
   storefrontThemeSchema,
   type StorefrontTheme,
 } from "@/lib/storefront-theme";
@@ -270,32 +272,27 @@ export function isStoreCommerceAvailable(
 }
 
 export function storeThemeStyle(theme: StorefrontTheme): CSSProperties {
+  const basePalette =
+    defaultStoreThemePalettes[theme.baseTheme] ??
+    defaultStoreThemePalettes.CORAL;
   return {
-    "--store-accent": theme.accent,
-    "--store-accent-secondary": theme.accentSecondary,
-    "--store-background": theme.background,
-    "--store-foreground": theme.foreground,
+    "--store-accent": basePalette.accent,
+    "--store-accent-secondary": basePalette.deep,
+    "--store-background": basePalette.soft,
+    "--store-foreground": basePalette.deep,
     "--store-radius": theme.radius,
-    "--theme-coral-accent": theme.pageThemes.CORAL.accent,
-    "--theme-coral-soft": theme.pageThemes.CORAL.soft,
-    "--theme-coral-deep": theme.pageThemes.CORAL.deep,
-    "--theme-coral-contrast": theme.pageThemes.CORAL.contrast,
-    "--theme-sky-accent": theme.pageThemes.SKY.accent,
-    "--theme-sky-soft": theme.pageThemes.SKY.soft,
-    "--theme-sky-deep": theme.pageThemes.SKY.deep,
-    "--theme-sky-contrast": theme.pageThemes.SKY.contrast,
-    "--theme-midnight-accent": theme.pageThemes.MIDNIGHT.accent,
-    "--theme-midnight-soft": theme.pageThemes.MIDNIGHT.soft,
-    "--theme-midnight-deep": theme.pageThemes.MIDNIGHT.deep,
-    "--theme-midnight-contrast": theme.pageThemes.MIDNIGHT.contrast,
-    "--theme-violet-accent": theme.pageThemes.VIOLET.accent,
-    "--theme-violet-soft": theme.pageThemes.VIOLET.soft,
-    "--theme-violet-deep": theme.pageThemes.VIOLET.deep,
-    "--theme-violet-contrast": theme.pageThemes.VIOLET.contrast,
-    "--theme-amber-accent": theme.pageThemes.AMBER.accent,
-    "--theme-amber-soft": theme.pageThemes.AMBER.soft,
-    "--theme-amber-deep": theme.pageThemes.AMBER.deep,
-    "--theme-amber-contrast": theme.pageThemes.AMBER.contrast,
+    ...Object.fromEntries(
+      baseVisualThemeKeys.flatMap((key) => {
+        const palette = defaultStoreThemePalettes[key];
+        const slug = key.toLowerCase();
+        return [
+          [`--theme-${slug}-accent`, palette.accent],
+          [`--theme-${slug}-soft`, palette.soft],
+          [`--theme-${slug}-deep`, palette.deep],
+          [`--theme-${slug}-contrast`, palette.contrast],
+        ];
+      }),
+    ),
     ...typographyVariables("store-body", theme.typography.body),
     ...typographyVariables("store-heading", theme.typography.heading),
     ...typographyVariables("store-eyebrow", theme.typography.eyebrow),

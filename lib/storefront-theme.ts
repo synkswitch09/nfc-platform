@@ -11,6 +11,19 @@ export const baseVisualThemeKeys = [
 
 export type BaseVisualTheme = (typeof baseVisualThemeKeys)[number];
 
+export const baseVisualThemeDetails: Record<
+  BaseVisualTheme,
+  { label: string; description: string }
+> = {
+  CORAL: { label: "Pastel peach", description: "Peach, black and white" },
+  SKY: { label: "Pastel blue", description: "Blue, black and white" },
+  MIDNIGHT: { label: "Pastel green", description: "Mint, black and white" },
+  VIOLET: { label: "Pastel lilac", description: "Lilac, black and white" },
+  AMBER: { label: "Pastel butter", description: "Butter yellow, black and white" },
+};
+
+export const defaultBaseVisualTheme: BaseVisualTheme = "CORAL";
+
 export const storeThemePaletteSchema = z.object({
   accent: z.string().regex(/^#[0-9a-f]{6}$/i),
   soft: z.string().regex(/^#[0-9a-f]{6}$/i),
@@ -24,32 +37,32 @@ export const defaultStoreThemePalettes: Record<
 > = {
   CORAL: {
     accent: "#f2b9a7",
-    soft: "#fff1eb",
-    deep: "#342b28",
+    soft: "#ffffff",
+    deep: "#161616",
     contrast: "#ffffff",
   },
   SKY: {
     accent: "#b8dfed",
-    soft: "#edf8fc",
-    deep: "#26383e",
+    soft: "#ffffff",
+    deep: "#161616",
     contrast: "#ffffff",
   },
   MIDNIGHT: {
     accent: "#abdcca",
-    soft: "#eaf7f0",
-    deep: "#263830",
+    soft: "#ffffff",
+    deep: "#161616",
     contrast: "#ffffff",
   },
   VIOLET: {
     accent: "#d8c8f0",
-    soft: "#f5f0fc",
-    deep: "#37313f",
+    soft: "#ffffff",
+    deep: "#161616",
     contrast: "#ffffff",
   },
   AMBER: {
     accent: "#f2d99b",
-    soft: "#fff8e7",
-    deep: "#40382b",
+    soft: "#ffffff",
+    deep: "#161616",
     contrast: "#ffffff",
   },
 };
@@ -63,6 +76,7 @@ const defaultTypography = {
 };
 
 export const storefrontThemeSchema = z.object({
+  baseTheme: z.enum(baseVisualThemeKeys).default(defaultBaseVisualTheme),
   accent: z
     .string()
     .regex(/^#[0-9a-f]{6}$/i)
