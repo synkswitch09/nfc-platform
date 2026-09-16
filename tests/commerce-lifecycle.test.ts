@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { canHardDeleteProduct, isCategoryVisible, isProductAvailableForNewSale, publicTagState } from "@/lib/catalog-policy";
+import { canHardDeleteCategory, canHardDeleteProduct, isCategoryVisible, isProductAvailableForNewSale, publicTagState } from "@/lib/catalog-policy";
 
 describe("independent commerce and NFC lifecycles", () => {
   it.each(["HIDDEN", "ARCHIVED"] as const)("keeps an active tag operational when its category is %s", () => {
@@ -26,5 +26,9 @@ describe("independent commerce and NFC lifecycles", () => {
     expect(canHardDeleteProduct({ orderItems: 0, tags: 1, batches: 0, inventoryMovements: 0, manufacturingJobs: 0 })).toBe(false);
     expect(canHardDeleteProduct({ orderItems: 0, tags: 0, batches: 1, inventoryMovements: 0, manufacturingJobs: 0 })).toBe(false);
     expect(canHardDeleteProduct({ orderItems: 0, tags: 0, batches: 0, inventoryMovements: 0, manufacturingJobs: 1 })).toBe(false);
+  });
+  it("allows category deletion only after all products are moved or unassigned", () => {
+    expect(canHardDeleteCategory(0)).toBe(true);
+    expect(canHardDeleteCategory(1)).toBe(false);
   });
 });
