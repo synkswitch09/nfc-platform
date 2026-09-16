@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { isSafeImageSource } from "@/lib/image-source";
+import { typographyOverrideSchema } from "@/lib/typography";
 
 const internalHref = z
   .string()
@@ -26,6 +27,12 @@ const headerFontFamily = z
   .default("INHERIT");
 const headerTextSize = z.enum(["SMALL", "STANDARD", "LARGE"]).default("STANDARD");
 const textWeight = z.enum(["THIN", "LIGHT", "REGULAR", "MEDIUM", "BOLD", "BLACK"]).default("REGULAR");
+const individualTypography = typographyOverrideSchema.default({
+  family: "INHERIT",
+  weight: "INHERIT",
+  italic: "INHERIT",
+  sizePx: null,
+});
 const navLinkSchema = z.object({
   id: z
     .string()
@@ -68,6 +75,15 @@ export const headerConfigSchema = z.object({
   textSizePx: z.number().int().min(8).max(96).default(15),
   textWeight,
   textItalic: z.boolean().default(false),
+  brandTypography: individualTypography,
+  homeTypography: individualTypography,
+  categoriesTypography: individualTypography,
+  customLinksTypography: individualTypography,
+  faqTypography: individualTypography,
+  cartTypography: individualTypography,
+  shopTypography: individualTypography,
+  signInTypography: individualTypography,
+  accountTypography: individualTypography,
   shopBackgroundColour: optionalColour.default(""),
   shopTextColour: optionalColour.default(""),
   shopBorderColour: optionalColour.default(""),
@@ -108,6 +124,19 @@ export const footerConfigSchema = z.object({
   textSizePx: z.number().int().min(8).max(96).default(15),
   textWeight,
   textItalic: z.boolean().default(false),
+  taglineTypography: individualTypography,
+  copyrightTypography: individualTypography,
+  customLinksTypography: individualTypography,
+  termsTypography: individualTypography,
+  privacyTypography: individualTypography,
+  socialIcons: z
+    .object({
+      instagram: optionalImage.default(""),
+      facebook: optionalImage.default(""),
+      tiktok: optionalImage.default(""),
+      linkedin: optionalImage.default(""),
+    })
+    .default({ instagram: "", facebook: "", tiktok: "", linkedin: "" }),
 });
 
 export type HeaderConfig = z.infer<typeof headerConfigSchema>;

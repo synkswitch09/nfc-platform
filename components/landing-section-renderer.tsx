@@ -179,9 +179,9 @@ export function ModularPageRenderer({
             const textBlocks = ordered<TextBlock>(value.textBlocks);
             return (
               <section
+                key={renderSectionKey(section, sectionIndex)}
                 className="category-landing-hero modular-hero"
                 {...presentation}
-                key={renderSectionKey(section, sectionIndex)}
               >
                 <div className="category-hero-copy">
                   <SectionCopy
@@ -234,9 +234,9 @@ export function ModularPageRenderer({
             const items = ordered<Item>(value.items);
             return (
               <section
+                key={renderSectionKey(section, sectionIndex)}
                 className="modular-feature-showcase"
                 {...presentation}
-                key={renderSectionKey(section, sectionIndex)}
               >
                 <div>
                   <Heading
@@ -286,9 +286,9 @@ export function ModularPageRenderer({
             const items = ordered<Item>(value.items);
             return (
               <section
+                key={renderSectionKey(section, sectionIndex)}
                 className="modular-story-process"
                 {...presentation}
-                key={renderSectionKey(section, sectionIndex)}
               >
                 <div className="story-process-copy">
                   <Heading
@@ -364,9 +364,9 @@ export function ModularPageRenderer({
                 : `modular-${section.type.toLowerCase().replaceAll("_", "-")}`;
             return (
               <section
+                key={renderSectionKey(section, sectionIndex)}
                 className={`category-benefits ${className}`}
                 {...presentation}
-                key={renderSectionKey(section, sectionIndex)}
               >
                 <Heading
                   eyebrow={common.eyebrow}
@@ -444,9 +444,9 @@ export function ModularPageRenderer({
               .slice(0, number(value.limit, 6));
             return (
               <section
+                key={renderSectionKey(section, sectionIndex)}
                 className="category-products"
                 {...presentation}
-                key={renderSectionKey(section, sectionIndex)}
               >
                 <Heading
                   eyebrow={common.eyebrow}
@@ -500,9 +500,9 @@ export function ModularPageRenderer({
           if (section.type === "CATEGORY_GRID")
             return (
               <section
+                key={renderSectionKey(section, sectionIndex)}
                 className="category-benefits modular-category-grid"
                 {...presentation}
-                key={renderSectionKey(section, sectionIndex)}
               >
                 <Heading
                   eyebrow={common.eyebrow}
@@ -541,9 +541,9 @@ export function ModularPageRenderer({
             const items = ordered<FaqItem>(value.items);
             return (
               <section
+                key={renderSectionKey(section, sectionIndex)}
                 className="faq-section category-faq"
                 {...presentation}
-                key={renderSectionKey(section, sectionIndex)}
               >
                 <Heading
                   eyebrow={common.eyebrow}
@@ -566,6 +566,7 @@ export function ModularPageRenderer({
           if (section.type === "CTA_BANNER")
             return (
               <section
+                key={renderSectionKey(section, sectionIndex)}
                 className="category-final-cta modular-promo"
                 {...presentation}
                 data-overlay={text(value.overlay, "NONE").toLowerCase()}
@@ -573,7 +574,6 @@ export function ModularPageRenderer({
                   value.contentPosition,
                   "LEFT",
                 ).toLowerCase()}
-                key={renderSectionKey(section, sectionIndex)}
               >
                 {common.imageUrl && (
                   <picture>
@@ -607,9 +607,9 @@ export function ModularPageRenderer({
             .replaceAll("_", "-");
           return (
             <section
+              key={renderSectionKey(section, sectionIndex)}
               className={`category-story ${layout}`}
               {...presentation}
-              key={renderSectionKey(section, sectionIndex)}
             >
               <div>
                 <Heading

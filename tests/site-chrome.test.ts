@@ -17,8 +17,10 @@ describe("site chrome configuration", () => {
     expect(parseHeaderConfig({}).shopBorderColour).toBe("");
     expect(parseHeaderConfig({}).fontFamily).toBe("INHERIT");
     expect(parseHeaderConfig({}).textSize).toBe("STANDARD");
+    expect(parseHeaderConfig({}).shopTypography.family).toBe("INHERIT");
     expect(parseFooterConfig({}).privacyLabel).toBe("Privacy Policy");
     expect(parseFooterConfig({}).backgroundColour).toBe("");
+    expect(parseFooterConfig({}).socialIcons.instagram).toBe("");
   });
 
   it("accepts controlled chrome colours and rejects style injection", () => {
@@ -40,10 +42,27 @@ describe("site chrome configuration", () => {
     expect(
       parseFooterConfig({ textColour: "#67716f", linkColour: "#17212b" }),
     ).toMatchObject({ textColour: "#67716f", linkColour: "#17212b" });
+    expect(
+      parseFooterConfig({
+        taglineTypography: {
+          family: "INTER",
+          weight: "BOLD",
+          italic: "ITALIC",
+          sizePx: 18,
+        },
+        socialIcons: { instagram: "https://cdn.example.com/footer-instagram.png" },
+      }),
+    ).toMatchObject({
+      taglineTypography: { family: "INTER", weight: "BOLD", italic: "ITALIC", sizePx: 18 },
+      socialIcons: { instagram: "https://cdn.example.com/footer-instagram.png" },
+    });
     expect(() => parseHeaderConfig({ activeColour: "red" })).toThrow();
     expect(() => parseHeaderConfig({ fontFamily: "Comic Sans" })).toThrow();
     expect(() =>
       parseFooterConfig({ borderColour: "1px solid red" }),
+    ).toThrow();
+    expect(() =>
+      parseFooterConfig({ socialIcons: { instagram: "javascript:alert(1)" } }),
     ).toThrow();
   });
 
