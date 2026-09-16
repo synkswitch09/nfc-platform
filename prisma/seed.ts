@@ -115,7 +115,7 @@ const swatchColours: Record<string, string> = { black: "#111111", white: "#fffff
 const personalisationMode = (options: SeedOption[]) => options.some(option => !["SELECT", "RADIO", "COLOUR"].includes(option.type)) ? "OPTIONAL" as const : "NONE" as const;
 const product = (slug: string, name: string, description: string, type: ProductType, sku: string, priceCents: number, category: string, options: SeedOption[], featured = false) => ({ slug, name, description, type, sku, priceCents, category, options, featured });
 const catalog = [
-  product("round-nfc-pet-tag", "Round NFC Pet Tag", "A lightweight round PETG tag with a fast, owner-controlled pet safety profile.", "PET", "PET-ROUND", 2495, "pet", [{ code: "pet-name", name: "Pet name", type: "SHORT_TEXT", required: true, maxLength: 24 }, { code: "colour", name: "Colour", type: "COLOUR", required: true, values: commonColours }], true),
+  product("tapkin-pet-tag", "Tapkin Pet Tag", "A personalised NFC pet tag ready to configure for your first launch.", "PET", "PET-TAG-001", 0, "pets", [{ code: "colour", name: "Colour", type: "COLOUR", required: true, values: commonColours }, { code: "shape", name: "Shape", type: "SELECT", required: true, values: ["Round", "Bone", "Heart"] }, { code: "size", name: "Size", type: "SELECT", required: true, values: ["Small", "Medium", "Large"] }], true),
   product("bone-nfc-pet-tag", "Bone NFC Pet Tag", "A distinctive bone-shaped tag for dogs, linked to medical notes and owner contacts.", "PET", "PET-BONE", 2695, "pet", [{ code: "pet-name", name: "Pet name", type: "SHORT_TEXT", required: true, maxLength: 24 }, { code: "colour", name: "Colour", type: "COLOUR", required: true, values: commonColours }]),
   product("heart-nfc-pet-tag", "Heart NFC Pet Tag", "A personalised heart tag for cats and dogs with NFC and a scannable QR fallback.", "PET", "PET-HEART", 2695, "pet", [{ code: "pet-name", name: "Pet name", type: "SHORT_TEXT", required: true, maxLength: 24 }, { code: "colour", name: "Colour", type: "COLOUR", required: true, values: commonColours }]),
   product("backpack-safety-tag", "Backpack Safety Tag", "A guardian-controlled NFC and QR safety profile for school bags and excursions.", "CHILD", "CHILD-BACKPACK", 2795, "child", [{ code: "printed-name", name: "Printed name", type: "SHORT_TEXT", required: true, maxLength: 20 }, { code: "colour", name: "Colour", type: "COLOUR", required: true, values: commonColours }], true),
@@ -127,6 +127,12 @@ const catalog = [
   product("smart-luggage-tag", "Smart Luggage Tag", "A durable travel tag with a minimal-contact recovery profile and lost-mode messaging.", "LUGGAGE", "LUG-TRAVEL", 2295, "luggage", [{ code: "printed-name", name: "Printed name", type: "SHORT_TEXT", required: true, maxLength: 28 }, { code: "colour", name: "Colour", type: "COLOUR", required: true, values: commonColours }], true),
   product("backpack-identification-tag", "Backpack Identification Tag", "A versatile NFC identifier for backpacks, cases and valuable everyday equipment.", "LUGGAGE", "LUG-BACKPACK", 2195, "luggage", [{ code: "printed-text", name: "Printed text", type: "SHORT_TEXT", required: true, maxLength: 28 }, { code: "colour", name: "Colour", type: "COLOUR", required: true, values: commonColours }]),
 ];
+
+// The Tapkin seed intentionally starts with one storefront category and one
+// tracked, out-of-stock product. Other sample definitions above remain useful
+// for the isolated Home Demo fixture but are never seeded into Tapkin.
+const tapkinCategories = [{ ...categories[0], slug: "pets", legacySlugs: ["pet", "pet-tags"], name: "Pets" }];
+const tapkinCatalog = [catalog[0]];
 
 async function seedHomeDemo() {
   const store = await db.store.upsert({
@@ -198,23 +204,23 @@ async function main() {
   await db.storeDomain.upsert({ where: { environment_hostname: { environment: deployment, hostname } }, update: { storeId: store.id, isPrimary: true, protocol: environment === "development" ? "http" : "https", port: environment === "development" ? 3000 : null }, create: { storeId: store.id, environment: deployment, hostname, isPrimary: true, protocol: environment === "development" ? "http" : "https", port: environment === "development" ? 3000 : null } });
   await seedShipping(store.id, 900, 6000, environment === "development");
   const categoryIds = new Map<string, string>();
-  for (const [sortOrder, item] of categories.entries()) {
+  for (const [sortOrder, item] of tapkinCategories.entries()) {
     const ctaHref = `/shop?category=${item.slug}`;
     const category = await db.productCategory.upsert({ where: { storeId_slug: { storeId: store.id, slug: item.slug } }, update: { ...item, ctaHref, finalCtaHref: ctaHref, sortOrder, status: "PUBLISHED", showOnHomepage: true, showInNavigation: true, showInShop: true, showLanding: true, indexable: true, seoTitle: `${item.name} NFC Products Australia`, seoDescription: item.shortDescription }, create: { ...item, storeId: store.id, ctaHref, finalCtaHref: ctaHref, sortOrder, status: "PUBLISHED", seoTitle: `${item.name} NFC Products Australia`, seoDescription: item.shortDescription } });
     await seedLandingSections(store.id, category.id, item, ctaHref);
     categoryIds.set(item.slug, category.id);
   }
-  for (const item of catalog) {
+  for (const item of tapkinCatalog) {
     const categoryId = categoryIds.get(item.category);
     if (!categoryId) throw new Error(`Seed category ${item.category} is missing`);
     const productRecord = await db.product.upsert({ where: { storeId_slug: { storeId: store.id, slug: item.slug } }, update: { name: item.name, description: item.description, shortDescription: item.description, type: item.type, categoryId, status: "ACTIVE", shopVisible: true, featured: item.featured, brand: "Tapkin", personalisationMode: personalisationMode(item.options) }, create: { storeId: store.id, slug: item.slug, name: item.name, description: item.description, shortDescription: item.description, type: item.type, categoryId, status: "ACTIVE", shopVisible: true, featured: item.featured, brand: "Tapkin", personalisationMode: personalisationMode(item.options) } });
-    await db.productVariant.upsert({ where: { sku: item.sku }, update: { productId: productRecord.id, name: "Standard", priceCents: item.priceCents, active: true, isDefault: true }, create: { productId: productRecord.id, sku: item.sku, name: "Standard", priceCents: item.priceCents, inventory: 100, isDefault: true } });
+    await db.productVariant.upsert({ where: { sku: item.sku }, update: { productId: productRecord.id, name: "Standard", priceCents: item.priceCents, inventory: 0, reservedInventory: 0, trackInventory: true, active: true, isDefault: true }, create: { productId: productRecord.id, sku: item.sku, name: "Standard", priceCents: item.priceCents, inventory: 0, reservedInventory: 0, trackInventory: true, isDefault: true } });
     for (const [sortOrder, optionSeed] of item.options.entries()) {
       const option = await db.productOption.upsert({ where: { productId_code: { productId: productRecord.id, code: optionSeed.code } }, update: { name: optionSeed.name, type: optionSeed.type, required: optionSeed.required ?? false, maxLength: optionSeed.maxLength, sortOrder, active: true }, create: { productId: productRecord.id, code: optionSeed.code, name: optionSeed.name, type: optionSeed.type, required: optionSeed.required ?? false, maxLength: optionSeed.maxLength, sortOrder } });
       for (const [valueOrder, value] of (optionSeed.values ?? []).entries()) await db.productOptionValue.upsert({ where: { optionId_value: { optionId: option.id, value: value.toLowerCase() } }, update: { label: value, sortOrder: valueOrder, active: true, swatchHex: optionSeed.type === "COLOUR" ? swatchColours[value.toLowerCase()] ?? null : null }, create: { optionId: option.id, label: value, value: value.toLowerCase(), sortOrder: valueOrder, swatchHex: optionSeed.type === "COLOUR" ? swatchColours[value.toLowerCase()] ?? null : null } });
     }
   }
-  const homeDemoStore = environment === "development" ? await seedHomeDemo() : null;
+  const homeDemoStore = null;
   await db.storeSettings.upsert({ where: { id: "default" }, update: { storeName: "Tapkin", siteTitle: "Tapkin Smart Products", siteDescription: "Personalised smart products combining 3D printing, NFC, QR and secure digital profiles." }, create: { id: "default", storeName: "Tapkin", siteTitle: "Tapkin Smart Products", siteDescription: "Personalised smart products combining 3D printing, NFC, QR and secure digital profiles." } });
   const emailName = environment === "staging" ? "STAGING_ADMIN_EMAIL" : "DEV_ADMIN_EMAIL";
   const passwordName = environment === "staging" ? "STAGING_ADMIN_PASSWORD" : "DEV_ADMIN_PASSWORD";
