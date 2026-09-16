@@ -84,7 +84,7 @@ export default async function RootLayout({
   const store = await getCurrentStorefront();
   const locale = await getRequestLocale(store);
   const copy = getSystemCopy(locale);
-  const [user, settings, categories] = await Promise.all([
+  const [user, settings, categories, pageNavigation] = await Promise.all([
     getCurrentUser(),
     getStoreSettings(store),
     process.env.DATABASE_URL && store.status === StoreStatus.ACTIVE
@@ -115,6 +115,36 @@ export default async function RootLayout({
           )
           .catch(() => [])
       : [],
+    process.env.DATABASE_URL && store.status === StoreStatus.ACTIVE
+      ? db.contentPage
+          .findMany({
+            where: {
+              storeId: store.id,
+              status: "PUBLISHED",
+              categoryId: null,
+              kind: { not: "HOME" },
+              OR: [{ showInHeader: true }, { showInFooter: true }],
+            },
+            select: {
+              slug: true,
+              name: true,
+              showInHeader: true,
+              showInFooter: true,
+              headerLabel: true,
+              footerLabel: true,
+              navigationOrder: true,
+              translations: { where: { locale }, select: { name: true } },
+            },
+            orderBy: [{ navigationOrder: "asc" }, { name: "asc" }],
+          })
+          .then((rows) =>
+            rows.map((page) => ({
+              ...page,
+              name: page.translations[0]?.name || page.name,
+            })),
+          )
+          .catch(() => [])
+      : [],
   ]);
   const commerce = isStoreCommerceAvailable(store);
   const nfcEnabled = hasStoreCapability(store, StoreCapability.NFC);
@@ -132,6 +162,7 @@ export default async function RootLayout({
             storeName={settings.storeName}
             storeLogoUrl={store.logoUrl}
             categories={categories}
+            pages={pageNavigation.filter((page) => page.showInHeader).map((page) => ({ name: page.headerLabel || page.name, slug: page.slug, order: page.navigationOrder }))}
             commerce={commerce}
             nfcEnabled={nfcEnabled}
             authenticated={Boolean(user)}
@@ -149,6 +180,7 @@ export default async function RootLayout({
             storeName={settings.storeName}
             storeLogoUrl={store.logoUrl}
             socialLinks={settings.socialLinks}
+            pages={pageNavigation.filter((page) => page.showInFooter).map((page) => ({ name: page.footerLabel || page.name, slug: page.slug, order: page.navigationOrder }))}
             nfcEnabled={nfcEnabled}
             copy={copy}
             locale={locale}

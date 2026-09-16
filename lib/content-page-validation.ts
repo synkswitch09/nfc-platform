@@ -58,6 +58,11 @@ export const contentPageSchema = z.object({
     ),
   status: z.nativeEnum(CategoryStatus),
   sortOrder: z.number().int().min(0).max(10_000),
+  showInHeader: z.boolean().default(false),
+  showInFooter: z.boolean().default(false),
+  headerLabel: z.string().trim().max(60).or(z.literal("")).default(""),
+  footerLabel: z.string().trim().max(60).or(z.literal("")).default(""),
+  navigationOrder: z.number().int().min(0).max(10_000).default(0),
   visualTheme: z
     .nativeEnum(CategoryVisualTheme)
     .default(CategoryVisualTheme.CORAL),
@@ -66,6 +71,8 @@ export const contentPageSchema = z.object({
   ogImageUrl: optionalImage,
   canonicalUrl: optionalCanonical,
   indexable: z.boolean(),
+}).superRefine((value, context) => {
+  if (value.kind === ContentPageKind.HOME && (value.showInHeader || value.showInFooter)) context.addIssue({ code: "custom", path: ["showInHeader"], message: "Home is already controlled by the global header" });
 });
 
 export type ContentPageInput = z.infer<typeof contentPageSchema>;

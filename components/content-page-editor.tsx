@@ -11,6 +11,11 @@ export type ContentPageEditorInitial = {
   kind: "HOME" | "CAMPAIGN" | "COLLECTION" | "LEGAL";
   status: "DRAFT" | "PUBLISHED" | "HIDDEN" | "ARCHIVED";
   sortOrder: number;
+  showInHeader: boolean;
+  showInFooter: boolean;
+  headerLabel: string;
+  footerLabel: string;
+  navigationOrder: number;
   visualTheme: "CORAL" | "SKY" | "MIDNIGHT" | "VIOLET" | "AMBER";
   seoTitle: string;
   seoDescription: string;
@@ -39,6 +44,11 @@ export function ContentPageEditor({
       kind: form.get("kind"),
       status: form.get("status"),
       sortOrder: Number(form.get("sortOrder")),
+      showInHeader: form.get("showInHeader") === "on",
+      showInFooter: form.get("showInFooter") === "on",
+      headerLabel: form.get("headerLabel"),
+      footerLabel: form.get("footerLabel"),
+      navigationOrder: Number(form.get("navigationOrder")),
       visualTheme: form.get("visualTheme"),
       seoTitle: form.get("seoTitle"),
       seoDescription: form.get("seoDescription"),
@@ -155,6 +165,18 @@ export function ContentPageEditor({
           </label>
         </div>
       </section>
+      {initial.kind !== "HOME" && (
+        <section className="admin-panel" id="placement">
+          <div className="panel-heading"><div><h2>Where this page appears</h2><p>Choose navigation placement here. Section buttons can link to this page independently.</p></div></div>
+          <div className="field-grid">
+            <label className="check-field"><input name="showInHeader" type="checkbox" defaultChecked={initial.showInHeader} /><span>Show in main navigation</span></label>
+            <label className="field">Main navigation label<input name="headerLabel" defaultValue={initial.headerLabel} maxLength={60} placeholder={initial.name} /></label>
+            <label className="check-field"><input name="showInFooter" type="checkbox" defaultChecked={initial.showInFooter} /><span>Show in footer</span></label>
+            <label className="field">Footer label<input name="footerLabel" defaultValue={initial.footerLabel} maxLength={60} placeholder={initial.name} /></label>
+            <label className="field">Navigation order<input name="navigationOrder" type="number" min="0" defaultValue={initial.navigationOrder} /><small>Lower numbers appear first in both menus.</small></label>
+          </div>
+        </section>
+      )}
       <section className="admin-panel" id="seo">
         <div className="panel-heading">
           <div>

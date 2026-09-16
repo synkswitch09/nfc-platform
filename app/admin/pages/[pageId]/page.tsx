@@ -44,6 +44,11 @@ export default async function EditContentPage({
     kind: page.kind as ContentPageEditorInitial["kind"],
     status: page.status,
     sortOrder: page.sortOrder,
+    showInHeader: page.showInHeader,
+    showInFooter: page.showInFooter,
+    headerLabel: page.headerLabel ?? "",
+    footerLabel: page.footerLabel ?? "",
+    navigationOrder: page.navigationOrder,
     visualTheme: page.visualTheme,
     seoTitle: page.seoTitle ?? "",
     seoDescription: page.seoDescription ?? "",
@@ -133,6 +138,7 @@ export default async function EditContentPage({
       </div>
       <nav className="admin-subnav" aria-label="Page editor sections">
         <a href="#general">General</a>
+        {page.kind !== "HOME" && <a href="#placement">Placement</a>}
         <a href={isFaqPage ? "#faqs" : "#sections"}>
           {isFaqPage ? "General FAQs" : "Sections"}
         </a>

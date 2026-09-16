@@ -129,12 +129,12 @@ const catalog = [
 ];
 
 // The Tapkin seed intentionally starts with one storefront category and one
-// tracked, out-of-stock product. Other sample definitions above remain useful
-// for the isolated Home Demo fixture but are never seeded into Tapkin.
+// tracked, out-of-stock product. The older fixtures below are not seeded into
+// Tapkin and remain only for the separately callable Home Demo fixture.
 const tapkinCategories = [{ ...categories[0], slug: "pets", legacySlugs: ["pet", "pet-tags"], name: "Pets" }];
 const tapkinCatalog = [catalog[0]];
 
-async function seedHomeDemo() {
+export async function seedHomeDemo() {
   const store = await db.store.upsert({
     where: { slug: "home-demo" },
     update: { status: "ACTIVE", capabilities: [StoreCapability.COMMERCE, StoreCapability.CUSTOM_PERSONALISATION, StoreCapability.PRINT_3D, StoreCapability.INVENTORY] },

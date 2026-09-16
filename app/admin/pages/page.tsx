@@ -56,6 +56,8 @@ export default async function AdminPagesPage() {
               Set up FAQs
             </Link>
           )}
+          {!pages.some((page) => page.slug === "terms") && <Link className="button secondary" href="/admin/pages/new?kind=legal&slug=terms">Add Terms</Link>}
+          {!pages.some((page) => page.slug === "privacy") && <Link className="button secondary" href="/admin/pages/new?kind=legal&slug=privacy">Add Privacy</Link>}
           <Link className="button" href="/admin/pages/new">
             Add page
           </Link>

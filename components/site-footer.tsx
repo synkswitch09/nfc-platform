@@ -20,11 +20,14 @@ const socialIcons = {
   tiktok: Music2,
 } as const;
 
+type PageLink = { name: string; slug: string; order: number };
+
 export function SiteFooter({
   config,
   storeName,
   storeLogoUrl,
   socialLinks,
+  pages,
   nfcEnabled,
   copy,
   locale,
@@ -34,6 +37,7 @@ export function SiteFooter({
   storeName: string;
   storeLogoUrl: string | null;
   socialLinks: Record<string, string>;
+  pages: PageLink[];
   nfcEnabled: boolean;
   copy: SystemCopy;
   locale: string;
@@ -41,8 +45,27 @@ export function SiteFooter({
 }) {
   const logoUrl = config.logoUrl || storeLogoUrl;
   const BrandIcon = nfcEnabled ? Radio : Shapes;
-  const links = config.customLinks
+  const customLinks = config.customLinks
     .filter((link) => link.visible)
+    .sort((a, b) => a.order - b.order);
+  const managedLinks = pages
+    .filter(
+      (page) =>
+        !(page.slug === "terms" && config.showTerms) &&
+        !(page.slug === "privacy" && config.showPrivacy),
+    )
+    .map((page) => ({
+      id: `page:${page.slug}`,
+      label: page.name,
+      href: `/${page.slug}`,
+      visible: true,
+      order: page.order,
+    }));
+  const links = [...managedLinks, ...customLinks]
+    .filter(
+      (link, index, rows) =>
+        rows.findIndex((item) => item.href === link.href) === index,
+    )
     .sort((a, b) => a.order - b.order);
   const socials = Object.entries(socialLinks).filter(
     (entry): entry is [keyof typeof socialIcons, string] =>

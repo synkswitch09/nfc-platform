@@ -6,6 +6,10 @@ const valid = { name: "Spring campaign", slug: "spring-campaign", kind: "CAMPAIG
 describe("content page validation", () => {
   it("accepts a typed non-category page", () => expect(contentPageSchema.parse(valid)).toMatchObject({ kind: "CAMPAIGN", slug: "spring-campaign" }));
   it("keeps category pages in the category administration boundary", () => expect(() => contentPageSchema.parse({ ...valid, kind: "CATEGORY" })).toThrow());
+  it("keeps page placement explicit and prevents a duplicate Home link", () => {
+    expect(contentPageSchema.parse({ ...valid, showInHeader: true, headerLabel: "About", navigationOrder: 15 })).toMatchObject({ showInHeader: true, headerLabel: "About", navigationOrder: 15 });
+    expect(() => contentPageSchema.parse({ ...valid, kind: "HOME", showInHeader: true })).toThrow();
+  });
   it("rejects route collisions and unsafe metadata", () => {
     expect(() => contentPageSchema.parse({ ...valid, slug: "checkout" })).toThrow();
     expect(() => contentPageSchema.parse({ ...valid, canonicalUrl: "javascript:alert(1)" })).toThrow();

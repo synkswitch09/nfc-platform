@@ -12,6 +12,7 @@ import { isNavigationActive, type HeaderConfig } from "@/lib/site-chrome";
 import { typographyStyle } from "@/lib/typography";
 
 type CategoryLink = { name: string; slug: string };
+type PageLink = { name: string; slug: string; order: number };
 type OrderedNavItem = { id: string; order: number; content: ReactNode };
 
 const headerFontFamilies = {
@@ -28,6 +29,7 @@ export function SiteHeader({
   storeName,
   storeLogoUrl,
   categories,
+  pages,
   commerce,
   nfcEnabled,
   authenticated,
@@ -40,6 +42,7 @@ export function SiteHeader({
   storeName: string;
   storeLogoUrl: string | null;
   categories: CategoryLink[];
+  pages: PageLink[];
   commerce: boolean;
   nfcEnabled: boolean;
   authenticated: boolean;
@@ -105,6 +108,24 @@ export function SiteHeader({
           };
         })
       : []),
+    ...pages.map((page) => {
+      const path = `/${page.slug}`;
+      return {
+        id: `page:${page.slug}`,
+        order: page.order,
+        content: (
+          <Link
+            className={active(path) ? "active" : ""}
+            aria-current={active(path) ? "page" : undefined}
+            href={href(path)}
+            onClick={close}
+            style={typographyStyle(config.customLinksTypography)}
+          >
+            {page.name}
+          </Link>
+        ),
+      };
+    }),
     ...customLinks.map((link) => ({
       id: link.id,
       order: link.order,
