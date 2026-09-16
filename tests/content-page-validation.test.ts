@@ -15,4 +15,22 @@ describe("content page validation", () => {
     expect(() => contentPageSchema.parse({ ...valid, canonicalUrl: "javascript:alert(1)" })).toThrow();
     expect(() => contentPageSchema.parse({ ...valid, ogImageUrl: "/api/admin/users" })).toThrow();
   });
+  it("allows the dedicated legal page routes", () => {
+    expect(
+      contentPageSchema.parse({
+        ...valid,
+        name: "Terms and conditions",
+        slug: "terms",
+        kind: "LEGAL",
+      }),
+    ).toMatchObject({ kind: "LEGAL", slug: "terms" });
+    expect(
+      contentPageSchema.parse({
+        ...valid,
+        name: "Privacy policy",
+        slug: "privacy",
+        kind: "LEGAL",
+      }),
+    ).toMatchObject({ kind: "LEGAL", slug: "privacy" });
+  });
 });

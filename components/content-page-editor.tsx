@@ -9,6 +9,7 @@ export type ContentPageEditorInitial = {
   name: string;
   slug: string;
   kind: "HOME" | "CAMPAIGN" | "COLLECTION" | "LEGAL";
+  legalPreset?: "terms" | "privacy";
   status: "DRAFT" | "PUBLISHED" | "HIDDEN" | "ARCHIVED";
   sortOrder: number;
   showInHeader: boolean;
@@ -30,6 +31,12 @@ export function ContentPageEditor({
   initial: ContentPageEditorInitial;
 }) {
   const router = useRouter();
+  const initialPageType = initial.legalPreset
+    ? `LEGAL_${initial.legalPreset.toUpperCase()}`
+    : initial.kind;
+  const [pageType, setPageType] = useState(initialPageType);
+  const [name, setName] = useState(initial.name);
+  const [slug, setSlug] = useState(initial.slug);
   const [message, setMessage] = useState("");
   const [pending, setPending] = useState(false);
   const [ogImageUrl, setOgImageUrl] = useState(initial.ogImageUrl);
@@ -39,9 +46,12 @@ export function ContentPageEditor({
     setMessage("");
     const form = new FormData(event.currentTarget);
     const payload = {
-      name: form.get("name"),
-      slug: form.get("slug"),
-      kind: form.get("kind"),
+      name,
+      slug,
+      kind:
+        pageType === "LEGAL_TERMS" || pageType === "LEGAL_PRIVACY"
+          ? "LEGAL"
+          : pageType,
       status: form.get("status"),
       sortOrder: Number(form.get("sortOrder")),
       showInHeader: form.get("showInHeader") === "on",
@@ -92,6 +102,23 @@ export function ContentPageEditor({
     router.push("/admin/pages");
     router.refresh();
   }
+  function updatePageType(nextType: string) {
+    const wasLegalPreset =
+      pageType === "LEGAL_TERMS" || pageType === "LEGAL_PRIVACY";
+    setPageType(nextType);
+    if (nextType === "LEGAL_TERMS") {
+      setName("Terms and conditions");
+      setSlug("terms");
+    } else if (nextType === "LEGAL_PRIVACY") {
+      setName("Privacy policy");
+      setSlug("privacy");
+    } else if (wasLegalPreset) {
+      setName("");
+      setSlug("");
+    }
+  }
+  const isLegalPreset =
+    pageType === "LEGAL_TERMS" || pageType === "LEGAL_PRIVACY";
   return (
     <form className="admin-form" onSubmit={save}>
       <section className="admin-panel" id="general">
@@ -107,33 +134,42 @@ export function ContentPageEditor({
         <div className="field-grid three">
           <label className="field">
             Name
-            <input name="name" defaultValue={initial.name} required />
+            <input
+              name="name"
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+              readOnly={isLegalPreset}
+              required
+            />
           </label>
           <label className="field">
             Slug
             <input
               name="slug"
-              defaultValue={initial.slug}
+              value={slug}
+              onChange={(event) => setSlug(event.target.value)}
               pattern="[a-z0-9]+(?:-[a-z0-9]+)*"
-              readOnly={initial.kind === "HOME"}
+              readOnly={initial.kind === "HOME" || isLegalPreset}
               required
             />
           </label>
           <label className="field">
             Page type
             <select
-              name="kind"
-              defaultValue={initial.kind}
+              name="pageType"
+              value={pageType}
+              onChange={(event) => updatePageType(event.target.value)}
               disabled={Boolean(initial.id)}
             >
-              <option value="HOME">Home</option>
               <option value="CAMPAIGN">Campaign</option>
-              <option value="COLLECTION">Standard page / FAQ</option>
-              <option value="LEGAL">Legal</option>
+              <option value="COLLECTION">Standard page</option>
+              <option value="LEGAL_TERMS">Terms and conditions</option>
+              <option value="LEGAL_PRIVACY">Privacy policy</option>
+              {initial.kind === "HOME" && <option value="HOME">Home</option>}
+              {initial.kind === "LEGAL" && !initial.legalPreset && (
+                <option value="LEGAL">Legal</option>
+              )}
             </select>
-            {initial.id && (
-              <input type="hidden" name="kind" value={initial.kind} />
-            )}
           </label>
           <label className="field">
             Status

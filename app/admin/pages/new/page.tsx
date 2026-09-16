@@ -8,13 +8,20 @@ import { requireAdminPageContext } from "@/lib/admin";
 export default async function NewContentPage({
   searchParams,
 }: {
-  searchParams: Promise<{ kind?: string; slug?: string }>;
+  searchParams: Promise<{ kind?: string; slug?: string; type?: string }>;
 }) {
   await requireAdminPageContext();
   const query = await searchParams;
   const requestedKind = query.kind;
   const isFaqPage = requestedKind === "faq";
-  const isLegalPage = requestedKind === "legal";
+  const legalPreset =
+    query.type === "terms" || query.type === "privacy"
+      ? query.type
+      : query.kind === "legal" &&
+          (query.slug === "terms" || query.slug === "privacy")
+        ? query.slug
+        : undefined;
+  const isLegalPage = Boolean(legalPreset) || requestedKind === "legal";
   const kind: ContentPageEditorInitial["kind"] =
     requestedKind === "HOME"
       ? "HOME"
@@ -24,9 +31,19 @@ export default async function NewContentPage({
           ? "LEGAL"
         : "CAMPAIGN";
   const initial: ContentPageEditorInitial = {
-    name: kind === "HOME" ? "Home" : isFaqPage ? "Frequently asked questions" : query.slug === "terms" ? "Terms and conditions" : query.slug === "privacy" ? "Privacy policy" : "",
-    slug: kind === "HOME" ? "home" : isFaqPage ? "faq" : query.slug ?? "",
+    name:
+      kind === "HOME"
+        ? "Home"
+        : isFaqPage
+          ? "Frequently asked questions"
+          : legalPreset === "terms"
+            ? "Terms and conditions"
+            : legalPreset === "privacy"
+              ? "Privacy policy"
+              : "",
+    slug: kind === "HOME" ? "home" : isFaqPage ? "faq" : legalPreset ?? query.slug ?? "",
     kind,
+    legalPreset,
     status: isFaqPage ? "PUBLISHED" : "DRAFT",
     sortOrder: 0,
     showInHeader: false,
