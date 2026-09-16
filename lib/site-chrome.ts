@@ -143,7 +143,14 @@ export type HeaderConfig = z.infer<typeof headerConfigSchema>;
 export type FooterConfig = z.infer<typeof footerConfigSchema>;
 
 export function parseHeaderConfig(value: unknown): HeaderConfig {
-  return headerConfigSchema.parse(value);
+  const config: Record<string, unknown> | null =
+    value && typeof value === "object" && !Array.isArray(value)
+      ? { ...(value as Record<string, unknown>) }
+      : null;
+  // Configurations created before the standalone FAQ page pointed to a Home
+  // anchor. Keep those Stores working without requiring a manual data edit.
+  if (config && config.faqHref === "/#faqs") config.faqHref = "/faq";
+  return headerConfigSchema.parse(config ?? value);
 }
 
 export function parseFooterConfig(value: unknown): FooterConfig {

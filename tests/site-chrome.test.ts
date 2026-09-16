@@ -21,6 +21,7 @@ describe("site chrome configuration", () => {
     expect(parseFooterConfig({}).privacyLabel).toBe("Privacy Policy");
     expect(parseFooterConfig({}).backgroundColour).toBe("");
     expect(parseFooterConfig({}).socialIcons.instagram).toBe("");
+    expect(parseHeaderConfig({ faqHref: "/#faqs" }).faqHref).toBe("/faq");
   });
 
   it("accepts controlled chrome colours and rejects style injection", () => {
