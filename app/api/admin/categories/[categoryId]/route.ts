@@ -4,6 +4,9 @@ import { getAdminApiContext } from "@/lib/admin";
 import { adminCategorySchema } from "@/lib/admin-validation";
 import { db } from "@/lib/db";
 import { assertSameOrigin, jsonError } from "@/lib/http";
+import { canHardDeleteCategory } from "@/lib/catalog-policy";
+import { deleteStoredImage } from "@/lib/uploads";
+import { revalidatePath } from "next/cache";
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ categoryId: string }> }) {
   if (!assertSameOrigin(request)) return jsonError("Invalid request origin", 403);
@@ -41,4 +44,37 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") return jsonError("That category slug is already in use", 409);
     return jsonError("Category could not be updated", 500);
   }
+}
+
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ categoryId: string }> }) {
+  if (!assertSameOrigin(request)) return jsonError("Invalid request origin", 403);
+  const context = await getAdminApiContext();
+  if (!context || context.user.role !== "ADMIN") return jsonError("Administrator access required", 403);
+  const body = await request.json().catch(() => null);
+  if (!body || typeof body.confirmation !== "string") return jsonError("Type the category name to confirm deletion", 400);
+  const { categoryId } = await params;
+  const category = await db.productCategory.findFirst({
+    where: { id: categoryId, storeId: context.store.id },
+    select: { id: true, name: true, slug: true, images: { select: { storageKey: true } }, contentPage: { select: { id: true } }, _count: { select: { products: true } } },
+  });
+  if (!category) return jsonError("Category not found", 404);
+  if (body.confirmation !== category.name) return jsonError("The category name does not match", 400);
+  if (!canHardDeleteCategory(category._count.products)) return jsonError("Move or unassign products before deleting this category", 409);
+  try {
+    await db.$transaction(async tx => {
+      if (category.contentPage) await tx.contentPage.delete({ where: { id: category.contentPage.id } });
+      await tx.productCategory.delete({ where: { id: category.id } });
+      await tx.auditLog.create({ data: { actorId: context.user.id, storeId: context.store.id, action: "CATEGORY_DELETED", entityType: "ProductCategory", entityId: category.id, metadata: { name: category.name, slug: category.slug } } });
+    });
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2003") return jsonError("This category is still referenced and cannot be deleted", 409);
+    return jsonError("Category could not be deleted", 500);
+  }
+  await Promise.all(category.images.map(image => deleteStoredImage(image.storageKey).catch(() => undefined)));
+  revalidatePath("/");
+  revalidatePath("/shop");
+  revalidatePath("/faq");
+  revalidatePath(`/${category.slug}`);
+  revalidatePath("/admin/categories");
+  return NextResponse.json({ ok: true });
 }
