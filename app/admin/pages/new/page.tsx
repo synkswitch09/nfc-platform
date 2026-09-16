@@ -12,20 +12,25 @@ export default async function NewContentPage({
 }) {
   await requireAdminPageContext();
   const requestedKind = (await searchParams).kind;
+  const isFaqPage = requestedKind === "faq";
   const kind: ContentPageEditorInitial["kind"] =
-    requestedKind === "HOME" ? "HOME" : "CAMPAIGN";
+    requestedKind === "HOME"
+      ? "HOME"
+      : isFaqPage
+        ? "COLLECTION"
+        : "CAMPAIGN";
   const initial: ContentPageEditorInitial = {
-    name: kind === "HOME" ? "Home" : "",
-    slug: kind === "HOME" ? "home" : "",
+    name: kind === "HOME" ? "Home" : isFaqPage ? "Frequently asked questions" : "",
+    slug: kind === "HOME" ? "home" : isFaqPage ? "faq" : "",
     kind,
-    status: "DRAFT",
+    status: isFaqPage ? "PUBLISHED" : "DRAFT",
     sortOrder: 0,
     visualTheme: "CORAL",
     seoTitle: "",
     seoDescription: "",
     ogImageUrl: "",
     canonicalUrl: "",
-    indexable: false,
+    indexable: isFaqPage,
   };
   return (
     <div>
