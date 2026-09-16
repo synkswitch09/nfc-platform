@@ -5,8 +5,13 @@ import {
   type ContentPageEditorInitial,
 } from "@/components/content-page-editor";
 import { LandingSectionEditor } from "@/components/landing-section-editor";
+import {
+  GeneralFaqEditor,
+  type GeneralFaqItem,
+} from "@/components/general-faq-editor";
 import { requireAdminPageContext } from "@/lib/admin";
 import { db } from "@/lib/db";
+import { parseLandingContent } from "@/lib/landing-sections";
 import { PageTranslationEditor } from "@/components/page-translation-editor";
 
 export default async function EditContentPage({
@@ -29,6 +34,7 @@ export default async function EditContentPage({
     },
   });
   if (!page) notFound();
+  const isFaqPage = page.slug === "faq";
   const fromStorefront =
     (await searchParams).from === "storefront" || page.kind === "HOME";
   const initial: ContentPageEditorInitial = {
@@ -46,6 +52,21 @@ export default async function EditContentPage({
     indexable: page.indexable,
   };
   const publicHref = page.kind === "HOME" ? "/" : `/${page.slug}`;
+  const faqSections = page.sections.filter((section) => section.type === "FAQ");
+  const faqItems: GeneralFaqItem[] = faqSections.flatMap((section) => {
+    const content = parseLandingContent("FAQ", section.content);
+    const items = Array.isArray(content?.items) ? content.items : [];
+    return items.map((item, order) => {
+      const value = item as Record<string, unknown>;
+      return {
+        id: String(value.id),
+        question: String(value.question ?? ""),
+        answer: String(value.answer ?? ""),
+        visible: value.visible !== false,
+        order,
+      };
+    });
+  });
   const localizedEditors = store.enabledLocales
     .filter((locale) => locale !== store.defaultLocale)
     .map((locale) => {
@@ -101,8 +122,9 @@ export default async function EditContentPage({
           <p className="admin-kicker">Content · {page.kind}</p>
           <h1>{page.name}</h1>
           <p>
-            General contains identity and SEO; Sections contains all public page
-            content without duplicated fields.
+            {isFaqPage
+              ? "Manage the public general FAQ questions here."
+              : "General contains identity and SEO; Sections contains all public page content without duplicated fields."}
           </p>
         </div>
         <Link className="button secondary" href={publicHref} target="_blank">
@@ -111,7 +133,9 @@ export default async function EditContentPage({
       </div>
       <nav className="admin-subnav" aria-label="Page editor sections">
         <a href="#general">General</a>
-        <a href="#sections">Sections</a>
+        <a href={isFaqPage ? "#faqs" : "#sections"}>
+          {isFaqPage ? "General FAQs" : "Sections"}
+        </a>
         <a href="#seo">SEO</a>
         {localizedEditors.length > 0 && (
           <a href="#translations">Translations</a>
@@ -121,17 +145,25 @@ export default async function EditContentPage({
         </a>
       </nav>
       <ContentPageEditor initial={initial} />
-      <LandingSectionEditor
-        initial={page.sections.map((section) => ({
-          id: section.id,
-          type: section.type,
-          name: section.name,
-          visible: section.visible,
-          content: section.content as Record<string, unknown>,
-        }))}
-        endpoint={`/api/admin/pages/${page.id}/sections`}
-        mediaUploadEndpoint={`/api/admin/pages/${page.id}/images`}
-      />
+      {isFaqPage ? (
+        <GeneralFaqEditor
+          pageId={page.id}
+          initialItems={faqItems}
+          initialSectionId={faqSections[0]?.id}
+        />
+      ) : (
+        <LandingSectionEditor
+          initial={page.sections.map((section) => ({
+            id: section.id,
+            type: section.type,
+            name: section.name,
+            visible: section.visible,
+            content: section.content as Record<string, unknown>,
+          }))}
+          endpoint={`/api/admin/pages/${page.id}/sections`}
+          mediaUploadEndpoint={`/api/admin/pages/${page.id}/images`}
+        />
+      )}
       {localizedEditors.length > 0 && (
         <section className="admin-stack locale-stack" id="translations">
           <div className="panel-heading">
