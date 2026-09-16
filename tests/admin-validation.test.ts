@@ -47,4 +47,17 @@ describe("admin validation", () => {
     expect(adminProductSchema.safeParse(configured).success).toBe(true);
     expect(adminProductSchema.safeParse({ ...configured, variants: [{ ...configured.variants[0], optionSelection: { colour: "missing" } }] }).success).toBe(false);
   });
+  it("accepts a colour, style and size variant when all choices are configured", () => {
+    const configured = {
+      ...validProduct,
+      personalisationMode: "NONE",
+      options: [
+        { name: "Colour", code: "colour", type: "COLOUR", required: true, priceDeltaCents: 0, active: true, values: [{ label: "Mint", value: "mint", priceDeltaCents: 0, active: true, swatchHex: "#9fd8c3" }] },
+        { name: "Style / shape", code: "shape", type: "SELECT", required: true, priceDeltaCents: 0, active: true, values: [{ label: "Bone", value: "bone", priceDeltaCents: 0, active: true }] },
+        { name: "Size", code: "size", type: "SELECT", required: true, priceDeltaCents: 0, active: true, values: [{ label: "Medium", value: "medium", priceDeltaCents: 0, active: true }] },
+      ],
+      variants: [{ ...validProduct.variants[0], optionSelection: { colour: "mint", shape: "bone", size: "medium" }, isDefault: true }],
+    };
+    expect(adminProductSchema.safeParse(configured).success).toBe(true);
+  });
 });
