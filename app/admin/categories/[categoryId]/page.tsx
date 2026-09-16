@@ -15,6 +15,7 @@ import { db } from "@/lib/db";
 import { requireAdminPageContext } from "@/lib/admin";
 import { LandingSectionEditor } from "@/components/landing-section-editor";
 import { PageTranslationEditor } from "@/components/page-translation-editor";
+import { CategoryDeleteControl } from "@/components/category-delete-control";
 
 export default async function EditCategoryPage({
   params,
@@ -22,7 +23,7 @@ export default async function EditCategoryPage({
   params: Promise<{ categoryId: string }>;
 }) {
   const { categoryId } = await params;
-  const { store } = await requireAdminPageContext();
+  const { store, user } = await requireAdminPageContext();
   const category = await db.productCategory.findFirst({
     where: { id: categoryId, storeId: store.id },
     include: {
@@ -146,6 +147,12 @@ export default async function EditCategoryPage({
           visible: section.visible,
           content: section.content as Record<string, unknown>,
         }))}
+      />
+      <CategoryDeleteControl
+        categoryId={category.id}
+        categoryName={category.name}
+        productCount={category.products.length}
+        canDelete={user.role === "ADMIN"}
       />
       {category.contentPage &&
         store.enabledLocales.filter((locale) => locale !== store.defaultLocale)
