@@ -19,3 +19,7 @@ export function publicTagState(status: TagStatus, isPublic: boolean) {
 export function canHardDeleteProduct(history: { orderItems: number; tags: number; batches: number; inventoryMovements: number; manufacturingJobs: number }) {
   return history.orderItems === 0 && history.tags === 0 && history.batches === 0 && history.inventoryMovements === 0 && history.manufacturingJobs === 0;
 }
+
+export function canHardDeleteCategory(productCount: number) {
+  return productCount === 0;
+}
