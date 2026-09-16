@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ChevronDown,
   ChevronUp,
@@ -141,6 +141,13 @@ export function LandingSectionEditor({
   const [addType, setAddType] = useState<LandingSectionType>("MEDIA_CONTENT");
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState("");
+  const [linkTargets, setLinkTargets] = useState<Array<{ href: string; label: string }>>([]);
+  useEffect(() => {
+    fetch("/api/admin/link-targets")
+      .then((response) => (response.ok ? response.json() : null))
+      .then((result) => setLinkTargets(Array.isArray(result?.targets) ? result.targets : []))
+      .catch(() => undefined);
+  }, []);
   const update = (index: number, changes: Partial<LandingSectionDraft>) =>
     setSections((rows) =>
       rows.map((row, rowIndex) =>
@@ -196,6 +203,9 @@ export function LandingSectionEditor({
   ] as const;
   return (
     <section className="admin-panel landing-builder" id={anchorId}>
+      <datalist id="landing-link-targets">
+        {linkTargets.map((target) => <option key={target.href} value={target.href}>{target.label}</option>)}
+      </datalist>
       <div className="panel-heading">
         <div>
           <h2>{structureLocked ? "Localized sections" : "Sections"}</h2>
@@ -1171,7 +1181,8 @@ function CtaFields({
             Destination
             <input
               value={string(section.content.ctaHref)}
-              placeholder="/shop or https://…"
+              list="landing-link-targets"
+              placeholder="Choose a page or enter a safe internal path"
               onChange={(event) => onChange({ ctaHref: event.target.value })}
             />
           </label>
@@ -1202,7 +1213,8 @@ function CtaFields({
             Destination
             <input
               value={string(section.content.secondaryCtaHref)}
-              placeholder="/activate or https://…"
+              list="landing-link-targets"
+              placeholder="Choose a page or enter a safe internal path"
               onChange={(event) => onChange({ secondaryCtaHref: event.target.value })}
             />
           </label>
@@ -1348,6 +1360,7 @@ function ItemsEditor({
             Card CTA destination
             <input
               value={item.ctaHref ?? ""}
+              list="landing-link-targets"
               placeholder="/shop"
               onChange={(event) =>
                 update(index, { ctaHref: event.target.value })
