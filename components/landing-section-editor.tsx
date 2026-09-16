@@ -487,16 +487,8 @@ function CommonCopy({
 }) {
   return (
     <details className="admin-subpanel" open>
-      <summary>Text content and typography</summary>
+      <summary>Text</summary>
       <div className="field-grid">
-        <label className="field">
-          Eyebrow
-          <input
-            value={string(section.content.eyebrow)}
-            maxLength={100}
-            onChange={(event) => onChange({ eyebrow: event.target.value })}
-          />
-        </label>
         <label className="field">
           Section anchor
           <input
@@ -506,65 +498,89 @@ function CommonCopy({
             onChange={(event) => onChange({ anchorId: event.target.value })}
           />
         </label>
-        <label className="field wide">
-          Headline
-          <input
-            value={string(section.content.headline)}
-            maxLength={180}
-            onChange={(event) => onChange({ headline: event.target.value })}
-          />
-        </label>
-        <label className="field wide">
-          Copy
-          <textarea
-            value={string(section.content.copy)}
-            maxLength={3000}
-            onChange={(event) => onChange({ copy: event.target.value })}
-          />
-        </label>
       </div>
-      <h4>Text style</h4>
       <p className="field-hint">
-        Leave a value inherited to use the Storefront Typography. Sizes are exact pixels.
+        Each text element keeps its content, typography and colour together.
+        Leave typography inherited to use the Storefront Typography. Sizes are exact pixels.
       </p>
-      <div className="field-grid">
-        {([
-          ["eyebrowTypography", "Eyebrow"],
-          ["headlineTypography", "Headline"],
-          ["copyTypography", "Body copy"],
-        ] as const).map(([name, label]) => (
-          <TypographyOverrideFields
-            key={name}
-            label={label}
-            value={typographyOverride(section.content[name])}
-            onChange={(value) => onChange({ [name]: value })}
-          />
-        ))}
-      </div>
-      <h4>Text colour overrides</h4>
-      <div className="field-grid">
-        <ColourField
-          label="General text"
-          value={string(section.content.textColour)}
-          onChange={(textColour) => onChange({ textColour })}
-        />
-        <ColourField
-          label="Eyebrow"
-          value={string(section.content.eyebrowColour)}
-          onChange={(eyebrowColour) => onChange({ eyebrowColour })}
-        />
-        <ColourField
-          label="Headline"
-          value={string(section.content.headlineColour)}
-          onChange={(headlineColour) => onChange({ headlineColour })}
-        />
-        <ColourField
-          label="Body copy"
-          value={string(section.content.copyColour)}
-          onChange={(copyColour) => onChange({ copyColour })}
-        />
-      </div>
+      <TextElementEditor
+        label="Eyebrow"
+        value={string(section.content.eyebrow)}
+        maxLength={100}
+        typography={typographyOverride(section.content.eyebrowTypography)}
+        colour={string(section.content.eyebrowColour)}
+        onChange={(value) => onChange({ eyebrow: value })}
+        onTypographyChange={(value) => onChange({ eyebrowTypography: value })}
+        onColourChange={(value) => onChange({ eyebrowColour: value })}
+      />
+      <TextElementEditor
+        label="Headline"
+        value={string(section.content.headline)}
+        maxLength={180}
+        typography={typographyOverride(section.content.headlineTypography)}
+        colour={string(section.content.headlineColour)}
+        onChange={(value) => onChange({ headline: value })}
+        onTypographyChange={(value) => onChange({ headlineTypography: value })}
+        onColourChange={(value) => onChange({ headlineColour: value })}
+      />
+      <TextElementEditor
+        label="Body copy"
+        value={string(section.content.copy)}
+        maxLength={3000}
+        multiline
+        typography={typographyOverride(section.content.copyTypography)}
+        colour={string(section.content.copyColour)}
+        onChange={(value) => onChange({ copy: value })}
+        onTypographyChange={(value) => onChange({ copyTypography: value })}
+        onColourChange={(value) => onChange({ copyColour: value })}
+      />
     </details>
+  );
+}
+
+function TextElementEditor({
+  label,
+  value,
+  maxLength,
+  multiline = false,
+  typography,
+  colour,
+  onChange,
+  onTypographyChange,
+  onColourChange,
+}: {
+  label: string;
+  value: string;
+  maxLength: number;
+  multiline?: boolean;
+  typography: TypographyOverride;
+  colour: string;
+  onChange: (value: string) => void;
+  onTypographyChange: (value: TypographyOverride) => void;
+  onColourChange: (value: string) => void;
+}) {
+  return (
+    <fieldset className="admin-subpanel">
+      <legend>{label}</legend>
+      <label className="field wide">
+        Content
+        {multiline ? (
+          <textarea
+            value={value}
+            maxLength={maxLength}
+            onChange={(event) => onChange(event.target.value)}
+          />
+        ) : (
+          <input
+            value={value}
+            maxLength={maxLength}
+            onChange={(event) => onChange(event.target.value)}
+          />
+        )}
+      </label>
+      <TypographyControls value={typography} onChange={onTypographyChange} />
+      <ColourField label="Colour" value={colour} onChange={onColourChange} />
+    </fieldset>
   );
 }
 function SectionStyle({
@@ -748,7 +764,97 @@ function CardStyle({
 }
 
 function TypographyOverrideFields({ label, value, onChange }: { label: string; value: TypographyOverride; onChange: (value: TypographyOverride) => void }) {
-  return <fieldset className="admin-subpanel"><legend>{label}</legend><div className="field-grid"><label className="field">Typeface<select value={value.family} onChange={(event) => onChange({ ...value, family: event.target.value as TypographyOverride["family"] })}><option value="INHERIT">Inherit</option>{fontFamilies.map((family) => <option key={family} value={family}>{family === "INTER" ? "Inter" : family[0] + family.slice(1).toLowerCase()}</option>)}</select></label><label className="field">Weight<select value={value.weight} onChange={(event) => onChange({ ...value, weight: event.target.value as TypographyOverride["weight"] })}><option value="INHERIT">Inherit</option>{fontWeights.map((weight) => <option key={weight} value={weight}>{weight[0] + weight.slice(1).toLowerCase()}</option>)}</select></label><label className="field">Style<select value={value.italic} onChange={(event) => onChange({ ...value, italic: event.target.value as TypographyOverride["italic"] })}><option value="INHERIT">Inherit</option><option value="NORMAL">Normal</option><option value="ITALIC">Italic</option></select></label><label className="field">Size (px)<input type="number" min="8" max="96" value={value.sizePx ?? ""} placeholder="Inherit" onChange={(event) => onChange({ ...value, sizePx: event.target.value ? Number(event.target.value) : null })} /></label></div></fieldset>;
+  return (
+    <fieldset className="admin-subpanel">
+      <legend>{label}</legend>
+      <TypographyControls value={value} onChange={onChange} />
+    </fieldset>
+  );
+}
+
+function TypographyControls({
+  value,
+  onChange,
+}: {
+  value: TypographyOverride;
+  onChange: (value: TypographyOverride) => void;
+}) {
+  return (
+    <div className="field-grid">
+      <label className="field">
+        Typeface
+        <select
+          value={value.family}
+          onChange={(event) =>
+            onChange({
+              ...value,
+              family: event.target.value as TypographyOverride["family"],
+            })
+          }
+        >
+          <option value="INHERIT">Inherit</option>
+          {fontFamilies.map((family) => (
+            <option key={family} value={family}>
+              {family === "INTER"
+                ? "Inter"
+                : family[0] + family.slice(1).toLowerCase()}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className="field">
+        Weight
+        <select
+          value={value.weight}
+          onChange={(event) =>
+            onChange({
+              ...value,
+              weight: event.target.value as TypographyOverride["weight"],
+            })
+          }
+        >
+          <option value="INHERIT">Inherit</option>
+          {fontWeights.map((weight) => (
+            <option key={weight} value={weight}>
+              {weight[0] + weight.slice(1).toLowerCase()}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className="field">
+        Style
+        <select
+          value={value.italic}
+          onChange={(event) =>
+            onChange({
+              ...value,
+              italic: event.target.value as TypographyOverride["italic"],
+            })
+          }
+        >
+          <option value="INHERIT">Inherit</option>
+          <option value="NORMAL">Normal</option>
+          <option value="ITALIC">Italic</option>
+        </select>
+      </label>
+      <label className="field">
+        Size (px)
+        <input
+          type="number"
+          min="8"
+          max="96"
+          value={value.sizePx ?? ""}
+          placeholder="Inherit"
+          onChange={(event) =>
+            onChange({
+              ...value,
+              sizePx: event.target.value ? Number(event.target.value) : null,
+            })
+          }
+        />
+      </label>
+    </div>
+  );
 }
 
 function NarrativeFields({
