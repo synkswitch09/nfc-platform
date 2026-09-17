@@ -2,8 +2,10 @@ import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypt
 import { MarketplaceConnectionStatus, MarketplaceKind, MarketplaceSyncJobStatus, MarketplaceSyncJobType, Prisma } from "@prisma/client";
 import { decryptSecret, encryptSecret, requiredSecret } from "@/lib/crypto";
 import { db } from "@/lib/db";
-import { getRuntimeConfig } from "@/lib/config";
+import { currentAppEnvironment, getRuntimeConfig } from "@/lib/config";
 import { availableInventory } from "@/lib/catalog";
+import { manufacturingRequirements } from "@/lib/manufacturing";
+import { notifyPaidOrder } from "@/lib/order-notifications";
 
 export const ETSY_OAUTH_COOKIE = "etsy_connect";
 const ETSY_API = "https://api.etsy.com/v3";
@@ -128,6 +130,81 @@ type RemoteInventoryProduct = { sku?: string; offerings?: RemoteOffering[]; [key
 type RemoteInventory = { products?: RemoteInventoryProduct[]; [key: string]: unknown };
 type LocalVariant = { sku: string; priceCents: number; inventory: number; reservedInventory: number; active: boolean; trackInventory: boolean; backorderPolicy: "DENY" | "ALLOW" };
 
+export type EtsyMoney = { amount?: number; divisor?: number; currency_code?: string };
+export type EtsyReceiptTransaction = { listing_id?: number | string; sku?: string; quantity?: number; title?: string; price?: EtsyMoney; variations?: unknown[] };
+export type EtsyReceipt = {
+  receipt_id?: number | string;
+  status?: string;
+  is_paid?: boolean;
+  buyer_email?: string | null;
+  name?: string | null;
+  first_line?: string | null;
+  second_line?: string | null;
+  city?: string | null;
+  state?: string | null;
+  zip?: string | null;
+  country_iso?: string | null;
+  formatted_address?: string | null;
+  payment_method?: string | null;
+  message_from_buyer?: string | null;
+  create_timestamp?: number;
+  updated_timestamp?: number;
+  grandtotal?: EtsyMoney;
+  subtotal?: EtsyMoney;
+  total_shipping_cost?: EtsyMoney;
+  transactions?: EtsyReceiptTransaction[];
+  [key: string]: unknown;
+};
+
+type EtsyReceiptsResponse = { results?: EtsyReceipt[]; count?: number };
+
+function stringValue(value: unknown) { return typeof value === "string" && value.trim() ? value.trim() : null; }
+
+export function etsyMoneyToCents(money: EtsyMoney | undefined, field: string) {
+  const amount = money?.amount;
+  const divisor = money?.divisor;
+  if (!Number.isSafeInteger(amount) || !Number.isSafeInteger(divisor) || !divisor || divisor < 1) throw new EtsyError(`Etsy receipt has an invalid ${field}`, 502);
+  const cents = (amount as number) * 100 / (divisor as number);
+  if (!Number.isSafeInteger(cents)) throw new EtsyError(`Etsy receipt has an unsupported ${field} divisor`, 502);
+  return cents;
+}
+
+export function normaliseEtsyReceipt(receipt: EtsyReceipt) {
+  const externalId = receipt.receipt_id == null ? null : String(receipt.receipt_id);
+  if (!externalId || !/^\d+$/.test(externalId)) throw new EtsyError("Etsy receipt is missing its ID", 502);
+  if (receipt.is_paid !== true) throw new EtsyError(`Etsy receipt ${externalId} is not paid`, 409);
+  const transactions = receipt.transactions ?? [];
+  if (!transactions.length) throw new EtsyError(`Etsy receipt ${externalId} has no line items`, 502);
+  const currency = stringValue(receipt.grandtotal?.currency_code)?.toUpperCase();
+  if (!currency) throw new EtsyError(`Etsy receipt ${externalId} has no currency`, 502);
+  const lines = transactions.map((transaction, index) => {
+    const listingId = transaction.listing_id == null ? null : String(transaction.listing_id);
+    const sku = stringValue(transaction.sku);
+    const quantity = transaction.quantity;
+    if (!listingId || !/^\d+$/.test(listingId) || !sku || !Number.isSafeInteger(quantity) || !quantity || quantity < 1) throw new EtsyError(`Etsy receipt ${externalId} has an invalid line ${index + 1}`, 502);
+    const lineCurrency = stringValue(transaction.price?.currency_code)?.toUpperCase();
+    if (lineCurrency !== currency) throw new EtsyError(`Etsy receipt ${externalId} mixes currencies`, 409);
+    return { listingId, sku, quantity, title: stringValue(transaction.title) ?? sku, unitPriceCents: etsyMoneyToCents(transaction.price, `price for ${sku}`), variations: Array.isArray(transaction.variations) ? transaction.variations : [] };
+  });
+  return {
+    externalId,
+    currency,
+    totalCents: etsyMoneyToCents(receipt.grandtotal, "grand total"),
+    shippingCents: etsyMoneyToCents(receipt.total_shipping_cost ?? { amount: 0, divisor: 100 }, "shipping total"),
+    status: stringValue(receipt.status),
+    customerName: stringValue(receipt.name),
+    customerEmail: stringValue(receipt.buyer_email),
+    shipping: {
+      line1: stringValue(receipt.first_line), line2: stringValue(receipt.second_line), locality: stringValue(receipt.city),
+      administrativeArea: stringValue(receipt.state), postcode: stringValue(receipt.zip), country: stringValue(receipt.country_iso)?.toUpperCase() ?? "AU",
+      formattedAddress: stringValue(receipt.formatted_address), phone: null as string | null,
+    },
+    shippingServiceName: lines.map(line => line.title).length === 1 ? lines[0].title : "Etsy shipping",
+    buyerMessage: stringValue(receipt.message_from_buyer),
+    lines,
+  };
+}
+
 export function buildEtsyInventoryPayload(remote: RemoteInventory, variants: LocalVariant[]) {
   const active = variants.filter(variant => variant.active);
   if (!active.length) throw new EtsyError("The product has no active variants to sync", 409);
@@ -162,6 +239,27 @@ export async function queueEtsyInventorySync(tx: Prisma.TransactionClient, store
   return listings.length;
 }
 
+// This is deliberately separate from inventory jobs: an outbound listing update
+// can be coalesced, while every paid receipt must be inspected for import.
+export async function queueEtsyReceiptSync(storeId?: string) {
+  const connections = await db.marketplaceConnection.findMany({
+    where: { kind: MarketplaceKind.ETSY, status: MarketplaceConnectionStatus.ACTIVE, syncEnabled: true, ...(storeId ? { storeId } : {}) },
+    select: { id: true },
+  });
+  for (const connection of connections) {
+    const dedupeKey = `etsy:${connection.id}:receipts`;
+    await db.marketplaceSyncJob.upsert({
+      where: { dedupeKey },
+      create: { connectionId: connection.id, type: MarketplaceSyncJobType.RECEIPTS, dedupeKey, payload: {} },
+      // Failed receipt imports stay visible for an administrator to resolve.
+      // A successful job clears its dedupe key, so the next scheduler run creates
+      // a fresh receipt poll without resetting a failed job behind the scenes.
+      update: {},
+    });
+  }
+  return connections.length;
+}
+
 async function executeEtsyInventoryJob(jobId: string) {
   const job = await db.marketplaceSyncJob.findUnique({ where: { id: jobId }, include: { connection: true, listing: { include: { product: { include: { variants: true } } } } } });
   if (!job || !job.listing) throw new EtsyError("Etsy sync job has no linked listing", 409);
@@ -179,15 +277,154 @@ async function executeEtsyInventoryJob(jobId: string) {
   ]);
 }
 
+async function importEtsyReceipt(connectionId: string, rawReceipt: EtsyReceipt) {
+  const receipt = normaliseEtsyReceipt(rawReceipt);
+  const result = await db.$transaction(async tx => {
+    const previous = await tx.marketplaceOrder.findUnique({ where: { connectionId_externalId: { connectionId, externalId: receipt.externalId } }, select: { orderId: true } });
+    if (previous) return { created: false, orderId: previous.orderId };
+
+    const connection = await tx.marketplaceConnection.findUnique({
+      where: { id: connectionId },
+      include: { store: { select: { id: true, slug: true, displayName: true, currency: true, capabilities: true } } },
+    });
+    if (!connection || connection.kind !== MarketplaceKind.ETSY || connection.status !== MarketplaceConnectionStatus.ACTIVE) throw new EtsyError("Etsy connection is no longer active", 409);
+    if (connection.store.currency.toUpperCase() !== receipt.currency) throw new EtsyError(`Etsy receipt ${receipt.externalId} is ${receipt.currency}, but this store is ${connection.store.currency}`, 409);
+
+    const listingIds = [...new Set(receipt.lines.map(line => line.listingId))];
+    const listings = await tx.marketplaceListing.findMany({
+      where: { connectionId, externalId: { in: listingIds } },
+      include: { product: { include: { variants: true } } },
+    });
+    const listingByExternalId = new Map(listings.map(listing => [listing.externalId, listing]));
+    const lines = receipt.lines.map(line => {
+      const listing = listingByExternalId.get(line.listingId);
+      if (!listing) throw new EtsyError(`Etsy receipt ${receipt.externalId} includes unlinked listing ${line.listingId}; link it before importing this order`, 409);
+      const variant = listing.product.variants.find(item => item.sku === line.sku && item.active);
+      if (!variant) throw new EtsyError(`Etsy receipt ${receipt.externalId} SKU ${line.sku} does not match an active local variant`, 409);
+      return { ...line, listing, variant };
+    });
+
+    const quantities = new Map<string, number>();
+    for (const line of lines) quantities.set(line.variant.id, (quantities.get(line.variant.id) ?? 0) + line.quantity);
+    for (const [variantId, quantity] of quantities) {
+      const variant = lines.find(line => line.variant.id === variantId)!.variant;
+      if (variant.trackInventory && variant.backorderPolicy === "DENY" && availableInventory(variant) < quantity) throw new EtsyError(`Etsy receipt ${receipt.externalId} cannot be imported: ${variant.sku} does not have enough available stock`, 409);
+    }
+
+    const subtotalCents = Math.max(0, receipt.totalCents - receipt.shippingCents);
+    const prefix = connection.store.slug === "tapkin" ? "TK" : connection.store.slug.slice(0, 4).toUpperCase();
+    const order = await tx.order.create({
+      data: {
+        orderNumber: `${prefix}-ETSY-${receipt.externalId}`,
+        storeId: connection.store.id,
+        sourceDomain: "etsy.com",
+        checkoutEnvironment: currentAppEnvironment().toUpperCase() as "DEVELOPMENT" | "STAGING" | "PRODUCTION",
+        storeDisplayName: connection.store.displayName,
+        guestEmail: receipt.customerEmail,
+        customerName: receipt.customerName,
+        shippingName: receipt.customerName,
+        shippingLine1: receipt.shipping.line1,
+        shippingLine2: receipt.shipping.line2,
+        shippingSuburb: receipt.shipping.locality,
+        shippingState: receipt.shipping.administrativeArea,
+        shippingLocality: receipt.shipping.locality,
+        shippingAdministrativeArea: receipt.shipping.administrativeArea,
+        shippingPostcode: receipt.shipping.postcode,
+        shippingCountry: receipt.shipping.country,
+        shippingFormattedAddress: receipt.shipping.formattedAddress,
+        shippingProviderKey: "etsy",
+        shippingServiceCode: "etsy",
+        shippingServiceName: receipt.shippingServiceName,
+        shippingQuoteSnapshot: { source: "etsy", receiptId: receipt.externalId, paymentMethod: rawReceipt.payment_method ?? null, buyerMessage: receipt.buyerMessage },
+        status: "PAID",
+        currency: receipt.currency,
+        subtotalCents,
+        shippingCents: receipt.shippingCents,
+        totalCents: receipt.totalCents,
+        items: { create: lines.map(line => ({
+          variant: { connect: { id: line.variant.id } },
+          quantity: line.quantity,
+          unitPriceCents: line.unitPriceCents,
+          productName: line.listing.product.name,
+          variantName: line.variant.name,
+          sku: line.variant.sku,
+          productType: line.listing.product.type,
+          personalisation: line.variations.length ? { source: "etsy", variations: line.variations } as Prisma.InputJsonValue : undefined,
+          personalisationMode: line.listing.product.personalisationMode,
+          personalisationChoice: line.listing.product.personalisationMode === "NONE" || !line.variations.length ? "BASIC" : "PERSONALISED",
+          selectedOptions: line.variations.length ? { etsyVariations: line.variations } as Prisma.InputJsonValue : undefined,
+          shippingSnapshot: { source: "etsy", listingId: line.listingId },
+        })) },
+        payments: { create: { provider: "etsy", providerSessionId: `etsy:${connectionId}:${receipt.externalId}`, amountCents: receipt.totalCents, currency: receipt.currency, status: "SUCCEEDED" } },
+        statusHistory: { create: { toStatus: "PAID", note: `Imported from Etsy receipt ${receipt.externalId}` } },
+      },
+      include: { items: true },
+    });
+
+    for (const [variantId, quantity] of quantities) {
+      const variant = lines.find(line => line.variant.id === variantId)!.variant;
+      if (variant.trackInventory) {
+        if (variant.backorderPolicy === "DENY") {
+          const changed = await tx.productVariant.updateMany({ where: { id: variantId, inventory: { gte: quantity } }, data: { inventory: { decrement: quantity } } });
+          if (changed.count !== 1) throw new EtsyError(`Etsy receipt ${receipt.externalId} stock changed while importing ${variant.sku}; retry after resolving inventory`, 409);
+        } else if (variant.inventory >= quantity) {
+          await tx.productVariant.update({ where: { id: variantId }, data: { inventory: { decrement: quantity } } });
+        }
+        await tx.inventoryMovement.create({ data: { variantId, orderId: order.id, type: "SALE", quantity: -quantity, reason: `Etsy receipt ${receipt.externalId}` } });
+      }
+    }
+
+    for (const productId of new Set(lines.map(line => line.variant.productId))) await queueEtsyInventorySync(tx, connection.store.id, productId);
+    const jobs = order.items.flatMap(item => {
+      const variant = lines.find(line => line.variant.id === item.variantId)!.variant;
+      const requirements = manufacturingRequirements(connection.store.capabilities, item.productType);
+      return requirements ? [{ storeId: connection.store.id, orderItemId: item.id, productVariantId: item.variantId, quantity: item.quantity, material: variant.material, colour: variant.colour, requiresNfc: requirements.requiresNfc }] : [];
+    });
+    if (jobs.length) await tx.manufacturingJob.createMany({ data: jobs, skipDuplicates: true });
+    await tx.marketplaceOrder.create({ data: { connectionId, orderId: order.id, externalId: receipt.externalId, externalState: receipt.status, externalData: rawReceipt as Prisma.InputJsonValue } });
+    await tx.auditLog.create({ data: { storeId: connection.store.id, action: "ETSY_RECEIPT_IMPORTED", entityType: "Order", entityId: order.id, metadata: { receiptId: receipt.externalId, lineCount: lines.length } } });
+    return { created: true, orderId: order.id };
+  }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+  if (result.created) await notifyPaidOrder(result.orderId);
+  return result;
+}
+
+async function executeEtsyReceiptsJob(jobId: string) {
+  const job = await db.marketplaceSyncJob.findUnique({ where: { id: jobId }, include: { connection: true } });
+  if (!job) throw new EtsyError("Etsy receipt job was not found", 404);
+  const connection = job.connection;
+  if (!connection.syncEnabled || connection.status !== MarketplaceConnectionStatus.ACTIVE || !connection.shopId) throw new EtsyError("Etsy order import is disabled or needs reconnection", 409);
+  const query = new URLSearchParams({ was_paid: "true", was_canceled: "false", sort_on: "updated", sort_order: "asc", limit: "100" });
+  if (connection.lastOrderSyncedAt) query.set("min_last_modified", String(Math.max(0, Math.floor(connection.lastOrderSyncedAt.getTime() / 1000) - 60)));
+  let offset = 0;
+  let imported = 0;
+  while (offset < 1000) {
+    query.set("offset", String(offset));
+    const response = await etsyRequest<EtsyReceiptsResponse>(connection, `/application/shops/${encodeURIComponent(connection.shopId)}/receipts?${query}`);
+    const receipts = response.results ?? [];
+    for (const receipt of receipts) if ((await importEtsyReceipt(connection.id, receipt)).created) imported += 1;
+    if (receipts.length < 100) break;
+    offset += receipts.length;
+  }
+  if (offset >= 1000) throw new EtsyError("Etsy returned more than 1,000 changed receipts; run sync again to continue safely", 409);
+  const now = new Date();
+  await db.marketplaceConnection.update({ where: { id: connection.id }, data: { lastOrderSyncedAt: now, lastError: null, status: "ACTIVE" } });
+  return imported;
+}
+
 export async function processEtsySyncJobs(storeId?: string, limit = 10) {
   let succeeded = 0; let failed = 0;
+  await queueEtsyReceiptSync(storeId);
   const candidates = await db.marketplaceSyncJob.findMany({ where: { status: MarketplaceSyncJobStatus.QUEUED, availableAt: { lte: new Date() }, ...(storeId ? { connection: { storeId, kind: MarketplaceKind.ETSY } } : {}) }, orderBy: { createdAt: "asc" }, take: Math.min(Math.max(limit, 1), 50), select: { id: true } });
   for (const candidate of candidates) {
     const claimed = await db.marketplaceSyncJob.updateMany({ where: { id: candidate.id, status: MarketplaceSyncJobStatus.QUEUED }, data: { status: MarketplaceSyncJobStatus.PROCESSING, startedAt: new Date(), attempts: { increment: 1 } } });
     if (!claimed.count) continue;
     const current = await db.marketplaceSyncJob.findUnique({ where: { id: candidate.id }, select: { attempts: true, connectionId: true, listingId: true } });
     try {
-      await executeEtsyInventoryJob(candidate.id);
+      const type = await db.marketplaceSyncJob.findUnique({ where: { id: candidate.id }, select: { type: true } });
+      if (type?.type === MarketplaceSyncJobType.INVENTORY) await executeEtsyInventoryJob(candidate.id);
+      else if (type?.type === MarketplaceSyncJobType.RECEIPTS) await executeEtsyReceiptsJob(candidate.id);
+      else throw new EtsyError("Unsupported Etsy sync job", 409);
       await db.marketplaceSyncJob.update({ where: { id: candidate.id }, data: { status: MarketplaceSyncJobStatus.SUCCEEDED, dedupeKey: null, completedAt: new Date(), lastError: null } });
       succeeded += 1;
     } catch (error) {

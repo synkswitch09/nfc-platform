@@ -277,6 +277,7 @@ enum MarketplaceConnectionStatus {
 
 enum MarketplaceSyncJobType {
   INVENTORY
+  RECEIPTS
 }
 
 enum MarketplaceSyncJobStatus {
@@ -560,6 +561,7 @@ model MarketplaceConnection {
   listingDefaults       Json                        @default("{}")
   syncEnabled           Boolean                     @default(true)
   lastSyncedAt          DateTime?
+  lastOrderSyncedAt     DateTime?
   lastError             String?
   connectedAt           DateTime?
   createdAt             DateTime                    @default(now())
@@ -567,6 +569,7 @@ model MarketplaceConnection {
   store                 Store                       @relation(fields: [storeId], references: [id], onDelete: Restrict)
   listings              MarketplaceListing[]
   syncJobs              MarketplaceSyncJob[]
+  orders                MarketplaceOrder[]
 
   @@unique([storeId, kind])
   @@index([storeId, status])
@@ -616,6 +619,24 @@ model MarketplaceSyncJob {
 
   @@index([status, availableAt])
   @@index([connectionId, status])
+}
+
+// Receipt imports are recorded separately from orders so retrying a poll can
+// never deduct stock or create manufacturing work twice for the same Etsy sale.
+model MarketplaceOrder {
+  id            String                @id @default(uuid()) @db.Uuid
+  connectionId  String                @db.Uuid
+  orderId       String                @unique @db.Uuid
+  externalId    String
+  externalState String?
+  externalData  Json                  @default("{}")
+  importedAt    DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
+  connection    MarketplaceConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  order         Order                 @relation(fields: [orderId], references: [id], onDelete: Restrict)
+
+  @@unique([connectionId, externalId])
+  @@index([connectionId, importedAt])
 }
 
 model ProductCategory {
@@ -890,6 +911,7 @@ model Order {
   inventoryMovements         InventoryMovement[]
   shippingQuote              ShippingQuote?        @relation(fields: [shippingQuoteId], references: [id], onDelete: SetNull)
   shipments                  Shipment[]
+  marketplaceOrder           MarketplaceOrder?
 
   @@index([storeId, userId, createdAt])
   @@index([storeId, guestEmail, createdAt])
