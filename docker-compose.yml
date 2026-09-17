@@ -38,6 +38,9 @@ services:
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
       APPLE_CLIENT_ID: ${APPLE_CLIENT_ID:-}
       APPLE_CLIENT_SECRET: ${APPLE_CLIENT_SECRET:-}
+      ETSY_API_KEY: ${ETSY_API_KEY:-}
+      ETSY_SHARED_SECRET: ${ETSY_SHARED_SECRET:-}
+      ETSY_SYNC_SECRET: ${ETSY_SYNC_SECRET:-}
       UPLOAD_DIR: /app/data/uploads
     volumes:
       - product_uploads:/app/data/uploads

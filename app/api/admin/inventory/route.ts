@@ -3,6 +3,7 @@ import { getAdminApiContext } from "@/lib/admin";
 import { inventoryAdjustmentSchema } from "@/lib/admin-validation";
 import { db } from "@/lib/db";
 import { assertSameOrigin, jsonError } from "@/lib/http";
+import { queueEtsyInventorySync } from "@/lib/etsy";
 
 export async function POST(request: NextRequest) {
   if (!assertSameOrigin(request)) return jsonError("Invalid request origin", 403);
@@ -19,6 +20,8 @@ export async function POST(request: NextRequest) {
     await tx.productVariant.update({ where: { id: variantId }, data: { inventory: quantity } });
     if (difference !== 0) await tx.inventoryMovement.create({ data: { variantId, actorId: user.id, type: "ADJUSTMENT", quantity: difference, reason } });
     await tx.auditLog.create({ data: { actorId: user.id, storeId: store.id, action: "INVENTORY_ADJUSTED", entityType: "ProductVariant", entityId: variantId, metadata: { from: variant.inventory, to: quantity, reason } } });
+    const product = await tx.productVariant.findUnique({ where: { id: variantId }, select: { productId: true } });
+    if (product) await queueEtsyInventorySync(tx, store.id, product.productId);
     return { quantity };
   }).catch(error => {
     if (error instanceof Error && error.message === "RESERVED_STOCK") return "reserved" as const;

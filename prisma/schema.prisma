@@ -261,6 +261,31 @@ enum InventoryMovementType {
   ADJUSTMENT
 }
 
+// Marketplace credentials are kept separate from customer OAuth accounts. A
+// connection belongs to a Store, never to the currently signed-in operator.
+enum MarketplaceKind {
+  ETSY
+}
+
+enum MarketplaceConnectionStatus {
+  CONNECTING
+  ACTIVE
+  EXPIRED
+  ERROR
+  DISCONNECTED
+}
+
+enum MarketplaceSyncJobType {
+  INVENTORY
+}
+
+enum MarketplaceSyncJobStatus {
+  QUEUED
+  PROCESSING
+  SUCCEEDED
+  FAILED
+}
+
 model User {
   id                        String               @id @default(uuid()) @db.Uuid
   email                     String               @unique
@@ -346,6 +371,7 @@ model Store {
   printAgents          PrintAgent[]
   printJobs            PrintJob[]
   landingSections      LandingPageSection[]
+  marketplaceConnections MarketplaceConnection[]
 
   @@index([status, name])
 }
@@ -510,10 +536,86 @@ model Product {
   tags                NFCTag[]
   batches             ManufacturingBatch[]
   defaultPackaging    Packaging?            @relation(fields: [defaultPackagingId], references: [id], onDelete: SetNull)
+  marketplaceListings MarketplaceListing[]
 
   @@unique([storeId, slug])
   @@index([storeId, categoryId, status])
   @@index([storeId, status, featured])
+}
+
+// One seller account can be connected for each marketplace per Store. Tokens
+// are AES-GCM encrypted at rest; never expose them to a browser or audit log.
+model MarketplaceConnection {
+  id                    String                      @id @default(uuid()) @db.Uuid
+  storeId               String                      @db.Uuid
+  kind                  MarketplaceKind
+  status                MarketplaceConnectionStatus @default(CONNECTING)
+  shopId                String?
+  shopName              String?
+  sellerId              String?
+  accessTokenEncrypted  String?
+  refreshTokenEncrypted String?
+  tokenExpiresAt        DateTime?
+  scopes                String[]                    @default([])
+  listingDefaults       Json                        @default("{}")
+  syncEnabled           Boolean                     @default(true)
+  lastSyncedAt          DateTime?
+  lastError             String?
+  connectedAt           DateTime?
+  createdAt             DateTime                    @default(now())
+  updatedAt             DateTime                    @updatedAt
+  store                 Store                       @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  listings              MarketplaceListing[]
+  syncJobs              MarketplaceSyncJob[]
+
+  @@unique([storeId, kind])
+  @@index([storeId, status])
+}
+
+// A link is explicit: no Etsy listing is touched unless an administrator links
+// it to one local product after confirming its SKU variation mapping.
+model MarketplaceListing {
+  id             String                @id @default(uuid()) @db.Uuid
+  connectionId   String                @db.Uuid
+  productId      String                @db.Uuid
+  externalId     String
+  externalUrl    String?
+  state          String?
+  lastSyncedAt   DateTime?
+  lastError      String?
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
+  connection     MarketplaceConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  product        Product               @relation(fields: [productId], references: [id], onDelete: Restrict)
+  syncJobs       MarketplaceSyncJob[]
+
+  @@unique([connectionId, productId])
+  @@unique([connectionId, externalId])
+  @@index([productId])
+}
+
+// Transactional outbox. Inventory changes enqueue a single coalesced job per
+// linked listing; the worker retries safely without holding checkout open.
+model MarketplaceSyncJob {
+  id            String                   @id @default(uuid()) @db.Uuid
+  connectionId  String                   @db.Uuid
+  listingId     String?                  @db.Uuid
+  type          MarketplaceSyncJobType
+  status        MarketplaceSyncJobStatus @default(QUEUED)
+  dedupeKey     String?                  @unique
+  attempts      Int                      @default(0)
+  payload       Json                     @default("{}")
+  lastError     String?
+  availableAt   DateTime                 @default(now())
+  startedAt     DateTime?
+  completedAt   DateTime?
+  createdAt     DateTime                 @default(now())
+  updatedAt     DateTime                 @updatedAt
+  connection    MarketplaceConnection    @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  listing       MarketplaceListing?      @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  @@index([status, availableAt])
+  @@index([connectionId, status])
 }
 
 model ProductCategory {

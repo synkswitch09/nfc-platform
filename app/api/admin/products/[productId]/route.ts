@@ -7,6 +7,7 @@ import { assertSameOrigin, jsonError } from "@/lib/http";
 import { createPublicTagId } from "@/lib/crypto";
 import { canHardDeleteProduct } from "@/lib/catalog-policy";
 import { deleteStoredImage } from "@/lib/uploads";
+import { queueEtsyInventorySync } from "@/lib/etsy";
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ productId: string }> }) {
   if (!assertSameOrigin(request)) return jsonError("Invalid request origin", 403);
@@ -77,6 +78,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       const previous = new Map(existing.variants.map(variant => [variant.id, variant]));
       if (data.variants.some(variant => !variant.id || previous.get(variant.id)?.priceCents !== variant.priceCents)) await tx.auditLog.create({ data: { actorId: user.id, storeId: store.id, action: "PRODUCT_PRICE_CHANGED", entityType: "Product", entityId: productId } });
       if (data.variants.some(variant => !variant.id || previous.get(variant.id)?.inventory !== variant.inventory)) await tx.auditLog.create({ data: { actorId: user.id, storeId: store.id, action: "PRODUCT_INVENTORY_CHANGED", entityType: "Product", entityId: productId } });
+      await queueEtsyInventorySync(tx, store.id, productId);
     });
     return NextResponse.json({ ok: true });
   } catch (error) {

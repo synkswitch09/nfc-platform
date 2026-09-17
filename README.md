@@ -66,6 +66,17 @@ Releases deliberately exclude customers, accounts, sessions, carts, orders, paym
 
 Add Stripe secret keys and forward the `checkout.session.completed` webhook to `/api/stripe/webhook`. The server obtains all prices from PostgreSQL and never accepts a client-supplied price. Card data is entered on Stripe Checkout and is never stored by this application.
 
+## Etsy marketplace
+
+Etsy is an optional sales channel. This Store remains the source of truth for stock: available inventory is `on hand − reserved`, so an unpaid checkout temporarily reduces the quantity sent to Etsy and cancellation restores it. This avoids selling the same tracked unit in both channels.
+
+1. Create an Etsy Open API v3 app and configure `ETSY_API_KEY` and `ETSY_SHARED_SECRET` as deployment secrets.
+2. Register the exact HTTPS callback URL: `https://your-domain.example/api/admin/etsy/callback`. Etsy rejects callback URLs that differ even by a trailing slash.
+3. In **Admin → Etsy**, connect the seller account, then create/configure the physical listing and its variations in Etsy. Link it to a local product with its Etsy listing ID only when all active local SKUs match the Etsy SKUs exactly.
+4. Set a separate random `ETSY_SYNC_SECRET` and call `POST /api/integrations/etsy/sync` with `Authorization: Bearer <ETSY_SYNC_SECRET>` every minute from your host scheduler. You can also use **Sync now** in Admin.
+
+Credentials and OAuth tokens never reach the browser; tokens are encrypted at rest using the deployment session secret. The synchroniser currently updates quantity, price and enabled state for explicitly linked listings. It deliberately does not import Etsy orders, fulfil them, delete Etsy listings, or create listings automatically: Etsy requires seller-specific taxonomy, shipping and processing-profile data, and the SKU check prevents a partial variation mapping from corrupting stock. The Etsy API itself requires an app API key on every request plus OAuth/PKCE for seller-authorised writes. [Etsy authentication documentation](https://developers.etsy.com/documentation/essentials/authentication/) and [listing/inventory documentation](https://developers.etsy.com/documentation/tutorials/listings/) describe those requirements.
+
 ## Google and Apple login
 
 Social login is optional. Set the corresponding client ID and secret, then register these exact callbacks with the providers:

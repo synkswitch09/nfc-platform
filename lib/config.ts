@@ -32,6 +32,9 @@ const runtimeConfigSchema = z.object({
   GOOGLE_CLIENT_SECRET: optionalString,
   APPLE_CLIENT_ID: optionalString,
   APPLE_CLIENT_SECRET: optionalString,
+  ETSY_API_KEY: optionalString,
+  ETSY_SHARED_SECRET: optionalString,
+  ETSY_SYNC_SECRET: optionalString,
   ENABLE_TEST_CHECKOUT: booleanString,
   ANALYTICS_ID: optionalString,
   LOG_LEVEL: z.enum(["info", "warn", "error"]).default("info"),
@@ -47,6 +50,7 @@ const runtimeConfigSchema = z.object({
 
   paired(value.GOOGLE_CLIENT_ID, value.GOOGLE_CLIENT_SECRET, "GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET");
   paired(value.APPLE_CLIENT_ID, value.APPLE_CLIENT_SECRET, "APPLE_CLIENT_ID", "APPLE_CLIENT_SECRET");
+  paired(value.ETSY_API_KEY, value.ETSY_SHARED_SECRET, "ETSY_API_KEY", "ETSY_SHARED_SECRET");
   paired(value.DEV_ADMIN_EMAIL, value.DEV_ADMIN_PASSWORD, "DEV_ADMIN_EMAIL", "DEV_ADMIN_PASSWORD");
   paired(value.STAGING_ADMIN_EMAIL, value.STAGING_ADMIN_PASSWORD, "STAGING_ADMIN_EMAIL", "STAGING_ADMIN_PASSWORD");
 
@@ -114,6 +118,7 @@ export type RuntimeConfig = {
   storage: { provider: "local" | "azure-blob"; environment?: AppEnvironment; uploadDir: string; containerUrl?: string; sasToken?: string };
   email: { mode: "mock" | "sandbox" | "live"; webhookUrl?: string; webhookSecret?: string; testOutboxPath?: string };
   stripe: { secretKey?: string; webhookSecret?: string; publishableKey?: string; testCheckout: boolean };
+  etsy: { apiKey?: string; sharedSecret?: string; syncSecret?: string };
   analyticsId?: string;
   logLevel: "info" | "warn" | "error";
 };
@@ -137,6 +142,7 @@ export function parseRuntimeConfig(environment: Record<string, string | undefine
     storage: { provider: value.STORAGE_PROVIDER, environment: value.STORAGE_ENVIRONMENT, uploadDir: value.UPLOAD_DIR, containerUrl: value.AZURE_STORAGE_CONTAINER_URL, sasToken: value.AZURE_STORAGE_SAS_TOKEN },
     email: { mode: value.EMAIL_MODE, webhookUrl: value.EMAIL_WEBHOOK_URL, webhookSecret: value.EMAIL_WEBHOOK_SECRET, testOutboxPath: value.EMAIL_TEST_OUTBOX_PATH },
     stripe: { secretKey: value.STRIPE_SECRET_KEY, webhookSecret: value.STRIPE_WEBHOOK_SECRET, publishableKey: value.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY, testCheckout: value.ENABLE_TEST_CHECKOUT },
+    etsy: { apiKey: value.ETSY_API_KEY, sharedSecret: value.ETSY_SHARED_SECRET, syncSecret: value.ETSY_SYNC_SECRET },
     analyticsId: value.ANALYTICS_ID,
     logLevel: value.LOG_LEVEL,
   };

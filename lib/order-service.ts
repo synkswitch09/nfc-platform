@@ -9,6 +9,7 @@ import { manufacturingRequirements } from "@/lib/manufacturing";
 import { shippingCartHash, shippingDestinationHash } from "@/lib/shipping";
 import { notifyPaidOrder } from "@/lib/order-notifications";
 import type { ShippingDestination } from "@/lib/shipping";
+import { queueEtsyInventorySync } from "@/lib/etsy";
 
 export type CheckoutItemInput = { variantId: string; quantity: number; personalisationChoice?: "BASIC" | "PERSONALISED"; personalisation?: Record<string, string> };
 export type CheckoutCustomerInput = {
@@ -128,6 +129,7 @@ export async function createPendingOrder(items: CheckoutItemInput[], customer: C
       if (reserved.count !== 1) throw new CheckoutError("Stock changed while checking out. Please try again.", 409);
       await tx.inventoryMovement.create({ data: { variantId: variant.id, orderId: order.id, type: "RESERVATION", quantity } });
     }
+    for (const productId of new Set(variants.map(variant => variant.productId))) await queueEtsyInventorySync(tx, store.id, productId);
 
     return { order, lines, claimToken };
   }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
@@ -150,6 +152,7 @@ export async function cancelPendingOrder(orderId: string, reason: string, actorI
         await tx.inventoryMovement.create({ data: { variantId, orderId, type: "RELEASE", quantity: -quantity, reason } });
       }
     }
+    for (const productId of new Set(order.items.map(item => item.variant.productId))) await queueEtsyInventorySync(tx, order.storeId, productId);
     await tx.payment.updateMany({ where: { orderId, status: "PENDING" }, data: { status: "FAILED" } });
     await tx.order.update({ where: { id: orderId }, data: { status: "CANCELLED" } });
     await tx.orderStatusHistory.create({ data: { orderId, fromStatus: "PAYMENT_PENDING", toStatus: "CANCELLED", actorId, note: reason } });
@@ -183,6 +186,7 @@ export async function settleCheckoutEvent(input: { eventId: string; eventType: s
       }
       await tx.inventoryMovement.create({ data: { variantId, orderId: payment.orderId, type: "SALE", quantity: -quantity } });
     }
+    for (const productId of new Set(payment.order.items.map(item => item.variant.productId))) await queueEtsyInventorySync(tx, payment.order.storeId, productId);
     await tx.payment.update({ where: { id: payment.id }, data: { status: "SUCCEEDED", providerPaymentIntentId: input.paymentIntentId ?? null } });
     await tx.order.update({ where: { id: payment.orderId }, data: { status: "PAID" } });
     await tx.orderStatusHistory.create({ data: { orderId: payment.orderId, fromStatus: "PAYMENT_PENDING", toStatus: "PAID" } });

@@ -13,6 +13,7 @@ import {
   ImageIcon,
   LayoutTemplate,
   PackageSearch,
+  Store,
   ScanLine,
   Settings,
   ShieldCheck,
@@ -53,6 +54,7 @@ const groups = [
     label: "Sales",
     links: [
       { href: "/admin/orders", label: "Orders", icon: ClipboardList },
+      { href: "/admin/etsy", label: "Etsy", icon: Store },
       { href: "/admin/shipping", label: "Shipping", icon: Truck },
       { href: "/admin/customers", label: "Customers", icon: Users },
     ],
