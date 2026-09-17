@@ -56,6 +56,12 @@ Product and category landing uploads accept content-verified PNG, JPEG and WebP 
 
 The production runtime image is non-root and does not run migrations. Compose and cloud releases use the dedicated `migrator` target once before starting/updating the app. Health endpoints are `/api/health/live` and `/api/health/ready`; `/api/health` remains a readiness-compatible alias.
 
+## Promote storefront content
+
+Use **Admin → Store settings → Storefront releases** to avoid rebuilding the catalogue and CMS manually in another environment. Download a release from Development, then upload it in the destination, preview the create/update counts and confirm the import. A release includes Store visual settings, categories, products/variants/options, modular pages/FAQs and uploaded media (up to 25 MB total). Media is copied into the destination storage and `/api/media/...` references are updated.
+
+Releases deliberately exclude customers, accounts, sessions, carts, orders, payments, NFC tags, manufacturing batches, print jobs and credentials. Imports create or update by category/page slug and product SKU; they never remove content that is absent from the release. Do not run `db:seed` after **Start fresh**: reset already creates the initial Pets catalog, while seed is only for bootstrapping an empty development database.
+
 ## Stripe
 
 Add Stripe secret keys and forward the `checkout.session.completed` webhook to `/api/stripe/webhook`. The server obtains all prices from PostgreSQL and never accepts a client-supplied price. Card data is entered on Stripe Checkout and is never stored by this application.

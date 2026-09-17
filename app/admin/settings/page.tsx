@@ -53,6 +53,15 @@ export default async function AdminSettingsPage() {
           <Link className="button secondary" href="/admin/settings/reset">Open reset tool</Link>
         </div>
       </section>
+      <section className="admin-panel">
+        <div className="panel-heading">
+          <div>
+            <h2>Storefront releases</h2>
+            <p>Export approved storefront content from Development, then preview and import it in another environment.</p>
+          </div>
+          <Link className="button secondary" href="/admin/settings/releases">Manage releases</Link>
+        </div>
+      </section>
     </div>
   );
 }
