@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildEtsyInventoryPayload, codeChallenge, etsyMoneyToCents, normaliseEtsyReceipt } from "@/lib/etsy";
+import { buildEtsyInventoryPayload, buildEtsyListingContentPayload, codeChallenge, etsyMoneyToCents, normaliseEtsyReceipt, verifyEtsyVariationValues } from "@/lib/etsy";
 
 describe("Etsy marketplace sync", () => {
   it("uses the required PKCE SHA-256 URL-safe challenge", () => {
@@ -14,6 +14,15 @@ describe("Etsy marketplace sync", () => {
 
   it("refuses a partial SKU mapping instead of changing the wrong Etsy variation", () => {
     expect(() => buildEtsyInventoryPayload({ products: [{ sku: "TAG-PINK", offerings: [{}] }] }, [{ sku: "TAG-MINT", priceCents: 2495, inventory: 1, reservedInventory: 0, active: true, trackInventory: true, backorderPolicy: "DENY" }])).toThrow(/SKU mapping/i);
+  });
+
+  it("checks mapped Etsy colour values and builds a safe listing content update", () => {
+    const remote = { products: [{ sku: "TAG-MINT-S", property_values: [{ property_name: "Color", values: ["Mint"] }], offerings: [{}] }] };
+    const variants = [{ sku: "TAG-MINT-S", priceCents: 2495, inventory: 1, reservedInventory: 0, active: true, trackInventory: true, backorderPolicy: "DENY" as const, optionSelection: { colour: "mint" } }];
+    const options = [{ code: "colour", name: "Colour", type: "COLOUR", values: [{ label: "Mint", value: "mint", active: true }] }];
+    expect(() => verifyEtsyVariationValues(remote, variants, options)).not.toThrow();
+    expect(() => verifyEtsyVariationValues({ ...remote, products: [{ ...remote.products[0], property_values: [{ property_name: "Color", values: ["Black"] }] }] }, variants, options)).toThrow(/variation mismatch/i);
+    expect(buildEtsyListingContentPayload({ name: "Mint pet tag", description: "Short description", fullDescription: "Long Etsy-ready description" }).toString()).toContain("title=Mint+pet+tag");
   });
 
   it("normalises a paid receipt using Etsy money divisors and SKU line items", () => {

@@ -126,9 +126,12 @@ export async function getEtsyShops(connection: EtsyConnection, sellerId: string)
 }
 
 type RemoteOffering = { quantity?: number; price?: number | string; is_enabled?: boolean; [key: string]: unknown };
-type RemoteInventoryProduct = { sku?: string; offerings?: RemoteOffering[]; [key: string]: unknown };
+type RemotePropertyValue = { property_name?: string; values?: unknown[]; [key: string]: unknown };
+type RemoteInventoryProduct = { sku?: string; offerings?: RemoteOffering[]; property_values?: RemotePropertyValue[]; [key: string]: unknown };
 type RemoteInventory = { products?: RemoteInventoryProduct[]; [key: string]: unknown };
-type LocalVariant = { sku: string; priceCents: number; inventory: number; reservedInventory: number; active: boolean; trackInventory: boolean; backorderPolicy: "DENY" | "ALLOW" };
+type LocalVariant = { sku: string; priceCents: number; inventory: number; reservedInventory: number; active: boolean; trackInventory: boolean; backorderPolicy: "DENY" | "ALLOW"; optionSelection?: unknown };
+type LocalOption = { code: string; name: string; type: string; values: Array<{ label: string; value: string; active: boolean }> };
+type EtsyListingContent = { name: string; description: string; fullDescription?: string | null };
 
 export type EtsyMoney = { amount?: number; divisor?: number; currency_code?: string };
 export type EtsyReceiptTransaction = { listing_id?: number | string; sku?: string; quantity?: number; title?: string; price?: EtsyMoney; variations?: unknown[] };
@@ -222,10 +225,44 @@ export function buildEtsyInventoryPayload(remote: RemoteInventory, variants: Loc
   return { ...remote, products };
 }
 
-export async function verifyEtsyListing(connection: EtsyConnection, externalId: string, variants: LocalVariant[]) {
+function normaliseEtsyPropertyName(value: string) {
+  const normalised = value.trim().toLowerCase().replace(/[^a-z0-9]+/g, "");
+  return normalised === "color" ? "colour" : normalised;
+}
+
+// Etsy keeps its own taxonomy property IDs. We preserve them in the remote
+// inventory payload, while refusing a link/sync if a matching named property
+// would sell a different local colour, size or style under the same SKU.
+export function verifyEtsyVariationValues(remote: RemoteInventory, variants: LocalVariant[], options: LocalOption[]) {
+  const optionsByName = new Map(options.map(option => [normaliseEtsyPropertyName(option.name), option]));
+  for (const remoteProduct of remote.products ?? []) {
+    const sku = stringValue(remoteProduct.sku);
+    const variant = sku ? variants.find(item => item.sku === sku) : null;
+    if (!variant || !remoteProduct.property_values?.length) continue;
+    const selection = typeof variant.optionSelection === "object" && variant.optionSelection && !Array.isArray(variant.optionSelection) ? variant.optionSelection as Record<string, unknown> : {};
+    for (const property of remoteProduct.property_values) {
+      const propertyName = stringValue(property.property_name);
+      if (!propertyName) continue;
+      const option = optionsByName.get(normaliseEtsyPropertyName(propertyName)) ?? options.find(item => normaliseEtsyPropertyName(item.code) === normaliseEtsyPropertyName(propertyName));
+      const selectedValue = option ? selection[option.code] : null;
+      if (!option || typeof selectedValue !== "string") continue;
+      const localLabel = option.values.find(item => item.value === selectedValue)?.label;
+      const remoteValues = (property.values ?? []).filter((value): value is string => typeof value === "string");
+      if (localLabel && remoteValues.length && !remoteValues.some(value => value.trim().toLowerCase() === localLabel.trim().toLowerCase())) throw new EtsyError(`Etsy variation mismatch for ${sku}: ${propertyName} must include ${localLabel}`, 409);
+    }
+  }
+}
+
+export function buildEtsyListingContentPayload(product: EtsyListingContent) {
+  const description = (product.fullDescription?.trim() || product.description.trim()).slice(0, 13_000);
+  return new URLSearchParams({ title: product.name.trim().slice(0, 140), description });
+}
+
+export async function verifyEtsyListing(connection: EtsyConnection, externalId: string, variants: LocalVariant[], options: LocalOption[] = []) {
   if (!connection.shopId) throw new EtsyError("Etsy shop information is missing; reconnect Etsy", 409);
   const inventory = await etsyRequest<RemoteInventory>(connection, `/application/shops/${encodeURIComponent(connection.shopId)}/listings/${encodeURIComponent(externalId)}/inventory`);
   buildEtsyInventoryPayload(inventory, variants);
+  verifyEtsyVariationValues(inventory, variants, options);
   const listing = await etsyRequest<{ url?: string; state?: string }>(connection, `/application/shops/${encodeURIComponent(connection.shopId)}/listings/${encodeURIComponent(externalId)}`);
   return { externalUrl: listing.url ?? null, state: listing.state ?? null };
 }
@@ -261,7 +298,7 @@ export async function queueEtsyReceiptSync(storeId?: string) {
 }
 
 async function executeEtsyInventoryJob(jobId: string) {
-  const job = await db.marketplaceSyncJob.findUnique({ where: { id: jobId }, include: { connection: true, listing: { include: { product: { include: { variants: true } } } } } });
+  const job = await db.marketplaceSyncJob.findUnique({ where: { id: jobId }, include: { connection: true, listing: { include: { product: { include: { variants: true, options: { include: { values: true } } } } } } } });
   if (!job || !job.listing) throw new EtsyError("Etsy sync job has no linked listing", 409);
   const listing = job.listing;
   const connection = job.connection;
@@ -269,7 +306,9 @@ async function executeEtsyInventoryJob(jobId: string) {
   if (!connection.shopId) throw new EtsyError("Etsy shop information is missing", 409);
   const remote = await etsyRequest<RemoteInventory>(connection, `/application/shops/${encodeURIComponent(connection.shopId)}/listings/${encodeURIComponent(listing.externalId)}/inventory`);
   const body = buildEtsyInventoryPayload(remote, listing.product.variants);
+  verifyEtsyVariationValues(remote, listing.product.variants, listing.product.options);
   await etsyRequest(connection, `/application/shops/${encodeURIComponent(connection.shopId)}/listings/${encodeURIComponent(listing.externalId)}/inventory`, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+  await etsyRequest(connection, `/application/shops/${encodeURIComponent(connection.shopId)}/listings/${encodeURIComponent(listing.externalId)}`, { method: "PATCH", headers: { "content-type": "application/x-www-form-urlencoded" }, body: buildEtsyListingContentPayload(listing.product) });
   const now = new Date();
   await db.$transaction([
     db.marketplaceListing.update({ where: { id: listing.id }, data: { lastSyncedAt: now, lastError: null } }),

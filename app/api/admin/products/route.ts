@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { getAdminApiContext } from "@/lib/admin";
 import { adminProductSchema } from "@/lib/admin-validation";
+import { productValidationFeedback } from "@/lib/product-validation-feedback";
 import { db } from "@/lib/db";
 import { assertSameOrigin, jsonError } from "@/lib/http";
 
@@ -10,7 +11,7 @@ export async function POST(request: NextRequest) {
   const context = await getAdminApiContext(); if (!context) return jsonError("Forbidden", 403);
   const { user, store } = context;
   const parsed = adminProductSchema.safeParse(await request.json().catch(() => null));
-  if (!parsed.success) return jsonError(parsed.error.issues[0]?.message ?? "Invalid product");
+  if (!parsed.success) return NextResponse.json({ error: "Review the highlighted product fields.", issues: productValidationFeedback(parsed.error.issues) }, { status: 400 });
   const data = parsed.data;
   try {
     const product = await db.$transaction(async tx => {

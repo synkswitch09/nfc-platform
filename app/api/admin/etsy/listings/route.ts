@@ -17,13 +17,13 @@ export async function POST(request: NextRequest) {
     db.marketplaceConnection.findFirst({ where: { storeId: context.store.id, kind: "ETSY", status: "ACTIVE" } }),
     db.product.findFirst({
       where: { id: parsed.data.productId, storeId: context.store.id },
-      include: { variants: { select: { sku: true, priceCents: true, inventory: true, reservedInventory: true, active: true, trackInventory: true, backorderPolicy: true } } },
+      include: { variants: { select: { sku: true, priceCents: true, inventory: true, reservedInventory: true, active: true, trackInventory: true, backorderPolicy: true, optionSelection: true } }, options: { include: { values: { select: { label: true, value: true, active: true } } } } },
     }),
   ]);
   if (!connection) return jsonError("Connect Etsy before linking a product", 409);
   if (!product) return jsonError("Product not found", 404);
   try {
-    const verified = await verifyEtsyListing(connection, parsed.data.externalId, product.variants);
+    const verified = await verifyEtsyListing(connection, parsed.data.externalId, product.variants, product.options);
     const listing = await db.$transaction(async tx => {
       const saved = await tx.marketplaceListing.upsert({ where: { connectionId_productId: { connectionId: connection.id, productId: product.id } }, create: { connectionId: connection.id, productId: product.id, externalId: parsed.data.externalId, externalUrl: verified.externalUrl, state: verified.state }, update: { externalId: parsed.data.externalId, externalUrl: verified.externalUrl, state: verified.state, lastError: null } });
       await queueEtsyInventorySync(tx, context.store.id, product.id);

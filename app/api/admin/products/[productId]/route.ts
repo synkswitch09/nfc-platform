@@ -8,6 +8,7 @@ import { createPublicTagId } from "@/lib/crypto";
 import { canHardDeleteProduct } from "@/lib/catalog-policy";
 import { deleteStoredImage } from "@/lib/uploads";
 import { queueEtsyInventorySync } from "@/lib/etsy";
+import { productValidationFeedback } from "@/lib/product-validation-feedback";
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ productId: string }> }) {
   if (!assertSameOrigin(request)) return jsonError("Invalid request origin", 403);
@@ -38,7 +39,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   const context = await getAdminApiContext(); if (!context) return jsonError("Forbidden", 403);
   const { user, store } = context;
   const parsed = adminProductSchema.safeParse(await request.json().catch(() => null));
-  if (!parsed.success) return jsonError(parsed.error.issues[0]?.message ?? "Invalid product");
+  if (!parsed.success) return NextResponse.json({ error: "Review the highlighted product fields.", issues: productValidationFeedback(parsed.error.issues) }, { status: 400 });
   const { productId } = await params;
   const existing = await db.product.findFirst({ where: { id: productId, storeId: store.id }, select: { id: true, status: true, variants: { select: { id: true, priceCents: true, inventory: true } } } });
   if (!existing) return jsonError("Product not found", 404);

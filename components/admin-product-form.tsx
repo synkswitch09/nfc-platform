@@ -4,6 +4,13 @@ import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Archive, Copy, EyeOff, Plus, Trash2 } from "lucide-react";
 
+type ProductValidationIssue = {
+  path: string;
+  field: string;
+  section: "product-details" | "shipping" | "variants" | "choices" | "search";
+  message: string;
+};
+
 export type OptionValueForm = {
   id?: string;
   label: string;
@@ -219,6 +226,7 @@ export function AdminProductForm({
   );
   const [options, setOptions] = useState<OptionForm[]>(initial.options);
   const [message, setMessage] = useState("");
+  const [validationIssues, setValidationIssues] = useState<ProductValidationIssue[]>([]);
   const [pending, setPending] = useState(false);
   const [namePreview, setNamePreview] = useState(initial.name);
   const [slugPreview, setSlugPreview] = useState(initial.slug);
@@ -226,10 +234,24 @@ export function AdminProductForm({
   const [seoDescriptionPreview, setSeoDescriptionPreview] = useState(
     initial.seoDescription,
   );
+  const selectionOptions = options.filter((option) =>
+    ["SELECT", "RADIO", "COLOUR"].includes(option.type),
+  );
+  const choiceByCode = (code: string) =>
+    selectionOptions.find((option) => option.code === code);
+  const issueFor = (path: string) =>
+    validationIssues.find((issue) => issue.path === path)?.message;
+  const variantIssue = (index: number, field?: string) =>
+    validationIssues.find((issue) =>
+      field
+        ? issue.path === `variants.${index}.${field}`
+        : issue.path.startsWith(`variants.${index}.`),
+    )?.message;
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setPending(true);
     setMessage("");
+    setValidationIssues([]);
     const form = new FormData(event.currentTarget);
     const payload = {
       name: form.get("name"),
@@ -297,8 +319,20 @@ export function AdminProductForm({
     );
     const result = await response.json().catch(() => ({}));
     setPending(false);
-    if (!response.ok)
-      return setMessage(result.error ?? "Product could not be saved");
+    if (!response.ok) {
+      const issues = Array.isArray(result.issues)
+        ? (result.issues as ProductValidationIssue[])
+        : [];
+      setValidationIssues(issues);
+      setMessage(result.error ?? "Product could not be saved");
+      const firstSection = issues[0]?.section;
+      if (firstSection)
+        window.setTimeout(
+          () => document.getElementById(firstSection)?.scrollIntoView({ behavior: "smooth", block: "start" }),
+          0,
+        );
+      return;
+    }
     setMessage("Product saved");
     if (!initial.id) router.replace(`/admin/products/${result.product.id}`);
     else router.refresh();
@@ -357,7 +391,19 @@ export function AdminProductForm({
   }
   return (
     <form onSubmit={submit} className="admin-form">
-      <section className="admin-panel">
+      {validationIssues.length > 0 && (
+        <div className="form-error validation-summary" role="alert">
+          <strong>Product not saved. Fix the following fields:</strong>
+          <ul>
+            {validationIssues.map((issue, index) => (
+              <li key={`${issue.path}-${index}`}>
+                <a href={`#${issue.section}`}>{issue.field}: {issue.message}</a>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      <section className="admin-panel" id="variant-dimensions">
         <div className="panel-heading">
           <div>
             <h2>Variant dimensions</h2>
@@ -425,7 +471,7 @@ export function AdminProductForm({
           ))}
         </div>
       </section>
-      <section className="admin-panel">
+      <section className="admin-panel" id="product-details">
         <div className="panel-heading">
           <div>
             <h2>Product details</h2>
@@ -433,7 +479,7 @@ export function AdminProductForm({
           </div>
         </div>
         <div className="field-grid">
-          <label className="field">
+          <label className={issueFor("name") ? "field field-invalid" : "field"}>
             Name
             <input
               name="name"
@@ -441,8 +487,9 @@ export function AdminProductForm({
               onChange={(event) => setNamePreview(event.target.value)}
               required
             />
+            {issueFor("name") && <small className="form-error">{issueFor("name")}</small>}
           </label>
-          <label className="field">
+          <label className={issueFor("slug") ? "field field-invalid" : "field"}>
             Slug
             <input
               name="slug"
@@ -451,6 +498,7 @@ export function AdminProductForm({
               pattern="[a-z0-9]+(?:-[a-z0-9]+)*"
               required
             />
+            {issueFor("slug") && <small className="form-error">{issueFor("slug")}</small>}
           </label>
           <label className="field">
             Category
@@ -496,7 +544,7 @@ export function AdminProductForm({
             <input name="brand" defaultValue={initial.brand} required />
           </label>
         </div>
-        <label className="field">
+        <label className={issueFor("description") ? "field field-invalid" : "field"}>
           Short description
           <textarea
             name="description"
@@ -504,6 +552,7 @@ export function AdminProductForm({
             maxLength={500}
             required
           />
+          {issueFor("description") && <small className="form-error">{issueFor("description")}</small>}
         </label>
         <label className="field">
           Full description
@@ -540,7 +589,7 @@ export function AdminProductForm({
           </label>
         </div>
       </section>
-      <section className="admin-panel">
+      <section className="admin-panel" id="shipping">
         <div className="panel-heading">
           <div>
             <h2>Shipping profile</h2>
@@ -619,7 +668,7 @@ export function AdminProductForm({
           <span>Ship each unit separately</span>
         </label>
       </section>
-      <section className="admin-panel">
+      <section className="admin-panel" id="customs">
         <div className="panel-heading">
           <div>
             <h2>International customs</h2>
@@ -683,27 +732,37 @@ export function AdminProductForm({
           <span>Restricted item — require carrier/customs review</span>
         </label>
       </section>
-      <section className="admin-panel">
+      <section className="admin-panel" id="variants">
         <div className="panel-heading">
           <div>
             <h2>Variants and inventory</h2>
             <p>
-              Each style can override SKU, price, stock, option mapping and
+              Choose colour, size and style from the configured product
+              choices. Each variant then carries its own SKU, price, stock and
               shipping data.
             </p>
           </div>
-          <button
-            className="button secondary"
-            type="button"
-            onClick={() =>
-              setVariants((current) => [
-                ...current.map((item) => ({ ...item, isDefault: false })),
-                blankVariant(),
-              ])
-            }
-          >
-            <Plus size={16} /> Add variant
-          </button>
+          <div className="actions">
+            {(["colour", "shape", "size"] as const)
+              .filter((choice) => !options.some((option) => option.code === choice))
+              .map((choice) => (
+                <button className="button secondary" type="button" key={choice} onClick={() => setOptions((current) => [...current, productChoicePresets[choice]])}>
+                  <Plus size={16} /> Add {choice === "shape" ? "style" : choice}
+                </button>
+              ))}
+            <button
+              className="button secondary"
+              type="button"
+              onClick={() =>
+                setVariants((current) => [
+                  ...current.map((item) => ({ ...item, isDefault: false })),
+                  blankVariant(),
+                ])
+              }
+            >
+              <Plus size={16} /> Add variant
+            </button>
+          </div>
         </div>
         <div className="admin-stack">
           {variants.map((variant, index) => (
@@ -725,7 +784,7 @@ export function AdminProductForm({
                 )}
               </div>
               <div className="field-grid three">
-                <label className="field">
+                <label className={variantIssue(index, "sku") ? "field field-invalid" : "field"}>
                   SKU
                   <input
                     value={variant.sku}
@@ -739,8 +798,9 @@ export function AdminProductForm({
                     }
                     required
                   />
+                  {variantIssue(index, "sku") && <small className="form-error">{variantIssue(index, "sku")}</small>}
                 </label>
-                <label className="field">
+                <label className={variantIssue(index, "name") ? "field field-invalid" : "field"}>
                   Name
                   <input
                     value={variant.name}
@@ -754,69 +814,12 @@ export function AdminProductForm({
                     }
                     required
                   />
+                  {variantIssue(index, "name") && <small className="form-error">{variantIssue(index, "name")}</small>}
                 </label>
-                <label className="field">
-                  Colour
-                  <input
-                    value={
-                      selectionValue(variant.optionSelection, "colour") ||
-                      variant.colour
-                    }
-                    placeholder="e.g. Mint"
-                    onChange={(event) => {
-                      ensureChoiceValue(
-                        setOptions,
-                        "colour",
-                        event.target.value,
-                      );
-                      updateVariantChoice(
-                        setVariants,
-                        index,
-                        "colour",
-                        event.target.value,
-                      );
-                    }}
-                  />
-                </label>
-                <label className="field">
-                  Size
-                  <input
-                    value={
-                      selectionValue(variant.optionSelection, "size") ||
-                      variant.size
-                    }
-                    placeholder="e.g. Medium"
-                    onChange={(event) => {
-                      ensureChoiceValue(setOptions, "size", event.target.value);
-                      updateVariantChoice(
-                        setVariants,
-                        index,
-                        "size",
-                        event.target.value,
-                      );
-                    }}
-                  />
-                </label>
-                <label className="field">
-                  Style / shape
-                  <input
-                    value={selectionValue(variant.optionSelection, "shape")}
-                    placeholder="e.g. Bone"
-                    onChange={(event) => {
-                      ensureChoiceValue(
-                        setOptions,
-                        "shape",
-                        event.target.value,
-                      );
-                      updateVariantChoice(
-                        setVariants,
-                        index,
-                        "shape",
-                        event.target.value,
-                      );
-                    }}
-                  />
-                </label>
+                <VariantChoiceField fallbackName="Colour" option={options.find((option) => option.type === "COLOUR")} value={selectionValue(variant.optionSelection, options.find((option) => option.type === "COLOUR")?.code ?? "colour")} onChange={(value, label) => updateVariantChoice(setVariants, index, options.find((option) => option.type === "COLOUR")?.code ?? "colour", value, label)} />
+                <VariantChoiceField fallbackName="Size" option={choiceByCode("size")} value={selectionValue(variant.optionSelection, "size")} onChange={(value, label) => updateVariantChoice(setVariants, index, "size", value, label)} />
+                <VariantChoiceField fallbackName="Style / shape" option={choiceByCode("shape")} value={selectionValue(variant.optionSelection, "shape")} onChange={(value) => updateVariantChoice(setVariants, index, "shape", value)} />
+                {selectionOptions.filter((option) => option.type !== "COLOUR" && !["size", "shape"].includes(option.code)).map((option) => <VariantChoiceField key={option.code} option={option} value={selectionValue(variant.optionSelection, option.code)} onChange={(value, label) => updateVariantChoice(setVariants, index, option.code, value, label)} />)}
                 <label className="field">
                   Material
                   <input
@@ -926,25 +929,7 @@ export function AdminProductForm({
                     <option value="ALLOW">Allow</option>
                   </select>
                 </label>
-                <details className="field">
-                  <summary>Advanced option mapping</summary>
-                  <input
-                    value={variant.optionSelection}
-                    onChange={(event) =>
-                      updateVariant(
-                        setVariants,
-                        index,
-                        "optionSelection",
-                        event.target.value,
-                      )
-                    }
-                    placeholder="colour=mint,size=medium,shape=bone"
-                  />
-                  <small>
-                    Colour, size and shape above are kept in sync. Use this only
-                    for additional product choices.
-                  </small>
-                </details>
+                {variantIssue(index, "optionSelection") && <p className="form-error variant-form-error">{variantIssue(index, "optionSelection")}</p>}
                 <label className="field">
                   Weight override (g)
                   <input
@@ -1035,7 +1020,7 @@ export function AdminProductForm({
           ))}
         </div>
       </section>
-      <section className="admin-panel">
+      <section className="admin-panel" id="choices">
         <div className="panel-heading">
           <div>
             <h2>Product choices & personalisation</h2>
@@ -1230,7 +1215,7 @@ export function AdminProductForm({
           </div>
         )}
       </section>
-      <section className="admin-panel">
+      <section className="admin-panel" id="search">
         <div className="panel-heading">
           <div>
             <h2>Search and social</h2>
@@ -1515,57 +1500,25 @@ function parseSelection(value: string) {
 function selectionValue(value: string, key: string) {
   return parseSelection(value)[key] ?? "";
 }
-function ensureChoiceValue(
-  setter: React.Dispatch<React.SetStateAction<OptionForm[]>>,
-  key: "colour" | "size" | "shape",
-  label: string,
-) {
-  const value = slugValue(label);
-  if (!value) return;
-  setter((current) => {
-    const existing = current.find((option) => option.code === key);
-    if (!existing) {
-      const preset = productChoicePresets[key];
-      return [
-        ...current,
-        {
-          ...preset,
-          values: preset.values.some((item) => item.value === value)
-            ? preset.values
-            : [...preset.values, { ...blankOptionValue(), label, value }],
-        },
-      ];
-    }
-    if (existing.values.some((item) => item.value === value)) return current;
-    return current.map((option) =>
-      option.code === key
-        ? {
-            ...option,
-            values: [...option.values, { ...blankOptionValue(), label, value }],
-          }
-        : option,
-    );
-  });
-}
 function updateVariantChoice(
   setter: React.Dispatch<React.SetStateAction<VariantForm[]>>,
   index: number,
-  key: "colour" | "size" | "shape",
+  key: string,
   value: string,
+  label = value,
 ) {
   setter((current) =>
     current.map((item, itemIndex) => {
       if (itemIndex !== index) return item;
       const selection = parseSelection(item.optionSelection);
-      const normalised = slugValue(value);
-      if (normalised) selection[key] = normalised;
+      if (value) selection[key] = value;
       else delete selection[key];
       return {
         ...item,
         ...(key === "colour"
-          ? { colour: value }
+          ? { colour: label }
           : key === "size"
-            ? { size: value }
+            ? { size: label }
             : {}),
         optionSelection: Object.entries(selection)
           .map(([code, selected]) => `${code}=${selected}`)
@@ -1573,6 +1526,33 @@ function updateVariantChoice(
       };
     }),
   );
+}
+
+function VariantChoiceField({
+  option,
+  fallbackName,
+  value,
+  onChange,
+}: {
+  option: OptionForm | undefined;
+  fallbackName?: string;
+  value: string;
+  onChange: (value: string, label: string) => void;
+}) {
+  if (!option) {
+    return <div className="field variant-choice-missing"><strong>{fallbackName ?? "Product choice"} not configured</strong><small>Add it above, then set its values in Product choices.</small></div>;
+  }
+  const activeValues = option.values.filter((item) => item.active);
+  if (option.type === "COLOUR") {
+    return <fieldset className="field variant-colour-picker"><legend>{option.name}</legend><div className="variant-colour-options">{activeValues.map((item) => <button type="button" key={item.id ?? item.value} className={value === item.value ? "active" : ""} aria-pressed={value === item.value} onClick={() => onChange(item.value, item.label)}><span className="colour-swatch" style={adminSwatchStyle(item)} /><span>{item.label}</span></button>)}</div>{activeValues.length === 0 && <small>Add at least one colour value below.</small>}</fieldset>;
+  }
+  return <label className="field">{option.name}<select value={value} onChange={(event) => { const selected = activeValues.find((item) => item.value === event.target.value); onChange(event.target.value, selected?.label ?? event.target.value); }}><option value="">Select {option.name.toLowerCase()}</option>{activeValues.map((item) => <option value={item.value} key={item.id ?? item.value}>{item.label}</option>)}</select>{activeValues.length === 0 && <small>Add values in Product choices first.</small>}</label>;
+}
+
+function adminSwatchStyle(value: OptionValueForm) {
+  if (value.swatchImageUrl) return { backgroundImage: `url(${value.swatchImageUrl})` };
+  if (value.swatchHexSecondary) return { background: `linear-gradient(135deg, ${value.swatchHex || "#cccccc"} 50%, ${value.swatchHexSecondary} 50%)` };
+  return { background: value.swatchHex || "#cccccc" };
 }
 function slugValue(value: string) {
   return value

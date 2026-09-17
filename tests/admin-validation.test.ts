@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { activationRegenerationSchema, adminCategorySchema, adminProductSchema, inventoryAdjustmentSchema } from "@/lib/admin-validation";
+import { productValidationFeedback } from "@/lib/product-validation-feedback";
 
 const validProduct = {
   name: "Pet tag", slug: "pet-tag", description: "A durable NFC pet tag.", type: "PET", status: "DRAFT", featured: false, shopVisible: false, brand: "Tapkin", gstInclusive: true, indexable: true,
@@ -59,5 +60,17 @@ describe("admin validation", () => {
       variants: [{ ...validProduct.variants[0], optionSelection: { colour: "mint", shape: "bone", size: "medium" }, isDefault: true }],
     };
     expect(adminProductSchema.safeParse(configured).success).toBe(true);
+  });
+  it("turns technical validation paths into actionable product field messages", () => {
+    const invalid = adminProductSchema.safeParse({ ...validProduct, description: "short", variants: [{ ...validProduct.variants[0], sku: "x" }] });
+    expect(invalid.success).toBe(false);
+    if (!invalid.success) {
+      const feedback = productValidationFeedback(invalid.error.issues);
+      expect(feedback).toEqual(expect.arrayContaining([
+        expect.objectContaining({ path: "description", field: "Short description", section: "product-details" }),
+        expect.objectContaining({ path: "variants.0.sku", field: "Variant 1 — SKU", section: "variants" }),
+      ]));
+      expect(feedback.find((item) => item.path === "description")?.message).toMatch(/Short description.*10/i);
+    }
   });
 });
