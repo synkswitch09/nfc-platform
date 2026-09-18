@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useState } from "react";
+import { ImagePlus, Trash2 } from "lucide-react";
 
 type ProfileData = { id: string; type: "PET" | "CHILD" | "EMERGENCY" | "SOCIAL" | "BUSINESS" | "LUGGAGE" | "REVIEW" | "CUSTOM"; displayName: string; details: Record<string, unknown>; contacts: Array<{ name: string; relationship?: string | null; phone: string }> };
 
@@ -16,7 +17,7 @@ const fields: Record<ProfileData["type"], Array<[string, string]>> = {
 };
 
 export function ProfileEditor({ profile }: { profile: ProfileData }) {
-  const [message, setMessage] = useState(""); const [pending, setPending] = useState(false);
+  const [message, setMessage] = useState(""); const [pending, setPending] = useState(false); const [photoPending, setPhotoPending] = useState(false); const [photoFile, setPhotoFile] = useState<File | null>(null); const [photoUrl, setPhotoUrl] = useState(() => typeof profile.details.photoUrl === "string" ? profile.details.photoUrl : "");
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); setPending(true); setMessage(""); const values = Object.fromEntries(new FormData(event.currentTarget).entries());
     const details: Record<string, unknown> = Object.fromEntries(fields[profile.type].map(([key]) => [key, values[key] || null]));
@@ -29,10 +30,23 @@ export function ProfileEditor({ profile }: { profile: ProfileData }) {
     const response = await fetch(`/api/tags/${profile.id}/profile`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ type: profile.type, displayName: values.displayName, details, contacts }) });
     const result = await response.json().catch(() => ({})); setPending(false); setMessage(response.ok ? "Profile saved" : result.error ?? "Could not save");
   }
+  async function uploadPhoto() {
+    if (!photoFile) return setMessage("Choose a photo first");
+    setPhotoPending(true); setMessage(""); const form = new FormData(); form.set("file", photoFile);
+    const response = await fetch(`/api/tags/${profile.id}/profile/photo`, { method: "POST", body: form }); const result = await response.json().catch(() => ({})); setPhotoPending(false);
+    if (!response.ok) return setMessage(result.error ?? "Pet photo could not be uploaded");
+    setPhotoUrl(result.photoUrl); setPhotoFile(null); setMessage("Pet photo saved");
+  }
+  async function removePhoto() {
+    setPhotoPending(true); setMessage(""); const response = await fetch(`/api/tags/${profile.id}/profile/photo`, { method: "DELETE" }); const result = await response.json().catch(() => ({})); setPhotoPending(false);
+    if (!response.ok) return setMessage(result.error ?? "Pet photo could not be removed");
+    setPhotoUrl(""); setPhotoFile(null); setMessage("Pet photo removed");
+  }
   return <form className="form card" onSubmit={submit}>
     <h3>Public profile</h3>
     {profile.type === "CHILD" && <div className="notice" id="child-privacy-help"><strong>Privacy-first setup</strong><br />Everything entered below can appear after a scan. Use a first name or neutral alias and only essential safety information. Do not add a surname, home address, school, routine or other identifying details.</div>}
     <label className="field">{profile.type === "CHILD" ? "Public alias or first name" : "Display name"}<input name="displayName" defaultValue={profile.displayName} aria-describedby={profile.type === "CHILD" ? "child-privacy-help" : undefined} autoComplete={profile.type === "CHILD" ? "off" : undefined} required /></label>
+    {profile.type === "PET" && <fieldset className="profile-photo-editor"><legend>Pet photo</legend><div className="profile-photo-preview">{photoUrl ? <img src={photoUrl} alt="Current pet profile" /> : <div><ImagePlus size={28} /><span>Your pet photo will appear on the public profile.</span></div>}</div><label className="field">Choose a photo<input type="file" accept="image/png,image/jpeg,image/webp" onChange={event => setPhotoFile(event.target.files?.[0] ?? null)} /></label><p className="field-hint">PNG, JPEG or WebP, maximum 5 MB. Use a clear face photo so a finder can recognise your pet quickly.</p><div className="row-actions"><button className="button secondary" type="button" onClick={uploadPhoto} disabled={!photoFile || photoPending}><ImagePlus size={16} /> {photoPending ? "Uploading…" : "Upload photo"}</button>{photoUrl && <button className="button secondary" type="button" onClick={removePhoto} disabled={photoPending}><Trash2 size={16} /> Remove photo</button>}</div></fieldset>}
     {profile.type === "CHILD" && <label className="field">Status<select name="status" defaultValue={String(profile.details.status ?? "NORMAL")}><option>NORMAL</option><option>MISSING</option></select></label>}
     {["SOCIAL", "CUSTOM"].includes(profile.type) && <label className="field">Mode<select name="mode" defaultValue={String(profile.details.mode ?? "MULTI_LINK")}><option value="MULTI_LINK">Multi-link profile</option><option value="DIRECT_REDIRECT">Direct redirect</option></select></label>}
     {fields[profile.type].map(([key, label]) => <label className="field" key={key}>{label}{/description|medical|allergies|medications|behaviour|bio|message|communication/i.test(key) ? <textarea name={key} defaultValue={String(profile.details[key] ?? "")} /> : <input name={key} defaultValue={String(profile.details[key] ?? "")} />}</label>)}

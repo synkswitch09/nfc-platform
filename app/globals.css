@@ -709,6 +709,231 @@ h3 {
   border-radius: 26px;
   background: #e9f2ee;
 }
+.profile-disclaimer {
+  margin: 28px 0 0;
+  color: var(--muted);
+  font-size: .82rem;
+}
+.profile-info {
+  margin-top: 16px;
+  padding: 17px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: #fff;
+}
+.profile-info h3,
+.profile-info p {
+  margin: 0;
+}
+.profile-info h3 {
+  font-size: .9rem;
+}
+.profile-info p {
+  margin-top: 6px;
+  color: var(--muted);
+  white-space: pre-line;
+}
+.pet-public-profile {
+  padding: 16px;
+  background: linear-gradient(160deg, #e1f3ee 0%, #c8eee4 43%, #f9f8f3 43%, #f9f8f3 100%);
+  align-items: start;
+}
+.pet-public-profile .profile-card {
+  margin: 8px 0 24px;
+  padding: 0;
+  overflow: hidden;
+  border-radius: 28px;
+}
+.pet-profile-hero {
+  padding: 18px 18px 23px;
+  color: #fff;
+  background: linear-gradient(145deg, #112520, #176f5f);
+}
+.pet-profile-topline,
+.pet-profile-identity,
+.pet-profile-facts,
+.pet-urgent-title,
+.row-actions {
+  display: flex;
+}
+.pet-profile-topline {
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: .76rem;
+  font-weight: 700;
+  letter-spacing: .02em;
+}
+.pet-profile-topline > span:first-child,
+.pet-profile-status,
+.pet-urgent-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.pet-profile-status {
+  padding: 6px 9px;
+  border-radius: 999px;
+  color: #112520;
+  background: #dcf4a6;
+}
+.pet-profile-status.lost {
+  color: #54150e;
+  background: #ffd3bf;
+}
+.pet-profile-identity {
+  align-items: center;
+  gap: 16px;
+  margin-top: 23px;
+}
+.pet-profile-photo {
+  flex: 0 0 auto;
+  width: 116px;
+  height: 116px;
+  object-fit: cover;
+  border: 4px solid rgba(255,255,255,.7);
+  border-radius: 50%;
+  background: #d5eee8;
+  box-shadow: 0 9px 22px rgba(0,0,0,.2);
+}
+.pet-profile-photo-placeholder {
+  display: grid;
+  place-items: center;
+  color: #176f5f;
+}
+.pet-profile-identity .eyebrow {
+  margin: 0;
+  color: #d5eee8;
+}
+.pet-profile-identity h1 {
+  margin: 3px 0 0;
+  color: #fff;
+  font-size: clamp(2rem, 11vw, 3rem);
+  line-height: .97;
+}
+.pet-profile-breed {
+  margin: 8px 0 0;
+  color: rgba(255,255,255,.82);
+}
+.pet-lost-message {
+  display: flex;
+  gap: 9px;
+  align-items: flex-start;
+  margin-top: 20px;
+  padding: 12px;
+  border-radius: 14px;
+  color: #54150e;
+  background: #ffd3bf;
+  font-size: .9rem;
+  font-weight: 700;
+}
+.pet-profile-content {
+  padding: 20px;
+  background: #fff;
+}
+.pet-profile-facts {
+  flex-wrap: wrap;
+  gap: 9px;
+  margin: 0;
+}
+.pet-profile-facts > div {
+  min-width: calc(50% - 5px);
+  flex: 1 1 42%;
+  padding: 12px;
+  border-radius: 14px;
+  background: #f1f7f5;
+}
+.pet-profile-facts dt {
+  color: var(--muted);
+  font-size: .72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+.pet-profile-facts dd {
+  margin: 3px 0 0;
+  font-weight: 750;
+}
+.pet-contact-card,
+.pet-urgent-card {
+  margin-top: 18px;
+  padding: 18px;
+  border-radius: 18px;
+}
+.pet-contact-card {
+  border: 1px solid #cbe6df;
+  background: #eaf6f2;
+}
+.pet-contact-card .eyebrow,
+.pet-contact-card h2,
+.pet-contact-card p {
+  margin: 0;
+}
+.pet-contact-card h2,
+.pet-urgent-card h2 {
+  font-size: 1.25rem;
+}
+.pet-contact-card p {
+  margin-top: 4px;
+}
+.pet-contact-card .profile-actions {
+  margin: 16px 0 0;
+}
+.pet-secondary-contact {
+  width: 100%;
+  margin-top: 12px;
+}
+.pet-urgent-card {
+  border: 1px solid #ffd8bc;
+  background: #fff6ed;
+}
+.pet-urgent-title {
+  color: #8a311b;
+}
+.pet-urgent-title h2 {
+  margin: 0;
+}
+.pet-urgent-card .profile-info {
+  border-color: #f2dac5;
+  background: rgba(255,255,255,.75);
+}
+.profile-photo-editor {
+  margin: 18px 0;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+}
+.profile-photo-editor legend {
+  padding: 0 5px;
+  font-weight: 750;
+}
+.profile-photo-preview {
+  display: grid;
+  place-items: center;
+  min-height: 160px;
+  margin-bottom: 14px;
+  overflow: hidden;
+  border: 1px dashed #aabdb5;
+  border-radius: 14px;
+  background: #f1f7f5;
+}
+.profile-photo-preview img {
+  width: 100%;
+  height: 220px;
+  object-fit: cover;
+}
+.profile-photo-preview > div {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  padding: 22px;
+  color: var(--muted);
+  text-align: center;
+}
+.profile-photo-editor .row-actions {
+  flex-wrap: wrap;
+  gap: 10px;
+}
 .profile-actions {
   display: grid;
   grid-template-columns: 1fr 1fr;
