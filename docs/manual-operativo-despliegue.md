@@ -158,7 +158,8 @@ Ocultar o archivar una categoría/producto impide nuevas ventas, pero no desacti
 
 - OAuth 2.0 con PKCE; tokens cifrados en reposo y separados por Store.
 - Vinculación explícita de un producto local con una listing Etsy por SKU. Se rechaza una vinculación parcial para no asignar stock a una variación equivocada.
-- Sincronización saliente de cantidad disponible, precio y habilitación de cada variación vinculada.
+- Creación desde Admin de listings Etsy en borrador: título, descripción, imágenes, stock, precio y hasta tres variaciones personalizadas (Colour, Size y Style) con los SKU de Tapkin. La publicación es una confirmación explícita.
+- Sincronización saliente de cantidad disponible, precio, habilitación, título y descripción de cada variación vinculada.
 - Importación de receipts Etsy pagados y no cancelados: crea una orden Tapkin `PAID`, movimiento de venta, decremento de inventario y trabajo de fabricación cuando aplica.
 - Registro idempotente: un mismo receipt no puede restar stock ni crear dos pedidos.
 - Errores visibles en Admin si hay SKU/listing no vinculado, moneda distinta o stock insuficiente.
@@ -168,18 +169,19 @@ Ocultar o archivar una categoría/producto impide nuevas ventas, pero no desacti
 1. Cree una aplicación Etsy Open API v3 y registre exactamente `https://tu-dominio/api/admin/etsy/callback`.
 2. Guarde `ETSY_API_KEY`, `ETSY_SHARED_SECRET` y un `ETSY_SYNC_SECRET` aleatorio distinto en el entorno correspondiente.
 3. En **Admin → Etsy**, conecte únicamente la cuenta vendedora de la Store.
-4. Cree las listings y variaciones físicamente en Etsy. Deben tener exactamente los mismos SKU activos que el producto Tapkin.
-5. Desde Admin vincule producto/listing y pulse **Sync now** para validar la primera vez.
-6. Programe cada minuto una llamada autenticada:
+4. En **Admin → Etsy**, guarde el taxonomy ID, shipping profile ID y processing profile ID. Para tags 3D use **Create a processing profile** y seleccione `Made to order` con los días reales de producción.
+5. Cree la listing desde **Create from Tapkin**. El producto necesita stock positivo, al menos una imagen y como máximo tres opciones de variante seleccionable; Tapkin usa Colour, Size y Style.
+6. Revise el borrador en Etsy. Marque la casilla de publicación solo cuando el perfil de envío, fotos, texto y precio estén definitivos. También puede vincular una listing creada manualmente si sus SKU coinciden exactamente.
+7. Programe cada minuto una llamada autenticada:
 
    ```bash
    curl -X POST "https://tu-dominio/api/integrations/etsy/sync" \
      -H "Authorization: Bearer $ETSY_SYNC_SECRET"
    ```
 
-7. Pruebe una venta de bajo riesgo en Etsy y confirme en Admin → Orders, Inventory, Manufacturing y Etsy que se importó una sola vez.
+8. Pruebe una venta de bajo riesgo en Etsy y confirme en Admin → Orders, Inventory, Manufacturing y Etsy que se importó una sola vez.
 
-**Límites actuales:** no crea listings automáticamente, no actualiza Etsy como “shipped” ni devuelve tracking a Etsy. Esas acciones se deben implementar después de definir perfiles de envío, carrier y política de fulfilment.
+**Límites actuales:** no actualiza Etsy como “shipped” ni devuelve tracking a Etsy. Esas acciones se implementarán cuando se defina el carrier y la política de fulfilment de producción.
 
 ### 2.7 NFC, perfiles y fabricación
 

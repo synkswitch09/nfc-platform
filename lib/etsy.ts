@@ -6,10 +6,11 @@ import { currentAppEnvironment, getRuntimeConfig } from "@/lib/config";
 import { availableInventory } from "@/lib/catalog";
 import { manufacturingRequirements } from "@/lib/manufacturing";
 import { notifyPaidOrder } from "@/lib/order-notifications";
+import { readStoredImage } from "@/lib/uploads";
 
 export const ETSY_OAUTH_COOKIE = "etsy_connect";
 const ETSY_API = "https://api.etsy.com/v3";
-const ETSY_SCOPES = ["shops_r", "listings_r", "listings_w", "transactions_r"];
+const ETSY_SCOPES = ["shops_r", "shops_w", "listings_r", "listings_w", "transactions_r"];
 const MAX_ATTEMPTS = 5;
 
 export type EtsyListingDefaults = {
@@ -21,6 +22,12 @@ export type EtsyListingDefaults = {
   isSupply?: boolean;
   shouldAutoRenew?: boolean;
 };
+
+type EtsyDraftVariant = LocalVariant & { name: string };
+type EtsyDraftImage = { storageKey: string; mimeType: string; sortOrder: number; altText: string };
+type EtsyDraftProduct = EtsyListingContent & { variants: EtsyDraftVariant[]; options: LocalOption[]; images: EtsyDraftImage[] };
+type EtsyCreatedListing = { listing_id?: number | string; listingId?: number | string; url?: string; state?: string };
+const ETSY_CUSTOM_PROPERTY_IDS = [513, 514, 516];
 
 type EtsyOAuthTransaction = { storeId: string; userId: string; state: string; verifier: string; expiresAt: number };
 type EtsyToken = { access_token: string; refresh_token: string; expires_in: number; scope?: string };
@@ -256,6 +263,93 @@ export function verifyEtsyVariationValues(remote: RemoteInventory, variants: Loc
 export function buildEtsyListingContentPayload(product: EtsyListingContent) {
   const description = (product.fullDescription?.trim() || product.description.trim()).slice(0, 13_000);
   return new URLSearchParams({ title: product.name.trim().slice(0, 140), description });
+}
+
+function requireEtsyListingDefaults(defaults: EtsyListingDefaults) {
+  if (!defaults.taxonomyId || !/^\d+$/.test(defaults.taxonomyId)) throw new EtsyError("Set the Etsy taxonomy ID before creating a listing", 409);
+  if (!defaults.shippingProfileId || !/^\d+$/.test(defaults.shippingProfileId)) throw new EtsyError("Set the Etsy shipping profile ID before creating a listing", 409);
+  if (!defaults.readinessStateId || !/^\d+$/.test(defaults.readinessStateId)) throw new EtsyError("Set the Etsy processing profile ID before creating a listing", 409);
+  if (!defaults.whoMade) throw new EtsyError("Set who made this product before creating a listing", 409);
+  if (!defaults.whenMade?.trim()) throw new EtsyError("Set when this product was made before creating a listing", 409);
+  return defaults as Required<Pick<EtsyListingDefaults, "taxonomyId" | "shippingProfileId" | "readinessStateId" | "whoMade" | "whenMade">> & EtsyListingDefaults;
+}
+
+function listingSelectionOptions(options: LocalOption[]) {
+  const selectable = options.filter(option => ["SELECT", "RADIO", "COLOUR"].includes(option.type));
+  if (selectable.length > ETSY_CUSTOM_PROPERTY_IDS.length) throw new EtsyError("Etsy supports at most three product variations. Keep only Colour, Size and Style as selectable variant options.", 409);
+  return selectable;
+}
+
+export function buildEtsyDraftInventoryPayload(product: Pick<EtsyDraftProduct, "variants" | "options">, readinessStateId: string) {
+  const variants = product.variants.filter(variant => variant.active);
+  if (!variants.length) throw new EtsyError("Enable at least one product variant before creating an Etsy listing", 409);
+  if (variants.some(variant => !variant.trackInventory)) throw new EtsyError("All Etsy variants must have inventory tracking enabled", 409);
+  const options = listingSelectionOptions(product.options);
+  const propertyIds = options.map((_, index) => ETSY_CUSTOM_PROPERTY_IDS[index]);
+  const products = variants.map(variant => {
+    const selection = typeof variant.optionSelection === "object" && variant.optionSelection && !Array.isArray(variant.optionSelection) ? variant.optionSelection as Record<string, unknown> : {};
+    const propertyValues = options.map((option, index) => {
+      const selected = selection[option.code];
+      const label = typeof selected === "string" ? option.values.find(value => value.value === selected)?.label : null;
+      if (!label) throw new EtsyError(`Variant ${variant.sku} must select a ${option.name} value before creating Etsy variations`, 409);
+      return { property_id: propertyIds[index], property_name: option.name, scale_id: null, value_ids: [], values: [label] };
+    });
+    const quantity = availableInventory(variant);
+    return { sku: variant.sku, offerings: [{ quantity, price: Number((variant.priceCents / 100).toFixed(2)), is_enabled: quantity > 0 || variant.backorderPolicy === "ALLOW", readiness_state_id: Number(readinessStateId) }], property_values: propertyValues };
+  });
+  return { products, price_on_property: propertyIds, quantity_on_property: propertyIds, sku_on_property: propertyIds, readiness_state_on_property: [] };
+}
+
+export async function createEtsyDraftListing(connection: EtsyConnection, defaults: EtsyListingDefaults, product: EtsyDraftProduct) {
+  if (!connection.shopId) throw new EtsyError("Etsy shop information is missing; reconnect Etsy", 409);
+  const configured = requireEtsyListingDefaults(defaults);
+  const variants = product.variants.filter(variant => variant.active);
+  const quantity = variants.reduce((total, variant) => total + availableInventory(variant), 0);
+  if (quantity < 1) throw new EtsyError("Set stock above zero for at least one active variant before creating an Etsy listing", 409);
+  if (!product.images.length) throw new EtsyError("Add at least one product image before creating an Etsy listing", 409);
+  const lowestPrice = Math.min(...variants.map(variant => variant.priceCents)) / 100;
+  const body = buildEtsyListingContentPayload(product);
+  body.set("quantity", String(quantity));
+  body.set("price", String(Number(lowestPrice.toFixed(2))));
+  body.set("who_made", configured.whoMade);
+  body.set("when_made", configured.whenMade);
+  body.set("taxonomy_id", configured.taxonomyId);
+  body.set("shipping_profile_id", configured.shippingProfileId);
+  body.set("readiness_state_id", configured.readinessStateId);
+  body.set("is_supply", String(Boolean(configured.isSupply)));
+  body.set("should_auto_renew", String(Boolean(configured.shouldAutoRenew)));
+  const created = await etsyRequest<EtsyCreatedListing>(connection, `/application/shops/${encodeURIComponent(connection.shopId)}/listings`, { method: "POST", headers: { "content-type": "application/x-www-form-urlencoded" }, body });
+  const listingId = created.listing_id ?? created.listingId;
+  if (listingId == null || !/^\d+$/.test(String(listingId))) throw new EtsyError("Etsy did not return a listing ID", 502);
+  return { externalId: String(listingId), externalUrl: created.url ?? null, state: created.state ?? "draft" };
+}
+
+export async function configureEtsyDraftListing(connection: EtsyConnection, externalId: string, defaults: EtsyListingDefaults, product: EtsyDraftProduct, publish: boolean) {
+  if (!connection.shopId) throw new EtsyError("Etsy shop information is missing; reconnect Etsy", 409);
+  const configured = requireEtsyListingDefaults(defaults);
+  for (const [rank, image] of [...product.images].sort((left, right) => left.sortOrder - right.sortOrder).entries()) {
+    const bytes = await readStoredImage(image.storageKey);
+    if (!bytes) throw new EtsyError(`Product image ${rank + 1} is unavailable; re-upload it before creating Etsy`, 409);
+    const extension = image.mimeType === "image/png" ? "png" : image.mimeType === "image/webp" ? "webp" : "jpg";
+    const imageBytes = Uint8Array.from(bytes);
+    const form = new FormData();
+    form.set("image", new Blob([imageBytes.buffer], { type: image.mimeType }), `tapkin-product-${rank + 1}.${extension}`);
+    form.set("rank", String(rank + 1));
+    form.set("alt_text", image.altText.slice(0, 250));
+    await etsyRequest(connection, `/application/shops/${encodeURIComponent(connection.shopId)}/listings/${encodeURIComponent(externalId)}/images`, { method: "POST", body: form });
+  }
+  const inventory = buildEtsyDraftInventoryPayload(product, configured.readinessStateId);
+  await etsyRequest(connection, `/application/shops/${encodeURIComponent(connection.shopId)}/listings/${encodeURIComponent(externalId)}/inventory`, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify(inventory) });
+  if (publish) await etsyRequest(connection, `/application/shops/${encodeURIComponent(connection.shopId)}/listings/${encodeURIComponent(externalId)}`, { method: "PATCH", headers: { "content-type": "application/x-www-form-urlencoded" }, body: new URLSearchParams({ state: "active" }) });
+  return { state: publish ? "active" : "draft" };
+}
+
+export async function createEtsyReadinessState(connection: EtsyConnection, input: { readinessState: "ready_to_ship" | "made_to_order"; minProcessingTime: number; maxProcessingTime: number; processingTimeUnit: "days" | "weeks" }) {
+  if (!connection.shopId) throw new EtsyError("Etsy shop information is missing; reconnect Etsy", 409);
+  const body = new URLSearchParams({ readiness_state: input.readinessState, min_processing_time: String(input.minProcessingTime), max_processing_time: String(input.maxProcessingTime), processing_time_unit: input.processingTimeUnit });
+  const result = await etsyRequest<{ readiness_state_id?: number | string }>(connection, `/application/shops/${encodeURIComponent(connection.shopId)}/readiness-state-definitions`, { method: "POST", headers: { "content-type": "application/x-www-form-urlencoded" }, body });
+  if (result.readiness_state_id == null || !/^\d+$/.test(String(result.readiness_state_id))) throw new EtsyError("Etsy did not return a processing profile ID", 502);
+  return String(result.readiness_state_id);
 }
 
 export async function verifyEtsyListing(connection: EtsyConnection, externalId: string, variants: LocalVariant[], options: LocalOption[] = []) {

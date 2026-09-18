@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildEtsyInventoryPayload, buildEtsyListingContentPayload, codeChallenge, etsyMoneyToCents, normaliseEtsyReceipt, verifyEtsyVariationValues } from "@/lib/etsy";
+import { buildEtsyDraftInventoryPayload, buildEtsyInventoryPayload, buildEtsyListingContentPayload, codeChallenge, etsyMoneyToCents, normaliseEtsyReceipt, verifyEtsyVariationValues } from "@/lib/etsy";
 
 describe("Etsy marketplace sync", () => {
   it("uses the required PKCE SHA-256 URL-safe challenge", () => {
@@ -23,6 +23,19 @@ describe("Etsy marketplace sync", () => {
     expect(() => verifyEtsyVariationValues(remote, variants, options)).not.toThrow();
     expect(() => verifyEtsyVariationValues({ ...remote, products: [{ ...remote.products[0], property_values: [{ property_name: "Color", values: ["Black"] }] }] }, variants, options)).toThrow(/variation mismatch/i);
     expect(buildEtsyListingContentPayload({ name: "Mint pet tag", description: "Short description", fullDescription: "Long Etsy-ready description" }).toString()).toContain("title=Mint+pet+tag");
+  });
+
+  it("builds Etsy custom colour, size and style variations from Tapkin choices", () => {
+    const payload = buildEtsyDraftInventoryPayload({
+      variants: [{ sku: "TAG-MINT-S-BONE", name: "Mint small bone", priceCents: 2495, inventory: 4, reservedInventory: 1, active: true, trackInventory: true, backorderPolicy: "DENY", optionSelection: { colour: "mint", size: "small", shape: "bone" } }],
+      options: [
+        { code: "colour", name: "Colour", type: "COLOUR", values: [{ label: "Mint", value: "mint", active: true }] },
+        { code: "size", name: "Size", type: "SELECT", values: [{ label: "Small", value: "small", active: true }] },
+        { code: "shape", name: "Style", type: "SELECT", values: [{ label: "Bone", value: "bone", active: true }] },
+      ],
+    }, "12345");
+    expect(payload.products[0]).toMatchObject({ sku: "TAG-MINT-S-BONE", offerings: [{ quantity: 3, readiness_state_id: 12345 }], property_values: [{ property_id: 513, property_name: "Colour", values: ["Mint"] }, { property_id: 514, property_name: "Size", values: ["Small"] }, { property_id: 516, property_name: "Style", values: ["Bone"] }] });
+    expect(payload.sku_on_property).toEqual([513, 514, 516]);
   });
 
   it("normalises a paid receipt using Etsy money divisors and SKU line items", () => {
