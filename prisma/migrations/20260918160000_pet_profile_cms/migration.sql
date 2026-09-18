@@ -1,0 +1,1 @@
+ALTER TABLE "Store" ADD COLUMN "petProfileConfig" JSONB NOT NULL DEFAULT '{}';

@@ -6,6 +6,7 @@ import { canManageStore, getAdminApiContext } from "@/lib/admin";
 import { db } from "@/lib/db";
 import { assertSameOrigin, jsonError } from "@/lib/http";
 import { footerConfigSchema, headerConfigSchema } from "@/lib/site-chrome";
+import { petProfileConfigSchema } from "@/lib/pet-profile-cms";
 
 const httpsUrl = z
   .string()
@@ -21,6 +22,7 @@ const socialLinksSchema = z.object({
 });
 const schema = z.discriminatedUnion("area", [
   z.object({ area: z.literal("header"), config: headerConfigSchema }),
+  z.object({ area: z.literal("pet-profile"), config: petProfileConfigSchema }),
   z.object({
     area: z.literal("footer"),
     config: footerConfigSchema,
@@ -45,7 +47,9 @@ export async function PATCH(request: NextRequest) {
   const storefrontData =
     value.area === "header"
       ? { headerConfig: value.config }
-      : { footerConfig: value.config, socialLinks: value.socialLinks };
+      : value.area === "pet-profile"
+        ? { petProfileConfig: value.config }
+        : { footerConfig: value.config, socialLinks: value.socialLinks };
   await db.$transaction([
     db.store.update({
       where: { id: context.store.id },

@@ -340,6 +340,7 @@ model Store {
   shippingConfig       Json                 @default("{}")
   headerConfig         Json                 @default("{}")
   footerConfig         Json                 @default("{}")
+  petProfileConfig     Json                 @default("{}")
   defaultLocale        String               @default("en-AU")
   enabledLocales       String[]             @default(["en-AU"])
   capabilities         StoreCapability[]    @default([])

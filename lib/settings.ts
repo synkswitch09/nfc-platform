@@ -21,6 +21,7 @@ export async function getStoreSettings(storefront?: Storefront) {
     shippingConfig: store.shippingConfig,
     headerConfig: store.headerConfig,
     footerConfig: store.footerConfig,
+    petProfileConfig: store.petProfileConfig,
     defaultLocale: store.defaultLocale,
     enabledLocales: store.enabledLocales,
     theme: store.theme,

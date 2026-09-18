@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Home, PanelBottom, PanelTop } from "lucide-react";
+import { Home, PanelBottom, PanelTop, PawPrint } from "lucide-react";
 import { requireAdminPageContext } from "@/lib/admin";
 
 const areas = [
@@ -24,6 +24,12 @@ const areas = [
       "Logo, legal links, custom links, social channels and colours.",
     icon: PanelBottom,
   },
+  {
+    href: "/admin/storefront/pet-profile",
+    title: "Pet profile",
+    description: "Mobile scan card labels, colours, size and lost-mode message.",
+    icon: PawPrint,
+  },
 ];
 
 export default async function AdminStorefrontPage() {
@@ -35,7 +41,7 @@ export default async function AdminStorefrontPage() {
           <p className="admin-kicker">Content</p>
           <h1>Storefront</h1>
           <p>
-            Edit the three global areas without mixing them with system
+            Edit the global storefront areas without mixing them with system
             settings.
           </p>
         </div>

@@ -20,6 +20,7 @@ import {
   type FooterConfig,
   type HeaderConfig,
 } from "@/lib/site-chrome";
+import { parsePetProfileConfig, type PetProfileConfig } from "@/lib/pet-profile-cms";
 import {
   baseVisualThemeKeys,
   defaultStoreThemePalettes,
@@ -83,6 +84,7 @@ export type Storefront = {
   shippingConfig: { flatRateCents: number; freeOverCents: number };
   headerConfig: HeaderConfig;
   footerConfig: FooterConfig;
+  petProfileConfig: PetProfileConfig;
   defaultLocale: string;
   enabledLocales: string[];
   capabilities: StoreCapability[];
@@ -167,6 +169,7 @@ function mapStorefront(
     },
     headerConfig: parseHeaderConfig(row.headerConfig),
     footerConfig: parseFooterConfig(row.footerConfig),
+    petProfileConfig: parsePetProfileConfig(row.petProfileConfig),
     defaultLocale: row.defaultLocale,
     enabledLocales: row.enabledLocales,
     capabilities: row.capabilities,
@@ -209,6 +212,7 @@ function developmentFallback(hostname: string): Storefront {
     shippingConfig: { flatRateCents: 900, freeOverCents: 6000 },
     headerConfig: parseHeaderConfig({}),
     footerConfig: parseFooterConfig({}),
+    petProfileConfig: parsePetProfileConfig({}),
     defaultLocale: "en-AU",
     enabledLocales: ["en-AU", "es-CO"],
     capabilities: Object.values(StoreCapability),
