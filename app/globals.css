@@ -956,6 +956,114 @@ h3 {
 .lost-mode-heading h3,
 .lost-mode-heading p { margin: 0; }
 .lost-mode-heading p { margin-top: 4px; color: var(--muted); font-size: .9rem; }
+.tag-identity-card {
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  background: var(--surface);
+  box-shadow: 0 8px 25px rgba(16, 33, 28, 0.045);
+}
+.tag-identity-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.tag-identity-icon {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  border-radius: 12px;
+  color: var(--brand);
+  background: #eaf6f2;
+}
+.tag-identity-header p,
+.tag-identity-header h2 {
+  margin: 0;
+}
+.tag-identity-header p,
+.tag-identity-details dt {
+  color: var(--muted);
+  font-size: .69rem;
+  font-weight: 800;
+  letter-spacing: .055em;
+  text-transform: uppercase;
+}
+.tag-identity-header h2 {
+  font-size: 1.35rem;
+}
+.tag-qr-frame {
+  display: grid;
+  place-items: center;
+  margin: 18px 0 14px;
+  padding: 13px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: #fff;
+}
+.tag-qr-frame img {
+  display: block;
+  width: min(100%, 220px);
+  height: auto;
+}
+.tag-link-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 10px;
+  border-radius: 11px;
+  background: #f4f8f6;
+}
+.tag-link-row span {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: .72rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tag-link-row .text-button {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  color: var(--brand);
+  font-size: .76rem;
+  font-weight: 800;
+}
+.tag-copy-status {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin: 8px 0 0;
+  color: var(--brand);
+  font-size: .75rem;
+  font-weight: 700;
+}
+.tag-identity-details {
+  margin: 16px 0 0;
+  padding-top: 15px;
+  border-top: 1px solid var(--line);
+}
+.tag-identity-details dd {
+  margin: 5px 0 0;
+  font-family: var(--font-inter), ui-monospace, monospace;
+  font-size: .86rem;
+  font-weight: 750;
+  letter-spacing: .035em;
+}
+.tag-identity-help {
+  display: flex;
+  gap: 7px;
+  align-items: flex-start;
+  margin: 16px 0 0;
+  color: var(--muted);
+  font-size: .78rem;
+  line-height: 1.45;
+}
+.tag-identity-help svg { flex: 0 0 auto; margin-top: 2px; color: var(--brand); }
 .profile-actions {
   display: grid;
   grid-template-columns: 1fr 1fr;
