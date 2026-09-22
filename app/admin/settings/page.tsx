@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { StoreCapability } from "@prisma/client";
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import { isStoreResetAllowed } from "@/lib/store-reset";
 
 export default async function AdminSettingsPage() {
   const context = await requireAdminPageContext();
@@ -44,7 +45,7 @@ export default async function AdminSettingsPage() {
         platformAdmin={context.isPlatformAdmin}
         availableCapabilities={Object.values(StoreCapability)}
       />
-      <section className="admin-panel danger-panel">
+      {isStoreResetAllowed() && <section className="admin-panel danger-panel">
         <div className="panel-heading">
           <div>
             <h2>Start fresh</h2>
@@ -52,7 +53,7 @@ export default async function AdminSettingsPage() {
           </div>
           <Link className="button secondary" href="/admin/settings/reset">Open reset tool</Link>
         </div>
-      </section>
+      </section>}
       <section className="admin-panel">
         <div className="panel-heading">
           <div>

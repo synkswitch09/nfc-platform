@@ -194,6 +194,11 @@ async function main() {
   if (environment === "staging" && process.env.ALLOW_STAGING_SEED !== "true") throw new Error("Set ALLOW_STAGING_SEED=true explicitly to load controlled staging data");
   if (environment !== "development" && (process.env.DEV_ADMIN_EMAIL || process.env.DEV_ADMIN_PASSWORD)) throw new Error("Development administrator credentials are allowed only in DEVELOPMENT");
   if (environment !== "staging" && (process.env.STAGING_ADMIN_EMAIL || process.env.STAGING_ADMIN_PASSWORD)) throw new Error("Staging administrator credentials are allowed only in STAGING");
+  // Bootstrap only. Re-running seed must never overwrite owner-managed content or stock.
+  if (await db.store.findUnique({ where: { slug: "tapkin" }, select: { id: true } })) {
+    console.log("Tapkin already exists; seed skipped to preserve content, inventory and accounts. Use migrations for schema updates.");
+    return;
+  }
   const store = await db.store.upsert({
     where: { slug: "tapkin" },
     update: { displayName: "Tapkin", status: "ACTIVE", capabilities: [StoreCapability.COMMERCE, StoreCapability.NFC, StoreCapability.DIGITAL_PROFILE, StoreCapability.PET_PROFILE, StoreCapability.CHILD_SAFETY, StoreCapability.SOCIAL_PROFILE, StoreCapability.BUSINESS_PROFILE, StoreCapability.CUSTOM_PERSONALISATION, StoreCapability.PRINT_3D, StoreCapability.INVENTORY] },

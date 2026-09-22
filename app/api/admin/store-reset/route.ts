@@ -40,6 +40,8 @@ export async function POST(request: NextRequest) {
       product: { id: result.product.id },
     });
   } catch (error) {
+    if (error instanceof Error && error.message === "STORE_RESET_DISABLED")
+      return jsonError("Start fresh is disabled in production or when the environment is not explicitly configured", 403);
     if (error instanceof Error && error.message === "INVALID_CONFIRMATION")
       return jsonError("The store name does not match", 400);
     if (error instanceof Error && error.message === "STORE_NOT_FOUND")

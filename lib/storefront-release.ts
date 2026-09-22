@@ -93,7 +93,7 @@ function cleanProduct(product: Row) {
     ),
   }));
   const variants = ((product.variants as Row[] | undefined) ?? []).map((variant) => ({
-    ...without(variant, ["id", "productId", "imageId", "defaultPackagingId", "createdAt", "updatedAt"]),
+    ...without(variant, ["id", "productId", "imageId", "defaultPackagingId", "inventory", "reservedInventory", "createdAt", "updatedAt"]),
     imageStorageKey: imageById.get(String(variant.imageId))?.storageKey ?? null,
   }));
   return {
@@ -243,7 +243,7 @@ export async function previewStorefrontRelease(releaseInput: unknown, storeId: s
     pages: count(release.pages, pageSlugs),
     products: count(release.products, productSlugs),
     media: { files: release.assets.length, bytes: release.assets.reduce((sum, asset) => sum + asset.byteSize, 0) },
-    excluded: ["customers", "orders", "payments", "carts", "NFC tags", "manufacturing batches", "sessions", "credentials"],
+    excluded: ["inventory", "reserved inventory", "customers", "orders", "payments", "carts", "NFC tags", "manufacturing batches", "sessions", "credentials"],
   };
 }
 
@@ -284,7 +284,19 @@ async function syncPage(tx: Prisma.TransactionClient, storeId: string, pageInput
     ? await tx.contentPage.update({ where: { id: existing.id }, data })
     : await tx.contentPage.create({ data });
   await tx.landingPageSection.deleteMany({ where: { pageId: saved.id } });
-  if (sections.length) await tx.landingPageSection.createMany({ data: sections.map((section, sortOrder) => ({ ...section, storeId, pageId: saved.id, categoryId: categoryId ?? null, sortOrder })) as Prisma.LandingPageSectionCreateManyInput[] });
+  for (const [sortOrder, section] of sections.entries()) {
+    const { translations: sectionTranslations, ...sectionData } = section;
+    const savedSection = await tx.landingPageSection.create({
+      data: { ...sectionData, storeId, pageId: saved.id, categoryId: categoryId ?? null, sortOrder } as Prisma.LandingPageSectionUncheckedCreateInput,
+    });
+    if (Array.isArray(sectionTranslations) && sectionTranslations.length) {
+      await tx.landingPageSectionTranslation.createMany({
+        data: sectionTranslations.map((item: Row) => ({
+          locale: String(item.locale), content: item.content as Prisma.InputJsonValue, sectionId: savedSection.id,
+        })),
+      });
+    }
+  }
   await tx.contentPageTranslation.deleteMany({ where: { pageId: saved.id } });
   if (translations.length) await tx.contentPageTranslation.createMany({ data: translations.map((item) => ({ ...item, pageId: saved.id })) as Prisma.ContentPageTranslationCreateManyInput[] });
   return saved;
@@ -338,11 +350,15 @@ export async function importStorefrontRelease({ releaseInput, storeId, storeSlug
           imageIds.set(sourceKey, savedImage.id);
         }
         for (const variantInput of variants) {
-          const variant = releaseData(variantInput, media.keys); const imageStorageKey = variant.imageStorageKey as string | null; delete variant.imageStorageKey;
-          const existingVariant = await tx.productVariant.findUnique({ where: { sku: String(variant.sku) }, select: { id: true, product: { select: { storeId: true } } } });
+          const variant = releaseData(variantInput, media.keys);
+          // Ignore operational quantities even in older or manually edited release files.
+          delete variant.inventory; delete variant.reservedInventory;
+          const imageStorageKey = variant.imageStorageKey as string | null; delete variant.imageStorageKey;
+          const existingVariant = await tx.productVariant.findUnique({ where: { sku: String(variant.sku) }, select: { id: true, productId: true, product: { select: { storeId: true } } } });
           if (existingVariant && existingVariant.product.storeId !== storeId) throw new Error("RELEASE_SKU_BELONGS_TO_ANOTHER_STORE");
+          if (existingVariant && existingVariant.productId !== saved.id) throw new Error("RELEASE_SKU_BELONGS_TO_ANOTHER_PRODUCT");
           const data = { ...variant, productId: saved.id, imageId: imageStorageKey ? imageIds.get(imageStorageKey) ?? null : null, defaultPackagingId: null } as Prisma.ProductVariantUncheckedCreateInput;
-          if (existingVariant) await tx.productVariant.update({ where: { id: existingVariant.id }, data }); else await tx.productVariant.create({ data });
+          if (existingVariant) await tx.productVariant.update({ where: { id: existingVariant.id }, data }); else await tx.productVariant.create({ data: { ...data, inventory: 0, reservedInventory: 0 } });
         }
       }
       for (const imageInput of release.categoryImages) {

@@ -2,11 +2,11 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { StoreResetForm } from "@/components/store-reset-form";
 import { canManageStore, requireAdminPageContext } from "@/lib/admin";
-import { getStoreResetPreview } from "@/lib/store-reset";
+import { getStoreResetPreview, isStoreResetAllowed } from "@/lib/store-reset";
 
 export default async function StoreResetPage() {
   const context = await requireAdminPageContext();
-  if (!canManageStore(context)) notFound();
+  if (!canManageStore(context) || !isStoreResetAllowed()) notFound();
   const preview = await getStoreResetPreview(context.store.id);
   return <div>
     <Link href="/admin/settings" className="admin-back">← Store settings</Link>

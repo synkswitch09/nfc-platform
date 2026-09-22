@@ -22,6 +22,8 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     const message = error instanceof Error && error.message === "RELEASE_SKU_BELONGS_TO_ANOTHER_STORE"
       ? "A SKU in this release already belongs to another store. SKUs must be unique across stores."
+      : error instanceof Error && error.message === "RELEASE_SKU_BELONGS_TO_ANOTHER_PRODUCT"
+        ? "A SKU in this release already belongs to a different product. Check product slugs and SKU assignments before importing."
       : error instanceof Error && error.message.includes("RELEASE_MEDIA")
         ? "Release media could not be verified or copied."
         : "The storefront release could not be imported.";

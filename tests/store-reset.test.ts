@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { storeResetSchema } from "@/lib/store-reset";
+import { assertStoreResetAllowed, storeResetSchema } from "@/lib/store-reset";
 
 describe("store reset baseline request", () => {
   const request = {
@@ -23,5 +23,14 @@ describe("store reset baseline request", () => {
     expect(storeResetSchema.safeParse({ ...request, productSlug: "/pets" }).success).toBe(false);
     expect(storeResetSchema.safeParse({ ...request, productSku: "x" }).success).toBe(false);
     expect(storeResetSchema.safeParse({ ...request, priceCents: -1 }).success).toBe(false);
+  });
+});
+
+describe("reset environment boundary", () => {
+  it.each([{}, { APP_ENV: "production" }, { APP_ENV: "prod" }, { NODE_ENV: "production" }])("rejects production and ambiguous environments: %j", (environment) => {
+    expect(() => assertStoreResetAllowed(environment)).toThrow("STORE_RESET_DISABLED");
+  });
+  it.each(["development", "staging"])("permits explicitly configured %s with the existing confirmation flow", (APP_ENV) => {
+    expect(() => assertStoreResetAllowed({ APP_ENV })).not.toThrow();
   });
 });

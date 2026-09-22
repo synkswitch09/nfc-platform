@@ -1,6 +1,17 @@
 import { z } from "zod";
 import { db } from "@/lib/db";
 
+// Fail closed: a destructive reset must explicitly target a non-production environment.
+export function isStoreResetAllowed(environment: Record<string, string | undefined> = process.env) {
+  return environment.APP_ENV === "development" || environment.APP_ENV === "staging";
+}
+
+export function assertStoreResetAllowed(environment: Record<string, string | undefined> = process.env) {
+  if (!isStoreResetAllowed(environment)) {
+    throw new Error("STORE_RESET_DISABLED");
+  }
+}
+
 const slug = z
   .string()
   .trim()
@@ -93,6 +104,7 @@ export async function resetStoreToPetsBaseline({
   actorId: string;
   input: StoreResetInput;
 }) {
+  assertStoreResetAllowed();
   const store = await db.store.findUnique({
     where: { id: storeId },
     select: { id: true, displayName: true, defaultLocale: true },
