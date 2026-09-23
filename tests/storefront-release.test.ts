@@ -13,7 +13,7 @@ const release = {
   store: { displayName: "Tapkin" },
   categories: [{ slug: "pets", name: "Pets" }],
   pages: [{ slug: "terms", name: "Terms", kind: "LEGAL" }],
-  products: [{ slug: "tapkin-pet-tag", name: "Tapkin Pet Tag" }],
+  products: [{ slug: "tapkin-pet-tag", name: "Tapkin Pet Tag", description: "Personalised NFC pet tag", type: "PET", brand: "Tapkin" }],
   categoryImages: [],
   assets: [],
 };

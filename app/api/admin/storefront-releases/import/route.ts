@@ -2,7 +2,8 @@ import { revalidatePath } from "next/cache";
 import { NextRequest, NextResponse } from "next/server";
 import { canManageStore, getAdminApiContext } from "@/lib/admin";
 import { assertSameOrigin, jsonError } from "@/lib/http";
-import { importStorefrontRelease, storefrontReleaseSchema } from "@/lib/storefront-release";
+import { importStorefrontRelease } from "@/lib/storefront-release";
+import { readReleaseRequest, releaseErrorResponse } from "@/lib/storefront-release-request";
 
 export async function POST(request: NextRequest) {
   if (!assertSameOrigin(request)) return jsonError("Invalid request origin", 403);
@@ -10,23 +11,14 @@ export async function POST(request: NextRequest) {
     return jsonError("Release files must be 40 MB or smaller.", 413);
   const context = await getAdminApiContext();
   if (!context || !canManageStore(context)) return jsonError("Store administrator access required", 403);
-  const payload = await request.json().catch(() => null);
-  const parsed = storefrontReleaseSchema.safeParse(payload);
-  if (!parsed.success) return jsonError("This is not a valid storefront release file.");
   try {
-    const result = await importStorefrontRelease({ releaseInput: parsed.data, storeId: context.store.id, storeSlug: context.store.slug, actorId: context.user.id });
+    const result = await importStorefrontRelease({ releaseInput: await readReleaseRequest(request), storeId: context.store.id, storeSlug: context.store.slug, actorId: context.user.id });
     revalidatePath("/", "layout");
     revalidatePath("/shop");
     revalidatePath("/admin", "layout");
     return NextResponse.json({ ok: true, result });
   } catch (error) {
-    const message = error instanceof Error && error.message === "RELEASE_SKU_BELONGS_TO_ANOTHER_STORE"
-      ? "A SKU in this release already belongs to another store. SKUs must be unique across stores."
-      : error instanceof Error && error.message === "RELEASE_SKU_BELONGS_TO_ANOTHER_PRODUCT"
-        ? "A SKU in this release already belongs to a different product. Check product slugs and SKU assignments before importing."
-      : error instanceof Error && error.message.includes("RELEASE_MEDIA")
-        ? "Release media could not be verified or copied."
-        : "The storefront release could not be imported.";
-    return jsonError(message, 409);
+    const result = releaseErrorResponse(error);
+    return jsonError(result.message, result.status);
   }
 }

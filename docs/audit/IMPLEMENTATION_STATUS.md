@@ -14,7 +14,7 @@ Implementado en código (validación DB real pendiente):
 ## Alcance que sigue abierto
 
 A: Docker/psql no disponibles; no backup/restauración del equipo de Daniel ni integración PostgreSQL ejecutados. No se afirma protección de sus datos por haber cambiado código.
-B: todavía falta allowlist integral de payload, validación/transacción de assets y round-trip DB, preview de referencias y revisión completa bootstrap. No considerar todo REC-011/014 resuelto.
+B: allowlist y validación de referencias/assets implementadas en la segunda continuación, descrita abajo. Sigue pendiente el round-trip DB y la aceptación con Pets real. No considerar todo REC-011/014 verificado en producción.
 C–I: todavía pendientes, incluyendo FAQs; ningún borrador editorial se publicó.
 
 ## Regresiones cubiertas
@@ -38,3 +38,22 @@ Validación al cierre se registra en AUDIT_PROGRESS. No migrations nuevas requer
 - git diff --check PASS.
 - Docker build, backup/restore e integración PostgreSQL NOT RUN: herramientas/servicios no disponibles aquí.
 - Los cambios funcionales no requieren nueva migración. El plan A–I sigue en ejecución, no completado.
+
+## Segunda continuación: paquetes de contenido seguros (bloque B)
+
+Primera continuación publicada en develop remoto: `60436acc8ec73980ae63b60741266cf31ed19866`. La continuación conserva ese contenido y los commits locales existentes; no modifica main.
+
+Implementado:
+- Allowlists explícitas de campos en Store, categorías, páginas, secciones, traducciones, productos, variantes, opciones y medios. V1 se conserva; campos desconocidos de paquetes antiguos se descartan, incluidos IDs, relaciones Prisma y cantidades. Configuración de pagos, moneda, dominios, capacidades y shipping queda fuera. Asignaciones de packaging existentes se conservan.
+- Preview e import rechazan referencias a categorías/opciones/imágenes ausentes, slugs/SKUs duplicados y propietarios de páginas incompatibles. Preview valida referencias **dentro del paquete**; los conflictos con registros del destino se resuelven en la transacción de importación y aún pueden causar rechazo.
+- Todas las imágenes se validan antes de escribir: base64, cabecera/formato, extensión, tamaño y dimensiones declaradas; 5 MiB por imagen, 25 MiB agregados. No es una decodificación completa ni escaneo antivirus.
+- Límite de 40 MiB sobre bytes realmente recibidos, incluso sin Content-Length fiable. Errores muestran la ruta del campo inválido. Admin descarta previews anteriores y recupera el estado tras fallos de red.
+- Copias con clave derivada del contenido y tienda destino; reintentar el mismo paquete reutiliza bytes idénticos. URLs absolutas del servidor origen pasan a referencias locales del destino. Exportación incluye imágenes vinculadas a la página CMS de una categoría.
+- DB mantiene una única transacción (timeout 60 s). Media no participa en esa transacción: si falla DB pueden quedar archivos sin referencia. No se eliminan automáticamente porque otro import concurrente puede estar usándolos. No hay atomicidad distribuida ni recolector automático implementado; no borrar archivos indiscriminadamente. Reintentar el mismo paquete reutiliza esas copias.
+- Import no desvincula una página perteneciente a una categoría ni mueve imágenes de otra tienda/producto.
+
+Uso: actualizar la aplicación, exportar desde Admin → Settings → Releases, elegir el archivo en destino, previsualizar y confirmar. No ejecutar seed ni reset. No requiere migración nueva. La importación actualiza contenido coincidente y reemplaza secciones de sus páginas; no es un backup y debe probarse primero en staging con respaldo.
+
+Pendiente de aceptación: exportar/importar Pets con traducciones y medios en PostgreSQL aislado, repetir import, verificar stock diferente en destino y comprobar rollback real ante error. No se ha accedido a datos del usuario. Quedan pendientes A y C–I según el plan; las FAQs siguen como borradores.
+
+Verificación de esta continuación: lint PASS, typecheck PASS, 180 tests / 33 archivos PASS, build PASS, git diff --check PASS. Docker build y aceptación PostgreSQL NOT RUN por falta de herramientas/servicios. No hay cambios de dependencias ni del esquema Prisma.
