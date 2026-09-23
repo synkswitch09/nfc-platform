@@ -32,6 +32,7 @@ services:
       EMAIL_MODE: mock
       STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
       STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+      CHECKOUT_RECONCILE_SECRET: ${CHECKOUT_RECONCILE_SECRET:-}
       EMAIL_WEBHOOK_URL: ${EMAIL_WEBHOOK_URL:-}
       EMAIL_WEBHOOK_SECRET: ${EMAIL_WEBHOOK_SECRET:-}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
@@ -52,6 +53,18 @@ services:
       timeout: 5s
       retries: 3
       start_period: 20s
+  checkout-reconciler:
+    profiles: ["operations"]
+    build: .
+    restart: unless-stopped
+    command: ["node", "scripts/reconcile-checkouts.mjs", "--watch"]
+    environment:
+      APP_URL: http://app:3000
+      CHECKOUT_RECONCILE_SECRET: ${CHECKOUT_RECONCILE_SECRET:-}
+    depends_on:
+      app: { condition: service_healthy }
+    healthcheck:
+      disable: true
   migrate:
     build:
       context: .

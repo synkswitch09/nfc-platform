@@ -886,6 +886,8 @@ export function AdminProductForm({
                     type="number"
                     min="0"
                     value={variant.inventory}
+                    readOnly={Boolean(variant.id)}
+                    title={variant.id ? "Adjust existing stock in Catalog → Inventory" : "Initial stock"}
                     onChange={(event) =>
                       updateVariant(
                         setVariants,
@@ -895,6 +897,7 @@ export function AdminProductForm({
                       )
                     }
                   />
+                  {variant.id && <small>Adjust stock in <a href="/admin/inventory">Catalog → Inventory</a>.</small>}
                 </label>
                 <label className="field">
                   Low-stock alert

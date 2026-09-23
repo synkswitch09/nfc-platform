@@ -26,6 +26,7 @@ RUN apk add --no-cache openssl libc6-compat tini && addgroup --system --gid 1001
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
+COPY --from=builder --chown=nextjs:nodejs /app/scripts/reconcile-checkouts.mjs ./scripts/reconcile-checkouts.mjs
 USER nextjs
 EXPOSE 3000
 STOPSIGNAL SIGTERM

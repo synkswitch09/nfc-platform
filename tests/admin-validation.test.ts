@@ -23,7 +23,7 @@ describe("admin validation", () => {
   });
   it("requires stable category slugs and stock-adjustment reasons", () => {
     expect(adminCategorySchema.safeParse({ name: "Pet Tags", slug: "Pet Tags", sortOrder: 0, status: "PUBLISHED" }).success).toBe(false);
-    expect(inventoryAdjustmentSchema.safeParse({ variantId: crypto.randomUUID(), quantity: 3, reason: "" }).success).toBe(false);
+    expect(inventoryAdjustmentSchema.safeParse({ variantId: crypto.randomUUID(), expectedInventory: 4, quantity: 3, reason: "" }).success).toBe(false);
   });
   it("accepts structured category content and rejects unsafe CTA paths", () => {
     const category = { name: "Pet", slug: "pet", sortOrder: 0, status: "PUBLISHED", visualTheme: "CORAL", landingLayout: "EDITORIAL", showOnHomepage: true, showInNavigation: true, showInShop: true, showLanding: true, indexable: true, benefits: [], useCases: [], howItWorks: [], contentSections: [], faq: [] };

@@ -1,4 +1,6 @@
 import { randomUUID } from "node:crypto";
+import { Prisma } from "@prisma/client";
+import { InventoryConflict } from "@/lib/inventory-service";
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { assertSameOrigin, getClientIp, jsonError } from "@/lib/http";
@@ -26,6 +28,7 @@ export async function POST(request: NextRequest) {
     checkout = await createPendingOrder(parsed.data.items, { ...customer, userId: user?.id }, store, parsed.data.shippingQuoteToken);
   } catch (error) {
     if (error instanceof CheckoutError) return jsonError(error.message, error.status);
+    if (error instanceof InventoryConflict || (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2034")) return jsonError("Stock changed while checking out. Refresh your cart and try again.", 409);
     return jsonError("Checkout could not be prepared", 500);
   }
 
@@ -58,11 +61,12 @@ export async function POST(request: NextRequest) {
       ],
       success_url: `${origin}${successPath}`,
       cancel_url: `${origin}/checkout?cancelled=true`,
-    });
+    }, { idempotencyKey: `checkout:${checkout.order.payments[0].id}` });
     await attachCheckoutSession(checkout.order.id, checkout.order.payments[0].id, session.id);
     return NextResponse.json({ url: session.url });
   } catch {
-    await cancelPendingOrder(checkout.order.id, "Stripe Checkout Session creation failed");
-    return jsonError("Checkout could not be started", 502);
+    // A timeout may happen after Stripe created a payable session. Reconciliation or
+    // a signed webhook must resolve it; never release its stock on a network error.
+    return jsonError("Checkout confirmation is pending. Please check your orders before trying again.", 502);
   }
 }

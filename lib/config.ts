@@ -27,6 +27,7 @@ const runtimeConfigSchema = z.object({
   EMAIL_TEST_OUTBOX_PATH: optionalString,
   STRIPE_SECRET_KEY: optionalString,
   STRIPE_WEBHOOK_SECRET: optionalString,
+  CHECKOUT_RECONCILE_SECRET: z.preprocess(blankToUndefined, z.string().min(32).optional()),
   NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: optionalString,
   GOOGLE_CLIENT_ID: optionalString,
   GOOGLE_CLIENT_SECRET: optionalString,
@@ -117,7 +118,7 @@ export type RuntimeConfig = {
   trustProxy: boolean;
   storage: { provider: "local" | "azure-blob"; environment?: AppEnvironment; uploadDir: string; containerUrl?: string; sasToken?: string };
   email: { mode: "mock" | "sandbox" | "live"; webhookUrl?: string; webhookSecret?: string; testOutboxPath?: string };
-  stripe: { secretKey?: string; webhookSecret?: string; publishableKey?: string; testCheckout: boolean };
+  stripe: { secretKey?: string; webhookSecret?: string; reconcileSecret?: string; publishableKey?: string; testCheckout: boolean };
   etsy: { apiKey?: string; sharedSecret?: string; syncSecret?: string };
   analyticsId?: string;
   logLevel: "info" | "warn" | "error";
@@ -141,7 +142,7 @@ export function parseRuntimeConfig(environment: Record<string, string | undefine
     trustProxy: value.TRUST_PROXY,
     storage: { provider: value.STORAGE_PROVIDER, environment: value.STORAGE_ENVIRONMENT, uploadDir: value.UPLOAD_DIR, containerUrl: value.AZURE_STORAGE_CONTAINER_URL, sasToken: value.AZURE_STORAGE_SAS_TOKEN },
     email: { mode: value.EMAIL_MODE, webhookUrl: value.EMAIL_WEBHOOK_URL, webhookSecret: value.EMAIL_WEBHOOK_SECRET, testOutboxPath: value.EMAIL_TEST_OUTBOX_PATH },
-    stripe: { secretKey: value.STRIPE_SECRET_KEY, webhookSecret: value.STRIPE_WEBHOOK_SECRET, publishableKey: value.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY, testCheckout: value.ENABLE_TEST_CHECKOUT },
+    stripe: { reconcileSecret: value.CHECKOUT_RECONCILE_SECRET, secretKey: value.STRIPE_SECRET_KEY, webhookSecret: value.STRIPE_WEBHOOK_SECRET, publishableKey: value.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY, testCheckout: value.ENABLE_TEST_CHECKOUT },
     etsy: { apiKey: value.ETSY_API_KEY, sharedSecret: value.ETSY_SHARED_SECRET, syncSecret: value.ETSY_SYNC_SECRET },
     analyticsId: value.ANALYTICS_ID,
     logLevel: value.LOG_LEVEL,

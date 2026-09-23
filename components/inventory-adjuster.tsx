@@ -10,7 +10,7 @@ export function InventoryAdjuster({ variantId, current, reserved }: { variantId:
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); setMessage("");
     const form = new FormData(event.currentTarget);
-    const response = await fetch("/api/admin/inventory", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ variantId, quantity: Number(form.get("quantity")), reason: form.get("reason") }) });
+    const response = await fetch("/api/admin/inventory", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ variantId, expectedInventory: current, quantity: Number(form.get("quantity")), reason: form.get("reason") }) });
     const result = await response.json().catch(() => ({}));
     if (!response.ok) return setMessage(result.error ?? "Stock could not be updated");
     setOpen(false); router.refresh();

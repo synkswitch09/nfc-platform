@@ -1,3 +1,4 @@
+import { changeReservation, consumeStock, orderReservations } from "@/lib/inventory-service";
 import { randomUUID } from "node:crypto";
 import { Prisma, StoreCapability, StoreStatus } from "@prisma/client";
 import { assertVariantSelection, availableInventory, CatalogValidationError, normalisePersonalisation, resolvePersonalisationChoice } from "@/lib/catalog";
@@ -111,7 +112,7 @@ export async function createPendingOrder(items: CheckoutItemInput[], customer: C
           personalisationMode: variant.product.personalisationMode,
           personalisationChoice,
           selectedOptions,
-          shippingSnapshot: { weightGrams: variant.weightGrams ?? variant.product.weightGrams, lengthMm: variant.lengthMm ?? variant.product.lengthMm, widthMm: variant.widthMm ?? variant.product.widthMm, heightMm: variant.heightMm ?? variant.product.heightMm, shipsSeparately: variant.product.shipsSeparately, specialHandling: variant.product.specialHandling, customs: { countryOfOrigin: variant.product.countryOfOrigin, description: variant.product.customsDescription, hsCode: variant.product.hsCode, valueCents: variant.product.customsValueCents, dutiesHandling: variant.product.dutiesHandling, restrictedItem: variant.product.restrictedItem } },
+          shippingSnapshot: { inventoryPolicy: { trackInventory: variant.trackInventory, backorderPolicy: variant.backorderPolicy }, weightGrams: variant.weightGrams ?? variant.product.weightGrams, lengthMm: variant.lengthMm ?? variant.product.lengthMm, widthMm: variant.widthMm ?? variant.product.widthMm, heightMm: variant.heightMm ?? variant.product.heightMm, shipsSeparately: variant.product.shipsSeparately, specialHandling: variant.product.specialHandling, customs: { countryOfOrigin: variant.product.countryOfOrigin, description: variant.product.customsDescription, hsCode: variant.product.hsCode, valueCents: variant.product.customsValueCents, dutiesHandling: variant.product.dutiesHandling, restrictedItem: variant.product.restrictedItem } },
         })) },
         payments: { create: { amountCents: totals.totalCents, currency: store.currency } },
         statusHistory: { create: { toStatus: "PAYMENT_PENDING" } },
@@ -122,12 +123,7 @@ export async function createPendingOrder(items: CheckoutItemInput[], customer: C
     for (const variant of variants) {
       const quantity = requestedByVariant.get(variant.id) ?? 0;
       if (!variant.trackInventory || variant.backorderPolicy === "ALLOW") continue;
-      const reserved = await tx.productVariant.updateMany({
-        where: { id: variant.id, reservedInventory: variant.reservedInventory, inventory: { gte: variant.reservedInventory + quantity } },
-        data: { reservedInventory: { increment: quantity } },
-      });
-      if (reserved.count !== 1) throw new CheckoutError("Stock changed while checking out. Please try again.", 409);
-      await tx.inventoryMovement.create({ data: { variantId: variant.id, orderId: order.id, type: "RESERVATION", quantity } });
+      await changeReservation(tx, { variantId: variant.id, orderId: order.id, quantity, expectedReserved: variant.reservedInventory });
     }
     for (const productId of new Set(variants.map(variant => variant.productId))) await queueEtsyInventorySync(tx, store.id, productId);
 
@@ -136,28 +132,28 @@ export async function createPendingOrder(items: CheckoutItemInput[], customer: C
 }
 
 export async function attachCheckoutSession(orderId: string, paymentId: string, providerSessionId: string) {
-  await db.payment.updateMany({ where: { id: paymentId, orderId, status: "PENDING" }, data: { providerSessionId } });
+  const changed = await db.payment.updateMany({ where: { id: paymentId, orderId, status: "PENDING", OR: [{ providerSessionId: null }, { providerSessionId }] }, data: { providerSessionId } });
+  if (changed.count !== 1) throw new CheckoutError("Payment session could not be attached", 409);
 }
 
+// Caller must first confirm provider expiry/failure, or know no session was ever requested.
 export async function cancelPendingOrder(orderId: string, reason: string, actorId?: string) {
-  await db.$transaction(async tx => {
+  return db.$transaction(async tx => {
     const order = await tx.order.findUnique({ where: { id: orderId }, include: { items: { include: { variant: true } } } });
-    if (!order || order.status !== "PAYMENT_PENDING") return;
-    const quantities = new Map<string, number>();
-    for (const item of order.items) quantities.set(item.variantId, (quantities.get(item.variantId) ?? 0) + item.quantity);
-    for (const [variantId, quantity] of quantities) {
-      const variant = order.items.find(item => item.variantId === variantId)!.variant;
-      if (variant.trackInventory && variant.backorderPolicy === "DENY") {
-        await tx.productVariant.updateMany({ where: { id: variantId, reservedInventory: { gte: quantity } }, data: { reservedInventory: { decrement: quantity } } });
-        await tx.inventoryMovement.create({ data: { variantId, orderId, type: "RELEASE", quantity: -quantity, reason } });
-      }
+    if (!order || order.status !== "PAYMENT_PENDING") return false;
+    const claimed = await tx.order.updateMany({ where: { id: orderId, status: "PAYMENT_PENDING" }, data: { status: "CANCELLED" } });
+    if (claimed.count !== 1) return false;
+    const reservations = await orderReservations(tx, orderId);
+    for (const [variantId, quantity] of reservations) {
+      if (quantity < 0) throw new CheckoutError("Reservation ledger requires review", 409);
+      if (quantity) await changeReservation(tx, { variantId, orderId, quantity: -quantity, reason });
     }
     for (const productId of new Set(order.items.map(item => item.variant.productId))) await queueEtsyInventorySync(tx, order.storeId, productId);
     await tx.payment.updateMany({ where: { orderId, status: "PENDING" }, data: { status: "FAILED" } });
-    await tx.order.update({ where: { id: orderId }, data: { status: "CANCELLED" } });
     await tx.orderStatusHistory.create({ data: { orderId, fromStatus: "PAYMENT_PENDING", toStatus: "CANCELLED", actorId, note: reason } });
     if (actorId) await tx.auditLog.create({ data: { actorId, storeId: order.storeId, action: "ORDER_CANCELLED", entityType: "Order", entityId: orderId, metadata: { reason } } });
-  });
+    return true;
+  }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 }
 
 export async function settleCheckoutEvent(input: { eventId: string; eventType: string; providerSessionId: string; orderId: string; storeId: string; amountCents: number; currency: string; paymentIntentId?: string | null }) {
@@ -173,22 +169,22 @@ export async function settleCheckoutEvent(input: { eventId: string; eventType: s
     }
     if (payment.order.status !== "PAYMENT_PENDING") throw new CheckoutError("Order is not awaiting payment", 409);
 
+    const claimed = await tx.order.updateMany({ where: { id: payment.orderId, status: "PAYMENT_PENDING" }, data: { status: "PAID" } });
+    if (claimed.count !== 1) throw new CheckoutError("Order changed while confirming payment", 409);
+    const reservations = await orderReservations(tx, payment.orderId);
     const quantities = new Map<string, number>();
     for (const item of payment.order.items) quantities.set(item.variantId, (quantities.get(item.variantId) ?? 0) + item.quantity);
     for (const [variantId, quantity] of quantities) {
       const variant = payment.order.items.find(item => item.variantId === variantId)!.variant;
-      if (!variant.trackInventory) continue;
-      if (variant.backorderPolicy === "DENY") {
-        const changed = await tx.productVariant.updateMany({ where: { id: variantId, inventory: { gte: quantity }, reservedInventory: { gte: quantity } }, data: { inventory: { decrement: quantity }, reservedInventory: { decrement: quantity } } });
-        if (changed.count !== 1) throw new CheckoutError("Reserved stock is no longer available", 409);
-      } else if (variant.inventory >= quantity) {
-        await tx.productVariant.update({ where: { id: variantId }, data: { inventory: { decrement: quantity } } });
-      }
-      await tx.inventoryMovement.create({ data: { variantId, orderId: payment.orderId, type: "SALE", quantity: -quantity } });
+      const held = reservations.get(variantId) ?? 0;
+      const snapshot = payment.order.items.find(item => item.variantId === variantId)!.shippingSnapshot as { inventoryPolicy?: { trackInventory: boolean; backorderPolicy: string } } | null;
+      const policy = snapshot?.inventoryPolicy ?? variant;
+      if (!held && !policy.trackInventory) continue;
+      if (!held && policy.backorderPolicy === "DENY") throw new CheckoutError("Order reservation is missing; manual review required", 409);
+      await consumeStock(tx, { variantId, orderId: payment.orderId, quantity, held, inventory: variant.inventory, reservedInventory: variant.reservedInventory, backorder: policy.backorderPolicy === "ALLOW" });
     }
     for (const productId of new Set(payment.order.items.map(item => item.variant.productId))) await queueEtsyInventorySync(tx, payment.order.storeId, productId);
     await tx.payment.update({ where: { id: payment.id }, data: { status: "SUCCEEDED", providerPaymentIntentId: input.paymentIntentId ?? null } });
-    await tx.order.update({ where: { id: payment.orderId }, data: { status: "PAID" } });
     await tx.orderStatusHistory.create({ data: { orderId: payment.orderId, fromStatus: "PAYMENT_PENDING", toStatus: "PAID" } });
     const jobs = payment.order.items.flatMap(item => {
       const requirements = manufacturingRequirements(payment.order.store.capabilities, item.productType);

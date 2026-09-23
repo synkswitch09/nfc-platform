@@ -28,7 +28,10 @@ export async function POST(request: NextRequest) {
         seoTitle: data.seoTitle || null, seoDescription: data.seoDescription || null, ogImageUrl: data.ogImageUrl || null, canonicalUrl: data.canonicalUrl || null, indexable: data.indexable,
         variants: { create: data.variants.map(variant => ({ sku: variant.sku, name: variant.name, colour: variant.colour || null, size: variant.size || null, material: variant.material || null, priceCents: variant.priceCents, compareAtPriceCents: variant.compareAtPriceCents || null, costCents: variant.costCents || null, inventory: variant.inventory, trackInventory: variant.trackInventory, lowStockThreshold: variant.lowStockThreshold, backorderPolicy: variant.backorderPolicy, active: variant.active, isDefault: variant.isDefault, optionSelection: variant.optionSelection, weightGrams: variant.weightGrams, lengthMm: variant.lengthMm, widthMm: variant.widthMm, heightMm: variant.heightMm, defaultPackagingId: variant.defaultPackagingId })) },
         options: { create: data.options.map((option, sortOrder) => ({ name: option.name, code: option.code, type: option.type, required: option.required, maxLength: option.maxLength || null, priceDeltaCents: option.priceDeltaCents, helpText: option.helpText || null, active: option.active, sortOrder, values: { create: option.values.map((value, valueOrder) => ({ label: value.label, value: value.value, priceDeltaCents: value.priceDeltaCents, active: value.active, sortOrder: valueOrder, swatchHex: value.swatchHex, swatchHexSecondary: value.swatchHexSecondary, swatchImageUrl: value.swatchImageUrl || null })) } })) },
-      } });
+      }, include: { variants: true } });
+      for (const variant of created.variants) {
+        if (variant.inventory) await tx.inventoryMovement.create({ data: { variantId: variant.id, actorId: user.id, type: "ADJUSTMENT", quantity: variant.inventory, reason: "Initial stock for new product" } });
+      }
       await tx.auditLog.create({ data: { actorId: user.id, storeId: store.id, action: "PRODUCT_CREATED", entityType: "Product", entityId: created.id, metadata: { name: created.name, status: created.status } } });
       return created;
     });

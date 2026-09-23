@@ -1,3 +1,4 @@
+import { consumeStock } from "@/lib/inventory-service";
 import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import { MarketplaceConnectionStatus, MarketplaceKind, MarketplaceSyncJobStatus, MarketplaceSyncJobType, Prisma } from "@prisma/client";
 import { decryptSecret, encryptSecret, requiredSecret } from "@/lib/crypto";
@@ -497,13 +498,7 @@ async function importEtsyReceipt(connectionId: string, rawReceipt: EtsyReceipt) 
     for (const [variantId, quantity] of quantities) {
       const variant = lines.find(line => line.variant.id === variantId)!.variant;
       if (variant.trackInventory) {
-        if (variant.backorderPolicy === "DENY") {
-          const changed = await tx.productVariant.updateMany({ where: { id: variantId, inventory: { gte: quantity } }, data: { inventory: { decrement: quantity } } });
-          if (changed.count !== 1) throw new EtsyError(`Etsy receipt ${receipt.externalId} stock changed while importing ${variant.sku}; retry after resolving inventory`, 409);
-        } else if (variant.inventory >= quantity) {
-          await tx.productVariant.update({ where: { id: variantId }, data: { inventory: { decrement: quantity } } });
-        }
-        await tx.inventoryMovement.create({ data: { variantId, orderId: order.id, type: "SALE", quantity: -quantity, reason: `Etsy receipt ${receipt.externalId}` } });
+        await consumeStock(tx, { variantId, orderId: order.id, quantity, held: 0, inventory: variant.inventory, reservedInventory: variant.reservedInventory, backorder: variant.backorderPolicy === "ALLOW", reason: `Etsy receipt ${receipt.externalId}` });
       }
     }
 

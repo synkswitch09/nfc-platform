@@ -57,3 +57,19 @@ Uso: actualizar la aplicación, exportar desde Admin → Settings → Releases, 
 Pendiente de aceptación: exportar/importar Pets con traducciones y medios en PostgreSQL aislado, repetir import, verificar stock diferente en destino y comprobar rollback real ante error. No se ha accedido a datos del usuario. Quedan pendientes A y C–I según el plan; las FAQs siguen como borradores.
 
 Verificación de esta continuación: lint PASS, typecheck PASS, 180 tests / 33 archivos PASS, build PASS, git diff --check PASS. Docker build y aceptación PostgreSQL NOT RUN por falta de herramientas/servicios. No hay cambios de dependencias ni del esquema Prisma.
+
+## Tercera continuación: stock y reservas de checkout (bloque C)
+
+Se continúa desde develop local 7da76ba / remoto 64d11c9 (contenido idéntico, historial divergente conservado). No había cambios sin commit. Revisión detectó: cancelación sin condición atómica, ausencia de expiry/delayed-payment webhooks y stock absoluto escrito desde formulario de producto.
+
+Implementado en código:
+- Servicio de reservas, consumo y ajuste con condiciones sobre cantidades. Pago/cancelación reclaman PAYMENT_PENDING antes de modificar stock, en transacciones serializables.
+- Liberación basada en ledger RESERVATION/RELEASE, independiente de cambios posteriores en trackInventory/backorderPolicy. Nuevos pedidos guardan la política original en shippingSnapshot. Backorders/Etsy preservan reservas de otros pedidos y registran consumo físico real.
+- Editor de productos no escribe inventario de variantes existentes; enlace a Inventory. Ajustes explícitos comprueban expectedInventory y reservas; movimientos iniciales de nuevas variantes/productos llevan actor/motivo.
+- Webhook atiende completed, async success, async failure y expired, consultando el estado actual antes de decidir. Cancelación de admin primero intenta expirar Stripe; un pago que gana la carrera se liquida y no se cancela.
+- Creación Stripe con idempotency key; una excepción de red no libera a ciegas. Recuperación de vínculos por metadata/cantidad/moneda y resultados review_required/retry_required cuando faltan certezas.
+- Endpoint autenticado de reconciliación paginado, script y worker Docker opcional cada cinco minutos. Requiere CHECKOUT_RECONCILE_SECRET y activación del operador; no se ha desplegado ni conectado a Stripe real.
+
+Guía de activación y pruebas: `docs/CHECKOUT_RESERVATIONS.md`. No cambios de schema, migración o seed. Tests nuevos simulan límites de transacción, carreras y proveedores; no sustituyen pruebas de concurrencia/rollback PostgreSQL. C queda implementado en código, pendiente de aceptación operativa en staging. A/B mantienen pruebas reales pendientes. Siguiente bloque: D (pedidos/pagos/notificaciones); no iniciado en esta continuación.
+
+Verificación final C: lint/typecheck PASS; 214 tests en 39 archivos PASS; build PASS; git diff --check PASS. Un intento intermedio falló por caché Turbopack; se apartó únicamente .next a un directorio temporal y tanto la compilación limpia como la final pasaron. Se preservó la deduplicación del webhook ya liquidado sin consulta externa, compatible con el flujo E2E simulado existente. Docker build, E2E HTTP, Stripe real y PostgreSQL real NOT RUN; no servicios/credenciales habilitados en esta sesión.

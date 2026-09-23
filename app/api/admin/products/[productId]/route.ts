@@ -56,9 +56,12 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       const variantIds = data.variants.flatMap(variant => variant.id ? [variant.id] : []);
       await tx.productVariant.updateMany({ where: { productId, id: { notIn: variantIds } }, data: { active: false } });
       for (const variant of data.variants) {
-        const values = { sku: variant.sku, name: variant.name, colour: variant.colour || null, size: variant.size || null, material: variant.material || null, priceCents: variant.priceCents, compareAtPriceCents: variant.compareAtPriceCents || null, costCents: variant.costCents || null, inventory: variant.inventory, trackInventory: variant.trackInventory, lowStockThreshold: variant.lowStockThreshold, backorderPolicy: variant.backorderPolicy, active: variant.active, isDefault: variant.isDefault, optionSelection: variant.optionSelection, weightGrams: variant.weightGrams, lengthMm: variant.lengthMm, widthMm: variant.widthMm, heightMm: variant.heightMm, defaultPackagingId: variant.defaultPackagingId };
+        const values = { sku: variant.sku, name: variant.name, colour: variant.colour || null, size: variant.size || null, material: variant.material || null, priceCents: variant.priceCents, compareAtPriceCents: variant.compareAtPriceCents || null, costCents: variant.costCents || null, trackInventory: variant.trackInventory, lowStockThreshold: variant.lowStockThreshold, backorderPolicy: variant.backorderPolicy, active: variant.active, isDefault: variant.isDefault, optionSelection: variant.optionSelection, weightGrams: variant.weightGrams, lengthMm: variant.lengthMm, widthMm: variant.widthMm, heightMm: variant.heightMm, defaultPackagingId: variant.defaultPackagingId };
         if (variant.id) { const updated = await tx.productVariant.updateMany({ where: { id: variant.id, productId }, data: values }); if (updated.count !== 1) throw new Error("INVALID_VARIANT"); }
-        else await tx.productVariant.create({ data: { ...values, productId } });
+        else {
+          const created = await tx.productVariant.create({ data: { ...values, inventory: variant.inventory, productId } });
+          if (variant.inventory) await tx.inventoryMovement.create({ data: { variantId: created.id, actorId: user.id, type: "ADJUSTMENT", quantity: variant.inventory, reason: "Initial stock for new variant" } });
+        }
       }
       const optionIds = data.options.flatMap(option => option.id ? [option.id] : []);
       await tx.productOption.deleteMany({ where: { productId, id: { notIn: optionIds } } });
@@ -78,7 +81,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       await tx.auditLog.create({ data: { actorId: user.id, storeId: store.id, action: existing.status === data.status ? "PRODUCT_UPDATED" : "PRODUCT_STATUS_CHANGED", entityType: "Product", entityId: productId, metadata: { fromStatus: existing.status, toStatus: data.status } } });
       const previous = new Map(existing.variants.map(variant => [variant.id, variant]));
       if (data.variants.some(variant => !variant.id || previous.get(variant.id)?.priceCents !== variant.priceCents)) await tx.auditLog.create({ data: { actorId: user.id, storeId: store.id, action: "PRODUCT_PRICE_CHANGED", entityType: "Product", entityId: productId } });
-      if (data.variants.some(variant => !variant.id || previous.get(variant.id)?.inventory !== variant.inventory)) await tx.auditLog.create({ data: { actorId: user.id, storeId: store.id, action: "PRODUCT_INVENTORY_CHANGED", entityType: "Product", entityId: productId } });
+      if (data.variants.some(variant => !variant.id && variant.inventory > 0)) await tx.auditLog.create({ data: { actorId: user.id, storeId: store.id, action: "PRODUCT_INVENTORY_CHANGED", entityType: "Product", entityId: productId } });
       await queueEtsyInventorySync(tx, store.id, productId);
     });
     return NextResponse.json({ ok: true });

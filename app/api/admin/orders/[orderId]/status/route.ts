@@ -3,7 +3,8 @@ import { z } from "zod";
 import { getAdminApiContext } from "@/lib/admin";
 import { db } from "@/lib/db";
 import { assertSameOrigin, jsonError } from "@/lib/http";
-import { cancelPendingOrder } from "@/lib/order-service";
+import { CheckoutError } from "@/lib/order-service";
+import { cancelStripeCheckout } from "@/lib/checkout-reconciliation";
 import { canTransitionOrder } from "@/lib/order-status";
 import { sendTransactionalEmail } from "@/lib/email";
 
@@ -20,7 +21,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   if (!order) return jsonError("Order not found", 404);
   if (!canTransitionOrder(order.status, parsed.data.status)) return jsonError(`Cannot change ${order.status} to ${parsed.data.status}`, 409);
   if (parsed.data.status === "CANCELLED" && order.status === "PAYMENT_PENDING") {
-    await cancelPendingOrder(orderId, parsed.data.note || "Cancelled by operations", user.id);
+    try { await cancelStripeCheckout(orderId, store.id, user.id); }
+    catch (error) { return jsonError(error instanceof CheckoutError ? error.message : "Payment could not be verified. Stock remains reserved; retry later.", 409); }
   } else {
     const changed = await db.$transaction(async tx => {
       const changedAt = new Date();

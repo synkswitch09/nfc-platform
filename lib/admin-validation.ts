@@ -107,6 +107,7 @@ export const activationRegenerationSchema = z.object({
 });
 
 export const inventoryAdjustmentSchema = z.object({
+  expectedInventory: z.number().int().min(0).max(1_000_000),
   variantId: z.string().uuid(),
   quantity: z.number().int().min(0).max(1_000_000),
   reason: z.string().trim().min(3).max(300),
