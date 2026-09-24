@@ -13,7 +13,7 @@ const base = { displayName: z.string().trim().min(1).max(80), contacts: z.array(
 const emergencyDetails = z.object({ approximateAge: optionalText, criticalMedicalInfo: optionalText, allergies: optionalText, communicationNotes: optionalText, photoUrl: optionalUrl, status: z.enum(["NORMAL", "MISSING"]) });
 const linkDetails = z.object({ mode: z.enum(["DIRECT_REDIRECT", "MULTI_LINK"]), redirectUrl: optionalUrl, bio: optionalText, links: z.record(z.string().max(30), z.string().url().refine(v => /^https?:\/\//i.test(v))).default({}) });
 const profileSchema = z.discriminatedUnion("type", [
-  z.object({ ...base, type: z.literal("PET"), details: z.object({ species: optionalText, breed: optionalText, sex: optionalText, approximateAge: optionalText, description: optionalText, medicalInfo: optionalText, allergies: optionalText, medications: optionalText, behaviourNotes: optionalText, veterinarian: optionalText, photoUrl: optionalUrl }) }),
+  z.object({ ...base, type: z.literal("PET"), details: z.object({ species: optionalText, breed: optionalText, sex: optionalText, approximateAge: optionalText, description: optionalText, medicalInfo: optionalText, allergies: optionalText, medications: optionalText, behaviourNotes: optionalText, veterinarian: optionalText }) }),
   z.object({ ...base, type: z.literal("CHILD"), details: emergencyDetails }),
   z.object({ ...base, type: z.literal("EMERGENCY"), details: emergencyDetails }),
   z.object({ ...base, type: z.literal("SOCIAL"), details: linkDetails }),

@@ -10,6 +10,7 @@ import type { Metadata } from "next";
 import { publicTagState } from "@/lib/catalog-policy";
 import { getCurrentStorefront } from "@/lib/storefront";
 import type { PetProfileConfig } from "@/lib/pet-profile-cms";
+import { petPhotoUrl } from "@/lib/pet-photo-url";
 
 export const metadata: Metadata = { robots: { index: false, follow: false } };
 
@@ -51,7 +52,7 @@ function PetPublicProfile({ tag, profile, storeName, config }: { tag: { status: 
   return <Shell className="pet-public-profile" style={style} disclaimer={config.gpsDisclaimer}><article className="pet-profile-hero">
     <div className="pet-profile-topline"><span><Dog size={16} /> {config.brandLabel}</span><span className={`pet-profile-status ${tag.status === "LOST" ? "lost" : "safe"}`}>{tag.status === "LOST" ? config.lostStatusLabel : config.profileLabel}</span></div>
     <div className="pet-profile-identity">
-      {pet.photoUrl ? <img className="pet-profile-photo" src={pet.photoUrl} alt={`Photo of ${profile.displayName}`} /> : <div className="pet-profile-photo pet-profile-photo-placeholder" aria-label="No pet photo"><Dog size={50} /></div>}
+      {pet.photoUrl && petPhotoUrl(pet.photoUrl) ? <img className="pet-profile-photo" src={petPhotoUrl(pet.photoUrl)} alt={`Photo of ${profile.displayName}`} /> : <div className="pet-profile-photo pet-profile-photo-placeholder" aria-label="No pet photo"><Dog size={50} /></div>}
       <div><p className="eyebrow">{tag.status === "LOST" ? config.lostGreeting : config.greeting}</p><h1>{profile.displayName}</h1>{pet.breed && <p className="pet-profile-breed">{pet.breed}</p>}</div>
     </div>
     {tag.status === "LOST" && <div className="pet-lost-message"><AlertTriangle size={19} /><span>{config.lostMessage}</span></div>}

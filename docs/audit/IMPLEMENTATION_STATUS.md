@@ -2,7 +2,15 @@
 
 ## Estado actual — 24 septiembre 2026
 
-Bloques A–D implementados en código; aceptación operativa A–D aún pendiente en PostgreSQL/Docker y servicios de staging. Los apartados siguientes conservan el historial de cada continuación. Siguiente bloque: E, privacidad de fotos y recuperación de cuenta. E–I no iniciados aquí.
+Bloques A–E implementados en código; aceptación operativa aún pendiente en PostgreSQL/Docker y servicios de staging. Los apartados siguientes conservan el historial de cada continuación. Siguiente bloque: F, preparación y Ready to ship. F–I no iniciados aquí.
+
+### Quinta continuación: privacidad y recuperación (E)
+
+Inicio limpio en develop local `99e0755`, contenido idéntico a remoto `20f1fda`. Corregidos acceso directo a fotos sin política de visibilidad y consumo no condicional de password reset con revocación limitada a una tienda. Fotos ahora usan política pública del tag y excepción de propietario autenticado, consultas por tienda y no-store. Render con nueva clave de caché; URLs externas legacy no se muestran y deben reemplazarse mediante subida autenticada. PATCH de texto conserva foto y no permite sustituir su URL. Imágenes comerciales conservan su política pública.
+
+Reset reclama token de forma condicional en transacción serializable, actualiza contraseña e invalida sesiones/enlaces de la identidad global, con auditoría. Sin nueva migración/seed. Manual y aceptación: `docs/PRIVACY_AND_ACCOUNT_RECOVERY.md`. Purga de cachés existentes y privacidad del almacenamiento requieren verificación del operador; copias ya descargadas no se revocan remotamente.
+
+Lint/typecheck/build y 259 tests / 44 archivos PASS; git diff --check PASS. PostgreSQL real, Docker build, UI E2E y purga/CDN NOT RUN; no herramientas/servicios habilitados, credenciales ni datos reales modificados.
 
 ### Cuarta continuación: reembolsos y avisos recuperables (D)
 

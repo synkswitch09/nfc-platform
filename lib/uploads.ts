@@ -53,7 +53,7 @@ export async function validateAndStoreImage(file: File, storeSlug: string, purpo
   if (!dimensions || dimensions.width < 1 || dimensions.height < 1 || dimensions.width > 10_000 || dimensions.height > 10_000 || dimensions.width * dimensions.height > 40_000_000) throw new Error("IMAGE_DIMENSIONS");
   const runtime = getRuntimeConfig();
   const storageKey = createStorageKey(runtime.appEnv, storeSlug, randomUUID(), format.extension as "png" | "jpg" | "webp");
-  await getStorageProvider(runtime).put(storageKey, bytes, { contentType: format.mime, cacheControl: "public, max-age=31536000, immutable", metadata: { environment: runtime.appEnv, store: storeSlug, purpose } });
+  await getStorageProvider(runtime).put(storageKey, bytes, { contentType: format.mime, cacheControl: purpose === "pet-profile-photo" ? "private, no-store, max-age=0" : "public, max-age=31536000, immutable", metadata: { environment: runtime.appEnv, store: storeSlug, purpose } });
   return { storageKey, mimeType: format.mime, byteSize: bytes.byteLength, ...dimensions };
 }
 

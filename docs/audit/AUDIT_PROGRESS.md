@@ -1,5 +1,11 @@
 # Checkpoint de auditoría — 2026-09-22
 
+## CHECKPOINT ACTUAL — bloque E, 2026-09-24
+
+Revisado develop local 99e0755 / remoto 20f1fda con contenido igual y sin cambios sin commit. Implementadas autorización de fotos por política pública y propietario, no-store, nueva clave de caché en vistas, metadatos privados de nuevas subidas y eliminación de escritura de photoUrl en PATCH de texto. Reset de contraseña reclama token condicionalmente, revoca todas las sesiones y enlaces pendientes de la identidad global dentro de transacción serializable.
+
+Sin migración adicional, seed/reset ni acceso a cuentas reales. Manual `docs/PRIVACY_AND_ACCOUNT_RECOVERY.md` incluye purga de caché, almacenamiento privado, limitación de copias descargadas y aceptación staging. Lint/typecheck/build y diff --check PASS, 259 tests / 44 archivos PASS. No Docker/DB real/E2E/CDN. Siguiente bloque F: preparación y Ready to ship; A–E requieren aceptación operativa. Este checkpoint sustituye como próximo paso al D histórico de abajo.
+
 ## CHECKPOINT ACTUAL — bloque D, 2026-09-24
 
 Continuación autorizada desde develop local 7c2a927 / remoto bcd1506 con árboles iguales y sin cambios pendientes. Implementados reembolsos totales Stripe confirmados por proveedor, importación de refunds externos/importe parcial, reposición explícita única y outbox transaccional con reintentos/reenvío administrativo. No desactivación automática de NFC. Scheduler existente ampliado, controles de tienda/rol/origen preservados.
