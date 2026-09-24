@@ -137,7 +137,7 @@ Required staging/production settings:
 - `EMAIL_MODE=sandbox` for staging / `live` for production, webhook URL/secret
 - Stripe secret, publishable and webhook keys with correct test/live prefix
 - optional matched Google and Apple client ID/secret pairs
-- optional environment-specific `ANALYTICS_ID` and `LOG_LEVEL`
+- optional server-only per-store `ANALYTICS_GA4_STORES` and `LOG_LEVEL`; see `docs/SEARCH_MEASUREMENT_RELEASE.md`
 
 Never set `DEV_ADMIN_*`, `ALLOW_STAGING_SEED` or `ENABLE_TEST_CHECKOUT` in production. Do not set production secrets as repository-level defaults.
 

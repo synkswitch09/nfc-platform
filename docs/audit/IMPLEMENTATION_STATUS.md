@@ -1,5 +1,11 @@
 # Implementation checkpoint
 
+## Novena continuación: buscadores y medición (I), 24 septiembre 2026
+
+Preparación implementada en código: comprobador HTTP de sitemaps/canonicals/robots por dominio (`scripts/check-search-readiness.mjs`), configuración de GA4 Measurement Protocol por Store y consentimiento opcional, eventos limitados `view_item`, `begin_checkout` y `purchase` con comprobación de pedido pagado, transacción estable y deduplicación de navegador. Se envían sólo IDs de catálogo/pedido, cantidades, moneda e importes; no se envía URL, referrer, IP del visitante, nombre, email, personalización, claim token ni publicTagId. Configuración ausente o entorno no productivo mantienen el envío desactivado. Verificación: 273 tests / 49 archivos, typecheck, lint y build PASS. Guía operativa: `docs/SEARCH_MEASUREMENT_RELEASE.md`.
+
+Pendiente: no hubo acceso a dominios de producción, DNS, Search Console, Bing, GA4, ni pedidos reales. No se verificó ninguna propiedad, no se envió sitemap y no se confirmó un evento procesado por GA4. Ejecutar comprobación HTTP y consentimiento/eventos en producción autorizada tras G y pruebas operativas. Las fases A–I no equivalen a lanzamiento aceptado mientras sigan pendientes migraciones, respaldo/restore y aceptación multi-tienda.
+
 ## Octava continuación: contenido y FAQs (H), 24 septiembre 2026
 
 Implementado en código: 15 propuestas conceptuales de NFC e impresión 3D para el editor de la página `/faq` existente. Se filtran por capacidades de la tienda y por preguntas generales y de categoría presentes; se añaden ocultas para revisión. Guardado acotado a la sección general, con rechazo ante ediciones simultáneas o varias secciones FAQ, sin borrar otros bloques. Enlaces entre FAQ, guía NFC y catálogo. Verificación: 270 tests / 48 archivos, typecheck, lint y build PASS (tests ejecutados nuevamente tras build para evitar carrera sobre Prisma Client). Guía: `docs/H_CONTENT_RELEASE_CHECK.md`.

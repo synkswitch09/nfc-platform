@@ -4,6 +4,7 @@ import Link from "next/link";
 import { notFound, permanentRedirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { ProductPurchase } from "@/components/product-purchase";
+import { CommerceAnalyticsEvent } from "@/components/commerce-analytics";
 import { getRuntimeConfig, searchEnginePolicy } from "@/lib/config";
 import { getCurrentStorefront, hasStoreCapability } from "@/lib/storefront";
 import { StoreCapability, StoreStatus } from "@prisma/client";
@@ -57,6 +58,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
   const structuredData = { "@context": "https://schema.org", "@graph": [productData, { "@type": "BreadcrumbList", itemListElement: [{ "@type": "ListItem", position: 1, name: "Home", item: origin }, { "@type": "ListItem", position: 2, name: "Shop", item: `${origin}/shop` }, ...(product.category ? [{ "@type": "ListItem", position: 3, name: product.category.name, item: `${origin}/${product.category.slug}` }] : []), { "@type": "ListItem", position: product.category ? 4 : 3, name: product.name, item: `${origin}/products/${product.slug}` }] }] };
 
   return <>
+    <CommerceAnalyticsEvent store={store.slug} data={{ event: "view_item", productId: product.id }} />
     <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData).replaceAll("<", "\\u003c") }} />
     <section className="product-detail">
       <nav className="breadcrumbs" aria-label="Breadcrumb"><Link href="/">Home</Link><span>/</span><Link href="/shop">Shop</Link>{product.category && <><span>/</span><Link href={`/${product.category.slug}`}>{product.category.name}</Link></>}</nav>

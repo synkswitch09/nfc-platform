@@ -7,6 +7,15 @@ const blankToUndefined = (value: unknown) => typeof value === "string" && value.
 const optionalString = z.preprocess(blankToUndefined, z.string().trim().min(1).optional());
 const optionalUrl = z.preprocess(blankToUndefined, z.string().url().optional());
 const booleanString = z.enum(["true", "false"]).default("false").transform(value => value === "true");
+const analyticsStoresSchema = z.record(z.string().regex(/^[a-z0-9-]+$/), z.object({
+  measurementId: z.string().regex(/^G-[A-Z0-9]{6,20}$/),
+  apiSecret: z.string().min(8).max(200),
+}));
+const analyticsStores = z.preprocess((value) => {
+  if (!value) return {};
+  if (typeof value !== "string") return value;
+  try { return JSON.parse(value); } catch { return null; }
+}, analyticsStoresSchema);
 
 const runtimeConfigSchema = z.object({
   APP_ENV: z.enum(appEnvironments).default("development"),
@@ -38,6 +47,7 @@ const runtimeConfigSchema = z.object({
   ETSY_SYNC_SECRET: optionalString,
   ENABLE_TEST_CHECKOUT: booleanString,
   ANALYTICS_ID: optionalString,
+  ANALYTICS_GA4_STORES: analyticsStores,
   LOG_LEVEL: z.enum(["info", "warn", "error"]).default("info"),
   DEV_ADMIN_EMAIL: optionalString,
   DEV_ADMIN_PASSWORD: optionalString,
@@ -54,6 +64,9 @@ const runtimeConfigSchema = z.object({
   paired(value.ETSY_API_KEY, value.ETSY_SHARED_SECRET, "ETSY_API_KEY", "ETSY_SHARED_SECRET");
   paired(value.DEV_ADMIN_EMAIL, value.DEV_ADMIN_PASSWORD, "DEV_ADMIN_EMAIL", "DEV_ADMIN_PASSWORD");
   paired(value.STAGING_ADMIN_EMAIL, value.STAGING_ADMIN_PASSWORD, "STAGING_ADMIN_EMAIL", "STAGING_ADMIN_PASSWORD");
+  if (value.ANALYTICS_ID) issue("ANALYTICS_ID", "Use per-store ANALYTICS_GA4_STORES instead of a shared analytics ID");
+  const ids = Object.values(value.ANALYTICS_GA4_STORES).map(item => item.measurementId);
+  if (new Set(ids).size !== ids.length) issue("ANALYTICS_GA4_STORES", "Each store needs a separate GA4 web stream");
 
   if (value.DATABASE_URL) {
     try {
@@ -120,7 +133,7 @@ export type RuntimeConfig = {
   email: { mode: "mock" | "sandbox" | "live"; webhookUrl?: string; webhookSecret?: string; testOutboxPath?: string };
   stripe: { secretKey?: string; webhookSecret?: string; reconcileSecret?: string; publishableKey?: string; testCheckout: boolean };
   etsy: { apiKey?: string; sharedSecret?: string; syncSecret?: string };
-  analyticsId?: string;
+  analyticsStores: Record<string, { measurementId: string; apiSecret: string }>;
   logLevel: "info" | "warn" | "error";
 };
 
@@ -144,7 +157,7 @@ export function parseRuntimeConfig(environment: Record<string, string | undefine
     email: { mode: value.EMAIL_MODE, webhookUrl: value.EMAIL_WEBHOOK_URL, webhookSecret: value.EMAIL_WEBHOOK_SECRET, testOutboxPath: value.EMAIL_TEST_OUTBOX_PATH },
     stripe: { reconcileSecret: value.CHECKOUT_RECONCILE_SECRET, secretKey: value.STRIPE_SECRET_KEY, webhookSecret: value.STRIPE_WEBHOOK_SECRET, publishableKey: value.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY, testCheckout: value.ENABLE_TEST_CHECKOUT },
     etsy: { apiKey: value.ETSY_API_KEY, sharedSecret: value.ETSY_SHARED_SECRET, syncSecret: value.ETSY_SYNC_SECRET },
-    analyticsId: value.ANALYTICS_ID,
+    analyticsStores: value.ANALYTICS_GA4_STORES,
     logLevel: value.LOG_LEVEL,
   };
 }

@@ -4642,3 +4642,8 @@ body:has(.admin-shell) > footer {
 .environment-banner.staging {
   background: #9bd8ff;
 }
+/* Optional commerce measurement is configured separately for each store. */
+.analytics-consent { position: fixed; z-index: 100; bottom: 1rem; left: 1rem; right: 1rem; max-width: 38rem; padding: 1rem; border: 1px solid var(--border, #d8d8d8); border-radius: .75rem; background: #fff; color: #222; box-shadow: 0 8px 30px #0002; }
+.analytics-consent p { margin: 0 0 .75rem; font-size: .9rem; }
+.analytics-consent div { display: flex; gap: .5rem; flex-wrap: wrap; }
+.analytics-settings-link { position: fixed; bottom: .5rem; left: .5rem; z-index: 90; padding: .35rem .55rem; border: 1px solid #aaa; border-radius: .4rem; background: #fff; color: #222; font-size: .75rem; cursor: pointer; }

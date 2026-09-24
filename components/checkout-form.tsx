@@ -5,12 +5,13 @@ import Link from "next/link";
 import { LockKeyhole, PackageCheck } from "lucide-react";
 import { useCart } from "@/components/cart-provider";
 import { CountryAddressFields, type CountryAddressValue } from "@/components/country-address-fields";
+import { CommerceAnalyticsEvent } from "@/components/commerce-analytics";
 
 type CheckoutAddress = CountryAddressValue & { recipient: string };
 
 type ShippingQuote = { token: string; providerKey: string; serviceCode: string; serviceName: string; amountCents: number; estimatedDaysMin: number | null; estimatedDaysMax: number | null; expiresAt: string };
 
-export function CheckoutForm({ account, store, countries }: { account: { name: string; email: string; address: CheckoutAddress | null } | null; store: { displayName: string; currency: string; nfcEnabled: boolean }; countries: string[] }) {
+export function CheckoutForm({ account, store, countries }: { account: { name: string; email: string; address: CheckoutAddress | null } | null; store: { slug: string; displayName: string; currency: string; nfcEnabled: boolean }; countries: string[] }) {
   const cart = useCart();
   const money = new Intl.NumberFormat("en-AU", { style: "currency", currency: store.currency });
   const [error, setError] = useState("");
@@ -65,6 +66,7 @@ export function CheckoutForm({ account, store, countries }: { account: { name: s
   }
 
   return <form className="checkout-layout" onSubmit={submit}>
+    <CommerceAnalyticsEvent store={store.slug} data={{ event: "begin_checkout", items: cart.lines.map(line => ({ variantId: line.variantId, quantity: line.quantity })) }} />
     <div className="checkout-fields">
       {!account && <div className="guest-banner"><strong>Continue as guest</strong><span>No account is required to buy. {store.nfcEnabled ? "Create one after payment to manage connected products." : "You can create one later to manage this order."}</span></div>}
       {account && <div className="guest-banner"><strong>Signed in as {account.name}</strong><span>Your order will appear in your account after payment.</span></div>}

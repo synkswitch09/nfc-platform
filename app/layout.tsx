@@ -14,6 +14,7 @@ import {
   storeThemeStyle,
 } from "@/lib/storefront";
 import { StoreCapability, StoreStatus } from "@prisma/client";
+import { AnalyticsConsent } from "@/components/commerce-analytics";
 import { getRequestLocale } from "@/lib/request-locale";
 import {
   compactLocaleName,
@@ -145,6 +146,8 @@ export default async function RootLayout({
   ]);
   const commerce = isStoreCommerceAvailable(store);
   const nfcEnabled = hasStoreCapability(store, StoreCapability.NFC);
+  const runtime = getRuntimeConfig();
+  const analyticsEnabled = runtime.appEnv === "production" && Boolean(runtime.analyticsStores[store.slug]);
   return (
     <html lang={locale}>
       <body
@@ -183,6 +186,7 @@ export default async function RootLayout({
             locale={locale}
             defaultLocale={store.defaultLocale}
           />
+          {analyticsEnabled && <AnalyticsConsent store={store.slug} />}
         </CartProvider>
       </body>
     </html>
