@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
+import { applyStripeRefund } from "@/lib/refunds";
 import { applyStripeSession } from "@/lib/checkout-reconciliation";
 import { CheckoutError, settleCheckoutEvent } from "@/lib/order-service";
 import { db } from "@/lib/db";
@@ -16,6 +17,17 @@ export async function POST(request: NextRequest) {
   let event: Stripe.Event;
   try { event = stripe.webhooks.constructEvent(await request.text(), signature, secret); }
   catch { logEvent("warn", "stripe.webhook_rejected", { requestId: request.headers.get("x-request-id"), reason: "invalid_signature" }); return NextResponse.json({ error: "Invalid signature" }, { status: 400 }); }
+
+  if (["refund.created", "refund.updated", "refund.failed"].includes(event.type)) {
+    try {
+      const refund = event.data.object as Stripe.Refund;
+      await applyStripeRefund(await stripe.refunds.retrieve(refund.id));
+      return NextResponse.json({ received: true });
+    } catch {
+      logEvent("error", "stripe.refund_webhook_failed", { eventId: event.id });
+      return NextResponse.json({ error: "Refund reconciliation failed" }, { status: 500 });
+    }
+  }
 
   if (!["checkout.session.completed", "checkout.session.async_payment_succeeded", "checkout.session.async_payment_failed", "checkout.session.expired"].includes(event.type)) {
     return NextResponse.json({ received: true, ignored: true });

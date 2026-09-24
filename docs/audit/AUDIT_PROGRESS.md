@@ -1,5 +1,13 @@
 # Checkpoint de auditoría — 2026-09-22
 
+## CHECKPOINT ACTUAL — bloque D, 2026-09-24
+
+Continuación autorizada desde develop local 7c2a927 / remoto bcd1506 con árboles iguales y sin cambios pendientes. Implementados reembolsos totales Stripe confirmados por proveedor, importación de refunds externos/importe parcial, reposición explícita única y outbox transaccional con reintentos/reenvío administrativo. No desactivación automática de NFC. Scheduler existente ampliado, controles de tienda/rol/origen preservados.
+
+Migración aditiva nueva `20260924090000_refunds_and_order_outbox`; guía `docs/REFUNDS_AND_NOTIFICATIONS.md`. No seed, reset, migración real ni llamadas financieras reales. Lint/typecheck/build PASS, 237 tests / 42 archivos PASS, diff check PASS; estructura SQL contrastada mediante Prisma schema diff. Docker build/PostgreSQL/Stripe test/email real/UI E2E NOT RUN. Tests de límites con mocks no equivalen a carreras/rollback SQL.
+
+Siguiente acción: activar y aceptar A–D en staging según manuales cuando exista entorno; siguiente bloque de código E (privacidad de fotos y recuperación de cuenta). E–I y publicación de FAQs siguen pendientes. No iniciar otra fase en esta continuación. Este checkpoint prevalece sobre las instrucciones históricas de espera/revisión que aparecen más abajo.
+
 ## LAST COMPLETED AREA
 Consolidación estática de arquitectura, database/domain, CMS, cards, capabilities, catálogo, checkout, órdenes, shipping, AusPost, Etsy, NFC, seguridad, tests e infraestructura. Informe FINAL_AUDIT con 66 apartados; 30 recomendaciones PROPOSED; matriz71 módulos. Validación dinámica integral NO completada.
 

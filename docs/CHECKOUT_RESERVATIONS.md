@@ -56,7 +56,7 @@ For another hosting provider, inject APP_URL and CHECKOUT_RECONCILE_SECRET into 
 
 Session creation uses a payment-specific idempotency key. If the network or DB attachment fails, the order stays pending. A later signed event or reconciliation can recover the missing session link by matching order/store metadata and amount/currency. Ambiguous sessions are not automatically cancelled. A paid Stripe session associated with a historically failed local payment raises a review error rather than silently accepting the mismatch.
 
-Notifications still use the existing notification implementation; a durable email outbox/retry is a separate plan block. This implementation does not refund charges, unreserve orders based only on elapsed time, or promise that all orphan requests can be resolved automatically.
+Block D adds durable notifications and full Stripe refunds; see [REFUNDS_AND_NOTIFICATIONS.md](REFUNDS_AND_NOTIFICATIONS.md) for its required migration and activation. Checkout reconciliation does not unreserve orders based only on elapsed time or promise that all orphan requests can be resolved automatically.
 
 ## Staging acceptance still required
 

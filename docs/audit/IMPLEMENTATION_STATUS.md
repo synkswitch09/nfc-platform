@@ -1,5 +1,21 @@
 # Implementation checkpoint
 
+## Estado actual — 24 septiembre 2026
+
+Bloques A–D implementados en código; aceptación operativa A–D aún pendiente en PostgreSQL/Docker y servicios de staging. Los apartados siguientes conservan el historial de cada continuación. Siguiente bloque: E, privacidad de fotos y recuperación de cuenta. E–I no iniciados aquí.
+
+### Cuarta continuación: reembolsos y avisos recuperables (D)
+
+Inicio limpio en develop local `7c2a927` y remoto `bcd1506`, árboles idénticos. Historial conservado y main sin cambios.
+
+- Reembolso total Stripe con confirmación de pedido/importe, motivo, solicitud persistente, clave estable, consulta del proveedor y webhook firmado. Resultado incierto permanece pendiente; solicitudes de más de 20 horas o devoluciones ajenas detectadas requieren revisión sin nuevo POST automático.
+- Estados de pago, preparación y devolución visibles por separado. Devoluciones parciales externas registran importe/revisión. Reposición manual auditada, basada en consumo físico y protegida contra repetición; tags no se desactivan.
+- Outbox transaccional para pagos web/Etsy, cambios de estado de admin y reembolsos confirmados. Reintentos limitados, leases, errores y reenvío manual. ACCEPTED distingue aceptación de entrega; deduplicación de email depende del gateway.
+- Worker existente ampliado para procesar ambas colas; operaciones de administrador restringidas a tienda/rol/origen.
+- **Migración nueva requerida**: `20260924090000_refunds_and_order_outbox`. Manual: `docs/REFUNDS_AND_NOTIFICATIONS.md`. No seed/reset ni migración aplicada a datos reales.
+
+Verificación: lint/typecheck/build PASS; 237 tests / 42 archivos PASS; git diff --check PASS. Comparación Prisma schema-to-schema confirma estructura de migración (más CHECKs SQL deliberados). Docker build, PostgreSQL real, Stripe test, email real y UI E2E NOT RUN: no herramientas/servicios habilitados en este entorno. No confundir pruebas con mocks con aceptación transaccional real. Publicación limitada a develop.
+
 Plan v2 aprobado para comenzar por Daniel: «comienza con el plan de implementacion en develop».
 
 ## Primer bloque: protección de contenido y cantidades

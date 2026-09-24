@@ -908,6 +908,7 @@ model Order {
   shippingAddress            Address?              @relation(fields: [shippingAddressId], references: [id], onDelete: SetNull)
   items                      OrderItem[]
   payments                   Payment[]
+  notifications              OrderNotification[]
   statusHistory              OrderStatusHistory[]
   inventoryMovements         InventoryMovement[]
   shippingQuote              ShippingQuote?        @relation(fields: [shippingQuoteId], references: [id], onDelete: SetNull)
@@ -1354,11 +1355,53 @@ model Payment {
   amountCents             Int
   currency                String        @default("AUD")
   status                  PaymentStatus @default(PENDING)
+  refundedAmountCents     Int           @default(0)
+  refundRestockedAt       DateTime?
+  refunds                 PaymentRefund[]
   createdAt               DateTime      @default(now())
   updatedAt               DateTime      @updatedAt
   order                   Order         @relation(fields: [orderId], references: [id], onDelete: Restrict)
 
   @@index([orderId])
+}
+
+model PaymentRefund {
+  id               String   @id @default(uuid()) @db.Uuid
+  paymentId        String   @db.Uuid
+  requestKey       String   @unique
+  providerRefundId String?  @unique
+  amountCents      Int
+  currency         String
+  reason           String
+  status           String   @default("REQUESTED")
+  lastError        String?
+  nextAttemptAt    DateTime @default(now())
+  leaseUntil       DateTime?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  payment          Payment  @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+
+  @@index([status, nextAttemptAt])
+}
+
+model OrderNotification {
+  id           String   @id @default(uuid()) @db.Uuid
+  orderId      String   @db.Uuid
+  dedupeKey    String   @unique
+  to           String
+  subject      String
+  text         String
+  status       String   @default("PENDING")
+  attempts     Int      @default(0)
+  availableAt  DateTime @default(now())
+  leaseUntil   DateTime?
+  leaseToken   String?
+  lastError    String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  order        Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([status, availableAt])
 }
 
 model NFCTag {

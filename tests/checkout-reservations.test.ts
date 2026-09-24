@@ -6,7 +6,7 @@ const mocks = vi.hoisted(() => {
 });
 vi.mock("@/lib/db", () => ({ db: { $transaction: mocks.transaction } }));
 vi.mock("@/lib/etsy", () => ({ queueEtsyInventorySync: vi.fn() }));
-vi.mock("@/lib/order-notifications", () => ({ notifyPaidOrder: mocks.notify }));
+vi.mock("@/lib/order-notifications", () => ({ notifyPaidOrder: mocks.notify, queuePaidOrder: vi.fn() }));
 import { cancelPendingOrder, settleCheckoutEvent } from "@/lib/order-service";
 
 const variant = { id: "v", productId: "p", trackInventory: false, backorderPolicy: "ALLOW", inventory: 10, reservedInventory: 4 };

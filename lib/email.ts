@@ -2,7 +2,7 @@ import { appendFile } from "node:fs/promises";
 import { getRuntimeConfig } from "@/lib/config";
 import { logEvent } from "@/lib/logger";
 
-export async function sendTransactionalEmail(input: { to: string; subject: string; text: string }) {
+export async function sendTransactionalEmail(input: { to: string; subject: string; text: string; idempotencyKey?: string }) {
   const { email, appEnv } = getRuntimeConfig();
   if (email.mode === "mock") {
     if (email.testOutboxPath) {
@@ -12,7 +12,7 @@ export async function sendTransactionalEmail(input: { to: string; subject: strin
     return false;
   }
   if (!email.webhookUrl || !email.webhookSecret) throw new Error("Email provider is not configured");
-  const response = await fetch(email.webhookUrl, { method:"POST", headers:{"content-type":"application/json",authorization:`Bearer ${email.webhookSecret}`}, body:JSON.stringify({ ...input, environment: appEnv, mode: email.mode }) });
+  const response = await fetch(email.webhookUrl, { method:"POST", headers:{"content-type":"application/json",authorization:`Bearer ${email.webhookSecret}`, ...(input.idempotencyKey ? { "Idempotency-Key": input.idempotencyKey } : {})}, body:JSON.stringify({ ...input, environment: appEnv, mode: email.mode }), signal: AbortSignal.timeout(15_000), redirect: "error" });
   if (!response.ok) throw new Error("Email delivery failed");
   return true;
 }

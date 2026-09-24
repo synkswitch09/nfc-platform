@@ -8,7 +8,7 @@ import { db } from "@/lib/db";
 import { hasStoreCapability, type Storefront } from "@/lib/storefront";
 import { manufacturingRequirements } from "@/lib/manufacturing";
 import { shippingCartHash, shippingDestinationHash } from "@/lib/shipping";
-import { notifyPaidOrder } from "@/lib/order-notifications";
+import { notifyPaidOrder, queuePaidOrder } from "@/lib/order-notifications";
 import type { ShippingDestination } from "@/lib/shipping";
 import { queueEtsyInventorySync } from "@/lib/etsy";
 
@@ -192,6 +192,7 @@ export async function settleCheckoutEvent(input: { eventId: string; eventType: s
     });
     if (jobs.length) await tx.manufacturingJob.createMany({ data: jobs, skipDuplicates: true });
     await tx.webhookEvent.create({ data: { id: input.eventId, provider: "stripe", eventType: input.eventType } });
+    await queuePaidOrder(tx, payment.orderId);
     return { duplicate: false };
   }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
   if (!result.duplicate) await notifyPaidOrder(input.orderId);

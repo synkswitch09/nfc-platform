@@ -6,7 +6,7 @@ import { db } from "@/lib/db";
 import { currentAppEnvironment, getRuntimeConfig } from "@/lib/config";
 import { availableInventory } from "@/lib/catalog";
 import { manufacturingRequirements } from "@/lib/manufacturing";
-import { notifyPaidOrder } from "@/lib/order-notifications";
+import { notifyPaidOrder, queuePaidOrder } from "@/lib/order-notifications";
 import { readStoredImage } from "@/lib/uploads";
 
 export const ETSY_OAUTH_COOKIE = "etsy_connect";
@@ -511,6 +511,7 @@ async function importEtsyReceipt(connectionId: string, rawReceipt: EtsyReceipt) 
     if (jobs.length) await tx.manufacturingJob.createMany({ data: jobs, skipDuplicates: true });
     await tx.marketplaceOrder.create({ data: { connectionId, orderId: order.id, externalId: receipt.externalId, externalState: receipt.status, externalData: rawReceipt as Prisma.InputJsonValue } });
     await tx.auditLog.create({ data: { storeId: connection.store.id, action: "ETSY_RECEIPT_IMPORTED", entityType: "Order", entityId: order.id, metadata: { receiptId: receipt.externalId, lineCount: lines.length } } });
+    await queuePaidOrder(tx, order.id);
     return { created: true, orderId: order.id };
   }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
   if (result.created) await notifyPaidOrder(result.orderId);
