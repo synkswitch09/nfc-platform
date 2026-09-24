@@ -1,5 +1,9 @@
 # Implementation checkpoint
 
+## Sexta continuación: preparación de pedidos (F), 24 septiembre 2026
+
+Se continúa en develop conservando el inicio parcial (snapshots de requisitos en web/Etsy y migración de cantidad empacada). Cola de fabricación con avance auditado por estado y tienda; empaque por línea con cantidades y asignación verificable de NFC; validación transaccional antes de READY_TO_SHIP y excepción administrativa con motivo auditado. Detalles en `docs/ORDER_PREPARATION.md`. No se aplicó la migración ni se modificaron pedidos reales. G (SEO técnico) es el siguiente bloque de código; aceptación A–F en PostgreSQL/Docker y FAQs permanecen pendientes.
+
 ## Estado actual — 24 septiembre 2026
 
 Bloques A–E implementados en código; aceptación operativa aún pendiente en PostgreSQL/Docker y servicios de staging. Los apartados siguientes conservan el historial de cada continuación. Siguiente bloque: F, preparación y Ready to ship. F–I no iniciados aquí.

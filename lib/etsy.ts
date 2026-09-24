@@ -487,7 +487,7 @@ async function importEtsyReceipt(connectionId: string, rawReceipt: EtsyReceipt) 
           personalisationMode: line.listing.product.personalisationMode,
           personalisationChoice: line.listing.product.personalisationMode === "NONE" || !line.variations.length ? "BASIC" : "PERSONALISED",
           selectedOptions: line.variations.length ? { etsyVariations: line.variations } as Prisma.InputJsonValue : undefined,
-          shippingSnapshot: { source: "etsy", listingId: line.listingId },
+          shippingSnapshot: { source: "etsy", listingId: line.listingId, production: { requiresManufacturing: connection.store.capabilities.includes("PRINT_3D"), requiresNfc: connection.store.capabilities.includes("NFC") && line.listing.product.type !== "ACCESSORY" } },
         })) },
         payments: { create: { provider: "etsy", providerSessionId: `etsy:${connectionId}:${receipt.externalId}`, amountCents: receipt.totalCents, currency: receipt.currency, status: "SUCCEEDED" } },
         statusHistory: { create: { toStatus: "PAID", note: `Imported from Etsy receipt ${receipt.externalId}` } },

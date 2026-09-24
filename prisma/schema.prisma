@@ -926,6 +926,8 @@ model OrderItem {
   orderId               String                @db.Uuid
   variantId             String                @db.Uuid
   quantity              Int
+  packedQuantity        Int                   @default(0)
+  packedAt              DateTime?
   unitPriceCents        Int
   productName           String
   variantName           String

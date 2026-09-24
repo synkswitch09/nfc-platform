@@ -1,4 +1,18 @@
-import { ProductType, StoreCapability, type ManufacturingStatus } from "@prisma/client";
+import { ProductType, StoreCapability, type ManufacturingJobStatus, type ManufacturingStatus } from "@prisma/client";
+
+export const jobTransitions: Partial<Record<ManufacturingJobStatus, ManufacturingJobStatus[]>> = {
+  QUEUED: ["PRINTING", "CANCELLED"],
+  PRINTING: ["POST_PROCESSING", "FAILED"],
+  POST_PROCESSING: ["QA", "FAILED"],
+  QA: ["ASSEMBLY", "PACKING", "FAILED"],
+  ASSEMBLY: ["PACKING", "FAILED"],
+  PACKING: ["READY", "FAILED"],
+  FAILED: ["QUEUED", "CANCELLED"],
+};
+
+export function canTransitionJob(from: ManufacturingJobStatus, to: ManufacturingJobStatus) {
+  return jobTransitions[from]?.includes(to) ?? false;
+}
 
 export const manufacturingTransitions: Partial<Record<ManufacturingStatus, ManufacturingStatus[]>> = {
   GENERATED: ["PROGRAMMED"],

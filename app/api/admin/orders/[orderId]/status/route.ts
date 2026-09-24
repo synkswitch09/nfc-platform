@@ -1,14 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { getAdminApiContext } from "@/lib/admin";
+import { canManageStore, getAdminApiContext } from "@/lib/admin";
 import { db } from "@/lib/db";
 import { assertSameOrigin, jsonError } from "@/lib/http";
 import { CheckoutError } from "@/lib/order-service";
 import { cancelStripeCheckout } from "@/lib/checkout-reconciliation";
 import { canTransitionOrder } from "@/lib/order-status";
+import { preparationIssues } from "@/lib/order-preparation";
 import { queueOrderNotice, notifyPaidOrder } from "@/lib/order-notifications";
 
-const schema = z.object({ status: z.enum(["PENDING", "PAYMENT_PENDING", "PAID", "PROCESSING", "READY_TO_SHIP", "SHIPPED", "DELIVERED", "COMPLETED", "CANCELLED", "REFUNDED"]), note: z.string().trim().max(500).optional(), carrier: z.string().trim().max(80).optional(), trackingNumber: z.string().trim().max(100).regex(/^[A-Za-z0-9 ._/-]*$/).optional() }).superRefine((value, context) => { if (value.status === "SHIPPED" && (!value.carrier || !value.trackingNumber)) context.addIssue({ code: "custom", message: "Carrier and tracking number are required when shipping" }); });
+const schema = z.object({ status: z.enum(["PENDING", "PAYMENT_PENDING", "PAID", "PROCESSING", "READY_TO_SHIP", "SHIPPED", "DELIVERED", "COMPLETED", "CANCELLED", "REFUNDED"]), note: z.string().trim().max(500).optional(), overridePreparation: z.boolean().optional(), carrier: z.string().trim().max(80).optional(), trackingNumber: z.string().trim().max(100).regex(/^[A-Za-z0-9 ._/-]*$/).optional() }).superRefine((value, context) => { if (value.status === "SHIPPED" && (!value.carrier || !value.trackingNumber)) context.addIssue({ code: "custom", message: "Carrier and tracking number are required when shipping" }); });
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ orderId: string }> }) {
   if (!assertSameOrigin(request)) return jsonError("Invalid request origin", 403);
@@ -21,6 +22,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   if (!order) return jsonError("Order not found", 404);
   if (order.payments.some(payment => payment.status === "REFUNDED")) return jsonError("This order is refunded. Review fulfilment before proceeding.", 409);
   if (!canTransitionOrder(order.status, parsed.data.status)) return jsonError(`Cannot change ${order.status} to ${parsed.data.status}`, 409);
+  if (parsed.data.overridePreparation && (parsed.data.status !== "READY_TO_SHIP" || !canManageStore(context) || (parsed.data.note?.length ?? 0) < 10)) return jsonError("Manager override requires a reason of at least 10 characters", 403);
   if (parsed.data.status === "CANCELLED" && order.status === "PAYMENT_PENDING") {
     try { await cancelStripeCheckout(orderId, store.id, user.id); }
     catch (error) { return jsonError(error instanceof CheckoutError ? error.message : "Payment could not be verified. Stock remains reserved; retry later.", 409); }
@@ -28,6 +30,12 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const changed = await db.$transaction(async tx => {
       const changedAt = new Date();
       if (await tx.payment.count({ where: { orderId, status: "REFUNDED" } })) throw new Error("REFUNDED_ORDER");
+      if (parsed.data.status === "READY_TO_SHIP") {
+        const items = await tx.orderItem.findMany({ where: { orderId, order: { storeId: store.id } }, include: { manufacturingJobs: { select: { status: true, quantity: true, requiresNfc: true } }, tags: { select: { storeId: true, manufacturingStatus: true, status: true } } } });
+        const issues = preparationIssues(items, store.id);
+        if (issues.length && !parsed.data.overridePreparation) throw new Error(`PREPARATION:${issues.join("; ")}`);
+        if (issues.length) await tx.auditLog.create({ data: { actorId: user.id, storeId: store.id, action: "ORDER_PREPARATION_OVERRIDE", entityType: "Order", entityId: orderId, metadata: { reason: parsed.data.note, issues } } });
+      }
       const updated = await tx.order.updateMany({ where: { id: orderId, storeId: store.id, status: order.status }, data: { status: parsed.data.status, ...(parsed.data.status === "SHIPPED" ? { shippingCarrier: parsed.data.carrier, trackingNumber: parsed.data.trackingNumber, shippedAt: changedAt } : {}) } });
       if (!updated.count) return false;
       if (parsed.data.status === "SHIPPED") {
@@ -45,7 +53,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       await tx.auditLog.create({ data: { actorId: user.id, storeId: store.id, action: "ORDER_STATUS_CHANGED", entityType: "Order", entityId: orderId, metadata: { from: order.status, to: parsed.data.status } } });
       await queueOrderNotice(tx, orderId, `status:${history.id}`, parsed.data.status.replaceAll("_", " "), `Your order is now ${parsed.data.status.replaceAll("_", " ").toLowerCase()}.${parsed.data.status === "SHIPPED" ? ` Carrier: ${parsed.data.carrier}. Tracking: ${parsed.data.trackingNumber}.` : ""}`);
       return true;
-    }, { isolationLevel: "Serializable" }).catch(() => false);
+    }, { isolationLevel: "Serializable" }).catch(error => error instanceof Error && error.message.startsWith("PREPARATION:") ? error.message : false);
+    if (typeof changed === "string") return jsonError(changed.slice("PREPARATION:".length), 409);
     if (!changed) return jsonError("Order changed while updating. Refresh and try again.", 409);
   }
   await notifyPaidOrder(orderId);

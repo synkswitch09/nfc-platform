@@ -4,6 +4,8 @@ import { ManufacturingJobStatus, StoreCapability } from "@prisma/client";
 import { db } from "@/lib/db";
 import { requireAdminPageContext } from "@/lib/admin";
 import { hasStoreCapability } from "@/lib/storefront";
+import { jobTransitions } from "@/lib/manufacturing";
+import { ProductionActions } from "@/components/production-actions";
 
 const stages = Object.values(ManufacturingJobStatus);
 
@@ -28,11 +30,11 @@ export default async function ManufacturingPage() {
         const selected = snapshotText(job.orderItem.selectedOptions);
         const custom = snapshotText(job.orderItem.personalisation);
         return <div className="admin-tr" key={job.id}>
-          <span><strong>{job.productVariant.product.name}</strong><small>{job.productVariant.sku} · {job.productVariant.name} · Qty {job.quantity}</small>{selected && <small>Options: {selected}</small>}{custom && <small>Custom: {custom}</small>}</span>
+          <span><strong>{job.orderItem.productName}</strong><small>{job.orderItem.sku} · {job.orderItem.variantName} · Qty {job.quantity}</small>{selected && <small>Options: {selected}</small>}{custom && <small>Custom: {custom}</small>}</span>
           <span><Link className="text-link" href={`/admin/orders/${job.orderItem.order.id}`}>{job.orderItem.order.orderNumber}</Link><small>{job.orderItem.personalisationChoice === "PERSONALISED" ? "Personalised" : "Basic"}</small></span>
           <span>{job.material ?? "Not specified"}<small>{job.colour ?? "See selected colour"}</small></span>
           <span>{job.requiresNfc ? "3D + NFC" : "3D print"}<small>Priority {job.priority}</small></span>
-          <span className={`admin-status ${job.status}`}>{job.status.replaceAll("_", " ")}</span>
+          <span><span className={`admin-status ${job.status}`}>{job.status.replaceAll("_", " ")}</span><ProductionActions jobId={job.id} next={jobTransitions[job.status] ?? []} /></span>
         </div>;
       })}</div>
       {!jobs.length && <div className="admin-empty">Paid 3D-print order items will appear here automatically.</div>}
@@ -43,5 +45,5 @@ export default async function ManufacturingPage() {
 
 function snapshotText(value: unknown) {
   if (!value || typeof value !== "object" || Array.isArray(value)) return "";
-  return Object.entries(value as Record<string, unknown>).map(([key, item]) => `${key.replaceAll("-", " ")}: ${String(item)}`).join(" · ");
+  return Object.entries(value as Record<string, unknown>).map(([key, item]) => `${key.replaceAll("-", " ")}: ${typeof item === "object" ? JSON.stringify(item) : String(item)}`).join(" · ");
 }
