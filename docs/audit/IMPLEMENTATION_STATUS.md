@@ -1,5 +1,9 @@
 # Implementation checkpoint
 
+## Séptima continuación: SEO técnico (G), 24 septiembre 2026
+
+SEO por tienda, página, categoría y producto: canonicals locales, datos de Home y páginas reservadas, sitemap CMS basado en contenido publicado, alternates de traducciones reales, ofertas por variante, aliases 308 de páginas/productos y política diferenciada de medios comerciales/fotos de mascotas. La migración `20260924190000_seo_legacy_slugs` no se aplicó a datos reales. Guía y límites: `docs/SEO_RELEASE_CHECK.md`. G implementado en código; faltan crawl HTTP, validación de structured data y aceptación multi-tienda en staging. Siguiente bloque del plan: H, contenido y validación comercial; A–G mantienen la aceptación operativa pendiente.
+
 ## Sexta continuación: preparación de pedidos (F), 24 septiembre 2026
 
 Se continúa en develop conservando el inicio parcial (snapshots de requisitos en web/Etsy y migración de cantidad empacada). Cola de fabricación con avance auditado por estado y tienda; empaque por línea con cantidades y asignación verificable de NFC; validación transaccional antes de READY_TO_SHIP y excepción administrativa con motivo auditado. Detalles en `docs/ORDER_PREPARATION.md`. No se aplicó la migración ni se modificaron pedidos reales. G (SEO técnico) es el siguiente bloque de código; aceptación A–F en PostgreSQL/Docker y FAQs permanecen pendientes.

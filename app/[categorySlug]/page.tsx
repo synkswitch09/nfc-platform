@@ -11,6 +11,7 @@ import { LandingSectionRenderer } from "@/components/landing-section-renderer";
 import { ModularPageRenderer } from "@/components/landing-section-renderer";
 import { modularFaq, modularHeroImage } from "@/lib/landing-sections";
 import { db } from "@/lib/db";
+import { canonicalForStore, nonEmpty } from "@/lib/seo";
 import { getRequestLocale } from "@/lib/request-locale";
 import {
   languageAlternates,
@@ -32,37 +33,31 @@ export async function generateMetadata({
     const page = await db.contentPage.findFirst({
       where: {
         storeId: store.id,
-        slug,
+        OR: [{ slug }, { legacySlugs: { has: slug } }],
         status: "PUBLISHED",
         categoryId: null,
         kind: { not: "HOME" },
       },
       include: {
-        translations: { where: { locale } },
+        translations: true,
         sections: {
           where: { visible: true },
-          include: { translations: { where: { locale } } },
+          include: { translations: true },
           orderBy: { sortOrder: "asc" },
         },
       },
     });
     if (!page) return { robots: { index: false, follow: false } };
     const localized = localizeContentPage(page, locale, store.defaultLocale);
-    const title = localized.seoTitle ?? localized.name;
-    const description = localized.seoDescription ?? undefined;
+    const title = nonEmpty(localized.seoTitle, localized.name);
+    const description = nonEmpty(localized.seoDescription, page.name);
     const path = `/${page.slug}`;
     return {
       title,
       description,
       alternates: {
-        canonical:
-          page.canonicalUrl ?? localizedPath(path, locale, store.defaultLocale),
-        languages: languageAlternates(
-          path,
-          store.origin,
-          store.enabledLocales,
-          store.defaultLocale,
-        ),
+        canonical: canonicalForStore(store.origin, localizedPath(path, locale, store.defaultLocale), page.canonicalUrl),
+        languages: languageAlternates(path, store.origin, page.canonicalUrl ? [store.defaultLocale] : [store.defaultLocale, ...store.enabledLocales.filter(code => page.translations.some(item => item.locale === code) && page.sections.some(section => section.translations.some(item => item.locale === code)))], store.defaultLocale),
       },
       robots:
         page.indexable && searchEnginePolicy(getRuntimeConfig().appEnv).index
@@ -72,6 +67,7 @@ export async function generateMetadata({
         title,
         description,
         type: "website",
+        url: `${store.origin}${path}`,
         locale: locale.replace("-", "_"),
         images: page.ogImageUrl
           ? [page.ogImageUrl]
@@ -91,34 +87,14 @@ export async function generateMetadata({
     locale,
     store.defaultLocale,
   );
-  const title =
-    pageTranslation?.seoTitle ??
-    category.seoTitle ??
-    category.heroHeadline ??
-    pageTranslation?.name ??
-    category.name;
-  const description =
-    pageTranslation?.seoDescription ??
-    category.seoDescription ??
-    category.shortDescription ??
-    category.description;
+  const title = nonEmpty(pageTranslation?.seoTitle, nonEmpty(category.seoTitle, nonEmpty(category.heroHeadline, pageTranslation?.name || category.name)));
+  const description = nonEmpty(pageTranslation?.seoDescription, nonEmpty(category.seoDescription, category.shortDescription || category.description || category.name));
   return {
     title,
     description,
     alternates: {
-      canonical:
-        category.canonicalUrl ??
-        localizedPath(
-          categoryPublicPath(category.slug),
-          locale,
-          store.defaultLocale,
-        ),
-      languages: languageAlternates(
-        categoryPublicPath(category.slug),
-        store.origin,
-        store.enabledLocales,
-        store.defaultLocale,
-      ),
+      canonical: canonicalForStore(store.origin, localizedPath(categoryPublicPath(category.slug), locale, store.defaultLocale), category.canonicalUrl),
+      languages: languageAlternates(categoryPublicPath(category.slug), store.origin, category.canonicalUrl ? [store.defaultLocale] : [store.defaultLocale, ...store.enabledLocales.filter(code => category.contentPage?.translations.some(item => item.locale === code) && category.landingSections.some(section => section.translations.some(item => item.locale === code)))], store.defaultLocale),
     },
     robots:
       category.indexable && searchEnginePolicy(getRuntimeConfig().appEnv).index
@@ -128,6 +104,7 @@ export async function generateMetadata({
       title,
       description: description ?? undefined,
       type: "website",
+      url: `${store.origin}${categoryPublicPath(category.slug)}`,
       locale: locale.replace("-", "_"),
       images: category.ogImageUrl
         ? [category.ogImageUrl]
@@ -154,7 +131,7 @@ export default async function PublicCategoryPage({
       db.contentPage.findFirst({
         where: {
           storeId: store.id,
-          slug: categorySlug,
+          OR: [{ slug: categorySlug }, { legacySlugs: { has: categorySlug } }],
           status: "PUBLISHED",
           categoryId: null,
           kind: { not: "HOME" },
@@ -208,6 +185,7 @@ export default async function PublicCategoryPage({
       }),
     ]);
     if (!page) notFound();
+    if (page.slug !== categorySlug) permanentRedirect(`/${page.slug}`);
     const localized = localizeContentPage(page, locale, store.defaultLocale);
     return (
       <ModularPageRenderer

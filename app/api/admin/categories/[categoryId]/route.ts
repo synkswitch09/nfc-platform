@@ -7,6 +7,7 @@ import { assertSameOrigin, jsonError } from "@/lib/http";
 import { canHardDeleteCategory } from "@/lib/catalog-policy";
 import { deleteStoredImage } from "@/lib/uploads";
 import { revalidatePath } from "next/cache";
+import { validCanonicalOverride } from "@/lib/seo";
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ categoryId: string }> }) {
   if (!assertSameOrigin(request)) return jsonError("Invalid request origin", 403);
@@ -14,6 +15,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   const { user, store } = context;
   const parsed = adminCategorySchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return jsonError(parsed.error.issues[0]?.message ?? "Invalid category");
+  if (!validCanonicalOverride(parsed.data.canonicalUrl, store.origin)) return jsonError("Canonical URL must belong to this store and contain no query or fragment", 400);
   const { categoryId } = await params;
   try {
     const existing = await db.productCategory.findFirst({ where: { id: categoryId, storeId: store.id }, select: { status: true, slug: true, legacySlugs: true } });
@@ -23,6 +25,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       select: { id: true },
     });
     if (collision) return jsonError("That category slug is already in use", 409);
+    if (await db.contentPage.count({ where: { storeId: store.id, categoryId: null, OR: [{ slug: parsed.data.slug }, { legacySlugs: { has: parsed.data.slug } }] } })) return jsonError("That slug is already used by a page", 409);
     const legacySlugs = existing.slug === parsed.data.slug
       ? existing.legacySlugs
       : Array.from(new Set([...existing.legacySlugs, existing.slug])).filter(slug => slug !== parsed.data.slug);

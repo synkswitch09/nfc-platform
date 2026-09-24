@@ -4,6 +4,13 @@ import { db } from "@/lib/db";
 import { getCurrentStorefront } from "@/lib/storefront";
 import { notFound } from "next/navigation";
 import { StoreStatus } from "@prisma/client";
+import type { Metadata } from "next";
+
+export async function generateMetadata({ searchParams }: { searchParams: Promise<{ category?: string }> }): Promise<Metadata> {
+  const store = await getCurrentStorefront();
+  const filtered = Boolean((await searchParams).category);
+  return { title: "Shop", alternates: { canonical: `${store.origin}/shop` }, robots: filtered ? { index: false, follow: true } : undefined, openGraph: { url: `${store.origin}/shop`, title: `Shop · ${store.displayName}` } };
+}
 
 export const dynamic = "force-dynamic";
 export default async function ShopPage({ searchParams }: { searchParams: Promise<{ category?: string }> }) {

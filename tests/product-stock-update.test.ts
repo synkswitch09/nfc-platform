@@ -1,13 +1,13 @@
 import { beforeEach, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 const mocks = vi.hoisted(() => ({
-  find: vi.fn(), updateVariant: vi.fn(), createVariant: vi.fn(), movement: vi.fn(), audit: vi.fn(),
+  find: vi.fn(), count: vi.fn(), updateVariant: vi.fn(), createVariant: vi.fn(), movement: vi.fn(), audit: vi.fn(),
 }));
 vi.mock("@/lib/admin", () => ({ getAdminApiContext: async () => ({ user: { id: "admin" }, store: { id: "store" } }) }));
 vi.mock("@/lib/http", () => ({ assertSameOrigin: () => true, jsonError: (error: string, status = 400) => Response.json({ error }, { status }) }));
 vi.mock("@/lib/etsy", () => ({ queueEtsyInventorySync: vi.fn() }));
 vi.mock("@/lib/db", () => ({ db: {
-  product: { findFirst: mocks.find },
+  product: { findFirst: mocks.find, count: mocks.count },
   $transaction: async (callback: (tx: unknown) => unknown) => callback({ product: { update: vi.fn() }, productVariant: { updateMany: mocks.updateVariant, create: mocks.createVariant }, productOption: { deleteMany: vi.fn() }, inventoryMovement: { create: mocks.movement }, auditLog: { create: mocks.audit } }),
 } }));
 import { PATCH } from "@/app/api/admin/products/[productId]/route";
@@ -15,7 +15,8 @@ const variantId = "00000000-0000-4000-8000-000000000001";
 const product = { name: "Pet tag", slug: "pet-tag", description: "A durable NFC pet tag.", type: "PET", status: "DRAFT", brand: "Tapkin", variants: [{ id: variantId, sku: "PET-001", name: "Mint", priceCents: 2495, inventory: 999, lowStockThreshold: 5, backorderPolicy: "DENY" }], options: [] };
 beforeEach(() => {
   vi.resetAllMocks();
-  mocks.find.mockResolvedValue({ id: "p", status: "DRAFT", variants: [{ id: variantId, inventory: 7, priceCents: 2495 }] });
+  mocks.find.mockResolvedValue({ id: "p", slug: "pet-tag", legacySlugs: [], status: "DRAFT", variants: [{ id: variantId, inventory: 7, priceCents: 2495 }] });
+  mocks.count.mockResolvedValue(0);
   mocks.updateVariant.mockResolvedValue({ count: 1 });
   mocks.createVariant.mockResolvedValue({ id: "new" });
 });

@@ -498,6 +498,7 @@ model Product {
   id                  String                @id @default(uuid()) @db.Uuid
   storeId             String                @db.Uuid
   slug                String
+  legacySlugs         String[]              @default([])
   name                String
   description         String
   shortDescription    String?
@@ -543,6 +544,7 @@ model Product {
   @@unique([storeId, slug])
   @@index([storeId, categoryId, status])
   @@index([storeId, status, featured])
+  @@index([legacySlugs], type: Gin)
 }
 
 // One seller account can be connected for each marketplace per Store. Tokens
@@ -1277,6 +1279,7 @@ model ContentPage {
   categoryId     String?                  @unique @db.Uuid
   kind           ContentPageKind
   slug           String
+  legacySlugs    String[]                 @default([])
   name           String
   status         CategoryStatus           @default(DRAFT)
   sortOrder      Int                      @default(0)
@@ -1302,6 +1305,7 @@ model ContentPage {
 
   @@unique([storeId, slug])
   @@index([storeId, kind, status, sortOrder])
+  @@index([legacySlugs], type: Gin)
 }
 
 model ContentPageTranslation {

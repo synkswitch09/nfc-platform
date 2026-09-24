@@ -1,0 +1,17 @@
+# SEO technical release check
+
+## Implemented in develop
+
+- Store origin remains the authority for canonical URLs. Home uses published CMS SEO values when present. Shop, FAQ, Terms, Privacy, category, content and product pages emit their own canonical and social metadata. Blank SEO fields inherit content or store defaults. Canonical overrides must use the active store origin, without query or fragment; legacy external values render as a local fallback. A content release clears canonical overrides copied from another domain.
+- The sitemap lists active, indexable, accessible products and category landings, published CMS pages with visible sections, and guides only on the eligible Tapkin store. It excludes placeholders, private routes, filters and pages canonicalized elsewhere. Only available section translations get locale URLs. Database failures are visible instead of silently returning a partial catalogue.
+- Product structured data emits a separate offer with its SKU, calculated minimum required option price and actual stock/backorder state for each active variant. No reviews, GTIN, location claim or shipping guarantee is invented. Organization and WebSite data remain on Home, and category FAQ markup only reflects visible questions.
+- Product and standalone CMS page slug changes keep a direct permanent redirect through `legacySlugs`. Admin edits reject reuse of another slug or alias. Reserved FAQ, Terms and Privacy page addresses stay fixed. Product/catalog visibility does not change NFC tag operation.
+- Robots allows commercial media through `/api/media/`; pet photos return `X-Robots-Tag: noindex, noimageindex` and remain subject to their existing access checks. Private account and API routes remain disallowed. The existing `/t/` disallow remains in place; a linked tag URL can still appear as a URL-only result because robots rules are not access control.
+
+## Deployment and acceptance
+
+Deploy migration `20260924190000_seo_legacy_slugs` after the earlier order packing migration, then deploy the application. No seed/reset is needed. The migration adds two arrays and GIN indexes; existing slugs are unchanged.
+
+With an authorized production-like copy and a restricted staging hostname, verify two stores independently: inspect HTML source for title, description, canonical, OG and JSON-LD on Home, Shop, FAQ, Terms, Privacy, one category, one CMS page and a product with variants at different stock levels. Confirm each sitemap URL returns 200, its canonical agrees with its location, its robots policy permits indexing, and non-indexable/hidden/archived pages are absent. Test old slug redirects in one jump and media access as guest, owner and another user. Verify the staging host remains access restricted. Use Google's Rich Results Test only on authorized accessible pages. No real PostgreSQL, crawler, search engine registration or CDN purge was available in this workspace.
+
+Google's current guidance: [canonical URL](https://developers.google.com/search/docs/crawling-indexing/consolidate-duplicate-urls), [sitemaps](https://developers.google.com/search/docs/crawling-indexing/sitemaps/build-sitemap), [product variants](https://developers.google.com/search/docs/appearance/structured-data/product-variants), [robots limitations](https://developers.google.com/search/docs/crawling-indexing/robots/intro). FAQPage markup is not a guarantee of a search feature; keep the visible FAQs for customers.

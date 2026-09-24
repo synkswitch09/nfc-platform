@@ -1,4 +1,8 @@
 import { StoreCapability } from "@prisma/client";
+import type { Metadata } from "next";
+import { reservedPageMetadata } from "@/lib/public-page-seo";
+
+export async function generateMetadata(): Promise<Metadata> { return reservedPageMetadata("terms", "Terms of service"); }
 import { ModularPageRenderer } from "@/components/landing-section-renderer";
 import { db } from "@/lib/db";
 import { getCurrentStorefront, hasStoreCapability } from "@/lib/storefront";

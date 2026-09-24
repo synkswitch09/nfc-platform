@@ -18,8 +18,8 @@ import { getRequestLocale } from "@/lib/request-locale";
 import {
   compactLocaleName,
   getSystemCopy,
-  languageAlternates,
 } from "@/lib/i18n";
+import { canonicalForStore, nonEmpty } from "@/lib/seo";
 import "./globals.css";
 
 const inter = Inter({
@@ -34,6 +34,11 @@ export async function generateMetadata(): Promise<Metadata> {
   const settings = await getStoreSettings(store);
   const config = getRuntimeConfig();
   const locale = await getRequestLocale(store);
+  const home = process.env.DATABASE_URL ? await db.contentPage.findFirst({ where: { storeId: store.id, kind: "HOME", status: "PUBLISHED" }, select: { seoTitle: true, seoDescription: true, ogImageUrl: true, canonicalUrl: true, translations: { where: { locale }, select: { seoTitle: true, seoDescription: true } } } }) : null;
+  const title = nonEmpty(home?.translations[0]?.seoTitle, nonEmpty(home?.seoTitle, settings.siteTitle));
+  const description = nonEmpty(home?.translations[0]?.seoDescription, nonEmpty(home?.seoDescription, settings.siteDescription));
+  const canonical = canonicalForStore(store.origin, locale === store.defaultLocale ? "/" : `/?locale=${locale}`, home?.canonicalUrl);
+  const socialImage = home?.ogImageUrl || settings.defaultSocialImageUrl;
   return {
     metadataBase: new URL(store.origin),
     robots:
@@ -41,38 +46,30 @@ export async function generateMetadata(): Promise<Metadata> {
         ? searchEnginePolicy(config.appEnv)
         : { index: false, follow: false },
     title: {
-      default: settings.siteTitle,
+      default: title,
       template: `%s · ${settings.storeName}`,
     },
-    description: settings.siteDescription,
+    description,
     applicationName: settings.storeName,
-    alternates: {
-      canonical: locale === store.defaultLocale ? "/" : `/?locale=${locale}`,
-      languages: languageAlternates(
-        "/",
-        store.origin,
-        store.enabledLocales,
-        store.defaultLocale,
-      ),
-    },
+    alternates: { canonical },
     icons: store.faviconUrl ? { icon: store.faviconUrl } : undefined,
     openGraph: {
       siteName: settings.storeName,
-      title: settings.siteTitle,
-      description: settings.siteDescription,
+      title,
+      description,
       type: "website",
       locale: locale.replace("-", "_"),
       url: store.origin,
-      images: settings.defaultSocialImageUrl
-        ? [settings.defaultSocialImageUrl]
+      images: socialImage
+        ? [socialImage]
         : [],
     },
     twitter: {
-      card: settings.defaultSocialImageUrl ? "summary_large_image" : "summary",
-      title: settings.siteTitle,
-      description: settings.siteDescription,
-      images: settings.defaultSocialImageUrl
-        ? [settings.defaultSocialImageUrl]
+      card: socialImage ? "summary_large_image" : "summary",
+      title,
+      description,
+      images: socialImage
+        ? [socialImage]
         : [],
     },
   };

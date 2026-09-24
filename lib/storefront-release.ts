@@ -11,6 +11,7 @@ import {
 
 import { storefrontReleaseSchema, STOREFRONT_RELEASE_KIND, STOREFRONT_RELEASE_VERSION, MAX_RELEASE_ASSET_BYTES, type StorefrontRelease } from "@/lib/storefront-release-schema";
 import { validateReleaseReferences, validateReleaseAssets } from "@/lib/storefront-release-validation";
+import { validCanonicalOverride } from "@/lib/seo";
 export { storefrontReleaseSchema, STOREFRONT_RELEASE_KIND, STOREFRONT_RELEASE_VERSION } from "@/lib/storefront-release-schema";
 export type { StorefrontRelease } from "@/lib/storefront-release-schema";
 
@@ -265,6 +266,7 @@ async function syncPage(tx: Prisma.TransactionClient, storeId: string, pageInput
   const existing = categoryId
     ? await tx.contentPage.findUnique({ where: { categoryId } })
     : await tx.contentPage.findUnique({ where: { storeId_slug: { storeId, slug: String(page.slug) } } });
+  if (!categoryId && await tx.contentPage.count({ where: { storeId, legacySlugs: { has: String(page.slug) }, ...(existing ? { id: { not: existing.id } } : {}) } })) throw new Error("RELEASE_PAGE_SLUG_CONFLICT");
   if (existing && existing.categoryId !== (categoryId ?? null)) throw new Error("RELEASE_PAGE_OWNER_CONFLICT");
   const saved = existing
     ? await tx.contentPage.update({ where: { id: existing.id }, data })
@@ -288,7 +290,7 @@ async function syncPage(tx: Prisma.TransactionClient, storeId: string, pageInput
   return saved;
 }
 
-export async function importStorefrontRelease({ releaseInput, storeId, storeSlug, actorId }: { releaseInput: unknown; storeId: string; storeSlug: string; actorId: string }) {
+export async function importStorefrontRelease({ releaseInput, storeId, storeSlug, actorId, targetOrigin }: { releaseInput: unknown; storeId: string; storeSlug: string; actorId: string; targetOrigin?: string }) {
   const release = storefrontReleaseSchema.parse(releaseInput);
   validateReleaseReferences(release);
   const validated = validateReleaseAssets(release);
@@ -301,22 +303,30 @@ export async function importStorefrontRelease({ releaseInput, storeId, storeSlug
     const categoryIds = new Map<string, string>();
     for (const itemInput of release.categories) {
       const item = releaseData(itemInput, media.keys);
+      if (item.canonicalUrl && (!targetOrigin || !validCanonicalOverride(String(item.canonicalUrl), targetOrigin))) item.canonicalUrl = null;
       const page = item.page as Row | null;
       delete item.page;
+      if (page?.canonicalUrl && (!targetOrigin || !validCanonicalOverride(String(page.canonicalUrl), targetOrigin))) page.canonicalUrl = null;
       const category = await tx.productCategory.upsert({ where: { storeId_slug: { storeId, slug: String(item.slug) } }, update: item as Prisma.ProductCategoryUpdateInput, create: { ...item, storeId } as Prisma.ProductCategoryUncheckedCreateInput });
       categoryIds.set(category.slug, category.id);
       if (page) await syncPage(tx, storeId, page, category.id);
     }
-    for (const pageInput of release.pages) await syncPage(tx, storeId, releaseData(pageInput, media.keys));
+    for (const pageInput of release.pages) {
+      const page = releaseData(pageInput, media.keys);
+      if (page.canonicalUrl && (!targetOrigin || !validCanonicalOverride(String(page.canonicalUrl), targetOrigin))) page.canonicalUrl = null;
+      await syncPage(tx, storeId, page);
+    }
     const productCount = { create: 0, update: 0 };
     for (const productInput of release.products) {
       const product = releaseData(productInput, media.keys);
+      if (product.canonicalUrl && (!targetOrigin || !validCanonicalOverride(String(product.canonicalUrl), targetOrigin))) product.canonicalUrl = null;
       const categorySlug = product.categorySlug as string | null;
       const variants = (product.variants as Row[] | undefined) ?? [];
       const options = (product.options as Row[] | undefined) ?? [];
       const images = (product.images as Row[] | undefined) ?? [];
       delete product.categorySlug; delete product.variants; delete product.options; delete product.images;
       const existing = await tx.product.findUnique({ where: { storeId_slug: { storeId, slug: String(product.slug) } }, select: { id: true } });
+      if (await tx.product.count({ where: { storeId, legacySlugs: { has: String(product.slug) }, ...(existing ? { id: { not: existing.id } } : {}) } })) throw new Error("RELEASE_PRODUCT_SLUG_CONFLICT");
       const data = { ...product, storeId, categoryId: categorySlug ? categoryIds.get(categorySlug) ?? null : null } as Prisma.ProductUncheckedCreateInput;
       const saved = existing ? await tx.product.update({ where: { id: existing.id }, data }) : await tx.product.create({ data });
       productCount[existing ? "update" : "create"] += 1;

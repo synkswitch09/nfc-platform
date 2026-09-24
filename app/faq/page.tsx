@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { reservedPageMetadata } from "@/lib/public-page-seo";
 import {
   CategoryStatus,
   LandingSectionType,
@@ -12,7 +13,7 @@ import { modularFaq, parseLandingContent } from "@/lib/landing-sections";
 import { getRequestLocale } from "@/lib/request-locale";
 import { getCurrentStorefront, hasStoreCapability } from "@/lib/storefront";
 
-export const metadata: Metadata = { title: "Frequently asked questions" };
+export async function generateMetadata(): Promise<Metadata> { return reservedPageMetadata("faq", "Frequently asked questions"); }
 
 export default async function FaqPage() {
   const store = await getCurrentStorefront();

@@ -5,6 +5,7 @@ import { adminProductSchema } from "@/lib/admin-validation";
 import { productValidationFeedback } from "@/lib/product-validation-feedback";
 import { db } from "@/lib/db";
 import { assertSameOrigin, jsonError } from "@/lib/http";
+import { validCanonicalOverride } from "@/lib/seo";
 
 export async function POST(request: NextRequest) {
   if (!assertSameOrigin(request)) return jsonError("Invalid request origin", 403);
@@ -13,6 +14,8 @@ export async function POST(request: NextRequest) {
   const parsed = adminProductSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "Review the highlighted product fields.", issues: productValidationFeedback(parsed.error.issues) }, { status: 400 });
   const data = parsed.data;
+  if (!validCanonicalOverride(data.canonicalUrl, store.origin)) return jsonError("Canonical URL must belong to this store and contain no query or fragment", 400);
+  if (await db.product.count({ where: { storeId: store.id, OR: [{ slug: data.slug }, { legacySlugs: { has: data.slug } }] } })) return jsonError("That product slug is already in use", 409);
   try {
     const product = await db.$transaction(async tx => {
       if (data.categoryId) {

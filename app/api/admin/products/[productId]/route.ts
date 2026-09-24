@@ -9,6 +9,7 @@ import { canHardDeleteProduct } from "@/lib/catalog-policy";
 import { deleteStoredImage } from "@/lib/uploads";
 import { queueEtsyInventorySync } from "@/lib/etsy";
 import { productValidationFeedback } from "@/lib/product-validation-feedback";
+import { validCanonicalOverride } from "@/lib/seo";
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ productId: string }> }) {
   if (!assertSameOrigin(request)) return jsonError("Invalid request origin", 403);
@@ -41,9 +42,11 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   const parsed = adminProductSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "Review the highlighted product fields.", issues: productValidationFeedback(parsed.error.issues) }, { status: 400 });
   const { productId } = await params;
-  const existing = await db.product.findFirst({ where: { id: productId, storeId: store.id }, select: { id: true, status: true, variants: { select: { id: true, priceCents: true, inventory: true } } } });
+  const existing = await db.product.findFirst({ where: { id: productId, storeId: store.id }, select: { id: true, slug: true, legacySlugs: true, status: true, variants: { select: { id: true, priceCents: true, inventory: true } } } });
   if (!existing) return jsonError("Product not found", 404);
   const data = parsed.data;
+  if (!validCanonicalOverride(data.canonicalUrl, store.origin)) return jsonError("Canonical URL must belong to this store and contain no query or fragment", 400);
+  if (await db.product.count({ where: { storeId: store.id, id: { not: productId }, OR: [{ slug: data.slug }, { legacySlugs: { has: data.slug } }] } })) return jsonError("That product slug is already in use", 409);
   try {
     await db.$transaction(async tx => {
       if (data.categoryId) {
@@ -52,7 +55,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       }
       const packagingIds = [...new Set([data.defaultPackagingId, ...data.variants.map(variant => variant.defaultPackagingId)].filter((id): id is string => Boolean(id)))];
       if (packagingIds.length && await tx.packaging.count({ where: { id: { in: packagingIds }, storeId: store.id } }) !== packagingIds.length) throw new Error("INVALID_PACKAGING");
-      await tx.product.update({ where: { id: productId }, data: { name: data.name, slug: data.slug, description: data.description, shortDescription: data.description, fullDescription: data.fullDescription || null, categoryId: data.categoryId || null, type: data.type, status: data.status, featured: data.featured, shopVisible: data.shopVisible, brand: data.brand, gstInclusive: data.gstInclusive, personalisationMode: data.personalisationMode, weightGrams: data.weightGrams, lengthMm: data.lengthMm, widthMm: data.widthMm, heightMm: data.heightMm, defaultPackagingId: data.defaultPackagingId, shipsSeparately: data.shipsSeparately, specialHandling: data.specialHandling || null, countryOfOrigin: data.countryOfOrigin || null, customsDescription: data.customsDescription || null, hsCode: data.hsCode || null, customsValueCents: data.customsValueCents, dutiesHandling: data.dutiesHandling, restrictedItem: data.restrictedItem, seoTitle: data.seoTitle || null, seoDescription: data.seoDescription || null, ogImageUrl: data.ogImageUrl || null, canonicalUrl: data.canonicalUrl || null, indexable: data.indexable } });
+      await tx.product.update({ where: { id: productId }, data: { name: data.name, slug: data.slug, legacySlugs: data.slug === existing.slug ? existing.legacySlugs : [...new Set([...existing.legacySlugs, existing.slug])].filter(slug => slug !== data.slug), description: data.description, shortDescription: data.description, fullDescription: data.fullDescription || null, categoryId: data.categoryId || null, type: data.type, status: data.status, featured: data.featured, shopVisible: data.shopVisible, brand: data.brand, gstInclusive: data.gstInclusive, personalisationMode: data.personalisationMode, weightGrams: data.weightGrams, lengthMm: data.lengthMm, widthMm: data.widthMm, heightMm: data.heightMm, defaultPackagingId: data.defaultPackagingId, shipsSeparately: data.shipsSeparately, specialHandling: data.specialHandling || null, countryOfOrigin: data.countryOfOrigin || null, customsDescription: data.customsDescription || null, hsCode: data.hsCode || null, customsValueCents: data.customsValueCents, dutiesHandling: data.dutiesHandling, restrictedItem: data.restrictedItem, seoTitle: data.seoTitle || null, seoDescription: data.seoDescription || null, ogImageUrl: data.ogImageUrl || null, canonicalUrl: data.canonicalUrl || null, indexable: data.indexable } });
       const variantIds = data.variants.flatMap(variant => variant.id ? [variant.id] : []);
       await tx.productVariant.updateMany({ where: { productId, id: { notIn: variantIds } }, data: { active: false } });
       for (const variant of data.variants) {

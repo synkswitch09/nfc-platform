@@ -5,6 +5,7 @@ import { contentPageSchema } from "@/lib/content-page-validation";
 import { db } from "@/lib/db";
 import { assertSameOrigin, jsonError } from "@/lib/http";
 import { revalidatePath } from "next/cache";
+import { validCanonicalOverride } from "@/lib/seo";
 
 export async function PATCH(
   request: NextRequest,
@@ -19,11 +20,15 @@ export async function PATCH(
   );
   if (!parsed.success)
     return jsonError(parsed.error.issues[0]?.message ?? "Invalid page");
+  if (!validCanonicalOverride(parsed.data.canonicalUrl, context.store.origin)) return jsonError("Canonical URL must belong to this store and contain no query or fragment", 400);
   const { pageId } = await params;
   const existing = await db.contentPage.findFirst({
     where: { id: pageId, storeId: context.store.id, categoryId: null },
   });
   if (!existing) return jsonError("Page not found", 404);
+  if (["faq", "terms", "privacy"].includes(existing.slug) && parsed.data.slug !== existing.slug) return jsonError("This public page has a fixed address", 409);
+  if (await db.productCategory.count({ where: { storeId: context.store.id, OR: [{ slug: parsed.data.slug }, { legacySlugs: { has: parsed.data.slug } }] } })) return jsonError("That slug is already used by a category", 409);
+  if (await db.contentPage.count({ where: { storeId: context.store.id, id: { not: pageId }, OR: [{ slug: parsed.data.slug }, { legacySlugs: { has: parsed.data.slug } }] } })) return jsonError("That page slug is already in use", 409);
   if (existing.kind === "HOME" && parsed.data.kind !== "HOME")
     return jsonError("The Store Home page type cannot be changed");
   try {
@@ -32,6 +37,7 @@ export async function PATCH(
         where: { id: pageId },
         data: {
           ...parsed.data,
+          legacySlugs: parsed.data.slug === existing.slug ? existing.legacySlugs : [...new Set([...existing.legacySlugs, existing.slug])].filter(slug => slug !== parsed.data.slug),
           kind: existing.kind,
           seoTitle: parsed.data.seoTitle || null,
           seoDescription: parsed.data.seoDescription || null,

@@ -4,6 +4,7 @@ import { getAdminApiContext } from "@/lib/admin";
 import { adminCategorySchema } from "@/lib/admin-validation";
 import { db } from "@/lib/db";
 import { assertSameOrigin, jsonError } from "@/lib/http";
+import { validCanonicalOverride } from "@/lib/seo";
 
 export async function POST(request: NextRequest) {
   if (!assertSameOrigin(request)) return jsonError("Invalid request origin", 403);
@@ -12,6 +13,8 @@ export async function POST(request: NextRequest) {
   const { user, store } = context;
   const parsed = adminCategorySchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return jsonError(parsed.error.issues[0]?.message ?? "Invalid category");
+  if (!validCanonicalOverride(parsed.data.canonicalUrl, store.origin)) return jsonError("Canonical URL must belong to this store and contain no query or fragment", 400);
+  if (await db.contentPage.count({ where: { storeId: store.id, categoryId: null, OR: [{ slug: parsed.data.slug }, { legacySlugs: { has: parsed.data.slug } }] } })) return jsonError("That slug is already used by a page", 409);
   try {
     const category = await db.$transaction(async tx => {
       const collision = await tx.productCategory.findFirst({

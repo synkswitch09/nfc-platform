@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => {
-  const model = () => ({ update: vi.fn(), create: vi.fn(), upsert: vi.fn(), findUnique: vi.fn(), deleteMany: vi.fn(), createMany: vi.fn() });
+  const model = () => ({ update: vi.fn(), create: vi.fn(), upsert: vi.fn(), findUnique: vi.fn(), count: vi.fn(), deleteMany: vi.fn(), createMany: vi.fn() });
   const tx = { store: model(), categoryImage: model(), productImage: model(), product: model(), productVariant: model(), contentPage: model(), landingPageSection: model(), landingPageSectionTranslation: model(), contentPageTranslation: model(), auditLog: model() };
   const reads = { store: { findUniqueOrThrow: vi.fn() }, productCategory: { findMany: vi.fn() }, contentPage: { findMany: vi.fn() }, product: { findMany: vi.fn() }, categoryImage: { findMany: vi.fn() } };
   return { tx, reads, transaction: vi.fn(), get: vi.fn(), put: vi.fn(), delete: vi.fn() };
@@ -19,11 +19,17 @@ beforeEach(() => {
   mocks.transaction.mockImplementation((callback) => callback(mocks.tx));
   mocks.tx.product.findUnique.mockResolvedValue({ id: "product" });
   mocks.tx.product.update.mockResolvedValue({ id: "product" });
+  mocks.tx.product.count.mockResolvedValue(0);
+  mocks.tx.contentPage.count.mockResolvedValue(0);
   mocks.tx.contentPage.create.mockResolvedValue({ id: "page" });
   mocks.tx.landingPageSection.create.mockResolvedValue({ id: "section" });
 });
 
 describe("release import operational boundaries", () => {
+  it("does not transfer a source domain canonical to another storefront", async () => {
+    await importStorefrontRelease({ releaseInput: { ...base(), products: [{ ...product, canonicalUrl: "https://source.example/products/pet-tag" }] }, storeId: "target", storeSlug: "target", actorId: "admin", targetOrigin: "https://target.example" });
+    expect(mocks.tx.product.update.mock.calls[0][0].data.canonicalUrl).toBeNull();
+  });
   it("does not write source quantities over existing destination stock", async () => {
     mocks.tx.productVariant.findUnique.mockResolvedValue({ id: "variant", productId: "product", product: { storeId: "target" } });
     await run({ ...base(), products: [product] });

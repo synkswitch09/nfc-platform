@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
   const context = await getAdminApiContext();
   if (!context || !canManageStore(context)) return jsonError("Store administrator access required", 403);
   try {
-    const result = await importStorefrontRelease({ releaseInput: await readReleaseRequest(request), storeId: context.store.id, storeSlug: context.store.slug, actorId: context.user.id });
+    const result = await importStorefrontRelease({ releaseInput: await readReleaseRequest(request), storeId: context.store.id, storeSlug: context.store.slug, actorId: context.user.id, targetOrigin: context.store.origin });
     revalidatePath("/", "layout");
     revalidatePath("/shop");
     revalidatePath("/admin", "layout");

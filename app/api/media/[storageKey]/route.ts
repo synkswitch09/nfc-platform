@@ -32,5 +32,5 @@ export async function GET(_: Request, { params }: { params: Promise<{ storageKey
     if (!user || user.id !== petPhoto.tagProfile.tag.ownerId) return notFound();
   }
   const bytes = await readStoredImage(storageKey); if (!bytes) return notFound();
-  return new NextResponse(new Uint8Array(bytes), { headers: { "content-type": image?.mimeType ?? imageMimeType(storageKey), "content-length": String(bytes.byteLength), ...(petPhoto ? privateHeaders : { "cache-control": "public, max-age=31536000, immutable", "x-content-type-options": "nosniff" }) } });
+  return new NextResponse(new Uint8Array(bytes), { headers: { "content-type": image?.mimeType ?? imageMimeType(storageKey), "content-length": String(bytes.byteLength), ...(petPhoto ? { ...privateHeaders, "x-robots-tag": "noindex, noimageindex" } : { "cache-control": "public, max-age=31536000, immutable", "x-content-type-options": "nosniff" }) } });
 }
