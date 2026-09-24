@@ -114,7 +114,7 @@ export default async function AdminPagesPage() {
               <h2>{group.label}</h2>
             </div>
           </div>
-          <div className="admin-table category-admin-table">
+          <div className="admin-table category-admin-table page-admin-table mobile-cards">
             <div className="admin-tr admin-th">
               <span>Page</span>
               <span>Type</span>

@@ -30,6 +30,7 @@ import { getRuntimeConfig } from "@/lib/config";
 import { hasStoreCapability } from "@/lib/storefront";
 import { StoreCapability } from "@prisma/client";
 import { AdminStoreSwitcher } from "@/components/admin-store-switcher";
+import { AdminMobileMenu } from "@/components/admin-mobile-menu";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
@@ -157,25 +158,27 @@ export default async function AdminLayout({
             <small>Operations</small>
           </div>
         </Link>
-        <AdminStoreSwitcher
-          current={store}
-          stores={stores}
-          platformAdmin={isPlatformAdmin}
-        />
-        {visibleGroups.map((group) => (
-          <div className="admin-nav-group" key={group.label}>
-            <p>{group.label}</p>
-            {group.links.map(({ href, label, icon: Icon }) => (
-              <Link href={href} key={href}>
-                <Icon size={18} />
-                {label}
-              </Link>
-            ))}
-          </div>
-        ))}
-        <Link href="/" className="admin-store-link">
-          ← View storefront
-        </Link>
+        <AdminMobileMenu>
+          <AdminStoreSwitcher
+            current={store}
+            stores={stores}
+            platformAdmin={isPlatformAdmin}
+          />
+          {visibleGroups.map((group) => (
+            <div className="admin-nav-group" key={group.label}>
+              <p>{group.label}</p>
+              {group.links.map(({ href, label, icon: Icon }) => (
+                <Link href={href} key={href}>
+                  <Icon size={18} />
+                  {label}
+                </Link>
+              ))}
+            </div>
+          ))}
+          <Link href="/" className="admin-store-link">
+            ← View storefront
+          </Link>
+        </AdminMobileMenu>
       </aside>
       <main className="admin-main">
         {environment !== "production" && (
