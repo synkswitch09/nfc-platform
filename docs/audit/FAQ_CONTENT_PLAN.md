@@ -1,6 +1,6 @@
 # FAQs de NFC e impresión 3D — propuesta editorial para la página existente
 
-Estado: BORRADOR PARA IMPLEMENTACIÓN FUTURA. No cargado en DB ni publicado.
+Estado: BORRADOR EDITORIAL. Una selección de 15 respuestas generales se ofrece como propuesta oculta en el editor de `/faq`; no se ha cargado en la DB real ni publicado. Las otras respuestas requieren revisión de contenido y datos reales.
 
 Ampliación REC-035 / bloque H del plan v2. El sitio dispone de /faq, que combina preguntas generales con FAQs de categorías publicadas. Reutilizar ese flujo y sus acordeones. Estas respuestas se proponen en inglés australiano para el storefront actual; notas de revisión en español. No sustituyen contenido administrado por Daniel sin comparar primero el dataset real.
 

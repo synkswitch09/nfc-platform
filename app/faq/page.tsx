@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { reservedPageMetadata } from "@/lib/public-page-seo";
 import {
   CategoryStatus,
@@ -11,7 +12,7 @@ import { db } from "@/lib/db";
 import { localizeContentPage, localizeSections } from "@/lib/i18n";
 import { modularFaq, parseLandingContent } from "@/lib/landing-sections";
 import { getRequestLocale } from "@/lib/request-locale";
-import { getCurrentStorefront, hasStoreCapability } from "@/lib/storefront";
+import { getCurrentStorefront, hasStoreCapability, TAPKIN_STORE_ID } from "@/lib/storefront";
 
 export async function generateMetadata(): Promise<Metadata> { return reservedPageMetadata("faq", "Frequently asked questions"); }
 
@@ -127,7 +128,7 @@ export default async function FaqPage() {
   const sections = [...categoryFaqSections, ...generalFaqSections];
   if (sections.length) {
     return (
-      <ModularPageRenderer
+      <><ModularPageRenderer
         name={localized?.name ?? "Frequently asked questions"}
         sections={sections}
         products={[]}
@@ -143,6 +144,10 @@ export default async function FaqPage() {
           { label: localized?.name ?? "Frequently asked questions" },
         ]}
       />
+      <nav className="section compact-section" aria-label="Related information">
+        <Link href="/shop">Browse products</Link>
+        {store.id === TAPKIN_STORE_ID && hasStoreCapability(store, StoreCapability.NFC) && <Link href="/guides/how-nfc-pet-tags-work">How NFC pet tags work</Link>}
+      </nav></>
     );
   }
   return (

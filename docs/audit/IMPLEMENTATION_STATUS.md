@@ -1,5 +1,11 @@
 # Implementation checkpoint
 
+## Octava continuación: contenido y FAQs (H), 24 septiembre 2026
+
+Implementado en código: 15 propuestas conceptuales de NFC e impresión 3D para el editor de la página `/faq` existente. Se filtran por capacidades de la tienda y por preguntas generales y de categoría presentes; se añaden ocultas para revisión. Guardado acotado a la sección general, con rechazo ante ediciones simultáneas o varias secciones FAQ, sin borrar otros bloques. Enlaces entre FAQ, guía NFC y catálogo. Verificación: 270 tests / 48 archivos, typecheck, lint y build PASS (tests ejecutados nuevamente tras build para evitar carrera sobre Prisma Client). Guía: `docs/H_CONTENT_RELEASE_CHECK.md`.
+
+H sigue pendiente de aceptación editorial y operativa: sin acceso a la base Pets real no se ha cargado ni publicado contenido, comparado duplicados semánticos ni revisado afirmaciones específicas. Las 50 respuestas y 16 preguntas pendientes siguen en `FAQ_CONTENT_PLAN.md`. No se ha anunciado el servicio de impresión 3D ni creado una página comercial; su disponibilidad y condiciones no están verificadas. No se ha investigado demanda con cifras. El siguiente bloque del plan es I, sujeto a dominios y acceso externo.
+
 ## Séptima continuación: SEO técnico (G), 24 septiembre 2026
 
 SEO por tienda, página, categoría y producto: canonicals locales, datos de Home y páginas reservadas, sitemap CMS basado en contenido publicado, alternates de traducciones reales, ofertas por variante, aliases 308 de páginas/productos y política diferenciada de medios comerciales/fotos de mascotas. La migración `20260924190000_seo_legacy_slugs` no se aplicó a datos reales. Guía y límites: `docs/SEO_RELEASE_CHECK.md`. G implementado en código; faltan crawl HTTP, validación de structured data y aceptación multi-tienda en staging. Siguiente bloque del plan: H, contenido y validación comercial; A–G mantienen la aceptación operativa pendiente.

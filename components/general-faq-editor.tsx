@@ -10,6 +10,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { availableFaqProposals, faqProposals } from "@/lib/faq-proposals";
 
 export type GeneralFaqItem = {
   id: string;
@@ -27,14 +28,25 @@ export function GeneralFaqEditor({
   pageId,
   initialItems,
   initialSectionId,
+  initialRevision,
+  multipleSections,
+  categoryQuestions,
+  nfcEnabled,
+  print3dEnabled,
 }: {
   pageId: string;
   initialItems: GeneralFaqItem[];
   initialSectionId?: string;
+  initialRevision: string | null;
+  multipleSections: boolean;
+  categoryQuestions: string[];
+  nfcEnabled: boolean;
+  print3dEnabled: boolean;
 }) {
   const router = useRouter();
   const [items, setItems] = useState(() => ordered(initialItems));
   const [sectionId, setSectionId] = useState(initialSectionId);
+  const [revision, setRevision] = useState(initialRevision);
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState("");
 
@@ -67,23 +79,28 @@ export function GeneralFaqEditor({
         order: current.length,
       },
     ]);
+  const suggestions = availableFaqProposals(
+    faqProposals,
+    [...categoryQuestions, ...items.map((item) => item.question)],
+    { nfc: nfcEnabled, print3d: print3dEnabled },
+  );
+  const addSuggestions = () => {
+    const available = suggestions.slice(0, Math.max(0, 30 - items.length));
+    setItems((current) => ordered([...current, ...available.map((item) => ({
+      id: crypto.randomUUID(), question: item.question, answer: item.answer,
+      visible: false, order: current.length,
+    }))]));
+    setMessage(`${available.length} draft answers added. Review each answer and show it only after checking it against your products and policies.`);
+  };
 
   async function save() {
     setPending(true);
     setMessage("");
     const response = await fetch(`/api/admin/pages/${pageId}/sections`, {
-      method: "PUT",
+      method: "PATCH",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
-        sections: [
-          {
-            ...(sectionId ? { id: sectionId } : {}),
-            type: "FAQ",
-            name: "General FAQs",
-            visible: true,
-            content: { items: ordered(items) },
-          },
-        ],
+        sectionId, revision, items: ordered(items),
       }),
     });
     const result = await response.json().catch(() => ({}));
@@ -92,12 +109,9 @@ export function GeneralFaqEditor({
       setMessage(result.error ?? "Questions could not be saved");
       return;
     }
-    const saved = Array.isArray(result.sections)
-      ? result.sections.find(
-          (section: { type?: string }) => section.type === "FAQ",
-        )
-      : undefined;
+    const saved = result.section;
     if (saved?.id) setSectionId(saved.id);
+    if (saved?.content) setRevision(JSON.stringify(saved.content));
     setItems(ordered(items));
     setMessage("General FAQs saved and published");
     router.refresh();
@@ -117,11 +131,19 @@ export function GeneralFaqEditor({
           className="button"
           type="button"
           onClick={save}
-          disabled={pending}
+          disabled={pending || multipleSections}
         >
           {pending ? "Saving…" : "Save FAQs"}
         </button>
       </div>
+      {multipleSections && <p className="form-message">This page has more than one general FAQ section. Consolidate them in the section editor before saving here; no existing section will be deleted.</p>}
+      {suggestions.length > 0 && <div className="landing-collection">
+        <h3>Suggested NFC and 3D printing answers</h3>
+        <p>Only topics supported by this store are offered. New answers start hidden and remain editable. Check product claims before showing them.</p>
+        <button className="button secondary" type="button" onClick={addSuggestions} disabled={multipleSections || items.length >= 30}>
+          <Plus size={16} /> Add {Math.min(suggestions.length, Math.max(0, 30 - items.length))} hidden drafts
+        </button>
+      </div>}
       <div className="landing-collection">
         <div className="collection-heading">
           <div>

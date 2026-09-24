@@ -13,6 +13,9 @@ import { requireAdminPageContext } from "@/lib/admin";
 import { db } from "@/lib/db";
 import { parseLandingContent } from "@/lib/landing-sections";
 import { PageTranslationEditor } from "@/components/page-translation-editor";
+import { StoreCapability, CategoryStatus, LandingSectionType } from "@prisma/client";
+import { allCategoryFaq } from "@/lib/category-content";
+import { modularFaq } from "@/lib/landing-sections";
 
 export default async function EditContentPage({
   params,
@@ -58,6 +61,14 @@ export default async function EditContentPage({
   };
   const publicHref = page.kind === "HOME" ? "/" : `/${page.slug}`;
   const faqSections = page.sections.filter((section) => section.type === "FAQ");
+  const faqCategories = isFaqPage ? await db.productCategory.findMany({
+    where: { storeId: store.id, status: CategoryStatus.PUBLISHED },
+    select: { faq: true, landingSections: { where: { type: LandingSectionType.FAQ }, select: { type: true, visible: true, content: true } } },
+  }) : [];
+  const categoryQuestions = faqCategories.flatMap((category) => [
+    ...allCategoryFaq(category.faq).map((item) => item.question),
+    ...modularFaq(category.landingSections).map((item) => item.question),
+  ]);
   const faqItems: GeneralFaqItem[] = faqSections.flatMap((section) => {
     const content = parseLandingContent("FAQ", section.content);
     const items = Array.isArray(content?.items) ? content.items : [];
@@ -156,6 +167,11 @@ export default async function EditContentPage({
           pageId={page.id}
           initialItems={faqItems}
           initialSectionId={faqSections[0]?.id}
+          initialRevision={faqSections[0] ? JSON.stringify(faqSections[0].content) : null}
+          multipleSections={faqSections.length > 1}
+          categoryQuestions={categoryQuestions}
+          nfcEnabled={store.capabilities.includes(StoreCapability.NFC)}
+          print3dEnabled={store.capabilities.includes(StoreCapability.PRINT_3D)}
         />
       ) : (
         <LandingSectionEditor
