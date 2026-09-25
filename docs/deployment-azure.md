@@ -42,10 +42,10 @@ The intended path is `feature/* -> develop -> staging -> main`. Promotion is a r
 
 - A push to `develop` validates and can deploy DEVELOPMENT.
 - A push to `staging` validates and can deploy STAGING.
-- A push to `main` validates only. PRODUCTION deploy requires a manual `workflow_dispatch` with `deploy=true`, `AZURE_DEPLOY_ENABLED=true`, and GitHub Environment approval.
+- A push to `main` validates only. PRODUCTION deploy requires a manual `workflow_dispatch` with `deploy=true`, `AZURE_PRODUCTION_DEPLOY_ENABLED=true`, and GitHub Environment approval.
 - Protect `main` and `staging`: require pull requests, the validation check, no force pushes, and at least one reviewer. Add required reviewers to the `production` GitHub Environment.
 
-Deployment jobs remain skipped until the repository variable `AZURE_DEPLOY_ENABLED` is set to `true`. Leave it unset while Azure is not configured.
+Deployment jobs remain skipped until their respective repository variables are set to `true`: `AZURE_DEVELOPMENT_DEPLOY_ENABLED`, `AZURE_STAGING_DEPLOY_ENABLED`, and `AZURE_PRODUCTION_DEPLOY_ENABLED`. Leave all three unset until their own Azure environment is configured. Enabling staging does not enable development or production. The old shared `AZURE_DEPLOY_ENABLED` variable no longer controls any deployment.
 
 ## 3. Subscription, resource group and budget
 
@@ -236,8 +236,8 @@ This cloud work does not alter `publicTagId`, NFC records or `/t/{publicTagId}`.
 6. Create GHCR package access credentials in Azure.
 7. Create GitHub Environments, OIDC identities and least-privilege role assignments.
 8. Bind development DNS/certificate and register development OAuth/Stripe callbacks.
-9. Run `npm run config:check`; enable `AZURE_DEPLOY_ENABLED`; deploy `develop`; run smoke tests.
-10. Only after development is stable, create `staging` from an approved `develop` commit, bind staging integrations, promote and test migrations/NFC/checkout/Admin/responsive/SEO behavior.
+9. Run `npm run config:check`; enable `AZURE_DEVELOPMENT_DEPLOY_ENABLED` only if DEVELOPMENT Azure resources exist; deploy `develop` and run smoke tests.
+10. Only after development is stable, create `staging` from an approved `develop` commit, bind staging integrations, enable `AZURE_STAGING_DEPLOY_ENABLED`, promote and test migrations/NFC/checkout/Admin/responsive/SEO behavior. If STAGING is the first Azure environment, leave the development switch unset, finish staging resources and secrets, then create the staging branch from the reviewed develop commit and enable only the staging switch.
 11. Configure production resources/secrets but keep production deployment disabled. Add required reviewers.
 12. After business, legal, privacy, security and operational launch gates pass, request explicit production authorization, promote staging to main, validate, manually dispatch production, approve, migrate, deploy and smoke test.
 

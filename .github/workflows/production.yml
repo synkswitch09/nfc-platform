@@ -18,7 +18,7 @@ jobs:
     uses: ./.github/workflows/_validate.yml
   deploy:
     needs: validate
-    if: github.event_name == 'workflow_dispatch' && inputs.deploy == true && vars.AZURE_DEPLOY_ENABLED == 'true'
+    if: github.event_name == 'workflow_dispatch' && inputs.deploy == true && vars.AZURE_PRODUCTION_DEPLOY_ENABLED == 'true'
     uses: ./.github/workflows/_deploy-azure.yml
     with: { target_environment: production }
     secrets: inherit
