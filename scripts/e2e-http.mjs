@@ -120,7 +120,7 @@ async function main() {
   };
   await jsonResponse(await request("/api/shipping/quotes", { method: "POST", json: { items: [{ variantId: seededVariant.id, quantity: 0 }], destination } }), 400, "Shipping quote rejects invalid quantities");
   await jsonResponse(await request("/api/shipping/quotes", { method: "POST", json: { items: [{ variantId: "00000000-0000-4000-8000-000000000000", quantity: 1 }], destination } }), 409, "Shipping quote rejects unavailable variants");
-  const quotedItems = [{ variantId: seededVariant.id, quantity: 1, unitPriceCents: 1, personalisationChoice: "PERSONALISED", personalisation: { colour: "ocean", shape: "round", size: "small" } }];
+  const quotedItems = [{ variantId: seededVariant.id, quantity: 1, unitPriceCents: 1, personalisationChoice: "BASIC", personalisation: { colour: "ocean", shape: "round", size: "small" } }];
   const shippingQuotes = await jsonResponse(await request("/api/shipping/quotes", { method: "POST", json: { items: quotedItems, destination } }), 200, "Server returns Store-scoped delivery quotes");
   assert(shippingQuotes.quotes.length > 0 && shippingQuotes.quotes[0].token, "Delivery quote includes an opaque checkout token");
   const checkout = await jsonResponse(await request("/api/checkout", { method: "POST", json: {
