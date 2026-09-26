@@ -225,7 +225,13 @@ async function main() {
       for (const [valueOrder, value] of (optionSeed.values ?? []).entries()) await db.productOptionValue.upsert({ where: { optionId_value: { optionId: option.id, value: value.toLowerCase() } }, update: { label: value, sortOrder: valueOrder, active: true, swatchHex: optionSeed.type === "COLOUR" ? swatchColours[value.toLowerCase()] ?? null : null }, create: { optionId: option.id, label: value, value: value.toLowerCase(), sortOrder: valueOrder, swatchHex: optionSeed.type === "COLOUR" ? swatchColours[value.toLowerCase()] ?? null : null } });
     }
   }
-  const homeDemoStore = null;
+  // Only the disposable CI database gets cross-store and checkout fixtures.
+  // The normal seed retains the single out-of-stock Pets product.
+  const e2eFixtures = environment === "development" && process.env.SEED_E2E_FIXTURES === "true";
+  const homeDemoStore = e2eFixtures ? await seedHomeDemo() : null;
+  if (e2eFixtures) {
+    await db.productVariant.update({ where: { sku: "PET-TAG-001" }, data: { priceCents: 2495, inventory: 25 } });
+  }
   await db.storeSettings.upsert({ where: { id: "default" }, update: { storeName: "Tapkin", siteTitle: "Tapkin Smart Products", siteDescription: "Personalised smart products combining 3D printing, NFC, QR and secure digital profiles." }, create: { id: "default", storeName: "Tapkin", siteTitle: "Tapkin Smart Products", siteDescription: "Personalised smart products combining 3D printing, NFC, QR and secure digital profiles." } });
   const emailName = environment === "staging" ? "STAGING_ADMIN_EMAIL" : "DEV_ADMIN_EMAIL";
   const passwordName = environment === "staging" ? "STAGING_ADMIN_PASSWORD" : "DEV_ADMIN_PASSWORD";

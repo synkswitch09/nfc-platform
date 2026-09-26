@@ -42,6 +42,7 @@ jobs:
       - name: Seed disposable E2E database
         run: npm run db:seed
         env:
+          SEED_E2E_FIXTURES: "true"
           DEV_ADMIN_EMAIL: e2e-admin@example.test
           DEV_ADMIN_PASSWORD: E2eAdminPassword123
       - name: Run required HTTP E2E flows
