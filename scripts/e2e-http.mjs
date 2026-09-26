@@ -100,16 +100,16 @@ async function main() {
   assert(Boolean(tapkinStore) && Boolean(homeStore), "Development seed contains isolated Tapkin and Home Demo Stores");
 
   // FLOW A — guest purchase through the real HTTP boundary and test payment settlement.
-  for (const path of ["/", "/pet", "/categories/pet-tags", "/shop?category=pet", "/products/round-nfc-pet-tag", "/cart", "/checkout"]) {
+  for (const path of ["/", "/categories/pets", "/shop?category=pets", "/products/tapkin-pet-tag", "/cart", "/checkout"]) {
     const response = await request(path); assert(response.status === 200, `Guest can browse ${path}`);
   }
   const homePage = await bodyText(await request("/", { host: "home.localhost" }));
   assert(homePage.text.includes("Home Demo") && !homePage.text.includes("Activate a product"), "Home Demo resolves by Host with isolated branding and no NFC CTA");
   const homeProduct = await request("/products/minimal-phone-stand", { host: "home.localhost" });
-  const leakedTapkinProduct = await request("/products/round-nfc-pet-tag", { host: "home.localhost" });
+  const leakedTapkinProduct = await request("/products/tapkin-pet-tag", { host: "home.localhost" });
   const leakedHomeProduct = await request("/products/minimal-phone-stand");
   assert(homeProduct.status === 200 && leakedTapkinProduct.status === 404 && leakedHomeProduct.status === 404, "Product routes cannot leak across Stores");
-  const seededVariant = await db.productVariant.findUnique({ where: { sku: "PET-ROUND" } });
+  const seededVariant = await db.productVariant.findUnique({ where: { sku: "PET-TAG-001" } });
   assert(Boolean(seededVariant), "Seeded checkout variant exists");
   const destination = {
     line1: "1 Test Street",
@@ -120,7 +120,7 @@ async function main() {
   };
   await jsonResponse(await request("/api/shipping/quotes", { method: "POST", json: { items: [{ variantId: seededVariant.id, quantity: 0 }], destination } }), 400, "Shipping quote rejects invalid quantities");
   await jsonResponse(await request("/api/shipping/quotes", { method: "POST", json: { items: [{ variantId: "00000000-0000-4000-8000-000000000000", quantity: 1 }], destination } }), 409, "Shipping quote rejects unavailable variants");
-  const quotedItems = [{ variantId: seededVariant.id, quantity: 1, unitPriceCents: 1, personalisationChoice: "PERSONALISED", personalisation: { "pet-name": "Pixel", colour: "ocean" } }];
+  const quotedItems = [{ variantId: seededVariant.id, quantity: 1, unitPriceCents: 1, personalisationChoice: "BASIC", personalisation: { colour: "ocean", shape: "round", size: "small" } }];
   const shippingQuotes = await jsonResponse(await request("/api/shipping/quotes", { method: "POST", json: { items: quotedItems, destination } }), 200, "Server returns Store-scoped delivery quotes");
   assert(shippingQuotes.quotes.length > 0 && shippingQuotes.quotes[0].token, "Delivery quote includes an opaque checkout token");
   const checkout = await jsonResponse(await request("/api/checkout", { method: "POST", json: {
@@ -167,7 +167,7 @@ async function main() {
   await jsonResponse(await request("/api/admin/products", { method: "POST", json: {} }), 403, "Customerless request is rejected by Product Admin");
   const login = await jsonResponse(await request("/api/auth/login", { method: "POST", jar: adminJar, json: { email: adminEmail, password: adminPassword } }), 200, "Development administrator can sign in");
   assert(login.user.role === "ADMIN", "Administrator role is enforced");
-  const e2eCategory = await db.productCategory.findUnique({ where: { storeId_slug: { storeId: tapkinStore.id, slug: "pet" } } });
+  const e2eCategory = await db.productCategory.findUnique({ where: { storeId_slug: { storeId: tapkinStore.id, slug: "pets" } } });
   assert(e2eCategory?.status === "PUBLISHED", "Published category exists for the product journey");
   const slug = `e2e-nfc-tag-${suffix}`; const sku = `E2E-${suffix.toUpperCase()}`.slice(0, 50);
   const productPayload = { name: `E2E NFC Tag ${suffix}`, slug, description: "A test-only NFC tag used by the integrated business journey.", fullDescription: "Created through Product Admin, imaged, stocked, published and then used in the NFC manufacturing flow.", categoryId: e2eCategory.id, type: "PET", status: "DRAFT", featured: false, shopVisible: false, brand: "Tapkin", gstInclusive: true, personalisationMode: "OPTIONAL", seoTitle: `E2E NFC Tag ${suffix}`, seoDescription: "Integrated test product for NFC commerce and manufacturing.", ogImageUrl: "", canonicalUrl: "", indexable: false,

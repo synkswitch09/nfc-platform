@@ -194,9 +194,11 @@ async function main() {
   if (environment === "staging" && process.env.ALLOW_STAGING_SEED !== "true") throw new Error("Set ALLOW_STAGING_SEED=true explicitly to load controlled staging data");
   if (environment !== "development" && (process.env.DEV_ADMIN_EMAIL || process.env.DEV_ADMIN_PASSWORD)) throw new Error("Development administrator credentials are allowed only in DEVELOPMENT");
   if (environment !== "staging" && (process.env.STAGING_ADMIN_EMAIL || process.env.STAGING_ADMIN_PASSWORD)) throw new Error("Staging administrator credentials are allowed only in STAGING");
-  // Bootstrap only. Re-running seed must never overwrite owner-managed content or stock.
-  if (await db.store.findUnique({ where: { slug: "tapkin" }, select: { id: true } })) {
-    console.log("Tapkin already exists; seed skipped to preserve content, inventory and accounts. Use migrations for schema updates.");
+  // The multistore migration creates the Store row on an empty database.
+  // Only an existing catalog means bootstrap has already populated content.
+  const existingStore = await db.store.findUnique({ where: { slug: "tapkin" }, select: { id: true } });
+  if (existingStore && await db.productCategory.findFirst({ where: { storeId: existingStore.id }, select: { id: true } })) {
+    console.log("Tapkin catalog already exists; seed skipped to preserve content, inventory and accounts. Use migrations for schema updates.");
     return;
   }
   const store = await db.store.upsert({
@@ -225,7 +227,13 @@ async function main() {
       for (const [valueOrder, value] of (optionSeed.values ?? []).entries()) await db.productOptionValue.upsert({ where: { optionId_value: { optionId: option.id, value: value.toLowerCase() } }, update: { label: value, sortOrder: valueOrder, active: true, swatchHex: optionSeed.type === "COLOUR" ? swatchColours[value.toLowerCase()] ?? null : null }, create: { optionId: option.id, label: value, value: value.toLowerCase(), sortOrder: valueOrder, swatchHex: optionSeed.type === "COLOUR" ? swatchColours[value.toLowerCase()] ?? null : null } });
     }
   }
-  const homeDemoStore = null;
+  // Only the disposable CI database gets cross-store and checkout fixtures.
+  // The normal seed retains the single out-of-stock Pets product.
+  const e2eFixtures = environment === "development" && process.env.SEED_E2E_FIXTURES === "true";
+  const homeDemoStore = e2eFixtures ? await seedHomeDemo() : null;
+  if (e2eFixtures) {
+    await db.productVariant.update({ where: { sku: "PET-TAG-001" }, data: { priceCents: 2495, inventory: 25 } });
+  }
   await db.storeSettings.upsert({ where: { id: "default" }, update: { storeName: "Tapkin", siteTitle: "Tapkin Smart Products", siteDescription: "Personalised smart products combining 3D printing, NFC, QR and secure digital profiles." }, create: { id: "default", storeName: "Tapkin", siteTitle: "Tapkin Smart Products", siteDescription: "Personalised smart products combining 3D printing, NFC, QR and secure digital profiles." } });
   const emailName = environment === "staging" ? "STAGING_ADMIN_EMAIL" : "DEV_ADMIN_EMAIL";
   const passwordName = environment === "staging" ? "STAGING_ADMIN_PASSWORD" : "DEV_ADMIN_PASSWORD";

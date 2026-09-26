@@ -2,6 +2,7 @@ import { afterEach, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   findUnique: vi.fn().mockResolvedValue({ id: "existing-tapkin" }),
+  findFirst: vi.fn().mockResolvedValue({ id: "existing-category" }),
   upsert: vi.fn(),
   disconnect: vi.fn(),
 }));
@@ -9,6 +10,7 @@ vi.mock("@prisma/client", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@prisma/client")>();
   return { ...actual, PrismaClient: class {
     store = { findUnique: mocks.findUnique, upsert: mocks.upsert };
+    productCategory = { findFirst: mocks.findFirst };
     $disconnect = mocks.disconnect;
   } };
 });
@@ -22,6 +24,7 @@ it("re-running the seed on an existing store exits before any catalog or account
   await import("../prisma/seed");
   await vi.waitFor(() => expect(mocks.disconnect).toHaveBeenCalled());
   expect(mocks.findUnique).toHaveBeenCalledWith({ where: { slug: "tapkin" }, select: { id: true } });
+  expect(mocks.findFirst).toHaveBeenCalledWith({ where: { storeId: "existing-tapkin" }, select: { id: true } });
   expect(mocks.upsert).not.toHaveBeenCalled();
   expect(log).toHaveBeenCalledWith(expect.stringContaining("seed skipped"));
 });
