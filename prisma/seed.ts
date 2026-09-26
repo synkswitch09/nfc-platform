@@ -194,9 +194,11 @@ async function main() {
   if (environment === "staging" && process.env.ALLOW_STAGING_SEED !== "true") throw new Error("Set ALLOW_STAGING_SEED=true explicitly to load controlled staging data");
   if (environment !== "development" && (process.env.DEV_ADMIN_EMAIL || process.env.DEV_ADMIN_PASSWORD)) throw new Error("Development administrator credentials are allowed only in DEVELOPMENT");
   if (environment !== "staging" && (process.env.STAGING_ADMIN_EMAIL || process.env.STAGING_ADMIN_PASSWORD)) throw new Error("Staging administrator credentials are allowed only in STAGING");
-  // Bootstrap only. Re-running seed must never overwrite owner-managed content or stock.
-  if (await db.store.findUnique({ where: { slug: "tapkin" }, select: { id: true } })) {
-    console.log("Tapkin already exists; seed skipped to preserve content, inventory and accounts. Use migrations for schema updates.");
+  // The multistore migration creates the Store row on an empty database.
+  // Only an existing catalog means bootstrap has already populated content.
+  const existingStore = await db.store.findUnique({ where: { slug: "tapkin" }, select: { id: true } });
+  if (existingStore && await db.productCategory.findFirst({ where: { storeId: existingStore.id }, select: { id: true } })) {
+    console.log("Tapkin catalog already exists; seed skipped to preserve content, inventory and accounts. Use migrations for schema updates.");
     return;
   }
   const store = await db.store.upsert({
