@@ -38,6 +38,13 @@ describe("runtime configuration", () => {
     expect(() => parseRuntimeConfig({ ...nonDevelopment("staging"), EMAIL_TEST_OUTBOX_PATH: "/tmp/tapkin-test-outbox.ndjson" })).toThrow("test email outbox is restricted to development");
   });
 
+  it("limits Mailtrap Sandbox to a staging inbox with a sender address", () => {
+    const staging = { ...nonDevelopment("staging"), EMAIL_PROVIDER: "mailtrap-sandbox", EMAIL_FROM_ADDRESS: "staging@tapkin.com.au", EMAIL_WEBHOOK_URL: "https://sandbox.api.mailtrap.io/api/send/12345" };
+    expect(parseRuntimeConfig(staging).email.provider).toBe("mailtrap-sandbox");
+    expect(() => parseRuntimeConfig({ ...staging, EMAIL_WEBHOOK_URL: "https://send.api.mailtrap.io/api/send" })).toThrow("exact HTTPS sandbox inbox URL");
+    expect(() => parseRuntimeConfig({ ...staging, APP_ENV: "production", STRIPE_SECRET_KEY: "sk_live_example", NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: "pk_live_example", EMAIL_MODE: "live" })).toThrow("restricted to staging");
+  });
+
   it("requires an explicit deployment environment in a production runtime", () => {
     expect(() => parseRuntimeConfig({ NODE_ENV: "production" })).toThrow("APP_ENV must be explicit");
   });

@@ -12,6 +12,18 @@ export async function sendTransactionalEmail(input: { to: string; subject: strin
     return false;
   }
   if (!email.webhookUrl || !email.webhookSecret) throw new Error("Email provider is not configured");
+  if (email.provider === "mailtrap-sandbox") {
+    if (!email.fromAddress) throw new Error("Mailtrap Sandbox sender is not configured");
+    const response = await fetch(email.webhookUrl, {
+      method: "POST",
+      headers: { "content-type": "application/json", "Api-Token": email.webhookSecret },
+      body: JSON.stringify({ from: { email: email.fromAddress }, to: [{ email: input.to }], subject: input.subject, text: input.text }),
+      signal: AbortSignal.timeout(15_000),
+      redirect: "error",
+    });
+    if (!response.ok || (await response.json() as { success?: boolean }).success !== true) throw new Error("Email delivery failed");
+    return true;
+  }
   const response = await fetch(email.webhookUrl, { method:"POST", headers:{"content-type":"application/json",authorization:`Bearer ${email.webhookSecret}`, ...(input.idempotencyKey ? { "Idempotency-Key": input.idempotencyKey } : {})}, body:JSON.stringify({ ...input, environment: appEnv, mode: email.mode }), signal: AbortSignal.timeout(15_000), redirect: "error" });
   if (!response.ok) throw new Error("Email delivery failed");
   return true;

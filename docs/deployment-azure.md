@@ -167,6 +167,8 @@ Create one Stripe webhook endpoint per deployment environment, ending `/api/stri
 
 Development email is `mock`: it logs only message type and recipient domain, never reset/verification tokens or message body. Staging uses a provider sandbox that cannot deliver to arbitrary customers; production uses the real provider.
 
+For Mailtrap Email Sandbox in staging, use `EMAIL_MODE=sandbox`, `EMAIL_PROVIDER=mailtrap-sandbox`, `EMAIL_FROM_ADDRESS=staging@tapkin.com.au`, `EMAIL_WEBHOOK_URL=https://sandbox.api.mailtrap.io/api/send/<inbox_id>`, and `EMAIL_WEBHOOK_SECRET` referencing a Container App secret containing the Mailtrap sandbox API token. The inbox ID is the number in the sandbox URL. The application transforms its transactional message into Mailtrap's `from`, `to`, `subject`, and `text` fields and checks the API success response. The provider is restricted to the exact sandbox API host and cannot be selected in production. A Mailtrap sandbox captures messages without delivering them to the original recipients; keep the token out of shell history and repository files.
+
 ## 9. DNS, TLS and optional Cloudflare
 
 Add and verify every Store domain on the same environment Container App, then follow the Azure-generated validation record instructions. Add the hostname to `StoreDomain` only after DNS/TLS ownership is verified; otherwise the application intentionally rejects it. Subdomains normally use CNAME; apex/root configuration may require the records Azure displays. Use Azure managed certificates where supported and verify renewal. See [Azure custom domains and managed certificates](https://learn.microsoft.com/azure/container-apps/custom-domains-managed-certificates).
