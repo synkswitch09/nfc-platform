@@ -32,7 +32,19 @@ jobs:
       - name: Run the environment migration job once
         run: |
           az containerapp job update --name "$AZURE_MIGRATION_JOB" --resource-group "$AZURE_RESOURCE_GROUP" --image "$MIGRATION_IMAGE"
-          az containerapp job start --name "$AZURE_MIGRATION_JOB" --resource-group "$AZURE_RESOURCE_GROUP" --wait
+          execution_name=$(az containerapp job start --name "$AZURE_MIGRATION_JOB" --resource-group "$AZURE_RESOURCE_GROUP" --query name --output tsv)
+          test -n "$execution_name"
+          echo "Waiting for migration execution: $execution_name"
+          for attempt in {1..90}; do
+            status=$(az containerapp job execution show --name "$AZURE_MIGRATION_JOB" --resource-group "$AZURE_RESOURCE_GROUP" --job-execution-name "$execution_name" --query properties.status --output tsv)
+            case "$status" in
+              Succeeded) echo "Migration succeeded"; exit 0 ;;
+              Failed|Canceled|Cancelled) echo "Migration ended with status: $status"; exit 1 ;;
+            esac
+            sleep 10
+          done
+          echo "Timed out waiting for migration execution: $execution_name"
+          exit 1
         env:
           AZURE_MIGRATION_JOB: ${{ vars.AZURE_MIGRATION_JOB }}
           AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
