@@ -45,7 +45,7 @@ The intended path is `feature/* -> develop -> staging -> main`. Promotion is a r
 - A push to `main` validates only. PRODUCTION deploy requires a manual `workflow_dispatch` with `deploy=true`, `AZURE_PRODUCTION_DEPLOY_ENABLED=true`, and GitHub Environment approval.
 - Protect `main` and `staging`: require pull requests, the validation check, no force pushes, and at least one reviewer. Add required reviewers to the `production` GitHub Environment.
 
-Deployment jobs remain skipped until their respective repository variables are set to `true`: `AZURE_DEVELOPMENT_DEPLOY_ENABLED`, `AZURE_STAGING_DEPLOY_ENABLED`, and `AZURE_PRODUCTION_DEPLOY_ENABLED`. Leave all three unset until their own Azure environment is configured. Enabling staging does not enable development or production. The old shared `AZURE_DEPLOY_ENABLED` variable no longer controls any deployment.
+Deployment jobs remain skipped until their respective repository variables are set to `true`: `AZURE_DEVELOPMENT_DEPLOY_ENABLED`, `AZURE_STAGING_DEPLOY_ENABLED`, and `AZURE_PRODUCTION_DEPLOY_ENABLED`. Leave all three unset until their own Azure environment is configured. Enabling staging does not enable development or production. The old shared `AZURE_DEPLOY_ENABLED` variable no longer controls any deployment. While staging deployment is disabled, its validated workflow publishes the runner and migrator images to GHCR without contacting Azure. Configure both Azure resources to pull these images before enabling deployment. The GitHub Actions `GITHUB_TOKEN` publishes them; Azure requires its own read-only GHCR credential for each resource.
 
 ## 3. Subscription, resource group and budget
 
