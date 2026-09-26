@@ -31,6 +31,8 @@ const runtimeConfigSchema = z.object({
   AZURE_STORAGE_CONTAINER_URL: optionalUrl,
   AZURE_STORAGE_SAS_TOKEN: optionalString,
   EMAIL_MODE: z.enum(["mock", "sandbox", "live"]).default("mock"),
+  EMAIL_PROVIDER: z.enum(["webhook", "mailtrap-sandbox"]).default("webhook"),
+  EMAIL_FROM_ADDRESS: z.preprocess(blankToUndefined, z.email().optional()),
   EMAIL_WEBHOOK_URL: optionalUrl,
   EMAIL_WEBHOOK_SECRET: optionalString,
   EMAIL_TEST_OUTBOX_PATH: optionalString,
@@ -112,6 +114,12 @@ const runtimeConfigSchema = z.object({
     if (value.EMAIL_MODE !== "sandbox") issue("EMAIL_MODE", "Staging email must use sandbox mode");
   }
 
+  if (value.EMAIL_PROVIDER === "mailtrap-sandbox") {
+    if (value.APP_ENV !== "staging" || value.EMAIL_MODE !== "sandbox") issue("EMAIL_PROVIDER", "Mailtrap Sandbox is restricted to staging sandbox email");
+    if (!value.EMAIL_FROM_ADDRESS) issue("EMAIL_FROM_ADDRESS", "Mailtrap Sandbox requires a sender address");
+    if (!/^https:\/\/sandbox\.api\.mailtrap\.io\/api\/send\/[1-9][0-9]*$/.test(value.EMAIL_WEBHOOK_URL ?? "")) issue("EMAIL_WEBHOOK_URL", "Mailtrap Sandbox requires its exact HTTPS sandbox inbox URL");
+  }
+
   if (value.APP_ENV === "production") {
     if (!value.STRIPE_SECRET_KEY?.startsWith("sk_live_")) issue("STRIPE_SECRET_KEY", "Production requires a Stripe live secret key");
     if (!value.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY?.startsWith("pk_live_")) issue("NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY", "Production requires a Stripe live publishable key");
@@ -130,7 +138,7 @@ export type RuntimeConfig = {
   activationPepper?: string;
   trustProxy: boolean;
   storage: { provider: "local" | "azure-blob"; environment?: AppEnvironment; uploadDir: string; containerUrl?: string; sasToken?: string };
-  email: { mode: "mock" | "sandbox" | "live"; webhookUrl?: string; webhookSecret?: string; testOutboxPath?: string };
+  email: { mode: "mock" | "sandbox" | "live"; provider: "webhook" | "mailtrap-sandbox"; fromAddress?: string; webhookUrl?: string; webhookSecret?: string; testOutboxPath?: string };
   stripe: { secretKey?: string; webhookSecret?: string; reconcileSecret?: string; publishableKey?: string; testCheckout: boolean };
   etsy: { apiKey?: string; sharedSecret?: string; syncSecret?: string };
   analyticsStores: Record<string, { measurementId: string; apiSecret: string }>;
@@ -154,7 +162,7 @@ export function parseRuntimeConfig(environment: Record<string, string | undefine
     activationPepper: value.ACTIVATION_PEPPER,
     trustProxy: value.TRUST_PROXY,
     storage: { provider: value.STORAGE_PROVIDER, environment: value.STORAGE_ENVIRONMENT, uploadDir: value.UPLOAD_DIR, containerUrl: value.AZURE_STORAGE_CONTAINER_URL, sasToken: value.AZURE_STORAGE_SAS_TOKEN },
-    email: { mode: value.EMAIL_MODE, webhookUrl: value.EMAIL_WEBHOOK_URL, webhookSecret: value.EMAIL_WEBHOOK_SECRET, testOutboxPath: value.EMAIL_TEST_OUTBOX_PATH },
+    email: { mode: value.EMAIL_MODE, provider: value.EMAIL_PROVIDER, fromAddress: value.EMAIL_FROM_ADDRESS, webhookUrl: value.EMAIL_WEBHOOK_URL, webhookSecret: value.EMAIL_WEBHOOK_SECRET, testOutboxPath: value.EMAIL_TEST_OUTBOX_PATH },
     stripe: { reconcileSecret: value.CHECKOUT_RECONCILE_SECRET, secretKey: value.STRIPE_SECRET_KEY, webhookSecret: value.STRIPE_WEBHOOK_SECRET, publishableKey: value.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY, testCheckout: value.ENABLE_TEST_CHECKOUT },
     etsy: { apiKey: value.ETSY_API_KEY, sharedSecret: value.ETSY_SHARED_SECRET, syncSecret: value.ETSY_SYNC_SECRET },
     analyticsStores: value.ANALYTICS_GA4_STORES,
