@@ -12,7 +12,7 @@ jobs:
     uses: ./.github/workflows/_validate.yml
   publish_images:
     # Bootstrap GHCR before the first Azure rollout, while deployment stays disabled.
-    if: ${{ true }}
+    if: vars.AZURE_STAGING_DEPLOY_ENABLED != 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -33,7 +33,7 @@ jobs:
           tags: ghcr.io/${{ github.repository }}:${{ github.sha }}-migrator
   deploy:
     needs: validate
-    if: ${{ false }}
+    if: vars.AZURE_STAGING_DEPLOY_ENABLED == 'true'
     uses: ./.github/workflows/_deploy-azure.yml
     with: { target_environment: staging }
     secrets: inherit
