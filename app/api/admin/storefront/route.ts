@@ -16,6 +16,7 @@ const httpsUrl = z
   .or(z.literal(""));
 const socialLinksSchema = z.object({
   instagram: httpsUrl,
+  tumblr: httpsUrl.default(""),
   facebook: httpsUrl,
   tiktok: httpsUrl,
   linkedin: httpsUrl,

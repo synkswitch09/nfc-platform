@@ -4,6 +4,7 @@ import {
   BriefcaseBusiness,
   Camera,
   Music2,
+  MessageCircle,
   Radio,
   Shapes,
   Users,
@@ -15,6 +16,7 @@ import { typographyStyle } from "@/lib/typography";
 
 const socialIcons = {
   instagram: Camera,
+  tumblr: MessageCircle,
   facebook: Users,
   linkedin: BriefcaseBusiness,
   tiktok: Music2,
@@ -67,9 +69,8 @@ export function SiteFooter({
         rows.findIndex((item) => item.href === link.href) === index,
     )
     .sort((a, b) => a.order - b.order);
-  const socials = Object.entries(socialLinks).filter(
-    (entry): entry is [keyof typeof socialIcons, string] =>
-      Boolean(entry[1]) && entry[0] in socialIcons,
+  const socials = (Object.keys(socialIcons) as Array<keyof typeof socialIcons>).filter(
+    (platform) => Boolean(socialLinks[platform] || config.socialIcons[platform]),
   );
   const copyright =
     config.copyright ||
@@ -87,23 +88,25 @@ export function SiteFooter({
   return (
     <footer className="site-footer" style={footerStyle}>
       <div className="footer-brand">
-        {logoUrl ? (
-          <Image
-            className="brand-logo"
-            src={logoUrl}
-            alt={storeName}
-            width={168}
-            height={48}
-            unoptimized
-          />
-        ) : (
-          <span className="brand">
-            <span className="brand-mark">
-              <BrandIcon size={18} />
+        <Link href={localizedPath("/", locale, defaultLocale)} aria-label={`${storeName} ${copy.home}`}>
+          {logoUrl ? (
+            <Image
+              className="brand-logo"
+              src={logoUrl}
+              alt={storeName}
+              width={168}
+              height={48}
+              unoptimized
+            />
+          ) : (
+            <span className="brand">
+              <span className="brand-mark">
+                <BrandIcon size={18} />
+              </span>
+              {storeName}
             </span>
-            {storeName}
-          </span>
-        )}
+          )}
+        </Link>
         {config.tagline && (
           <p style={typographyStyle(config.taglineTypography)}>
             {config.tagline}
@@ -119,30 +122,28 @@ export function SiteFooter({
       <div className="footer-end">
         {socials.length > 0 && (
           <div className="footer-socials">
-            {socials.map(([platform, href]) => {
+            {socials.map((platform) => {
               const Icon = socialIcons[platform];
               const imageUrl = config.socialIcons[platform];
-              return (
-                <a
-                  href={href}
-                  target="_blank"
-                  rel="noreferrer"
-                  aria-label={platform}
-                  key={platform}
-                >
-                  {imageUrl ? (
-                    <Image
-                      className="footer-social-icon-image"
-                      src={imageUrl}
-                      alt=""
-                      width={20}
-                      height={20}
-                      unoptimized
-                    />
-                  ) : (
-                    <Icon size={19} />
-                  )}
+              const icon = imageUrl ? (
+                <Image
+                  className="footer-social-icon-image"
+                  src={imageUrl}
+                  alt=""
+                  width={20}
+                  height={20}
+                  unoptimized
+                />
+              ) : <Icon size={19} />;
+              const href = socialLinks[platform];
+              return href ? (
+                <a href={href} target="_blank" rel="noopener noreferrer" aria-label={platform} key={platform}>
+                  {icon}
                 </a>
+              ) : (
+                <span className="footer-social-preview" aria-hidden="true" key={platform}>
+                  {icon}
+                </span>
               );
             })}
           </div>

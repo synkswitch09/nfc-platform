@@ -1194,6 +1194,13 @@ h3 {
   height: 32px;
   border-radius: 8px;
 }
+.footer-social-preview {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  color: var(--footer-link, var(--ink));
+}
 .footer-social-icon-image {
   width: 20px;
   height: 20px;
@@ -4926,4 +4933,95 @@ body:has(.admin-shell) > footer {
   .order-summary,
   .checkout-section { min-width: 0; padding: 18px; }
   .analytics-consent { bottom: 0; left: 0; right: 0; max-width: none; border-radius: 12px 12px 0 0; }
+}
+
+/* Tapkin chrome follows the Pets editorial art direction. Store settings still
+   supply colours, typography, visibility, labels and image choices. */
+body[data-store="tapkin"] .site-header {
+  min-height: 84px;
+  gap: 28px;
+}
+body[data-store="tapkin"] .site-header .brand-logo {
+  width: auto;
+  height: 33px;
+  max-width: 150px;
+}
+body[data-store="tapkin"] .site-header nav {
+  gap: 30px;
+}
+body[data-store="tapkin"] .site-header .nav-centre {
+  gap: 24px;
+}
+body[data-store="tapkin"] .site-header .nav-actions {
+  gap: 14px;
+}
+body[data-store="tapkin"] .site-header .nav-shop,
+body[data-store="tapkin"] .site-header .nav-account {
+  min-height: 44px;
+  border-radius: 9px;
+  padding: 9px 22px;
+}
+body[data-store="tapkin"] .site-footer {
+  min-height: 180px;
+  padding: 38px 42px 30px;
+  border-top: 0;
+  align-items: stretch;
+  gap: 24px;
+}
+body[data-store="tapkin"] .footer-brand > a {
+  display: inline-flex;
+}
+body[data-store="tapkin"] .site-footer .brand-logo {
+  width: auto;
+  height: 36px;
+  max-width: 165px;
+}
+body[data-store="tapkin"] .footer-copyright {
+  align-self: end;
+  margin: 0;
+  font-size: 0.78rem;
+}
+body[data-store="tapkin"] .footer-end {
+  align-content: space-between;
+  gap: 20px;
+}
+body[data-store="tapkin"] .footer-socials {
+  gap: 9px;
+}
+body[data-store="tapkin"] .footer-socials a,
+body[data-store="tapkin"] .footer-social-preview {
+  width: 36px;
+  height: 36px;
+}
+body[data-store="tapkin"] .footer-social-icon-image {
+  width: 23px;
+  height: 23px;
+}
+body[data-store="tapkin"] .footer-links {
+  gap: 18px;
+  font-size: 0.76rem;
+}
+@media (max-width: 1050px) and (min-width: 801px) {
+  body[data-store="tapkin"] .site-header { gap: 16px; padding-inline: 22px; }
+  body[data-store="tapkin"] .site-header nav,
+  body[data-store="tapkin"] .site-header .nav-centre { gap: 12px; }
+  body[data-store="tapkin"] .site-header .nav-actions { gap: 9px; }
+  body[data-store="tapkin"] .site-header .nav-shop,
+  body[data-store="tapkin"] .site-header .nav-account { padding-inline: 14px; }
+}
+@media (max-width: 800px) {
+  body[data-store="tapkin"] .site-header { min-height: 72px; }
+  body[data-store="tapkin"] .site-header .brand-logo { height: 31px; max-width: min(150px, 55vw); }
+  body[data-store="tapkin"] .site-header nav.is-open { gap: 16px; }
+  body[data-store="tapkin"] .site-header .nav-centre,
+  body[data-store="tapkin"] .site-header .nav-actions { gap: 4px; }
+  body[data-store="tapkin"] .site-footer {
+    min-height: 0;
+    padding: 36px 24px;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 24px;
+  }
+  body[data-store="tapkin"] .footer-end { order: 2; justify-items: start; gap: 18px; }
+  body[data-store="tapkin"] .footer-links { flex-wrap: wrap; }
+  body[data-store="tapkin"] .footer-copyright { order: 3; }
 }

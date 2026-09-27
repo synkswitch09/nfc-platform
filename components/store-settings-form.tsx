@@ -85,6 +85,7 @@ export function StoreSettingsForm({
       siteDescription: form.get("siteDescription"),
       defaultSocialImageUrl: form.get("defaultSocialImageUrl"),
       instagram: settings.socialLinks.instagram ?? "",
+      tumblr: settings.socialLinks.tumblr ?? "",
       facebook: settings.socialLinks.facebook ?? "",
       tiktok: settings.socialLinks.tiktok ?? "",
       linkedin: settings.socialLinks.linkedin ?? "",

@@ -42,6 +42,7 @@ const schema = z
     siteDescription: z.string().trim().min(20).max(170),
     defaultSocialImageUrl: imageSource.optional(),
     instagram: url.optional(),
+    tumblr: url.optional(),
     facebook: url.optional(),
     tiktok: url.optional(),
     linkedin: url.optional(),
@@ -111,6 +112,7 @@ export async function POST(request: NextRequest) {
         socialImageUrl: value.defaultSocialImageUrl || null,
         socialLinks: {
           instagram: value.instagram || null,
+          tumblr: value.tumblr || null,
           facebook: value.facebook || null,
           tiktok: value.tiktok || null,
           linkedin: value.linkedin || null,

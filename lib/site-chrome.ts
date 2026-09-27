@@ -132,11 +132,12 @@ export const footerConfigSchema = z.object({
   socialIcons: z
     .object({
       instagram: optionalImage.default(""),
+      tumblr: optionalImage.default(""),
       facebook: optionalImage.default(""),
       tiktok: optionalImage.default(""),
       linkedin: optionalImage.default(""),
     })
-    .default({ instagram: "", facebook: "", tiktok: "", linkedin: "" }),
+    .default({ instagram: "", tumblr: "", facebook: "", tiktok: "", linkedin: "" }),
 });
 
 export type HeaderConfig = z.infer<typeof headerConfigSchema>;

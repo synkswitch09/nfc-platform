@@ -253,7 +253,7 @@ export function SiteHeader({
           ))}
         </div>
         <div className="nav-actions">
-          {config.showLanguage && (
+          {config.showLanguage && locales.length > 1 && (
             <LanguageSelector
               locale={locale}
               locales={locales}

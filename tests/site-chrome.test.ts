@@ -51,11 +51,11 @@ describe("site chrome configuration", () => {
           italic: "ITALIC",
           sizePx: 18,
         },
-        socialIcons: { instagram: "https://cdn.example.com/footer-instagram.png" },
+        socialIcons: { instagram: "https://cdn.example.com/footer-instagram.png", tumblr: "/images/tapkin/brand/tumblr.webp" },
       }),
     ).toMatchObject({
       taglineTypography: { family: "INTER", weight: "BOLD", italic: "ITALIC", sizePx: 18 },
-      socialIcons: { instagram: "https://cdn.example.com/footer-instagram.png" },
+      socialIcons: { instagram: "https://cdn.example.com/footer-instagram.png", tumblr: "/images/tapkin/brand/tumblr.webp" },
     });
     expect(() => parseHeaderConfig({ activeColour: "red" })).toThrow();
     expect(() => parseHeaderConfig({ fontFamily: "Comic Sans" })).toThrow();

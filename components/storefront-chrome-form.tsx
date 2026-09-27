@@ -31,7 +31,7 @@ export function StorefrontChromeForm({
     area === "header" ? (header?.logoUrl ?? "") : (footer?.logoUrl ?? ""),
   );
   const [socialIcons, setSocialIcons] = useState(
-    footer?.socialIcons ?? { instagram: "", facebook: "", tiktok: "", linkedin: "" },
+    footer?.socialIcons ?? { instagram: "", tumblr: "", facebook: "", tiktok: "", linkedin: "" },
   );
 
   async function save(event: FormEvent<HTMLFormElement>) {
@@ -128,6 +128,7 @@ export function StorefrontChromeForm({
         ? {
             socialLinks: {
               instagram: form.get("instagram"),
+              tumblr: form.get("tumblr"),
               facebook: form.get("facebook"),
               tiktok: form.get("tiktok"),
               linkedin: form.get("linkedin"),
@@ -445,7 +446,7 @@ function FooterFields({
       </div>
       <h3>Social links</h3>
       <div className="field-grid">
-        {(["instagram", "facebook", "tiktok", "linkedin"] as const).map(
+        {(["instagram", "tumblr", "facebook", "tiktok", "linkedin"] as const).map(
           (platform) => (
             <Text
               key={platform}
@@ -459,10 +460,10 @@ function FooterFields({
       </div>
       <div className="admin-stack compact-stack">
         <p className="field-hint">
-          Optionally upload a custom icon for each network. The icon is used only
-          when that network has a destination URL above.
+          Add an icon from the design. It appears as a decorative preview until
+          you add its destination URL above.
         </p>
-        {(["instagram", "facebook", "tiktok", "linkedin"] as const).map(
+        {(["instagram", "tumblr", "facebook", "tiktok", "linkedin"] as const).map(
           (platform) => (
             <MediaUploadField
               key={platform}
