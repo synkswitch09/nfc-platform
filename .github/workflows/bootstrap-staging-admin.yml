@@ -8,7 +8,7 @@ permissions:
   id-token: write
 jobs:
   bootstrap:
-    if: github.event.head_commit.message == 'chore(staging): execute one-time administrator bootstrap'
+    if: github.event.head_commit.message == 'execute-staging-admin-bootstrap-once'
     runs-on: ubuntu-latest
     environment: staging
     concurrency:
