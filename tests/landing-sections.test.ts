@@ -8,8 +8,17 @@ import {
   parseLandingContent,
   validateLandingSections,
 } from "@/lib/landing-sections";
+import { petsLandingTemplate } from "@/lib/pets-landing-template";
 
 describe("typed modular landing content", () => {
+  it("publishes the complete Pets design through ordinary editable CMS modules", () => {
+    const sections = validateLandingSections(petsLandingTemplate());
+    expect(sections.map(({ type }) => type)).toEqual([
+      "HERO", "BENEFITS", "STEPS", "FEATURE_LIST", "STORY_PROCESS", "FAQ", "CTA_BANNER",
+    ]);
+    expect(sections.every(({ content }) => content.layoutVariant === "PASTEL_EDITORIAL")).toBe(true);
+    expect(sections.find(({ type }) => type === "STEPS")?.content.anchorId).toBe("how-it-works");
+  });
   it("accepts ordered structured sections without arbitrary HTML", () => {
     const sections = validateLandingSections([
       {
@@ -99,6 +108,14 @@ describe("typed modular landing content", () => {
         },
       ]),
     ).toThrow();
+  });
+
+  it("accepts portable site images but rejects path traversal and executable formats", () => {
+    const imageUrl = "/images/tapkin/pets/hero-dog.webp";
+    expect(validateLandingSections([{ type: "HERO", name: "Pets", visible: true, content: { imageUrl } }])[0]?.content.imageUrl).toBe(imageUrl);
+    for (const unsafe of ["/images/../private.webp", "/images/tapkin/pets/photo.svg", "/images//other.webp", "/images/pet.webp?next=/admin"]) {
+      expect(() => validateLandingSections([{ type: "HERO", name: "Pets", visible: true, content: { imageUrl: unsafe } }])).toThrow();
+    }
   });
 
   it("ignores invalid persisted content instead of rendering it", () => {

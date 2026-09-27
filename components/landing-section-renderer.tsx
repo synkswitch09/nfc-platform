@@ -148,9 +148,15 @@ export function ModularPageRenderer({
     style: "currency",
     currency: store.currency,
   });
+  const hideBreadcrumbs = sections.some(
+    (section) =>
+      section.visible !== false &&
+      section.type === "HERO" &&
+      parseLandingContent("HERO", section.content)?.hideBreadcrumbs === true,
+  );
   return (
     <div className="category-landing modular-landing" data-theme={theme}>
-      {breadcrumbs && (
+      {breadcrumbs && !hideBreadcrumbs && (
         <nav
           className="breadcrumbs category-breadcrumbs"
           aria-label="Breadcrumb"

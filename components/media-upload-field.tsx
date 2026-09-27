@@ -29,7 +29,7 @@ export function MediaUploadField({ uploadEndpoint, disabledMessage, label, name,
   }
 
   return <div className="category-image-field">
-    <label className="field">{label}<input name={name} type="text" inputMode="url" value={value} placeholder="Upload below or paste an HTTPS image URL" onChange={event => onChange(event.target.value)} /></label>
+    <label className="field">{label}<input name={name} type="text" inputMode="url" value={value} placeholder="Upload, use /images/…, or paste an HTTPS URL" onChange={event => onChange(event.target.value)} /></label>
     {value && isSafeImageSource(value) && <Image src={value} alt="Selected preview" width={180} height={120} unoptimized />}
     <div className="category-image-upload"><input ref={fileRef} type="file" accept="image/png,image/jpeg,image/webp" disabled={!uploadEndpoint || pending} onChange={chooseFile} aria-label={`Choose ${label.toLowerCase()}`} /><button className="button secondary" type="button" disabled={!uploadEndpoint || pending} onClick={upload}><Upload size={16} /> {pending ? "Uploading…" : "Upload image"}</button></div>
     <span className="field-hint">PNG, JPEG or WebP, maximum 5 MB.{!uploadEndpoint ? ` ${disabledMessage}` : " Or select an existing approved media URL."}</span>

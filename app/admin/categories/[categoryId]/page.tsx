@@ -140,6 +140,7 @@ export default async function EditCategoryPage({
       <LandingSectionEditor
         anchorId="landing"
         categoryId={category.id}
+        categorySlug={category.slug}
         initial={category.landingSections.map((section) => ({
           id: section.id,
           type: section.type,

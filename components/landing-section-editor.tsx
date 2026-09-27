@@ -25,6 +25,7 @@ import {
   type LandingSectionDraft,
 } from "@/lib/landing-sections";
 import { fontFamilies, fontWeights, type TypographyOverride } from "@/lib/typography";
+import { petsLandingTemplate } from "@/lib/pets-landing-template";
 
 const itemTypes = new Set<LandingSectionType>([
   "FEATURE_BADGES",
@@ -120,6 +121,7 @@ const blankItem = (): SectionItem => ({
 
 export function LandingSectionEditor({
   categoryId,
+  categorySlug,
   initial,
   endpoint,
   mediaUploadEndpoint,
@@ -127,6 +129,7 @@ export function LandingSectionEditor({
   anchorId = "sections",
 }: {
   categoryId?: string;
+  categorySlug?: string;
   initial: LandingSectionDraft[];
   endpoint?: string;
   mediaUploadEndpoint?: string;
@@ -228,6 +231,28 @@ export function LandingSectionEditor({
               : "Save sections"}
         </button>
       </div>
+      {!structureLocked && (
+        (categorySlug === "pet" || categorySlug === "pets") && (
+          <div className="landing-template-choice">
+            <div>
+              <strong>Pets editorial page</strong>
+              <p>Seven editable sections: hero, benefit cards, image cards, feature checklist, finder story, FAQs and a closing banner. Shared header and footer are preserved.</p>
+            </div>
+            <button
+              className="button secondary"
+              type="button"
+              disabled={pending}
+              onClick={() => {
+                if (sections.length && !window.confirm("Replace this page's current sections with the Pets design? Save sections to publish it.")) return;
+                setSections(petsLandingTemplate(categorySlug));
+                setMessage("Pets design loaded. Review and save sections to publish.");
+              }}
+            >
+              Use Pets design
+            </button>
+          </div>
+        )
+      )}
       {!structureLocked && (
         <div className="landing-builder-add">
           <label className="field">
@@ -606,6 +631,16 @@ function SectionStyle({
         Pick one of the fixed pastel, black and white palettes, then adjust this
         section's geometry. It inherits the Store base palette by default.
       </p>
+      {section.type === "HERO" && (
+        <label className="check-field">
+          <input
+            type="checkbox"
+            checked={Boolean(section.content.hideBreadcrumbs)}
+            onChange={(event) => onChange({ hideBreadcrumbs: event.target.checked })}
+          />
+          <span>Hide breadcrumbs on this landing page</span>
+        </label>
+      )}
       <button
         className="text-button"
         type="button"
@@ -654,7 +689,7 @@ function SectionStyle({
             }
           >
             <option value="DEFAULT">Standard</option>
-            <option value="PASTEL_EDITORIAL">Editorial reference layout</option>
+            <option value="PASTEL_EDITORIAL">Editorial photo and cards</option>
           </select>
         </label>
         <label className="field">

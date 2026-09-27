@@ -207,6 +207,7 @@ const featureSchema = z.object({
   order,
 });
 const baseCopy = {
+  hideBreadcrumbs: z.boolean().default(false),
   eyebrow: z.string().trim().max(100).default(""),
   eyebrowColour: colour,
   anchorId: z
