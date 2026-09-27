@@ -4237,6 +4237,7 @@ body:has(.admin-shell) > footer {
 }
 .modular-story-process[data-variant="pastel-editorial"] .story-process-items {
   margin-top: 26px;
+  padding-bottom: 20px;
 }
 .modular-story-process[data-variant="pastel-editorial"]
   .story-process-items
