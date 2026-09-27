@@ -64,6 +64,7 @@ export function petsLandingTemplate(categorySlug = "pet"): LandingSectionDraft[]
       eyebrow: "HOW TO GET STARTED",
       headline: "Three simple steps.",
       columns: 3,
+      imageFit: "CONTAIN",
       ctaLabel: "Already have a tag? Activate it →",
       ctaHref: "/activate",
       items: [
