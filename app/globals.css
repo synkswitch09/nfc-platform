@@ -1136,6 +1136,18 @@ h3 {
 .article-page > h2 {
   margin-top: 2.5rem;
 }
+.faq-page-intro {
+  padding-bottom: 0;
+}
+.faq-page-intro h1 {
+  margin: 0 0 12px;
+  font-size: clamp(2rem, 4vw, 3.4rem);
+}
+.faq-page-intro p {
+  max-width: 68ch;
+  color: var(--muted);
+  line-height: 1.65;
+}
 .product-card h2 {
   font-size: 1.4rem;
   margin: 16px 0 6px;

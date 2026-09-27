@@ -59,6 +59,11 @@ export default async function FaqPage() {
   const localized = page
     ? localizeContentPage(page, locale, store.defaultLocale)
     : null;
+  const nfcEnabled = hasStoreCapability(store, StoreCapability.NFC);
+  const print3dEnabled = hasStoreCapability(store, StoreCapability.PRINT_3D);
+  const generalHeadline = nfcEnabled && print3dEnabled
+    ? "NFC and 3D printing essentials"
+    : nfcEnabled ? "About NFC and QR codes" : print3dEnabled ? "About 3D printing" : "General questions";
   const categoryFaqSections = categories.flatMap((category) => {
     const categorySections = localizeSections(
       category.landingSections,
@@ -118,17 +123,32 @@ export default async function FaqPage() {
   // Only FAQ sections belong on this route. In particular, older generic
   // Content Page sections can be incomplete while they are edited; rendering
   // them here used to leave the page visually empty even though /faq existed.
-  const generalFaqSections = (localized?.sections ?? []).filter(
-    (section) =>
-      section.type === LandingSectionType.FAQ &&
-      modularFaq([section]).length > 0,
-  );
+  const generalFaqSections = (localized?.sections ?? [])
+    .filter(
+      (section) =>
+        section.type === LandingSectionType.FAQ &&
+        modularFaq([section]).length > 0,
+    )
+    .map((section) => {
+      const content = parseLandingContent(section.type, section.content);
+      return {
+        ...section,
+        content: {
+          ...content,
+          eyebrow: content?.eyebrow || "MORE ANSWERS",
+          headline: content?.headline || generalHeadline,
+        },
+      };
+    });
   // Category FAQs are always shown first, followed by the dedicated general
   // FAQ questions configured in Admin → Content → Pages → FAQs.
   const sections = [...categoryFaqSections, ...generalFaqSections];
   if (sections.length) {
     return (
-      <><ModularPageRenderer
+      <><header className="section compact-section faq-page-intro">
+        <h1>Frequently asked questions</h1>
+        <p>Find practical answers about {store.displayName} products{nfcEnabled ? ", NFC and QR codes" : ""}{print3dEnabled ? ", and 3D printing" : ""}. Explore the questions below before choosing a product.</p>
+      </header><ModularPageRenderer
         name={localized?.name ?? "Frequently asked questions"}
         sections={sections}
         products={[]}
