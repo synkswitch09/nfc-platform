@@ -4177,6 +4177,12 @@ body:has(.admin-shell) > footer {
   width: 36px;
   height: 36px;
 }
+.modular-steps[data-variant="pastel-editorial"] .step-grid h3 {
+  margin: 0 0 6px;
+  font-size: 1.12rem;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+}
 .modular-steps[data-variant="pastel-editorial"] > .actions {
   justify-content: center;
 }
@@ -4238,6 +4244,12 @@ body:has(.admin-shell) > footer {
   > img {
   height: 118px;
 }
+.modular-story-process[data-variant="pastel-editorial"] .story-process-items h3 {
+  margin: 0 0 5px;
+  font-size: 1.05rem;
+  line-height: 1.25;
+  letter-spacing: -0.02em;
+}
 .category-faq[data-variant="pastel-editorial"] {
   max-width: 1228px;
 }
@@ -4245,6 +4257,7 @@ body:has(.admin-shell) > footer {
   margin-bottom: 26px;
 }
 .category-faq[data-variant="pastel-editorial"] .modular-faq-grid {
+  grid-template-columns: repeat(var(--section-columns, 4), minmax(0, 1fr));
   gap: 16px;
 }
 .category-faq[data-variant="pastel-editorial"] .modular-faq-grid details[open] {
@@ -4790,6 +4803,7 @@ body:has(.admin-shell) > footer {
   .modular-landing .story-process-items,
   .modular-landing .modular-faq-grid,
   .modular-landing .modular-category-grid .category-card-grid { grid-template-columns: minmax(0, 1fr); }
+  .modular-landing .category-faq[data-variant="pastel-editorial"] .modular-faq-grid { grid-template-columns: minmax(0, 1fr); }
   .modular-steps[data-variant="pastel-editorial"] .step-grid { margin-top: 80px; }
   .modular-hero[data-variant="pastel-editorial"] .modular-hero-features { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .modular-hero[data-variant="pastel-editorial"] .modular-hero-features > div { width: auto; min-width: 0; }
