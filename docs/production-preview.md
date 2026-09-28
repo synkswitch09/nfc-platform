@@ -30,3 +30,11 @@ Finish legal/privacy copy, catalog, responsive review, carrier rates, email deli
 - A public homepage returns `X-Robots-Tag: noindex, nofollow, noarchive`.
 - A checkout POST and a registration POST return 503 with no order/user creation; no live Stripe or email credentials are configured.
 - Production has its own app, database, storage, migrations, backups and release identity. Confirm Azure subscription remains active after free credits expire.
+
+## Azure preparation status (28 September 2026)
+
+- Created `rg-commerce-production-au` in Australia East with a monthly A$50 budget (`production-preview-50-aud`), forecast alert at A$40, actual-cost alert at A$50, sent to the account owner. Azure budgets notify but do not stop charges.
+- Created `vnet-commerce-production-au` (`10.85.0.0/16`), the delegated PostgreSQL subnet (`10.85.1.0/27`), the delegated Container Apps subnet (`10.85.2.0/27`), and a linked private DNS zone `commerce-production.postgres.database.azure.com`. A VNet has no standing charge; the private DNS zone may incur a small charge.
+- A separate Container Apps environment `cae-commerce-production-au` failed to create: `MaxNumberOfRegionalEnvironmentsInSubExceeded`. This free-trial subscription permits only one environment in Australia East, already occupied by staging. The Azure Quotas portal currently disables the adjustment request and links to subscription upgrade. Do not deploy production in the staging environment or create the database while the production app environment is blocked.
+- Azure's PostgreSQL B1ms + 32 GiB estimate was USD 23.40/month in Australia East before currency conversion, networking, app compute, storage and tax. The free 750-hour B1ms grant is subscription-wide and staging already uses a B1ms. Reassess the entire production estimate against the A$50/month limit before provisioning billable resources. The A$276.73 free-trial credit expires 10 October 2026 and services will pause unless the account is upgraded.
+- `production-preview` is a draft PR into `staging`; CI run 36404829676 passed. There is no production database, Container App, storage account, DNS binding, certificate or deployment yet.
