@@ -12,6 +12,7 @@ import { getRuntimeConfig } from "@/lib/config";
 import { getCurrentStorefront, isStoreCommerceAvailable } from "@/lib/storefront";
 
 export async function POST(request: NextRequest) {
+  if (getRuntimeConfig().previewMode) return jsonError("This store is not accepting orders yet", 503);
   if (!assertSameOrigin(request)) return jsonError("Invalid request origin", 403);
   const limited = await rateLimit("checkout", getClientIp(request), 20, 60 * 60 * 1000);
   if (!limited.allowed) return jsonError("Too many checkout attempts. Try again later.", 429);

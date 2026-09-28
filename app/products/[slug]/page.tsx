@@ -36,7 +36,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     title,
     description,
     alternates: { canonical: canonicalForStore(store.origin, `/products/${product.slug}`, product.canonicalUrl) },
-    robots: product.indexable && searchEnginePolicy(getRuntimeConfig().appEnv).index ? { index: true, follow: true } : { index: false, follow: false },
+    robots: product.indexable && searchEnginePolicy(getRuntimeConfig().appEnv, getRuntimeConfig().previewMode).index ? { index: true, follow: true } : { index: false, follow: false },
     openGraph: { title, description, type: "website", url: `${store.origin}/products/${product.slug}`, images: product.ogImageUrl ? [product.ogImageUrl] : product.images[0] ? [product.images[0].url] : undefined },
   };
 }

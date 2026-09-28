@@ -65,6 +65,16 @@ describe("runtime configuration", () => {
     expect(searchEnginePolicy("development").index).toBe(false);
     expect(searchEnginePolicy("staging").follow).toBe(false);
     expect(searchEnginePolicy("production").index).toBe(true);
+    expect(searchEnginePolicy("production", true).index).toBe(false);
+  });
+
+  it("accepts production preview only without payment or email credentials", () => {
+    const live = nonDevelopment("production");
+    const preview = { ...live, STRIPE_SECRET_KEY: undefined, STRIPE_WEBHOOK_SECRET: undefined, NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: undefined, EMAIL_WEBHOOK_URL: undefined, EMAIL_WEBHOOK_SECRET: undefined, PRODUCTION_PREVIEW_MODE: "true", EMAIL_MODE: "mock" };
+    expect(parseRuntimeConfig(preview).previewMode).toBe(true);
+    expect(() => parseRuntimeConfig({ ...preview, STRIPE_SECRET_KEY: live.STRIPE_SECRET_KEY })).toThrow("must not have Stripe credentials");
+    expect(() => parseRuntimeConfig({ ...preview, EMAIL_WEBHOOK_URL: live.EMAIL_WEBHOOK_URL })).toThrow("must not deliver email");
+    expect(() => parseRuntimeConfig({ ...nonDevelopment("staging"), PRODUCTION_PREVIEW_MODE: "true" })).toThrow("restricted to production");
   });
 
   it("builds OAuth and permanent NFC URLs only from the configured origin", () => {

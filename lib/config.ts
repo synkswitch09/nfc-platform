@@ -48,6 +48,7 @@ const runtimeConfigSchema = z.object({
   ETSY_SHARED_SECRET: optionalString,
   ETSY_SYNC_SECRET: optionalString,
   ENABLE_TEST_CHECKOUT: booleanString,
+  PRODUCTION_PREVIEW_MODE: booleanString,
   ANALYTICS_ID: optionalString,
   ANALYTICS_GA4_STORES: analyticsStores,
   LOG_LEVEL: z.enum(["info", "warn", "error"]).default("info"),
@@ -99,20 +100,23 @@ const runtimeConfigSchema = z.object({
       if (!container.endsWith(`-${value.APP_ENV}`)) issue("AZURE_STORAGE_CONTAINER_URL", "The Blob container name must end with the APP_ENV name");
     }
     if (!value.AZURE_STORAGE_SAS_TOKEN) issue("AZURE_STORAGE_SAS_TOKEN", "AZURE_STORAGE_SAS_TOKEN is required for Azure Blob storage");
-    if (value.EMAIL_MODE === "mock") issue("EMAIL_MODE", "Staging and production require an isolated sandbox or live email provider");
-    if (!value.EMAIL_WEBHOOK_URL) issue("EMAIL_WEBHOOK_URL", "EMAIL_WEBHOOK_URL is required outside development");
-    if (!value.EMAIL_WEBHOOK_SECRET) issue("EMAIL_WEBHOOK_SECRET", "EMAIL_WEBHOOK_SECRET is required outside development");
+    if (value.EMAIL_MODE === "mock" && !value.PRODUCTION_PREVIEW_MODE) issue("EMAIL_MODE", "Staging and production require an isolated sandbox or live email provider");
+    if (!value.EMAIL_WEBHOOK_URL && !value.PRODUCTION_PREVIEW_MODE) issue("EMAIL_WEBHOOK_URL", "EMAIL_WEBHOOK_URL is required outside development");
+    if (!value.EMAIL_WEBHOOK_SECRET && !value.PRODUCTION_PREVIEW_MODE) issue("EMAIL_WEBHOOK_SECRET", "EMAIL_WEBHOOK_SECRET is required outside development");
     if (value.EMAIL_TEST_OUTBOX_PATH) issue("EMAIL_TEST_OUTBOX_PATH", "The test email outbox is restricted to development");
     if (value.ENABLE_TEST_CHECKOUT) issue("ENABLE_TEST_CHECKOUT", "Test checkout is restricted to development");
     if (value.DEV_ADMIN_EMAIL || value.DEV_ADMIN_PASSWORD) issue("DEV_ADMIN_EMAIL", "Development administrator credentials are forbidden outside development");
   }
 
   if (value.APP_ENV === "staging") {
+    if (value.PRODUCTION_PREVIEW_MODE) issue("PRODUCTION_PREVIEW_MODE", "Preview mode is restricted to production");
     if (!value.STRIPE_SECRET_KEY?.startsWith("sk_test_")) issue("STRIPE_SECRET_KEY", "Staging requires a Stripe test secret key");
     if (!value.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY?.startsWith("pk_test_")) issue("NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY", "Staging requires a Stripe test publishable key");
     if (!value.STRIPE_WEBHOOK_SECRET?.startsWith("whsec_")) issue("STRIPE_WEBHOOK_SECRET", "Staging requires its own Stripe webhook secret");
     if (value.EMAIL_MODE !== "sandbox") issue("EMAIL_MODE", "Staging email must use sandbox mode");
   }
+
+  if (value.APP_ENV === "development" && value.PRODUCTION_PREVIEW_MODE) issue("PRODUCTION_PREVIEW_MODE", "Preview mode is restricted to production");
 
   if (value.EMAIL_PROVIDER === "mailtrap-sandbox") {
     if (value.APP_ENV !== "staging" || value.EMAIL_MODE !== "sandbox") issue("EMAIL_PROVIDER", "Mailtrap Sandbox is restricted to staging sandbox email");
@@ -121,10 +125,15 @@ const runtimeConfigSchema = z.object({
   }
 
   if (value.APP_ENV === "production") {
-    if (!value.STRIPE_SECRET_KEY?.startsWith("sk_live_")) issue("STRIPE_SECRET_KEY", "Production requires a Stripe live secret key");
-    if (!value.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY?.startsWith("pk_live_")) issue("NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY", "Production requires a Stripe live publishable key");
-    if (!value.STRIPE_WEBHOOK_SECRET?.startsWith("whsec_")) issue("STRIPE_WEBHOOK_SECRET", "Production requires its own Stripe webhook secret");
-    if (value.EMAIL_MODE !== "live") issue("EMAIL_MODE", "Production email must use live mode");
+    if (value.PRODUCTION_PREVIEW_MODE) {
+      if (value.STRIPE_SECRET_KEY || value.STRIPE_WEBHOOK_SECRET || value.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY) issue("STRIPE_SECRET_KEY", "Preview mode must not have Stripe credentials");
+      if (value.EMAIL_MODE !== "mock" || value.EMAIL_WEBHOOK_URL || value.EMAIL_WEBHOOK_SECRET) issue("EMAIL_MODE", "Preview mode must not deliver email");
+    } else {
+      if (!value.STRIPE_SECRET_KEY?.startsWith("sk_live_")) issue("STRIPE_SECRET_KEY", "Production requires a Stripe live secret key");
+      if (!value.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY?.startsWith("pk_live_")) issue("NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY", "Production requires a Stripe live publishable key");
+      if (!value.STRIPE_WEBHOOK_SECRET?.startsWith("whsec_")) issue("STRIPE_WEBHOOK_SECRET", "Production requires its own Stripe webhook secret");
+      if (value.EMAIL_MODE !== "live") issue("EMAIL_MODE", "Production email must use live mode");
+    }
     if (value.STAGING_ADMIN_EMAIL || value.STAGING_ADMIN_PASSWORD) issue("STAGING_ADMIN_EMAIL", "Staging administrator credentials are forbidden in production");
   }
 });
@@ -143,6 +152,7 @@ export type RuntimeConfig = {
   etsy: { apiKey?: string; sharedSecret?: string; syncSecret?: string };
   analyticsStores: Record<string, { measurementId: string; apiSecret: string }>;
   logLevel: "info" | "warn" | "error";
+  previewMode: boolean;
 };
 
 export function parseRuntimeConfig(environment: Record<string, string | undefined>): RuntimeConfig {
@@ -167,6 +177,7 @@ export function parseRuntimeConfig(environment: Record<string, string | undefine
     etsy: { apiKey: value.ETSY_API_KEY, sharedSecret: value.ETSY_SHARED_SECRET, syncSecret: value.ETSY_SYNC_SECRET },
     analyticsStores: value.ANALYTICS_GA4_STORES,
     logLevel: value.LOG_LEVEL,
+    previewMode: value.PRODUCTION_PREVIEW_MODE,
   };
 }
 
@@ -176,8 +187,8 @@ export function currentAppEnvironment(environment: Record<string, string | undef
   return appEnvironments.includes(environment.APP_ENV as AppEnvironment) ? environment.APP_ENV as AppEnvironment : "development";
 }
 
-export function searchEnginePolicy(environment: AppEnvironment) {
-  return environment === "production"
+export function searchEnginePolicy(environment: AppEnvironment, previewMode = false) {
+  return environment === "production" && !previewMode
     ? { index: true, follow: true, noarchive: false }
     : { index: false, follow: false, noarchive: true };
 }
