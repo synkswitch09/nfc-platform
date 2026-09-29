@@ -19,4 +19,13 @@ describe("production storefront preview", () => {
     expect((await proxy(new NextRequest("https://kosykin.com.au/api/admin/orders"))).status).toBe(503);
     expect((await proxy(new NextRequest("https://kosykin.com.au/api/health/ready"))).status).toBe(200);
   });
+  it("allows official production pages and admin writes with checkout closed", async () => {
+    vi.stubEnv("APP_ENV", "production");
+    vi.stubEnv("PRODUCTION_PREVIEW_MODE", "false");
+    vi.stubEnv("PRODUCTION_CHECKOUT_ENABLED", "false");
+    const home = await proxy(new NextRequest("https://tapkin.com.au/"));
+    expect(home.status).toBe(200);
+    expect(home.headers.get("X-Robots-Tag")).toBeNull();
+    expect((await proxy(new NextRequest("https://tapkin.com.au/api/auth/register", { method: "POST" }))).status).toBe(200);
+  });
 });

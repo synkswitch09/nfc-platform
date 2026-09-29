@@ -157,6 +157,7 @@ export default async function RootLayout({
         style={storeThemeStyle(store.theme)}
       >
         {runtime.previewMode && <div role="status" style={{ background: "#253334", color: "#fff", padding: "0.65rem 1rem", textAlign: "center" }}>Preview only · {settings.storeName} is not accepting orders yet.</div>}
+        {!runtime.previewMode && !runtime.checkoutEnabled && <div role="status" style={{ background: "#253334", color: "#fff", padding: "0.65rem 1rem", textAlign: "center" }}>{settings.storeName} is open for browsing. Orders are not open yet.</div>}
         <CartProvider storageKey={`commerce-cart:${store.id}:v1`}>
           <SiteHeader
             config={settings.headerConfig}

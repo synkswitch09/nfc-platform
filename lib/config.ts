@@ -49,6 +49,7 @@ const runtimeConfigSchema = z.object({
   ETSY_SYNC_SECRET: optionalString,
   ENABLE_TEST_CHECKOUT: booleanString,
   PRODUCTION_PREVIEW_MODE: booleanString,
+  PRODUCTION_CHECKOUT_ENABLED: booleanString,
   ANALYTICS_ID: optionalString,
   ANALYTICS_GA4_STORES: analyticsStores,
   LOG_LEVEL: z.enum(["info", "warn", "error"]).default("info"),
@@ -129,9 +130,13 @@ const runtimeConfigSchema = z.object({
       if (value.STRIPE_SECRET_KEY || value.STRIPE_WEBHOOK_SECRET || value.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY) issue("STRIPE_SECRET_KEY", "Preview mode must not have Stripe credentials");
       if (value.EMAIL_MODE !== "mock" || value.EMAIL_WEBHOOK_URL || value.EMAIL_WEBHOOK_SECRET) issue("EMAIL_MODE", "Preview mode must not deliver email");
     } else {
-      if (!value.STRIPE_SECRET_KEY?.startsWith("sk_live_")) issue("STRIPE_SECRET_KEY", "Production requires a Stripe live secret key");
-      if (!value.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY?.startsWith("pk_live_")) issue("NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY", "Production requires a Stripe live publishable key");
-      if (!value.STRIPE_WEBHOOK_SECRET?.startsWith("whsec_")) issue("STRIPE_WEBHOOK_SECRET", "Production requires its own Stripe webhook secret");
+      if (value.PRODUCTION_CHECKOUT_ENABLED) {
+        if (!value.STRIPE_SECRET_KEY?.startsWith("sk_live_")) issue("STRIPE_SECRET_KEY", "Production checkout requires a Stripe live secret key");
+        if (!value.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY?.startsWith("pk_live_")) issue("NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY", "Production checkout requires a Stripe live publishable key");
+        if (!value.STRIPE_WEBHOOK_SECRET?.startsWith("whsec_")) issue("STRIPE_WEBHOOK_SECRET", "Production checkout requires its own Stripe webhook secret");
+      } else if (value.STRIPE_SECRET_KEY || value.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || value.STRIPE_WEBHOOK_SECRET) {
+        issue("STRIPE_SECRET_KEY", "Production checkout is disabled; leave Stripe credentials unset");
+      }
       if (value.EMAIL_MODE !== "live") issue("EMAIL_MODE", "Production email must use live mode");
     }
     if (value.STAGING_ADMIN_EMAIL || value.STAGING_ADMIN_PASSWORD) issue("STAGING_ADMIN_EMAIL", "Staging administrator credentials are forbidden in production");
@@ -153,6 +158,7 @@ export type RuntimeConfig = {
   analyticsStores: Record<string, { measurementId: string; apiSecret: string }>;
   logLevel: "info" | "warn" | "error";
   previewMode: boolean;
+  checkoutEnabled: boolean;
 };
 
 export function parseRuntimeConfig(environment: Record<string, string | undefined>): RuntimeConfig {
@@ -178,6 +184,7 @@ export function parseRuntimeConfig(environment: Record<string, string | undefine
     analyticsStores: value.ANALYTICS_GA4_STORES,
     logLevel: value.LOG_LEVEL,
     previewMode: value.PRODUCTION_PREVIEW_MODE,
+    checkoutEnabled: !value.PRODUCTION_PREVIEW_MODE && (value.APP_ENV !== "production" || value.PRODUCTION_CHECKOUT_ENABLED),
   };
 }
 

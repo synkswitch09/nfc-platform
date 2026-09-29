@@ -77,6 +77,16 @@ describe("runtime configuration", () => {
     expect(() => parseRuntimeConfig({ ...nonDevelopment("staging"), PRODUCTION_PREVIEW_MODE: "true" })).toThrow("restricted to production");
   });
 
+  it("indexes the official production site while checkout stays closed", () => {
+    const live = nonDevelopment("production");
+    const closed = { ...live, STRIPE_SECRET_KEY: undefined, STRIPE_WEBHOOK_SECRET: undefined, NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: undefined, PRODUCTION_PREVIEW_MODE: "false" };
+    expect(parseRuntimeConfig(closed).checkoutEnabled).toBe(false);
+    expect(searchEnginePolicy("production", parseRuntimeConfig(closed).previewMode).index).toBe(true);
+    expect(() => parseRuntimeConfig({ ...closed, PRODUCTION_CHECKOUT_ENABLED: "true" })).toThrow("Stripe live secret key");
+    expect(parseRuntimeConfig({ ...live, PRODUCTION_CHECKOUT_ENABLED: "true" }).checkoutEnabled).toBe(true);
+    expect(() => parseRuntimeConfig({ ...closed, STRIPE_SECRET_KEY: live.STRIPE_SECRET_KEY })).toThrow("leave Stripe credentials unset");
+  });
+
   it("builds OAuth and permanent NFC URLs only from the configured origin", () => {
     const config = parseRuntimeConfig(nonDevelopment("staging"));
     expect(oauthCallbackUrl("google", config)).toBe("https://staging.tapkin.com.au/api/auth/oauth/google/callback");

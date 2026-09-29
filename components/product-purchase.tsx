@@ -12,7 +12,7 @@ type OptionValue = { id: string; label: string; value: string; priceDeltaCents: 
 type Option = { code: string; name: string; type: string; required: boolean; maxLength: number | null; priceDeltaCents: number; helpText: string | null; values: OptionValue[] };
 type Choice = "BASIC" | "PERSONALISED";
 
-export function ProductPurchase({ productName, description, categoryName, storeName, currency, connected, personalisationMode, variants, options, images }: { productName: string; description: string; categoryName: string | null; storeName: string; currency: string; connected: boolean; personalisationMode: "NONE" | "OPTIONAL" | "REQUIRED"; variants: Variant[]; options: Option[]; images: ProductImage[] }) {
+export function ProductPurchase({ checkoutEnabled, productName, description, categoryName, storeName, currency, connected, personalisationMode, variants, options, images }: { checkoutEnabled: boolean; productName: string; description: string; categoryName: string | null; storeName: string; currency: string; connected: boolean; personalisationMode: "NONE" | "OPTIONAL" | "REQUIRED"; variants: Variant[]; options: Option[]; images: ProductImage[] }) {
   const router = useRouter();
   const cart = useCart();
   const defaultVariant = variants.find(item => item.isDefault) ?? variants[0];
@@ -68,6 +68,7 @@ export function ProductPurchase({ productName, description, categoryName, storeN
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
+    if (!checkoutEnabled) return setError("Orders are not open yet.");
     if (!variant || soldOut) return setError(selectionMatchesVariant ? "This option is currently unavailable." : "That option combination is currently unavailable.");
     const personalisation = { ...selections, ...(choice === "PERSONALISED" ? Object.fromEntries(Object.entries(customValues).filter(([, value]) => value)) : {}) };
     cart.add({ variantId: variant.id, productName, variantName: variant.name, unitPriceCents: variant.priceCents + optionPriceCents, quantity: 1, personalisationChoice: choice, personalisation });
@@ -90,8 +91,8 @@ export function ProductPurchase({ productName, description, categoryName, storeN
         {choice === "PERSONALISED" && customOptions.map(option => <CustomField key={option.code} option={option} value={customValues[option.code] ?? ""} onChange={value => setCustomValues(current => ({ ...current, [option.code]: value }))} />)}
         <div className="purchase-total"><span>Price</span><strong>{variant ? new Intl.NumberFormat("en-AU", { style: "currency", currency }).format((variant.priceCents + optionPriceCents) / 100) : "Unavailable"}</strong></div>
         {error && <div className="form-error" role="alert">{error}</div>}
-        <button className="button purchase-button" disabled={soldOut}>{soldOut ? (selectionMatchesVariant ? "Out of stock" : "Unavailable combination") : "Add to cart"}</button>
-        <p className="fine-print">Secure checkout · Prices include GST where applicable</p>
+        <button className="button purchase-button" disabled={!checkoutEnabled || soldOut}>{!checkoutEnabled ? "Orders opening soon" : soldOut ? (selectionMatchesVariant ? "Out of stock" : "Unavailable combination") : "Add to cart"}</button>
+        <p className="fine-print">{checkoutEnabled ? "Secure checkout · Prices include GST where applicable" : "Products are visible while orders are closed."}</p>
       </form>
       <div className="trust-list">{connected && <span><ShieldCheck /> Personal data stays off the NFC chip</span>}{connected && <span><RefreshCw /> Update the profile any time</span>}<span><PackageCheck /> Made to order</span><span><Truck /> Australia-wide delivery</span></div>
     </div>
