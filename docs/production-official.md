@@ -1,0 +1,21 @@
+# Official production site with orders closed
+
+This is the production launch for Tapkin and Kosykin, indexed by search engines and editable in Admin. Orders remain closed until inventory, fulfillment, payments and launch operations are ready. It uses the production resource group, database, Blob storage and identity; staging data and credentials are not reused.
+
+## Runtime
+
+Set `APP_ENV=production`, `PRODUCTION_PREVIEW_MODE=false`, `PRODUCTION_CHECKOUT_ENABLED=false`, `APP_URL=https://tapkin.com.au`, `DATABASE_EXPECTED_NAME=tapkin_production`, `STORAGE_PROVIDER=azure-blob`, `STORAGE_ENVIRONMENT=production` and a production-only Blob container URL. Configure distinct TLS `DATABASE_URL`, `SESSION_SECRET`, `ACTIVATION_PEPPER` and scoped storage SAS. Configure a live transactional email sender and its webhook secret for account verification and password reset. Leave Stripe keys unset while checkout is closed.
+
+The production domain must have DNS, a verified Container Apps custom domain and a valid certificate before the workflow smoke test uses it. Bind `kosykin.com.au` to the same app when its Store and content are ready. Run migrations with the production migration job, bootstrap a real production administrator through a one-time operational process and import reviewed storefront releases from staging. Release imports create variants with zero inventory. Review all variants for `trackInventory=true` and `backorderPolicy=DENY`; the separate checkout flag still blocks any purchase regardless of variant policy.
+
+Do not run the development seed in production. Keep the production GitHub environment restricted to `main` with a required reviewer. Promote reviewed application code from staging to `main`, manually dispatch the production workflow and approve the environment deployment.
+
+## Verification
+
+- `/api/health/live` and `/api/health/ready` succeed over both bound domains.
+- `/robots.txt` allows public content and names `/sitemap.xml`; the sitemap lists only published, indexable pages for the correct Store. Published pages have their intended canonical URLs and do not have a blanket `X-Robots-Tag: noindex`.
+- Admin login, CMS edits, account email and other intended flows work against the production database.
+- Product pages show orders are closed, structured offers say `OutOfStock`, and `POST /api/checkout` returns 503 before creating an order, even for untracked or backorderable variants.
+- Confirm backups and restore procedures, monitoring, legal/privacy content and mobile layout before inviting traffic. Search indexing is controlled by crawlers and can take time after the site becomes accessible.
+
+Opening sales later is a separate release: configure production Stripe keys and webhook, verify inventory and shipping, then explicitly set `PRODUCTION_CHECKOUT_ENABLED=true` and deploy.

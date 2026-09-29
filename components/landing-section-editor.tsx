@@ -1,0 +1,1596 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import {
+  ChevronDown,
+  ChevronUp,
+  Copy,
+  Eye,
+  EyeOff,
+  Plus,
+  Trash2,
+} from "lucide-react";
+import { useRouter } from "next/navigation";
+import type { LandingSectionType } from "@prisma/client";
+import { CategoryImageUploadField } from "@/components/category-image-upload-field";
+import { ColourField } from "@/components/colour-field";
+import {
+  blankLandingSection,
+  duplicateLandingSection,
+  landingColourThemeLabels,
+  landingColourThemes,
+  landingSectionRegistry,
+  landingSectionTypes,
+  prepareLandingSectionDrafts,
+  type LandingSectionDraft,
+} from "@/lib/landing-sections";
+import { fontFamilies, fontWeights, type TypographyOverride } from "@/lib/typography";
+import { petsLandingTemplate } from "@/lib/pets-landing-template";
+
+const itemTypes = new Set<LandingSectionType>([
+  "FEATURE_BADGES",
+  "BENEFITS",
+  "STEPS",
+  "FEATURE_LIST",
+  "STORY_PROCESS",
+  "TRUST_STRIP",
+  "STATS",
+]);
+const narrativeTypes = new Set<LandingSectionType>([
+  "HERO",
+  "MEDIA_CONTENT",
+  "CTA_BANNER",
+  "RICH_TEXT",
+]);
+const gridTypes = new Set<LandingSectionType>([
+  "PRODUCT_SHOWCASE",
+  "PRODUCT_GRID",
+  "CATEGORY_GRID",
+]);
+const cardStyleTypes = new Set<LandingSectionType>([
+  ...itemTypes,
+  ...gridTypes,
+  "FAQ",
+]);
+type SectionItem = {
+  id?: string;
+  icon?: string;
+  title?: string;
+  description?: string;
+  supportingText?: string;
+  imageUrl?: string;
+  imageAlt?: string;
+  ctaLabel?: string;
+  ctaHref?: string;
+  ctaBackground?: string;
+  ctaTextColour?: string;
+  ctaBorderColour?: string;
+  backgroundColour?: string;
+  textColour?: string;
+  iconBackgroundColour?: string;
+  iconColour?: string;
+  imagePosition?: number;
+  visible?: boolean;
+  order?: number;
+};
+type FaqItem = {
+  id?: string;
+  question?: string;
+  answer?: string;
+  visible?: boolean;
+  order?: number;
+};
+type TextBlock = {
+  id: string;
+  type: "EYEBROW" | "HEADING" | "SUBHEADING" | "PARAGRAPH" | "SUPPORTING_TEXT";
+  text: string;
+  visible: boolean;
+  order: number;
+};
+type FeatureItem = {
+  id: string;
+  icon: string;
+  label: string;
+  supportingText: string;
+  backgroundColour: string;
+  iconColour: string;
+  visible: boolean;
+  order: number;
+};
+const blankItem = (): SectionItem => ({
+  id: crypto.randomUUID(),
+  icon: "sparkles",
+  title: "",
+  description: "",
+  supportingText: "",
+  imageUrl: "",
+  imageAlt: "",
+  ctaLabel: "",
+  ctaHref: "",
+  ctaBackground: "",
+  ctaTextColour: "",
+  ctaBorderColour: "",
+  backgroundColour: "",
+  textColour: "",
+  iconBackgroundColour: "",
+  iconColour: "",
+  imagePosition: 0,
+  visible: true,
+  order: 0,
+});
+
+export function LandingSectionEditor({
+  categoryId,
+  categorySlug,
+  initial,
+  endpoint,
+  mediaUploadEndpoint,
+  structureLocked = false,
+  anchorId = "sections",
+}: {
+  categoryId?: string;
+  categorySlug?: string;
+  initial: LandingSectionDraft[];
+  endpoint?: string;
+  mediaUploadEndpoint?: string;
+  structureLocked?: boolean;
+  anchorId?: string;
+}) {
+  const router = useRouter();
+  const listRef = useRef<HTMLDivElement>(null);
+  const [sections, setSections] = useState<LandingSectionDraft[]>(() =>
+    prepareLandingSectionDrafts(initial),
+  );
+  const [addType, setAddType] = useState<LandingSectionType>("MEDIA_CONTENT");
+  const [pending, setPending] = useState(false);
+  const [message, setMessage] = useState("");
+  const [linkTargets, setLinkTargets] = useState<Array<{ href: string; label: string }>>([]);
+  useEffect(() => {
+    fetch("/api/admin/link-targets")
+      .then((response) => (response.ok ? response.json() : null))
+      .then((result) => setLinkTargets(Array.isArray(result?.targets) ? result.targets : []))
+      .catch(() => undefined);
+  }, []);
+  const update = (index: number, changes: Partial<LandingSectionDraft>) =>
+    setSections((rows) =>
+      rows.map((row, rowIndex) =>
+        rowIndex === index ? { ...row, ...changes } : row,
+      ),
+    );
+  const content = (index: number, changes: Record<string, unknown>) =>
+    update(index, { content: { ...sections[index].content, ...changes } });
+  const move = (index: number, delta: number) =>
+    setSections((rows) => {
+      const target = index + delta;
+      if (target < 0 || target >= rows.length) return rows;
+      const next = [...rows];
+      [next[index], next[target]] = [next[target], next[index]];
+      return next;
+    });
+  async function save() {
+    if (!endpoint && !categoryId) return;
+    setPending(true);
+    setMessage("");
+    const response = await fetch(
+      endpoint ?? `/api/admin/categories/${categoryId}/sections`,
+      {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ sections }),
+      },
+    );
+    const result = await response.json().catch(() => ({}));
+    setPending(false);
+    if (!response.ok)
+      return setMessage(result.error ?? "Landing sections could not be saved");
+    if (Array.isArray(result.sections)) setSections(result.sections);
+    setMessage("Landing sections saved and published");
+    router.refresh();
+  }
+  function addSection() {
+    setSections((rows) => [...rows, blankLandingSection(addType)]);
+    setMessage("Section added. Save sections to publish this change.");
+    requestAnimationFrame(() =>
+      listRef.current?.lastElementChild?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      }),
+    );
+  }
+  const groups = [
+    "Hero",
+    "Content",
+    "Cards",
+    "Products",
+    "Conversion",
+  ] as const;
+  return (
+    <section className="admin-panel landing-builder" id={anchorId}>
+      <datalist id="landing-link-targets">
+        {linkTargets.map((target) => <option key={target.href} value={target.href}>{target.label}</option>)}
+      </datalist>
+      <div className="panel-heading">
+        <div>
+          <h2>{structureLocked ? "Localized sections" : "Sections"}</h2>
+          <p>
+            {structureLocked
+              ? "Translate the structured fields below. Section order and types are inherited from the default locale."
+              : "Add, edit, hide, reorder, duplicate or remove structured modules. Public pages never accept arbitrary HTML, CSS or JavaScript."}
+          </p>
+        </div>
+        <button
+          className="button"
+          type="button"
+          disabled={pending}
+          onClick={save}
+        >
+          {pending
+            ? "Saving…"
+            : structureLocked
+              ? "Save translation"
+              : "Save sections"}
+        </button>
+      </div>
+      {!structureLocked && (
+        (categorySlug === "pet" || categorySlug === "pets") && (
+          <div className="landing-template-choice">
+            <div>
+              <strong>Pets editorial page</strong>
+              <p>Seven editable sections: hero, benefit cards, image cards, feature checklist, finder story, FAQs and a closing banner. Shared header and footer are preserved.</p>
+            </div>
+            <button
+              className="button secondary"
+              type="button"
+              disabled={pending}
+              onClick={() => {
+                if (sections.length && !window.confirm("Replace this page's current sections with the Pets design? Save sections to publish it.")) return;
+                setSections(petsLandingTemplate(categorySlug));
+                setMessage("Pets design loaded. Review and save sections to publish.");
+              }}
+            >
+              Use Pets design
+            </button>
+          </div>
+        )
+      )}
+      {!structureLocked && (
+        <div className="landing-builder-add">
+          <label className="field">
+            <span>Section type</span>
+            <select
+              aria-label="Section type"
+              value={addType}
+              onChange={(event) =>
+                setAddType(event.target.value as LandingSectionType)
+              }
+            >
+              {groups.map((group) => (
+                <optgroup label={group} key={group}>
+                  {landingSectionTypes
+                    .filter(
+                      (type) => landingSectionRegistry[type].group === group,
+                    )
+                    .map((type) => (
+                      <option key={type} value={type}>
+                        {landingSectionRegistry[type].label}
+                      </option>
+                    ))}
+                </optgroup>
+              ))}
+            </select>
+          </label>
+          <span>
+            {landingSectionRegistry[addType].description}
+            <small>
+              {" "}
+              The category supplies the base pastel theme; every colour can be
+              overridden inside the section.
+            </small>
+          </span>
+          <button
+            className="button secondary"
+            type="button"
+            disabled={pending}
+            onClick={addSection}
+          >
+            <Plus size={16} /> Add section
+          </button>
+        </div>
+      )}
+      <div className="landing-builder-list" ref={listRef}>
+        {sections.map((section, index) => (
+          <article
+            className={`landing-builder-section${section.visible ? "" : " is-hidden"}`}
+            key={section.id ?? section.clientKey}
+          >
+            <header>
+              <strong>
+                {index + 1}. {section.name}
+              </strong>
+              <span>{landingSectionRegistry[section.type].label}</span>
+              {!structureLocked && (
+                <div>
+                  <button
+                    type="button"
+                    aria-label="Move up"
+                    onClick={() => move(index, -1)}
+                    disabled={index === 0}
+                  >
+                    <ChevronUp size={16} />
+                  </button>
+                  <button
+                    type="button"
+                    aria-label="Move down"
+                    onClick={() => move(index, 1)}
+                    disabled={index === sections.length - 1}
+                  >
+                    <ChevronDown size={16} />
+                  </button>
+                  <button
+                    type="button"
+                    aria-label={
+                      section.visible ? "Hide section" : "Show section"
+                    }
+                    onClick={() => update(index, { visible: !section.visible })}
+                  >
+                    {section.visible ? <Eye size={16} /> : <EyeOff size={16} />}
+                  </button>
+                  <button
+                    type="button"
+                    aria-label="Duplicate section"
+                    onClick={() =>
+                      setSections((rows) => [
+                        ...rows.slice(0, index + 1),
+                        duplicateLandingSection(section),
+                        ...rows.slice(index + 1),
+                      ])
+                    }
+                  >
+                    <Copy size={16} />
+                  </button>
+                  <button
+                    type="button"
+                    aria-label="Delete section"
+                    onClick={() =>
+                      setSections((rows) =>
+                        rows.filter((_, rowIndex) => rowIndex !== index),
+                      )
+                    }
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              )}
+            </header>
+            {!structureLocked && (
+              <div className="field-grid">
+                <label className="field">
+                  Admin name
+                  <input
+                    value={section.name}
+                    maxLength={100}
+                    onChange={(event) =>
+                      update(index, { name: event.target.value })
+                    }
+                  />
+                </label>
+                <label className="field">
+                  Type
+                  <select
+                    value={section.type}
+                    onChange={(event) => {
+                      const type = event.target.value as LandingSectionType;
+                      update(index, blankLandingSection(type));
+                    }}
+                  >
+                    {landingSectionTypes.map((type) => (
+                      <option key={type} value={type}>
+                        {landingSectionRegistry[type].label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+            )}
+            <CommonCopy
+              section={section}
+              onChange={(changes) => content(index, changes)}
+            />
+            <SectionStyle
+              section={section}
+              onChange={(changes) => content(index, changes)}
+            />
+            {cardStyleTypes.has(section.type) && (
+              <CardStyle
+                section={section}
+                onChange={(changes) => content(index, changes)}
+              />
+            )}
+            {narrativeTypes.has(section.type) && (
+              <NarrativeFields
+                categoryId={categoryId}
+                mediaUploadEndpoint={mediaUploadEndpoint}
+                section={section}
+                onChange={(changes) => content(index, changes)}
+              />
+            )}
+            {gridTypes.has(section.type) && (
+              <details className="admin-subpanel">
+                <summary>Product or category collection</summary>
+                <div className="field-grid">
+                  <label className="field">
+                    Maximum items
+                    <input
+                      type="number"
+                      min="1"
+                      max="24"
+                      value={number(section.content.limit, 6)}
+                      onChange={(event) =>
+                        content(index, { limit: Number(event.target.value) })
+                      }
+                    />
+                  </label>
+                  <label className="check-field">
+                    <input
+                      type="checkbox"
+                      checked={Boolean(section.content.featuredOnly)}
+                      onChange={(event) =>
+                        content(index, { featuredOnly: event.target.checked })
+                      }
+                    />
+                    <span>Featured only</span>
+                  </label>
+                </div>
+              </details>
+            )}
+            {["FEATURE_LIST", "STORY_PROCESS"].includes(section.type) && (
+              <>
+                <details className="admin-subpanel">
+                  <summary>Supporting image</summary>
+                  <div className="field-grid">
+                    <CategoryImageUploadField
+                      categoryId={categoryId}
+                      uploadEndpoint={mediaUploadEndpoint}
+                      label="Supporting image"
+                      value={string(section.content.imageUrl)}
+                      onChange={(imageUrl) => content(index, { imageUrl })}
+                    />
+                    <label className="field">
+                      Supporting image alt text
+                      <input
+                        value={string(section.content.imageAlt)}
+                        onChange={(event) =>
+                          content(index, { imageAlt: event.target.value })
+                        }
+                      />
+                    </label>
+                  </div>
+                </details>
+                <CtaFields
+                  section={section}
+                  onChange={(changes) => content(index, changes)}
+                />
+              </>
+            )}
+            {itemTypes.has(section.type) && (
+              <ItemsEditor
+                categoryId={categoryId}
+                mediaUploadEndpoint={mediaUploadEndpoint}
+                sectionType={section.type}
+                items={array<SectionItem>(section.content.items)}
+                onChange={(items) => content(index, { items })}
+              />
+            )}
+            {section.type === "FAQ" && (
+              <FaqEditor
+                items={array<FaqItem>(section.content.items)}
+                onChange={(items) => content(index, { items })}
+              />
+            )}
+          </article>
+        ))}
+      </div>
+      {!sections.length && (
+        <div className="admin-empty">
+          No sections yet. Add the first module to build this page.
+        </div>
+      )}
+      {message && (
+        <div
+          className={
+            message.startsWith("Landing sections saved") ||
+            message.startsWith("Section added")
+              ? "notice"
+              : "form-error"
+          }
+          role="status"
+        >
+          {message}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function CommonCopy({
+  section,
+  onChange,
+}: {
+  section: LandingSectionDraft;
+  onChange: (changes: Record<string, unknown>) => void;
+}) {
+  return (
+    <details className="admin-subpanel" open>
+      <summary>Text</summary>
+      <div className="field-grid">
+        <label className="field">
+          Section anchor
+          <input
+            value={string(section.content.anchorId)}
+            placeholder="how-it-works"
+            pattern="[a-z][a-z0-9-]*"
+            onChange={(event) => onChange({ anchorId: event.target.value })}
+          />
+        </label>
+      </div>
+      <p className="field-hint">
+        Each text element keeps its content, typography and colour together.
+        Leave typography inherited to use the Storefront Typography. Sizes are exact pixels.
+      </p>
+      <TextElementEditor
+        label="Eyebrow"
+        value={string(section.content.eyebrow)}
+        maxLength={100}
+        typography={typographyOverride(section.content.eyebrowTypography)}
+        colour={string(section.content.eyebrowColour)}
+        onChange={(value) => onChange({ eyebrow: value })}
+        onTypographyChange={(value) => onChange({ eyebrowTypography: value })}
+        onColourChange={(value) => onChange({ eyebrowColour: value })}
+      />
+      <TextElementEditor
+        label="Headline"
+        value={string(section.content.headline)}
+        maxLength={180}
+        typography={typographyOverride(section.content.headlineTypography)}
+        colour={string(section.content.headlineColour)}
+        onChange={(value) => onChange({ headline: value })}
+        onTypographyChange={(value) => onChange({ headlineTypography: value })}
+        onColourChange={(value) => onChange({ headlineColour: value })}
+      />
+      <TextElementEditor
+        label="Body copy"
+        value={string(section.content.copy)}
+        maxLength={3000}
+        multiline
+        typography={typographyOverride(section.content.copyTypography)}
+        colour={string(section.content.copyColour)}
+        onChange={(value) => onChange({ copy: value })}
+        onTypographyChange={(value) => onChange({ copyTypography: value })}
+        onColourChange={(value) => onChange({ copyColour: value })}
+      />
+    </details>
+  );
+}
+
+function TextElementEditor({
+  label,
+  value,
+  maxLength,
+  multiline = false,
+  typography,
+  colour,
+  onChange,
+  onTypographyChange,
+  onColourChange,
+}: {
+  label: string;
+  value: string;
+  maxLength: number;
+  multiline?: boolean;
+  typography: TypographyOverride;
+  colour: string;
+  onChange: (value: string) => void;
+  onTypographyChange: (value: TypographyOverride) => void;
+  onColourChange: (value: string) => void;
+}) {
+  return (
+    <fieldset className="admin-subpanel">
+      <legend>{label}</legend>
+      <label className="field wide">
+        Content
+        {multiline ? (
+          <textarea
+            value={value}
+            maxLength={maxLength}
+            onChange={(event) => onChange(event.target.value)}
+          />
+        ) : (
+          <input
+            value={value}
+            maxLength={maxLength}
+            onChange={(event) => onChange(event.target.value)}
+          />
+        )}
+      </label>
+      <TypographyControls value={typography} onChange={onTypographyChange} />
+      <ColourField label="Colour" value={colour} onChange={onColourChange} />
+    </fieldset>
+  );
+}
+function SectionStyle({
+  section,
+  onChange,
+}: {
+  section: LandingSectionDraft;
+  onChange: (changes: Record<string, unknown>) => void;
+}) {
+  return (
+    <details className="admin-subpanel" open>
+      <summary>Section theme and layout</summary>
+      <p className="field-hint">
+        Pick one of the fixed pastel, black and white palettes, then adjust this
+        section's geometry. It inherits the Store base palette by default.
+      </p>
+      {section.type === "HERO" && (
+        <label className="check-field">
+          <input
+            type="checkbox"
+            checked={Boolean(section.content.hideBreadcrumbs)}
+            onChange={(event) => onChange({ hideBreadcrumbs: event.target.checked })}
+          />
+          <span>Hide breadcrumbs on this landing page</span>
+        </label>
+      )}
+      <button
+        className="text-button"
+        type="button"
+        onClick={() =>
+          onChange({
+            colourTheme: "INHERIT",
+            backgroundColour: "",
+            textColour: "",
+            eyebrowColour: "",
+            headlineColour: "",
+            copyColour: "",
+            cardBackgroundColour: "",
+            cardTextColour: "",
+            cardBorderColour: "",
+            ctaBackground: "",
+            ctaTextColour: "",
+            ctaBorderColour: "",
+            secondaryCtaBackground: "",
+            secondaryCtaTextColour: "",
+            secondaryCtaBorderColour: "",
+          })
+        }
+      >
+        Reset section to base palette
+      </button>
+      <div className="field-grid">
+        <label className="field">
+          Colour theme
+          <select
+            value={string(section.content.colourTheme, "INHERIT")}
+            onChange={(event) => onChange({ colourTheme: event.target.value })}
+          >
+            {landingColourThemes.map((value) => (
+              <option value={value} key={value}>
+                {landingColourThemeLabels[value]}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="field">
+          Layout style
+          <select
+            value={string(section.content.layoutVariant, "DEFAULT")}
+            onChange={(event) =>
+              onChange({ layoutVariant: event.target.value })
+            }
+          >
+            <option value="DEFAULT">Standard</option>
+            <option value="PASTEL_EDITORIAL">Editorial photo and cards</option>
+          </select>
+        </label>
+        <label className="field">
+          Section width
+          <select
+            value={string(section.content.sectionWidth, "STANDARD")}
+            onChange={(event) => onChange({ sectionWidth: event.target.value })}
+          >
+            {["FULL", "WIDE", "STANDARD", "NARROW"].map((value) => (
+              <option key={value}>{value}</option>
+            ))}
+          </select>
+        </label>
+        <label className="field">
+          Vertical spacing
+          <select
+            value={string(section.content.spacing, "STANDARD")}
+            onChange={(event) => onChange({ spacing: event.target.value })}
+          >
+            {["COMPACT", "STANDARD", "RELAXED"].map((value) => (
+              <option key={value}>{value}</option>
+            ))}
+          </select>
+        </label>
+        <label className="field">
+          Heading size
+          <select
+            value={string(section.content.headingScale, "STANDARD")}
+            onChange={(event) => onChange({ headingScale: event.target.value })}
+          >
+            {["COMPACT", "STANDARD", "LARGE"].map((value) => (
+              <option key={value}>{value}</option>
+            ))}
+          </select>
+        </label>
+        <label className="field">
+          Columns
+          <select
+            value={number(section.content.columns, 3)}
+            onChange={(event) =>
+              onChange({ columns: Number(event.target.value) })
+            }
+          >
+            {[1, 2, 3, 4].map((value) => (
+              <option key={value} value={value}>
+                {value}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="field">
+          Image fit
+          <select
+            value={string(section.content.imageFit, "COVER")}
+            onChange={(event) => onChange({ imageFit: event.target.value })}
+          >
+            <option value="COVER">Cover</option>
+            <option value="CONTAIN">Contain</option>
+          </select>
+        </label>
+        <label className="field">
+          Corner radius
+          <select
+            value={string(section.content.radius, "LARGE")}
+            onChange={(event) => onChange({ radius: event.target.value })}
+          >
+            {["SMALL", "MEDIUM", "LARGE", "EXTRA_LARGE"].map((value) => (
+              <option key={value}>{value}</option>
+            ))}
+          </select>
+        </label>
+        <ColourField
+          label="Section background override"
+          value={string(section.content.backgroundColour)}
+          onChange={(backgroundColour) => onChange({ backgroundColour })}
+        />
+      </div>
+    </details>
+  );
+}
+
+function CardStyle({
+  section,
+  onChange,
+}: {
+  section: LandingSectionDraft;
+  onChange: (changes: Record<string, unknown>) => void;
+}) {
+  return (
+    <details className="admin-subpanel">
+      <summary>Card and FAQ appearance</summary>
+      <div className="field-grid">
+        <ColourField
+          label="Card background"
+          value={string(section.content.cardBackgroundColour)}
+          onChange={(cardBackgroundColour) => onChange({ cardBackgroundColour })}
+        />
+        <ColourField
+          label="Card text"
+          value={string(section.content.cardTextColour)}
+          onChange={(cardTextColour) => onChange({ cardTextColour })}
+        />
+        <ColourField
+          label="Card border"
+          value={string(section.content.cardBorderColour)}
+          onChange={(cardBorderColour) => onChange({ cardBorderColour })}
+        />
+        <TypographyOverrideFields
+          label="Cards and FAQs"
+          value={typographyOverride(section.content.cardTypography)}
+          onChange={(value) => onChange({ cardTypography: value })}
+        />
+      </div>
+    </details>
+  );
+}
+
+function TypographyOverrideFields({ label, value, onChange }: { label: string; value: TypographyOverride; onChange: (value: TypographyOverride) => void }) {
+  return (
+    <fieldset className="admin-subpanel">
+      <legend>{label}</legend>
+      <TypographyControls value={value} onChange={onChange} />
+    </fieldset>
+  );
+}
+
+function TypographyControls({
+  value,
+  onChange,
+}: {
+  value: TypographyOverride;
+  onChange: (value: TypographyOverride) => void;
+}) {
+  return (
+    <div className="field-grid">
+      <label className="field">
+        Typeface
+        <select
+          value={value.family}
+          onChange={(event) =>
+            onChange({
+              ...value,
+              family: event.target.value as TypographyOverride["family"],
+            })
+          }
+        >
+          <option value="INHERIT">Inherit</option>
+          {fontFamilies.map((family) => (
+            <option key={family} value={family}>
+              {family === "INTER"
+                ? "Inter"
+                : family[0] + family.slice(1).toLowerCase()}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className="field">
+        Weight
+        <select
+          value={value.weight}
+          onChange={(event) =>
+            onChange({
+              ...value,
+              weight: event.target.value as TypographyOverride["weight"],
+            })
+          }
+        >
+          <option value="INHERIT">Inherit</option>
+          {fontWeights.map((weight) => (
+            <option key={weight} value={weight}>
+              {weight[0] + weight.slice(1).toLowerCase()}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className="field">
+        Style
+        <select
+          value={value.italic}
+          onChange={(event) =>
+            onChange({
+              ...value,
+              italic: event.target.value as TypographyOverride["italic"],
+            })
+          }
+        >
+          <option value="INHERIT">Inherit</option>
+          <option value="NORMAL">Normal</option>
+          <option value="ITALIC">Italic</option>
+        </select>
+      </label>
+      <label className="field">
+        Size (px)
+        <input
+          type="number"
+          min="8"
+          max="96"
+          value={value.sizePx ?? ""}
+          placeholder="Inherit"
+          onChange={(event) =>
+            onChange({
+              ...value,
+              sizePx: event.target.value ? Number(event.target.value) : null,
+            })
+          }
+        />
+      </label>
+    </div>
+  );
+}
+
+function NarrativeFields({
+  categoryId,
+  mediaUploadEndpoint,
+  section,
+  onChange,
+}: {
+  categoryId?: string;
+  mediaUploadEndpoint?: string;
+  section: LandingSectionDraft;
+  onChange: (changes: Record<string, unknown>) => void;
+}) {
+  const textBlocks = array<TextBlock>(section.content.textBlocks);
+  const features = array<FeatureItem>(section.content.features);
+  return (
+    <>
+      <details className="admin-subpanel" open>
+        <summary>Images and media layout</summary>
+        <div className="field-grid">
+        <label className="field">
+          Layout
+          <select
+            value={string(section.content.layout, "IMAGE_RIGHT")}
+            onChange={(event) => onChange({ layout: event.target.value })}
+          >
+            {["IMAGE_LEFT", "IMAGE_RIGHT", "TEXT_ONLY", "CENTRED"].map(
+              (value) => (
+                <option key={value}>{value}</option>
+              ),
+            )}
+          </select>
+        </label>
+        <label className="field">
+          Image focus
+          <select
+            value={string(section.content.imagePosition, "CENTRE")}
+            onChange={(event) =>
+              onChange({ imagePosition: event.target.value })
+            }
+          >
+            {["LEFT", "CENTRE", "RIGHT"].map((value) => (
+              <option key={value}>{value}</option>
+            ))}
+          </select>
+        </label>
+        <CategoryImageUploadField
+          categoryId={categoryId}
+          uploadEndpoint={mediaUploadEndpoint}
+          label="Section image"
+          value={string(section.content.imageUrl)}
+          onChange={(imageUrl) => onChange({ imageUrl })}
+        />
+        <label className="field">
+          Image alt text
+          <input
+            value={string(section.content.imageAlt)}
+            onChange={(event) => onChange({ imageAlt: event.target.value })}
+          />
+        </label>
+        {section.type === "CTA_BANNER" && (
+          <>
+            <CategoryImageUploadField
+              categoryId={categoryId}
+              uploadEndpoint={mediaUploadEndpoint}
+              label="Mobile image"
+              value={string(section.content.mobileImageUrl)}
+              onChange={(mobileImageUrl) => onChange({ mobileImageUrl })}
+            />
+            <label className="field">
+              Text position
+              <select
+                value={string(section.content.contentPosition, "LEFT")}
+                onChange={(event) =>
+                  onChange({ contentPosition: event.target.value })
+                }
+              >
+                {["LEFT", "CENTRE", "RIGHT"].map((value) => (
+                  <option key={value}>{value}</option>
+                ))}
+              </select>
+            </label>
+            <label className="field">
+              Image overlay
+              <select
+                value={string(section.content.overlay, "NONE")}
+                onChange={(event) => onChange({ overlay: event.target.value })}
+              >
+                {["NONE", "LIGHT", "DARK"].map((value) => (
+                  <option key={value}>{value}</option>
+                ))}
+              </select>
+            </label>
+          </>
+        )}
+        </div>
+      </details>
+      {section.type === "HERO" && (
+        <CollectionEditor
+          title="Additional text blocks"
+          onAdd={() =>
+            onChange({
+              textBlocks: [
+                ...textBlocks,
+                {
+                  id: crypto.randomUUID(),
+                  type: "PARAGRAPH",
+                  text: "",
+                  visible: true,
+                  order: textBlocks.length,
+                },
+              ],
+            })
+          }
+        >
+          {textBlocks.map((block, index) => (
+            <div className="variant-editor" key={block.id}>
+              <label className="field">
+                Text type
+                <select
+                  value={block.type}
+                  onChange={(event) =>
+                    onChange({
+                      textBlocks: replace(textBlocks, index, {
+                        type: event.target.value as TextBlock["type"],
+                      }),
+                    })
+                  }
+                >
+                  {[
+                    "EYEBROW",
+                    "HEADING",
+                    "SUBHEADING",
+                    "PARAGRAPH",
+                    "SUPPORTING_TEXT",
+                  ].map((value) => (
+                    <option key={value}>{value.replaceAll("_", " ")}</option>
+                  ))}
+                </select>
+              </label>
+              <label className="field wide">
+                Text
+                <textarea
+                  value={block.text}
+                  onChange={(event) =>
+                    onChange({
+                      textBlocks: replace(textBlocks, index, {
+                        text: event.target.value,
+                      }),
+                    })
+                  }
+                />
+              </label>
+              <RowActions
+                visible={block.visible}
+                index={index}
+                length={textBlocks.length}
+                onVisible={(visible) =>
+                  onChange({
+                    textBlocks: replace(textBlocks, index, { visible }),
+                  })
+                }
+                onMove={(delta) =>
+                  onChange({ textBlocks: moveRow(textBlocks, index, delta) })
+                }
+                onDelete={() =>
+                  onChange({ textBlocks: removeRow(textBlocks, index) })
+                }
+              />
+            </div>
+          ))}
+        </CollectionEditor>
+      )}
+      {section.type === "HERO" && (
+        <CollectionEditor
+          title="Hero icon features"
+          onAdd={() =>
+            onChange({
+              features: [
+                ...features,
+                {
+                  id: crypto.randomUUID(),
+                  icon: "sparkles",
+                  label: "",
+                  supportingText: "",
+                  backgroundColour: "",
+                  iconColour: "",
+                  visible: true,
+                  order: features.length,
+                },
+              ],
+            })
+          }
+        >
+          {features.map((feature, index) => (
+            <div className="variant-editor" key={feature.id}>
+              <label className="field">
+                Icon
+                <input
+                  value={feature.icon}
+                  onChange={(event) =>
+                    onChange({
+                      features: replace(features, index, {
+                        icon: event.target.value,
+                      }),
+                    })
+                  }
+                />
+              </label>
+              <label className="field">
+                Label
+                <input
+                  value={feature.label}
+                  onChange={(event) =>
+                    onChange({
+                      features: replace(features, index, {
+                        label: event.target.value,
+                      }),
+                    })
+                  }
+                />
+              </label>
+              <label className="field">
+                Supporting text
+                <input
+                  value={feature.supportingText}
+                  onChange={(event) =>
+                    onChange({
+                      features: replace(features, index, {
+                        supportingText: event.target.value,
+                      }),
+                    })
+                  }
+                />
+              </label>
+              <ColourField
+                label="Circle colour"
+                value={feature.backgroundColour}
+                onChange={(backgroundColour) =>
+                  onChange({
+                    features: replace(features, index, { backgroundColour }),
+                  })
+                }
+              />
+              <ColourField
+                label="Icon colour"
+                value={feature.iconColour}
+                onChange={(iconColour) =>
+                  onChange({
+                    features: replace(features, index, { iconColour }),
+                  })
+                }
+              />
+              <RowActions
+                visible={feature.visible}
+                index={index}
+                length={features.length}
+                onVisible={(visible) =>
+                  onChange({ features: replace(features, index, { visible }) })
+                }
+                onMove={(delta) =>
+                  onChange({ features: moveRow(features, index, delta) })
+                }
+                onDelete={() =>
+                  onChange({ features: removeRow(features, index) })
+                }
+              />
+            </div>
+          ))}
+        </CollectionEditor>
+      )}
+      <CtaFields section={section} onChange={onChange} />
+      <details className="admin-subpanel">
+        <summary>Checklist</summary>
+        <label className="field wide">
+          Bullets, one per line
+          <textarea
+            value={array<string>(section.content.bullets).join("\n")}
+            onChange={(event) =>
+              onChange({
+                bullets: event.target.value
+                  .split("\n")
+                  .map((value) => value.trim())
+                  .filter(Boolean),
+              })
+            }
+          />
+        </label>
+      </details>
+    </>
+  );
+}
+
+function CtaFields({
+  section,
+  onChange,
+}: {
+  section: LandingSectionDraft;
+  onChange: (changes: Record<string, unknown>) => void;
+}) {
+  return (
+    <details className="admin-subpanel" open>
+      <summary>Buttons</summary>
+      <fieldset className="admin-subpanel">
+        <legend>Primary button</legend>
+        <div className="field-grid">
+          <label className="field">
+            Label
+            <input
+              value={string(section.content.ctaLabel)}
+              onChange={(event) => onChange({ ctaLabel: event.target.value })}
+            />
+          </label>
+          <label className="field">
+            Destination
+            <input
+              value={string(section.content.ctaHref)}
+              list="landing-link-targets"
+              placeholder="Choose a page or enter a safe internal path"
+              onChange={(event) => onChange({ ctaHref: event.target.value })}
+            />
+          </label>
+          <label className="check-field">
+            <input
+              type="checkbox"
+              checked={section.content.ctaVisible !== false}
+              onChange={(event) => onChange({ ctaVisible: event.target.checked })}
+            />
+            <span>Show primary button</span>
+          </label>
+          <ColourField label="Background" value={string(section.content.ctaBackground)} onChange={(ctaBackground) => onChange({ ctaBackground })} />
+          <ColourField label="Text" value={string(section.content.ctaTextColour)} onChange={(ctaTextColour) => onChange({ ctaTextColour })} />
+          <ColourField label="Border" value={string(section.content.ctaBorderColour)} onChange={(ctaBorderColour) => onChange({ ctaBorderColour })} />
+        </div>
+      </fieldset>
+      <fieldset className="admin-subpanel">
+        <legend>Secondary button</legend>
+        <div className="field-grid">
+          <label className="field">
+            Label
+            <input
+              value={string(section.content.secondaryCtaLabel)}
+              onChange={(event) => onChange({ secondaryCtaLabel: event.target.value })}
+            />
+          </label>
+          <label className="field">
+            Destination
+            <input
+              value={string(section.content.secondaryCtaHref)}
+              list="landing-link-targets"
+              placeholder="Choose a page or enter a safe internal path"
+              onChange={(event) => onChange({ secondaryCtaHref: event.target.value })}
+            />
+          </label>
+          <label className="check-field">
+            <input
+              type="checkbox"
+              checked={section.content.secondaryCtaVisible !== false}
+              onChange={(event) => onChange({ secondaryCtaVisible: event.target.checked })}
+            />
+            <span>Show secondary button</span>
+          </label>
+          <ColourField label="Background" value={string(section.content.secondaryCtaBackground)} onChange={(secondaryCtaBackground) => onChange({ secondaryCtaBackground })} />
+          <ColourField label="Text" value={string(section.content.secondaryCtaTextColour)} onChange={(secondaryCtaTextColour) => onChange({ secondaryCtaTextColour })} />
+          <ColourField label="Border" value={string(section.content.secondaryCtaBorderColour)} onChange={(secondaryCtaBorderColour) => onChange({ secondaryCtaBorderColour })} />
+        </div>
+      </fieldset>
+      <TypographyOverrideFields
+        label="Button text style"
+        value={typographyOverride(section.content.buttonTypography)}
+        onChange={(value) => onChange({ buttonTypography: value })}
+      />
+    </details>
+  );
+}
+
+function ItemsEditor({
+  categoryId,
+  mediaUploadEndpoint,
+  sectionType,
+  items,
+  onChange,
+}: {
+  categoryId?: string;
+  mediaUploadEndpoint?: string;
+  sectionType: LandingSectionType;
+  items: SectionItem[];
+  onChange: (items: SectionItem[]) => void;
+}) {
+  const update = (index: number, changes: Partial<SectionItem>) =>
+    onChange(replace(items, index, changes));
+  return (
+    <CollectionEditor
+      title={
+        sectionType === "STEPS"
+          ? "Steps"
+          : sectionType === "STORY_PROCESS"
+            ? "Story items"
+            : "Cards / items"
+      }
+      onAdd={() =>
+        onChange([...items, { ...blankItem(), order: items.length }])
+      }
+    >
+      {items.map((item, index) => (
+        <div className="variant-editor" key={item.id}>
+          <label className="field">
+            Icon
+            <input
+              value={item.icon ?? "sparkles"}
+              onChange={(event) => update(index, { icon: event.target.value })}
+            />
+          </label>
+          <label className="field">
+            Title
+            <input
+              value={item.title ?? ""}
+              onChange={(event) => update(index, { title: event.target.value })}
+            />
+          </label>
+          <label className="field wide">
+            Description
+            <textarea
+              value={item.description ?? ""}
+              onChange={(event) =>
+                update(index, { description: event.target.value })
+              }
+            />
+          </label>
+          <CategoryImageUploadField
+            categoryId={categoryId}
+            uploadEndpoint={mediaUploadEndpoint}
+            label="Item image"
+            value={item.imageUrl ?? ""}
+            onChange={(imageUrl) => update(index, { imageUrl })}
+          />
+          <label className="field">
+            Image alt text
+            <input
+              value={item.imageAlt ?? ""}
+              onChange={(event) =>
+                update(index, { imageAlt: event.target.value })
+              }
+            />
+          </label>
+          <label className="field">
+            Image vertical offset
+            <input
+              type="number"
+              min="-20"
+              max="20"
+              value={item.imagePosition ?? 0}
+              onChange={(event) =>
+                update(index, { imagePosition: Number(event.target.value) })
+              }
+            />
+          </label>
+          <ColourField
+            label={
+              sectionType === "STEPS"
+                ? "Card background override"
+                : "Item background override"
+            }
+            value={item.backgroundColour ?? ""}
+            onChange={(backgroundColour) => update(index, { backgroundColour })}
+          />
+          <ColourField
+            label="Card text override"
+            value={item.textColour ?? ""}
+            onChange={(textColour) => update(index, { textColour })}
+          />
+          <ColourField
+            label="Icon background override"
+            value={item.iconBackgroundColour ?? ""}
+            onChange={(iconBackgroundColour) =>
+              update(index, { iconBackgroundColour })
+            }
+          />
+          <ColourField
+            label="Icon colour override"
+            value={item.iconColour ?? ""}
+            onChange={(iconColour) => update(index, { iconColour })}
+          />
+          <label className="field">
+            Card CTA label
+            <input
+              value={item.ctaLabel ?? ""}
+              onChange={(event) =>
+                update(index, { ctaLabel: event.target.value })
+              }
+            />
+          </label>
+          <label className="field">
+            Card CTA destination
+            <input
+              value={item.ctaHref ?? ""}
+              list="landing-link-targets"
+              placeholder="/shop"
+              onChange={(event) =>
+                update(index, { ctaHref: event.target.value })
+              }
+            />
+          </label>
+          <ColourField
+            label="Card CTA background"
+            value={item.ctaBackground ?? ""}
+            onChange={(ctaBackground) => update(index, { ctaBackground })}
+          />
+          <ColourField
+            label="Card CTA text"
+            value={item.ctaTextColour ?? ""}
+            onChange={(ctaTextColour) => update(index, { ctaTextColour })}
+          />
+          <ColourField
+            label="Card CTA border"
+            value={item.ctaBorderColour ?? ""}
+            onChange={(ctaBorderColour) => update(index, { ctaBorderColour })}
+          />
+          <RowActions
+            visible={item.visible !== false}
+            index={index}
+            length={items.length}
+            onVisible={(visible) => update(index, { visible })}
+            onMove={(delta) => onChange(moveRow(items, index, delta))}
+            onDelete={() => onChange(removeRow(items, index))}
+          />
+        </div>
+      ))}
+    </CollectionEditor>
+  );
+}
+function FaqEditor({
+  items,
+  onChange,
+}: {
+  items: FaqItem[];
+  onChange: (items: FaqItem[]) => void;
+}) {
+  const update = (index: number, changes: Partial<FaqItem>) =>
+    onChange(replace(items, index, changes));
+  return (
+    <CollectionEditor
+      title="Questions"
+      onAdd={() =>
+        onChange([
+          ...items,
+          {
+            id: crypto.randomUUID(),
+            question: "",
+            answer: "",
+            visible: true,
+            order: items.length,
+          },
+        ])
+      }
+    >
+      {items.map((item, index) => (
+        <div className="variant-editor" key={item.id}>
+          <label className="field">
+            Question
+            <input
+              value={item.question ?? ""}
+              onChange={(event) =>
+                update(index, { question: event.target.value })
+              }
+            />
+          </label>
+          <label className="field wide">
+            Answer
+            <textarea
+              value={item.answer ?? ""}
+              onChange={(event) =>
+                update(index, { answer: event.target.value })
+              }
+            />
+          </label>
+          <RowActions
+            visible={item.visible !== false}
+            index={index}
+            length={items.length}
+            onVisible={(visible) => update(index, { visible })}
+            onMove={(delta) => onChange(moveRow(items, index, delta))}
+            onDelete={() => onChange(removeRow(items, index))}
+          />
+        </div>
+      ))}
+    </CollectionEditor>
+  );
+}
+function CollectionEditor({
+  title,
+  onAdd,
+  children,
+}: {
+  title: string;
+  onAdd: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="landing-items">
+      <div className="panel-heading">
+        <strong>{title}</strong>
+        <button className="button secondary" type="button" onClick={onAdd}>
+          <Plus size={15} /> Add
+        </button>
+      </div>
+      {children}
+    </div>
+  );
+}
+function RowActions({
+  visible,
+  index,
+  length,
+  onVisible,
+  onMove,
+  onDelete,
+}: {
+  visible: boolean;
+  index: number;
+  length: number;
+  onVisible: (visible: boolean) => void;
+  onMove: (delta: number) => void;
+  onDelete: () => void;
+}) {
+  return (
+    <div className="row-actions">
+      <button
+        className="text-button"
+        type="button"
+        onClick={() => onMove(-1)}
+        disabled={index === 0}
+      >
+        <ChevronUp size={15} /> Earlier
+      </button>
+      <button
+        className="text-button"
+        type="button"
+        onClick={() => onMove(1)}
+        disabled={index === length - 1}
+      >
+        <ChevronDown size={15} /> Later
+      </button>
+      <button
+        className="text-button"
+        type="button"
+        onClick={() => onVisible(!visible)}
+      >
+        {visible ? <EyeOff size={15} /> : <Eye size={15} />}{" "}
+        {visible ? "Hide" : "Show"}
+      </button>
+      <button
+        className="text-button danger-text"
+        type="button"
+        onClick={onDelete}
+      >
+        <Trash2 size={15} /> Delete
+      </button>
+    </div>
+  );
+}
+function replace<T>(items: T[], index: number, changes: Partial<T>) {
+  return items.map((item, itemIndex) =>
+    itemIndex === index ? { ...item, ...changes, order: itemIndex } : item,
+  );
+}
+function moveRow<T extends { order?: number }>(
+  items: T[],
+  index: number,
+  delta: number,
+) {
+  const target = index + delta;
+  if (target < 0 || target >= items.length) return items;
+  const next = [...items];
+  [next[index], next[target]] = [next[target], next[index]];
+  return next.map((item, order) => ({ ...item, order }));
+}
+function removeRow<T extends { order?: number }>(items: T[], index: number) {
+  return items
+    .filter((_, itemIndex) => itemIndex !== index)
+    .map((item, order) => ({ ...item, order }));
+}
+function string(value: unknown, fallback = "") {
+  return typeof value === "string" ? value : fallback;
+}
+function number(value: unknown, fallback: number) {
+  return typeof value === "number" ? value : fallback;
+}
+function array<T>(value: unknown) {
+  return Array.isArray(value) ? (value as T[]) : [];
+}
+function typographyOverride(value: unknown): TypographyOverride {
+  const record = value && typeof value === "object" && !Array.isArray(value) ? value as Partial<TypographyOverride> : {};
+  return { family: record.family ?? "INHERIT", weight: record.weight ?? "INHERIT", italic: record.italic ?? "INHERIT", sizePx: record.sizePx ?? null };
+}

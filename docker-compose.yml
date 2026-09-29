@@ -2,6 +2,8 @@ services:
   db:
     image: postgres:17-alpine
     restart: unless-stopped
+    ports:
+      - "127.0.0.1:5432:5432"
     environment:
       POSTGRES_DB: nfc_platform
       POSTGRES_USER: nfc
@@ -18,15 +20,79 @@ services:
     restart: unless-stopped
     ports: ["3000:3000"]
     environment:
+      APP_ENV: development
       DATABASE_URL: postgresql://nfc:${POSTGRES_PASSWORD}@db:5432/nfc_platform?schema=public
+      DATABASE_EXPECTED_NAME: nfc_platform
       APP_URL: ${APP_URL:-http://localhost:3000}
       SESSION_SECRET: ${SESSION_SECRET:?Set SESSION_SECRET}
       ACTIVATION_PEPPER: ${ACTIVATION_PEPPER:?Set ACTIVATION_PEPPER}
+      TRUST_PROXY: ${TRUST_PROXY:-false}
+      STORAGE_PROVIDER: local
+      STORAGE_ENVIRONMENT: development
+      EMAIL_MODE: mock
       STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
       STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+      CHECKOUT_RECONCILE_SECRET: ${CHECKOUT_RECONCILE_SECRET:-}
       EMAIL_WEBHOOK_URL: ${EMAIL_WEBHOOK_URL:-}
       EMAIL_WEBHOOK_SECRET: ${EMAIL_WEBHOOK_SECRET:-}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      APPLE_CLIENT_ID: ${APPLE_CLIENT_ID:-}
+      APPLE_CLIENT_SECRET: ${APPLE_CLIENT_SECRET:-}
+      ETSY_API_KEY: ${ETSY_API_KEY:-}
+      ETSY_SHARED_SECRET: ${ETSY_SHARED_SECRET:-}
+      ETSY_SYNC_SECRET: ${ETSY_SYNC_SECRET:-}
+      UPLOAD_DIR: /app/data/uploads
+    volumes:
+      - product_uploads:/app/data/uploads
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:3000/api/health/live"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+  checkout-reconciler:
+    profiles: ["operations"]
+    build: .
+    restart: unless-stopped
+    command: ["node", "scripts/reconcile-checkouts.mjs", "--watch"]
+    environment:
+      APP_URL: http://app:3000
+      CHECKOUT_RECONCILE_SECRET: ${CHECKOUT_RECONCILE_SECRET:-}
+    depends_on:
+      app: { condition: service_healthy }
+    healthcheck:
+      disable: true
+  migrate:
+    build:
+      context: .
+      target: migrator
+    environment:
+      DATABASE_URL: postgresql://nfc:${POSTGRES_PASSWORD}@db:5432/nfc_platform?schema=public
     depends_on:
       db: { condition: service_healthy }
+    restart: "no"
+  seed:
+    profiles: ["tools"]
+    build:
+      context: .
+      target: migrator
+    command: ["npm", "run", "db:seed"]
+    environment:
+      APP_ENV: development
+      DATABASE_URL: postgresql://nfc:${POSTGRES_PASSWORD}@db:5432/nfc_platform?schema=public
+      DATABASE_EXPECTED_NAME: nfc_platform
+      SESSION_SECRET: ${SESSION_SECRET:?Set SESSION_SECRET}
+      ACTIVATION_PEPPER: ${ACTIVATION_PEPPER:?Set ACTIVATION_PEPPER}
+      STORAGE_PROVIDER: local
+      STORAGE_ENVIRONMENT: development
+      EMAIL_MODE: mock
+      DEV_ADMIN_EMAIL: ${DEV_ADMIN_EMAIL:-}
+      DEV_ADMIN_PASSWORD: ${DEV_ADMIN_PASSWORD:-}
+    depends_on:
+      migrate: { condition: service_completed_successfully }
 volumes:
   postgres_data:
+  product_uploads:

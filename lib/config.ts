@@ -1,0 +1,209 @@
+import { z } from "zod";
+
+export const appEnvironments = ["development", "staging", "production"] as const;
+export type AppEnvironment = (typeof appEnvironments)[number];
+
+const blankToUndefined = (value: unknown) => typeof value === "string" && value.trim() === "" ? undefined : value;
+const optionalString = z.preprocess(blankToUndefined, z.string().trim().min(1).optional());
+const optionalUrl = z.preprocess(blankToUndefined, z.string().url().optional());
+const booleanString = z.enum(["true", "false"]).default("false").transform(value => value === "true");
+const analyticsStoresSchema = z.record(z.string().regex(/^[a-z0-9-]+$/), z.object({
+  measurementId: z.string().regex(/^G-[A-Z0-9]{6,20}$/),
+  apiSecret: z.string().min(8).max(200),
+}));
+const analyticsStores = z.preprocess((value) => {
+  if (!value) return {};
+  if (typeof value !== "string") return value;
+  try { return JSON.parse(value); } catch { return null; }
+}, analyticsStoresSchema);
+
+const runtimeConfigSchema = z.object({
+  APP_ENV: z.enum(appEnvironments).default("development"),
+  APP_URL: z.string().url().default("http://localhost:3000"),
+  DATABASE_URL: optionalString,
+  DATABASE_EXPECTED_NAME: optionalString,
+  SESSION_SECRET: optionalString,
+  ACTIVATION_PEPPER: optionalString,
+  TRUST_PROXY: booleanString,
+  STORAGE_PROVIDER: z.enum(["local", "azure-blob"]).default("local"),
+  STORAGE_ENVIRONMENT: z.enum(appEnvironments).optional(),
+  UPLOAD_DIR: z.string().trim().min(1).default("./data/uploads"),
+  AZURE_STORAGE_CONTAINER_URL: optionalUrl,
+  AZURE_STORAGE_SAS_TOKEN: optionalString,
+  EMAIL_MODE: z.enum(["mock", "sandbox", "live"]).default("mock"),
+  EMAIL_PROVIDER: z.enum(["webhook", "mailtrap-sandbox"]).default("webhook"),
+  EMAIL_FROM_ADDRESS: z.preprocess(blankToUndefined, z.email().optional()),
+  EMAIL_WEBHOOK_URL: optionalUrl,
+  EMAIL_WEBHOOK_SECRET: optionalString,
+  EMAIL_TEST_OUTBOX_PATH: optionalString,
+  STRIPE_SECRET_KEY: optionalString,
+  STRIPE_WEBHOOK_SECRET: optionalString,
+  CHECKOUT_RECONCILE_SECRET: z.preprocess(blankToUndefined, z.string().min(32).optional()),
+  NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: optionalString,
+  GOOGLE_CLIENT_ID: optionalString,
+  GOOGLE_CLIENT_SECRET: optionalString,
+  APPLE_CLIENT_ID: optionalString,
+  APPLE_CLIENT_SECRET: optionalString,
+  ETSY_API_KEY: optionalString,
+  ETSY_SHARED_SECRET: optionalString,
+  ETSY_SYNC_SECRET: optionalString,
+  ENABLE_TEST_CHECKOUT: booleanString,
+  PRODUCTION_PREVIEW_MODE: booleanString,
+  PRODUCTION_CHECKOUT_ENABLED: booleanString,
+  ANALYTICS_ID: optionalString,
+  ANALYTICS_GA4_STORES: analyticsStores,
+  LOG_LEVEL: z.enum(["info", "warn", "error"]).default("info"),
+  DEV_ADMIN_EMAIL: optionalString,
+  DEV_ADMIN_PASSWORD: optionalString,
+  STAGING_ADMIN_EMAIL: optionalString,
+  STAGING_ADMIN_PASSWORD: optionalString,
+}).superRefine((value, context) => {
+  const issue = (path: string, message: string) => context.addIssue({ code: "custom", path: [path], message });
+  const paired = (first: string | undefined, second: string | undefined, firstName: string, secondName: string) => {
+    if (Boolean(first) !== Boolean(second)) issue(first ? secondName : firstName, `${firstName} and ${secondName} must be configured together`);
+  };
+
+  paired(value.GOOGLE_CLIENT_ID, value.GOOGLE_CLIENT_SECRET, "GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET");
+  paired(value.APPLE_CLIENT_ID, value.APPLE_CLIENT_SECRET, "APPLE_CLIENT_ID", "APPLE_CLIENT_SECRET");
+  paired(value.ETSY_API_KEY, value.ETSY_SHARED_SECRET, "ETSY_API_KEY", "ETSY_SHARED_SECRET");
+  paired(value.DEV_ADMIN_EMAIL, value.DEV_ADMIN_PASSWORD, "DEV_ADMIN_EMAIL", "DEV_ADMIN_PASSWORD");
+  paired(value.STAGING_ADMIN_EMAIL, value.STAGING_ADMIN_PASSWORD, "STAGING_ADMIN_EMAIL", "STAGING_ADMIN_PASSWORD");
+  if (value.ANALYTICS_ID) issue("ANALYTICS_ID", "Use per-store ANALYTICS_GA4_STORES instead of a shared analytics ID");
+  const ids = Object.values(value.ANALYTICS_GA4_STORES).map(item => item.measurementId);
+  if (new Set(ids).size !== ids.length) issue("ANALYTICS_GA4_STORES", "Each store needs a separate GA4 web stream");
+
+  if (value.DATABASE_URL) {
+    try {
+      const url = new URL(value.DATABASE_URL);
+      if (!["postgres:", "postgresql:"].includes(url.protocol)) issue("DATABASE_URL", "DATABASE_URL must use PostgreSQL");
+      const databaseName = decodeURIComponent(url.pathname.replace(/^\//, ""));
+      if (value.DATABASE_EXPECTED_NAME && databaseName !== value.DATABASE_EXPECTED_NAME) issue("DATABASE_URL", "DATABASE_URL database does not match DATABASE_EXPECTED_NAME");
+      if (value.APP_ENV !== "development" && !["require", "verify-ca", "verify-full"].includes(url.searchParams.get("sslmode") ?? "")) issue("DATABASE_URL", "DATABASE_URL must require TLS outside development");
+    } catch {
+      issue("DATABASE_URL", "DATABASE_URL must be a valid PostgreSQL URL");
+    }
+  }
+
+  if (value.APP_ENV !== "development") {
+    for (const [name, field] of [["DATABASE_URL", value.DATABASE_URL], ["DATABASE_EXPECTED_NAME", value.DATABASE_EXPECTED_NAME], ["SESSION_SECRET", value.SESSION_SECRET], ["ACTIVATION_PEPPER", value.ACTIVATION_PEPPER]] as const) {
+      if (!field) issue(name, `${name} is required in staging and production`);
+    }
+    if (!value.APP_URL.startsWith("https://") || new URL(value.APP_URL).hostname === "localhost") issue("APP_URL", "APP_URL must be a public HTTPS URL in staging and production");
+    if (value.SESSION_SECRET && value.SESSION_SECRET.length < 32) issue("SESSION_SECRET", "SESSION_SECRET must contain at least 32 characters");
+    if (value.ACTIVATION_PEPPER && value.ACTIVATION_PEPPER.length < 32) issue("ACTIVATION_PEPPER", "ACTIVATION_PEPPER must contain at least 32 characters");
+    if (value.STORAGE_PROVIDER !== "azure-blob") issue("STORAGE_PROVIDER", "A durable storage provider is required in staging and production");
+    if (value.STORAGE_ENVIRONMENT !== value.APP_ENV) issue("STORAGE_ENVIRONMENT", "STORAGE_ENVIRONMENT must match APP_ENV");
+    if (!value.AZURE_STORAGE_CONTAINER_URL) issue("AZURE_STORAGE_CONTAINER_URL", "AZURE_STORAGE_CONTAINER_URL is required for Azure Blob storage");
+    if (value.AZURE_STORAGE_CONTAINER_URL) {
+      const containerUrl = new URL(value.AZURE_STORAGE_CONTAINER_URL);
+      const container = containerUrl.pathname.split("/").filter(Boolean).at(-1) ?? "";
+      if (containerUrl.search) issue("AZURE_STORAGE_CONTAINER_URL", "Keep credentials out of AZURE_STORAGE_CONTAINER_URL");
+      if (!container.endsWith(`-${value.APP_ENV}`)) issue("AZURE_STORAGE_CONTAINER_URL", "The Blob container name must end with the APP_ENV name");
+    }
+    if (!value.AZURE_STORAGE_SAS_TOKEN) issue("AZURE_STORAGE_SAS_TOKEN", "AZURE_STORAGE_SAS_TOKEN is required for Azure Blob storage");
+    if (value.EMAIL_MODE === "mock" && !value.PRODUCTION_PREVIEW_MODE) issue("EMAIL_MODE", "Staging and production require an isolated sandbox or live email provider");
+    if (!value.EMAIL_WEBHOOK_URL && !value.PRODUCTION_PREVIEW_MODE) issue("EMAIL_WEBHOOK_URL", "EMAIL_WEBHOOK_URL is required outside development");
+    if (!value.EMAIL_WEBHOOK_SECRET && !value.PRODUCTION_PREVIEW_MODE) issue("EMAIL_WEBHOOK_SECRET", "EMAIL_WEBHOOK_SECRET is required outside development");
+    if (value.EMAIL_TEST_OUTBOX_PATH) issue("EMAIL_TEST_OUTBOX_PATH", "The test email outbox is restricted to development");
+    if (value.ENABLE_TEST_CHECKOUT) issue("ENABLE_TEST_CHECKOUT", "Test checkout is restricted to development");
+    if (value.DEV_ADMIN_EMAIL || value.DEV_ADMIN_PASSWORD) issue("DEV_ADMIN_EMAIL", "Development administrator credentials are forbidden outside development");
+  }
+
+  if (value.APP_ENV === "staging") {
+    if (value.PRODUCTION_PREVIEW_MODE) issue("PRODUCTION_PREVIEW_MODE", "Preview mode is restricted to production");
+    if (!value.STRIPE_SECRET_KEY?.startsWith("sk_test_")) issue("STRIPE_SECRET_KEY", "Staging requires a Stripe test secret key");
+    if (!value.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY?.startsWith("pk_test_")) issue("NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY", "Staging requires a Stripe test publishable key");
+    if (!value.STRIPE_WEBHOOK_SECRET?.startsWith("whsec_")) issue("STRIPE_WEBHOOK_SECRET", "Staging requires its own Stripe webhook secret");
+    if (value.EMAIL_MODE !== "sandbox") issue("EMAIL_MODE", "Staging email must use sandbox mode");
+  }
+
+  if (value.APP_ENV === "development" && value.PRODUCTION_PREVIEW_MODE) issue("PRODUCTION_PREVIEW_MODE", "Preview mode is restricted to production");
+
+  if (value.EMAIL_PROVIDER === "mailtrap-sandbox") {
+    if (value.APP_ENV !== "staging" || value.EMAIL_MODE !== "sandbox") issue("EMAIL_PROVIDER", "Mailtrap Sandbox is restricted to staging sandbox email");
+    if (!value.EMAIL_FROM_ADDRESS) issue("EMAIL_FROM_ADDRESS", "Mailtrap Sandbox requires a sender address");
+    if (!/^https:\/\/sandbox\.api\.mailtrap\.io\/api\/send\/[1-9][0-9]*$/.test(value.EMAIL_WEBHOOK_URL ?? "")) issue("EMAIL_WEBHOOK_URL", "Mailtrap Sandbox requires its exact HTTPS sandbox inbox URL");
+  }
+
+  if (value.APP_ENV === "production") {
+    if (value.PRODUCTION_PREVIEW_MODE) {
+      if (value.STRIPE_SECRET_KEY || value.STRIPE_WEBHOOK_SECRET || value.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY) issue("STRIPE_SECRET_KEY", "Preview mode must not have Stripe credentials");
+      if (value.EMAIL_MODE !== "mock" || value.EMAIL_WEBHOOK_URL || value.EMAIL_WEBHOOK_SECRET) issue("EMAIL_MODE", "Preview mode must not deliver email");
+    } else {
+      if (value.PRODUCTION_CHECKOUT_ENABLED) {
+        if (!value.STRIPE_SECRET_KEY?.startsWith("sk_live_")) issue("STRIPE_SECRET_KEY", "Production checkout requires a Stripe live secret key");
+        if (!value.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY?.startsWith("pk_live_")) issue("NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY", "Production checkout requires a Stripe live publishable key");
+        if (!value.STRIPE_WEBHOOK_SECRET?.startsWith("whsec_")) issue("STRIPE_WEBHOOK_SECRET", "Production checkout requires its own Stripe webhook secret");
+      } else if (value.STRIPE_SECRET_KEY || value.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || value.STRIPE_WEBHOOK_SECRET) {
+        issue("STRIPE_SECRET_KEY", "Production checkout is disabled; leave Stripe credentials unset");
+      }
+      if (value.EMAIL_MODE !== "live") issue("EMAIL_MODE", "Production email must use live mode");
+    }
+    if (value.STAGING_ADMIN_EMAIL || value.STAGING_ADMIN_PASSWORD) issue("STAGING_ADMIN_EMAIL", "Staging administrator credentials are forbidden in production");
+  }
+});
+
+export type RuntimeConfig = {
+  appEnv: AppEnvironment;
+  appUrl: string;
+  databaseUrl?: string;
+  databaseExpectedName?: string;
+  sessionSecret?: string;
+  activationPepper?: string;
+  trustProxy: boolean;
+  storage: { provider: "local" | "azure-blob"; environment?: AppEnvironment; uploadDir: string; containerUrl?: string; sasToken?: string };
+  email: { mode: "mock" | "sandbox" | "live"; provider: "webhook" | "mailtrap-sandbox"; fromAddress?: string; webhookUrl?: string; webhookSecret?: string; testOutboxPath?: string };
+  stripe: { secretKey?: string; webhookSecret?: string; reconcileSecret?: string; publishableKey?: string; testCheckout: boolean };
+  etsy: { apiKey?: string; sharedSecret?: string; syncSecret?: string };
+  analyticsStores: Record<string, { measurementId: string; apiSecret: string }>;
+  logLevel: "info" | "warn" | "error";
+  previewMode: boolean;
+  checkoutEnabled: boolean;
+};
+
+export function parseRuntimeConfig(environment: Record<string, string | undefined>): RuntimeConfig {
+  if (environment.NODE_ENV === "production" && !environment.APP_ENV && environment.NEXT_PHASE !== "phase-production-build") throw new Error("Invalid runtime configuration: APP_ENV must be explicit when NODE_ENV=production");
+  const parsed = runtimeConfigSchema.safeParse(environment);
+  if (!parsed.success) {
+    const details = parsed.error.issues.map(item => `${item.path.join(".")}: ${item.message}`).join("; ");
+    throw new Error(`Invalid runtime configuration: ${details}`);
+  }
+  const value = parsed.data;
+  return {
+    appEnv: value.APP_ENV,
+    appUrl: value.APP_URL.replace(/\/$/, ""),
+    databaseUrl: value.DATABASE_URL,
+    databaseExpectedName: value.DATABASE_EXPECTED_NAME,
+    sessionSecret: value.SESSION_SECRET,
+    activationPepper: value.ACTIVATION_PEPPER,
+    trustProxy: value.TRUST_PROXY,
+    storage: { provider: value.STORAGE_PROVIDER, environment: value.STORAGE_ENVIRONMENT, uploadDir: value.UPLOAD_DIR, containerUrl: value.AZURE_STORAGE_CONTAINER_URL, sasToken: value.AZURE_STORAGE_SAS_TOKEN },
+    email: { mode: value.EMAIL_MODE, provider: value.EMAIL_PROVIDER, fromAddress: value.EMAIL_FROM_ADDRESS, webhookUrl: value.EMAIL_WEBHOOK_URL, webhookSecret: value.EMAIL_WEBHOOK_SECRET, testOutboxPath: value.EMAIL_TEST_OUTBOX_PATH },
+    stripe: { reconcileSecret: value.CHECKOUT_RECONCILE_SECRET, secretKey: value.STRIPE_SECRET_KEY, webhookSecret: value.STRIPE_WEBHOOK_SECRET, publishableKey: value.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY, testCheckout: value.ENABLE_TEST_CHECKOUT },
+    etsy: { apiKey: value.ETSY_API_KEY, sharedSecret: value.ETSY_SHARED_SECRET, syncSecret: value.ETSY_SYNC_SECRET },
+    analyticsStores: value.ANALYTICS_GA4_STORES,
+    logLevel: value.LOG_LEVEL,
+    previewMode: value.PRODUCTION_PREVIEW_MODE,
+    checkoutEnabled: !value.PRODUCTION_PREVIEW_MODE && (value.APP_ENV !== "production" || value.PRODUCTION_CHECKOUT_ENABLED),
+  };
+}
+
+export function getRuntimeConfig() { return parseRuntimeConfig(process.env); }
+
+export function currentAppEnvironment(environment: Record<string, string | undefined> = process.env): AppEnvironment {
+  return appEnvironments.includes(environment.APP_ENV as AppEnvironment) ? environment.APP_ENV as AppEnvironment : "development";
+}
+
+export function searchEnginePolicy(environment: AppEnvironment, previewMode = false) {
+  return environment === "production" && !previewMode
+    ? { index: true, follow: true, noarchive: false }
+    : { index: false, follow: false, noarchive: true };
+}
+
+export function oauthCallbackUrl(provider: "google" | "apple", config: Pick<RuntimeConfig, "appUrl">) {
+  return `${config.appUrl}/api/auth/oauth/${provider}/callback`;
+}
+
+export function publicTagUrl(publicTagId: string, config: Pick<RuntimeConfig, "appUrl">) {
+  return `${config.appUrl}/t/${publicTagId}`;
+}

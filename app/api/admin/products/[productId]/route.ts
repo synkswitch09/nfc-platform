@@ -1,0 +1,118 @@
+import { NextRequest, NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
+import { getAdminApiContext } from "@/lib/admin";
+import { adminProductSchema } from "@/lib/admin-validation";
+import { db } from "@/lib/db";
+import { assertSameOrigin, jsonError } from "@/lib/http";
+import { createPublicTagId } from "@/lib/crypto";
+import { canHardDeleteProduct } from "@/lib/catalog-policy";
+import { deleteStoredImage } from "@/lib/uploads";
+import { queueEtsyInventorySync } from "@/lib/etsy";
+import { productValidationFeedback } from "@/lib/product-validation-feedback";
+import { validCanonicalOverride } from "@/lib/seo";
+
+export async function POST(request: NextRequest, { params }: { params: Promise<{ productId: string }> }) {
+  if (!assertSameOrigin(request)) return jsonError("Invalid request origin", 403);
+  const context = await getAdminApiContext(); if (!context) return jsonError("Forbidden", 403);
+  const { user, store } = context;
+  const { productId } = await params;
+  const source = await db.product.findFirst({ where: { id: productId, storeId: store.id }, include: { variants: true, options: { include: { values: true } } } });
+  if (!source) return jsonError("Product not found", 404);
+  const suffix = createPublicTagId().slice(0, 6).toLowerCase();
+  try {
+    const duplicate = await db.$transaction(async tx => {
+      const product = await tx.product.create({ data: { storeId: store.id, name: `${source.name} (copy)`, slug: `${source.slug.slice(0, 150)}-${suffix}`, description: source.description, shortDescription: source.shortDescription, fullDescription: source.fullDescription, categoryId: source.categoryId, type: source.type, status: "DRAFT", featured: false, shopVisible: false, brand: source.brand, gstInclusive: source.gstInclusive, personalisationMode: source.personalisationMode, weightGrams: source.weightGrams, lengthMm: source.lengthMm, widthMm: source.widthMm, heightMm: source.heightMm, defaultPackagingId: source.defaultPackagingId, shipsSeparately: source.shipsSeparately, specialHandling: source.specialHandling, countryOfOrigin: source.countryOfOrigin, customsDescription: source.customsDescription, hsCode: source.hsCode, customsValueCents: source.customsValueCents, dutiesHandling: source.dutiesHandling, restrictedItem: source.restrictedItem, seoTitle: source.seoTitle, seoDescription: source.seoDescription, ogImageUrl: source.ogImageUrl, canonicalUrl: null, indexable: false,
+        variants: { create: source.variants.map(variant => ({ sku: `${variant.sku.slice(0, 42)}-${suffix.toUpperCase()}`, name: variant.name, colour: variant.colour, size: variant.size, material: variant.material, priceCents: variant.priceCents, compareAtPriceCents: variant.compareAtPriceCents, costCents: variant.costCents, inventory: 0, reservedInventory: 0, trackInventory: variant.trackInventory, lowStockThreshold: variant.lowStockThreshold, backorderPolicy: variant.backorderPolicy, active: variant.active, isDefault: variant.isDefault, optionSelection: (variant.optionSelection ?? {}) as Prisma.InputJsonValue, weightGrams: variant.weightGrams, lengthMm: variant.lengthMm, widthMm: variant.widthMm, heightMm: variant.heightMm, defaultPackagingId: variant.defaultPackagingId })) },
+        options: { create: source.options.map(option => ({ name: option.name, code: option.code, type: option.type, required: option.required, maxLength: option.maxLength, priceDeltaCents: option.priceDeltaCents, helpText: option.helpText, sortOrder: option.sortOrder, active: option.active, values: { create: option.values.map(value => ({ label: value.label, value: value.value, priceDeltaCents: value.priceDeltaCents, sortOrder: value.sortOrder, active: value.active, swatchHex: value.swatchHex, swatchHexSecondary: value.swatchHexSecondary, swatchImageUrl: value.swatchImageUrl })) } })) },
+      } });
+      await tx.auditLog.create({ data: { actorId: user.id, storeId: store.id, action: "PRODUCT_DUPLICATED", entityType: "Product", entityId: product.id, metadata: { sourceProductId: source.id } } });
+      return product;
+    });
+    return NextResponse.json({ product: { id: duplicate.id } }, { status: 201 });
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") return jsonError("Could not allocate a unique slug or SKU; try again", 409);
+    return jsonError("Product could not be duplicated", 500);
+  }
+}
+
+export async function PATCH(request: NextRequest, { params }: { params: Promise<{ productId: string }> }) {
+  if (!assertSameOrigin(request)) return jsonError("Invalid request origin", 403);
+  const context = await getAdminApiContext(); if (!context) return jsonError("Forbidden", 403);
+  const { user, store } = context;
+  const parsed = adminProductSchema.safeParse(await request.json().catch(() => null));
+  if (!parsed.success) return NextResponse.json({ error: "Review the highlighted product fields.", issues: productValidationFeedback(parsed.error.issues) }, { status: 400 });
+  const { productId } = await params;
+  const existing = await db.product.findFirst({ where: { id: productId, storeId: store.id }, select: { id: true, slug: true, legacySlugs: true, status: true, variants: { select: { id: true, priceCents: true, inventory: true } } } });
+  if (!existing) return jsonError("Product not found", 404);
+  const data = parsed.data;
+  if (!validCanonicalOverride(data.canonicalUrl, store.origin)) return jsonError("Canonical URL must belong to this store and contain no query or fragment", 400);
+  if (await db.product.count({ where: { storeId: store.id, id: { not: productId }, OR: [{ slug: data.slug }, { legacySlugs: { has: data.slug } }] } })) return jsonError("That product slug is already in use", 409);
+  try {
+    await db.$transaction(async tx => {
+      if (data.categoryId) {
+        const category = await tx.productCategory.findFirst({ where: { id: data.categoryId, storeId: store.id }, select: { id: true } });
+        if (!category) throw new Error("INVALID_CATEGORY");
+      }
+      const packagingIds = [...new Set([data.defaultPackagingId, ...data.variants.map(variant => variant.defaultPackagingId)].filter((id): id is string => Boolean(id)))];
+      if (packagingIds.length && await tx.packaging.count({ where: { id: { in: packagingIds }, storeId: store.id } }) !== packagingIds.length) throw new Error("INVALID_PACKAGING");
+      await tx.product.update({ where: { id: productId }, data: { name: data.name, slug: data.slug, legacySlugs: data.slug === existing.slug ? existing.legacySlugs : [...new Set([...existing.legacySlugs, existing.slug])].filter(slug => slug !== data.slug), description: data.description, shortDescription: data.description, fullDescription: data.fullDescription || null, categoryId: data.categoryId || null, type: data.type, status: data.status, featured: data.featured, shopVisible: data.shopVisible, brand: data.brand, gstInclusive: data.gstInclusive, personalisationMode: data.personalisationMode, weightGrams: data.weightGrams, lengthMm: data.lengthMm, widthMm: data.widthMm, heightMm: data.heightMm, defaultPackagingId: data.defaultPackagingId, shipsSeparately: data.shipsSeparately, specialHandling: data.specialHandling || null, countryOfOrigin: data.countryOfOrigin || null, customsDescription: data.customsDescription || null, hsCode: data.hsCode || null, customsValueCents: data.customsValueCents, dutiesHandling: data.dutiesHandling, restrictedItem: data.restrictedItem, seoTitle: data.seoTitle || null, seoDescription: data.seoDescription || null, ogImageUrl: data.ogImageUrl || null, canonicalUrl: data.canonicalUrl || null, indexable: data.indexable } });
+      const variantIds = data.variants.flatMap(variant => variant.id ? [variant.id] : []);
+      await tx.productVariant.updateMany({ where: { productId, id: { notIn: variantIds } }, data: { active: false } });
+      for (const variant of data.variants) {
+        const values = { sku: variant.sku, name: variant.name, colour: variant.colour || null, size: variant.size || null, material: variant.material || null, priceCents: variant.priceCents, compareAtPriceCents: variant.compareAtPriceCents || null, costCents: variant.costCents || null, trackInventory: variant.trackInventory, lowStockThreshold: variant.lowStockThreshold, backorderPolicy: variant.backorderPolicy, active: variant.active, isDefault: variant.isDefault, optionSelection: variant.optionSelection, weightGrams: variant.weightGrams, lengthMm: variant.lengthMm, widthMm: variant.widthMm, heightMm: variant.heightMm, defaultPackagingId: variant.defaultPackagingId };
+        if (variant.id) { const updated = await tx.productVariant.updateMany({ where: { id: variant.id, productId }, data: values }); if (updated.count !== 1) throw new Error("INVALID_VARIANT"); }
+        else {
+          const created = await tx.productVariant.create({ data: { ...values, inventory: variant.inventory, productId } });
+          if (variant.inventory) await tx.inventoryMovement.create({ data: { variantId: created.id, actorId: user.id, type: "ADJUSTMENT", quantity: variant.inventory, reason: "Initial stock for new variant" } });
+        }
+      }
+      const optionIds = data.options.flatMap(option => option.id ? [option.id] : []);
+      await tx.productOption.deleteMany({ where: { productId, id: { notIn: optionIds } } });
+      for (const [sortOrder, option] of data.options.entries()) {
+        const values = { name: option.name, code: option.code, type: option.type, required: option.required, maxLength: option.maxLength || null, priceDeltaCents: option.priceDeltaCents, helpText: option.helpText || null, active: option.active, sortOrder };
+        if (option.id) {
+          const updated = await tx.productOption.updateMany({ where: { id: option.id, productId }, data: values }); if (updated.count !== 1) throw new Error("INVALID_OPTION");
+          const valueIds = option.values.flatMap(value => value.id ? [value.id] : []);
+          await tx.productOptionValue.deleteMany({ where: { optionId: option.id, id: { notIn: valueIds } } });
+          for (const [valueOrder, value] of option.values.entries()) {
+            const valueData = { label: value.label, value: value.value, priceDeltaCents: value.priceDeltaCents, active: value.active, sortOrder: valueOrder, swatchHex: value.swatchHex, swatchHexSecondary: value.swatchHexSecondary, swatchImageUrl: value.swatchImageUrl || null };
+            if (value.id) { const changed = await tx.productOptionValue.updateMany({ where: { id: value.id, optionId: option.id }, data: valueData }); if (changed.count !== 1) throw new Error("INVALID_OPTION_VALUE"); }
+            else await tx.productOptionValue.create({ data: { ...valueData, optionId: option.id } });
+          }
+        } else await tx.productOption.create({ data: { ...values, productId, values: { create: option.values.map((value, valueOrder) => ({ label: value.label, value: value.value, priceDeltaCents: value.priceDeltaCents, active: value.active, sortOrder: valueOrder, swatchHex: value.swatchHex, swatchHexSecondary: value.swatchHexSecondary, swatchImageUrl: value.swatchImageUrl || null })) } } });
+      }
+      await tx.auditLog.create({ data: { actorId: user.id, storeId: store.id, action: existing.status === data.status ? "PRODUCT_UPDATED" : "PRODUCT_STATUS_CHANGED", entityType: "Product", entityId: productId, metadata: { fromStatus: existing.status, toStatus: data.status } } });
+      const previous = new Map(existing.variants.map(variant => [variant.id, variant]));
+      if (data.variants.some(variant => !variant.id || previous.get(variant.id)?.priceCents !== variant.priceCents)) await tx.auditLog.create({ data: { actorId: user.id, storeId: store.id, action: "PRODUCT_PRICE_CHANGED", entityType: "Product", entityId: productId } });
+      if (data.variants.some(variant => !variant.id && variant.inventory > 0)) await tx.auditLog.create({ data: { actorId: user.id, storeId: store.id, action: "PRODUCT_INVENTORY_CHANGED", entityType: "Product", entityId: productId } });
+      await queueEtsyInventorySync(tx, store.id, productId);
+    });
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    if (error instanceof Error && error.message === "INVALID_CATEGORY") return jsonError("Category does not belong to this store", 409);
+    if (error instanceof Error && error.message === "INVALID_PACKAGING") return jsonError("Packaging does not belong to this store", 409);
+    if (error instanceof Error && error.message === "INVALID_OPTION_VALUE") return jsonError("Option choice does not belong to this product", 409);
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") return jsonError("Slug, SKU or option code is already in use", 409);
+    return jsonError("Product could not be updated", 500);
+  }
+}
+
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ productId: string }> }) {
+  if (!assertSameOrigin(request)) return jsonError("Invalid request origin", 403);
+  const context = await getAdminApiContext(); if (!context || context.user.role !== "ADMIN") return jsonError("Administrator access required", 403);
+  const { user, store } = context;
+  const { productId } = await params;
+  const product = await db.product.findFirst({ where: { id: productId, storeId: store.id }, include: { images: { select: { storageKey: true } }, variants: { select: { id: true, _count: { select: { orderItems: true, inventoryMovements: true, manufacturingJobs: true } } } }, _count: { select: { tags: true, batches: true } } } });
+  if (!product) return jsonError("Product not found", 404);
+  const history = { orderItems: product.variants.reduce((sum, variant) => sum + variant._count.orderItems, 0), inventoryMovements: product.variants.reduce((sum, variant) => sum + variant._count.inventoryMovements, 0), manufacturingJobs: product.variants.reduce((sum, variant) => sum + variant._count.manufacturingJobs, 0), tags: product._count.tags, batches: product._count.batches };
+  if (!canHardDeleteProduct(history)) return jsonError("This product has historical data and cannot be permanently deleted. Archive it instead.", 409);
+  const variantIds = product.variants.map(variant => variant.id);
+  await db.$transaction(async tx => {
+    if (variantIds.length) await tx.cartItem.deleteMany({ where: { variantId: { in: variantIds } } });
+    await tx.productVariant.deleteMany({ where: { productId } });
+    await tx.product.delete({ where: { id: productId } });
+    await tx.auditLog.create({ data: { actorId: user.id, storeId: store.id, action: "PRODUCT_DELETED", entityType: "Product", entityId: productId, metadata: { name: product.name } } });
+  });
+  await Promise.all(product.images.map(image => deleteStoredImage(image.storageKey)));
+  return NextResponse.json({ ok: true });
+}

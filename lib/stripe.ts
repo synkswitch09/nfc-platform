@@ -1,7 +1,8 @@
 import Stripe from "stripe";
+import { getRuntimeConfig } from "@/lib/config";
 
 export function getStripe() {
-  const key = process.env.STRIPE_SECRET_KEY;
+  const key = getRuntimeConfig().stripe.secretKey;
   if (!key) return null;
   return new Stripe(key);
 }

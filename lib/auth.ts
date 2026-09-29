@@ -2,18 +2,21 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { createOpaqueToken, sha256 } from "@/lib/crypto";
+import { getCurrentStorefront, type Storefront } from "@/lib/storefront";
+import { belongsToStore } from "@/lib/store-isolation";
 
 export const SESSION_COOKIE = "nfc_session";
 const SESSION_DAYS = 30;
 
-export async function createSession(userId: string) {
+export async function createSession(userId: string, storefront?: Storefront) {
+  const store = storefront ?? await getCurrentStorefront();
   const token = createOpaqueToken();
   const expiresAt = new Date(Date.now() + SESSION_DAYS * 86_400_000);
-  await db.session.create({ data: { tokenHash: sha256(token), userId, expiresAt } });
+  await db.session.create({ data: { tokenHash: sha256(token), userId, storeId: store.id, expiresAt } });
   const jar = await cookies();
   jar.set(SESSION_COOKIE, token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    secure: store.origin.startsWith("https://"),
     sameSite: "lax",
     path: "/",
     expires: expiresAt,
@@ -32,9 +35,22 @@ export async function getCurrentUser() {
   if (!token) return null;
   const session = await db.session.findUnique({
     where: { tokenHash: sha256(token) },
-    include: { user: { select: { id: true, email: true, name: true, role: true, emailVerifiedAt: true } } },
+    include: { user: { select: { id: true, email: true, name: true, role: true, status: true, emailVerifiedAt: true } } },
   });
-  if (!session || session.expiresAt <= new Date()) return null;
+  if (!session) return null;
+  const store = await getCurrentStorefront();
+  if (!belongsToStore(session.storeId, store.id)) return null;
+  if (session.expiresAt <= new Date()) {
+    await db.session.delete({ where: { id: session.id } }).catch(() => undefined);
+    return null;
+  }
+  if (session.user.status !== "ACTIVE") {
+    await db.session.delete({ where: { id: session.id } }).catch(() => undefined);
+    return null;
+  }
+  if (Date.now() - session.lastSeen.getTime() > 15 * 60 * 1000) {
+    void db.session.update({ where: { id: session.id }, data: { lastSeen: new Date() } }).catch(() => undefined);
+  }
   return session.user;
 }
 

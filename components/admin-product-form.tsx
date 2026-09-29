@@ -1,0 +1,1570 @@
+"use client";
+
+import { FormEvent, useState } from "react";
+import { useRouter } from "next/navigation";
+import { Archive, Copy, EyeOff, Plus, Trash2 } from "lucide-react";
+
+type ProductValidationIssue = {
+  path: string;
+  field: string;
+  section: "product-details" | "shipping" | "variants" | "choices" | "search";
+  message: string;
+};
+
+export type OptionValueForm = {
+  id?: string;
+  label: string;
+  value: string;
+  price: string;
+  active: boolean;
+  swatchHex: string;
+  swatchHexSecondary: string;
+  swatchImageUrl: string;
+};
+type VariantForm = {
+  id?: string;
+  sku: string;
+  name: string;
+  colour: string;
+  size: string;
+  material: string;
+  price: string;
+  compareAtPrice: string;
+  cost: string;
+  inventory: number;
+  trackInventory: boolean;
+  lowStockThreshold: number;
+  backorderPolicy: "DENY" | "ALLOW";
+  active: boolean;
+  isDefault: boolean;
+  optionSelection: string;
+  weightGrams: number | null;
+  lengthMm: number | null;
+  widthMm: number | null;
+  heightMm: number | null;
+  defaultPackagingId: string;
+};
+type OptionForm = {
+  id?: string;
+  name: string;
+  code: string;
+  type:
+    | "SHORT_TEXT"
+    | "LONG_TEXT"
+    | "SELECT"
+    | "RADIO"
+    | "CHECKBOX"
+    | "COLOUR"
+    | "IMAGE";
+  required: boolean;
+  maxLength: number | null;
+  price: string;
+  helpText: string;
+  values: OptionValueForm[];
+};
+export type AdminProductInitial = {
+  id?: string;
+  name: string;
+  slug: string;
+  description: string;
+  fullDescription: string;
+  categoryId: string;
+  type: string;
+  status: string;
+  featured: boolean;
+  shopVisible: boolean;
+  brand: string;
+  gstInclusive: boolean;
+  personalisationMode: "NONE" | "OPTIONAL" | "REQUIRED";
+  weightGrams: number | null;
+  lengthMm: number | null;
+  widthMm: number | null;
+  heightMm: number | null;
+  defaultPackagingId: string;
+  shipsSeparately: boolean;
+  specialHandling: string;
+  countryOfOrigin: string;
+  customsDescription: string;
+  hsCode: string;
+  customsValue: string;
+  dutiesHandling: "UNDETERMINED" | "RECIPIENT_PAYS" | "SENDER_PAYS";
+  restrictedItem: boolean;
+  seoTitle: string;
+  seoDescription: string;
+  ogImageUrl: string;
+  canonicalUrl: string;
+  indexable: boolean;
+  variants: VariantForm[];
+  options: OptionForm[];
+};
+
+const blankVariant = (): VariantForm => ({
+  sku: "",
+  name: "Standard",
+  colour: "",
+  size: "",
+  material: "PETG",
+  price: "24.95",
+  compareAtPrice: "",
+  cost: "",
+  inventory: 0,
+  trackInventory: true,
+  lowStockThreshold: 5,
+  backorderPolicy: "DENY",
+  active: true,
+  isDefault: true,
+  optionSelection: "",
+  weightGrams: null,
+  lengthMm: null,
+  widthMm: null,
+  heightMm: null,
+  defaultPackagingId: "",
+});
+const blankOption = (): OptionForm => ({
+  name: "",
+  code: "",
+  type: "SHORT_TEXT",
+  required: false,
+  maxLength: 40,
+  price: "0",
+  helpText: "",
+  values: [],
+});
+const blankOptionValue = (): OptionValueForm => ({
+  label: "",
+  value: "",
+  price: "0",
+  active: true,
+  swatchHex: "#000000",
+  swatchHexSecondary: "",
+  swatchImageUrl: "",
+});
+const productChoicePresets: Record<
+  "colour" | "shape" | "size",
+  Omit<OptionForm, "id">
+> = {
+  colour: {
+    name: "Colour",
+    code: "colour",
+    type: "COLOUR",
+    required: true,
+    maxLength: null,
+    price: "0",
+    helpText: "Choose the colour for this tag.",
+    values: [
+      {
+        ...blankOptionValue(),
+        label: "Black",
+        value: "black",
+        swatchHex: "#171717",
+      },
+      {
+        ...blankOptionValue(),
+        label: "White",
+        value: "white",
+        swatchHex: "#f8f8f6",
+      },
+      {
+        ...blankOptionValue(),
+        label: "Mint",
+        value: "mint",
+        swatchHex: "#9fd8c3",
+      },
+      {
+        ...blankOptionValue(),
+        label: "Peach",
+        value: "peach",
+        swatchHex: "#f4c7a5",
+      },
+    ],
+  },
+  shape: {
+    name: "Style / shape",
+    code: "shape",
+    type: "SELECT",
+    required: true,
+    maxLength: null,
+    price: "0",
+    helpText: "Choose the shape of the tag.",
+    values: ["Round", "Bone", "Heart"].map((label) => ({
+      ...blankOptionValue(),
+      label,
+      value: slugValue(label),
+    })),
+  },
+  size: {
+    name: "Size",
+    code: "size",
+    type: "SELECT",
+    required: true,
+    maxLength: null,
+    price: "0",
+    helpText: "Choose the size that suits the pet.",
+    values: ["Small", "Medium", "Large"].map((label) => ({
+      ...blankOptionValue(),
+      label,
+      value: slugValue(label),
+    })),
+  },
+};
+const cents = (value: string) => Math.round(Number(value || 0) * 100);
+
+export function AdminProductForm({
+  initial,
+  categories,
+  packaging,
+  canDelete = false,
+}: {
+  initial: AdminProductInitial;
+  categories: Array<{ id: string; name: string }>;
+  packaging: Array<{ id: string; name: string }>;
+  canDelete?: boolean;
+}) {
+  const router = useRouter();
+  const [variants, setVariants] = useState<VariantForm[]>(
+    initial.variants.length ? initial.variants : [blankVariant()],
+  );
+  const [options, setOptions] = useState<OptionForm[]>(initial.options);
+  const [message, setMessage] = useState("");
+  const [validationIssues, setValidationIssues] = useState<ProductValidationIssue[]>([]);
+  const [pending, setPending] = useState(false);
+  const [namePreview, setNamePreview] = useState(initial.name);
+  const [slugPreview, setSlugPreview] = useState(initial.slug);
+  const [seoTitlePreview, setSeoTitlePreview] = useState(initial.seoTitle);
+  const [seoDescriptionPreview, setSeoDescriptionPreview] = useState(
+    initial.seoDescription,
+  );
+  const selectionOptions = options.filter((option) =>
+    ["SELECT", "RADIO", "COLOUR"].includes(option.type),
+  );
+  const choiceByCode = (code: string) =>
+    selectionOptions.find((option) => option.code === code);
+  const issueFor = (path: string) =>
+    validationIssues.find((issue) => issue.path === path)?.message;
+  const variantIssue = (index: number, field?: string) =>
+    validationIssues.find((issue) =>
+      field
+        ? issue.path === `variants.${index}.${field}`
+        : issue.path.startsWith(`variants.${index}.`),
+    )?.message;
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setPending(true);
+    setMessage("");
+    setValidationIssues([]);
+    const form = new FormData(event.currentTarget);
+    const payload = {
+      name: form.get("name"),
+      slug: form.get("slug"),
+      description: form.get("description"),
+      fullDescription: form.get("fullDescription") || null,
+      categoryId: form.get("categoryId") || null,
+      type: form.get("type"),
+      status: form.get("status"),
+      featured: form.get("featured") === "on",
+      shopVisible: form.get("shopVisible") === "on",
+      brand: form.get("brand"),
+      gstInclusive: form.get("gstInclusive") === "on",
+      personalisationMode: form.get("personalisationMode"),
+      weightGrams: optionalNumber(form.get("weightGrams")),
+      lengthMm: optionalNumber(form.get("lengthMm")),
+      widthMm: optionalNumber(form.get("widthMm")),
+      heightMm: optionalNumber(form.get("heightMm")),
+      defaultPackagingId: form.get("defaultPackagingId") || null,
+      shipsSeparately: form.get("shipsSeparately") === "on",
+      specialHandling: form.get("specialHandling") || null,
+      countryOfOrigin: form.get("countryOfOrigin") || null,
+      customsDescription: form.get("customsDescription") || null,
+      hsCode: form.get("hsCode") || null,
+      customsValueCents: form.get("customsValue")
+        ? cents(String(form.get("customsValue")))
+        : null,
+      dutiesHandling: form.get("dutiesHandling"),
+      restrictedItem: form.get("restrictedItem") === "on",
+      seoTitle: form.get("seoTitle") || null,
+      seoDescription: form.get("seoDescription") || null,
+      ogImageUrl: form.get("ogImageUrl") || "",
+      canonicalUrl: form.get("canonicalUrl") || "",
+      indexable: form.get("indexable") === "on",
+      variants: variants.map((variant) => ({
+        ...variant,
+        priceCents: cents(variant.price),
+        compareAtPriceCents: variant.compareAtPrice
+          ? cents(variant.compareAtPrice)
+          : null,
+        costCents: variant.cost ? cents(variant.cost) : null,
+        optionSelection: parseSelection(variant.optionSelection),
+        defaultPackagingId: variant.defaultPackagingId || null,
+      })),
+      options: options.map((option) => ({
+        ...option,
+        priceDeltaCents: cents(option.price),
+        values: option.values.map((value) => ({
+          ...value,
+          priceDeltaCents: cents(value.price),
+          swatchHex: value.swatchHex || null,
+          swatchHexSecondary: value.swatchHexSecondary || null,
+          swatchImageUrl: value.swatchImageUrl || "",
+        })),
+        active: true,
+      })),
+    };
+    const response = await fetch(
+      initial.id ? `/api/admin/products/${initial.id}` : "/api/admin/products",
+      {
+        method: initial.id ? "PATCH" : "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(payload),
+      },
+    );
+    const result = await response.json().catch(() => ({}));
+    setPending(false);
+    if (!response.ok) {
+      const issues = Array.isArray(result.issues)
+        ? (result.issues as ProductValidationIssue[])
+        : [];
+      setValidationIssues(issues);
+      setMessage(result.error ?? "Product could not be saved");
+      const firstSection = issues[0]?.section;
+      if (firstSection)
+        window.setTimeout(
+          () => document.getElementById(firstSection)?.scrollIntoView({ behavior: "smooth", block: "start" }),
+          0,
+        );
+      return;
+    }
+    setMessage("Product saved");
+    if (!initial.id) router.replace(`/admin/products/${result.product.id}`);
+    else router.refresh();
+  }
+  async function changeStatus(status: "HIDDEN" | "ARCHIVED") {
+    if (
+      !initial.id ||
+      !window.confirm(
+        `${status === "HIDDEN" ? "Hide" : "Archive"} this product? Existing tags will continue to work.`,
+      )
+    )
+      return;
+    const reason = window.prompt("Reason for this lifecycle change:");
+    if (!reason) return;
+    const response = await fetch(`/api/admin/products/${initial.id}/status`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ status, reason }),
+    });
+    const result = await response.json().catch(() => ({}));
+    if (response.ok) router.refresh();
+    else setMessage(result.error ?? "Product status could not be changed");
+  }
+  async function hardDelete() {
+    if (
+      !initial.id ||
+      !window.confirm(
+        "Permanently delete this product? This is allowed only when it has no historical data.",
+      )
+    )
+      return;
+    const response = await fetch(`/api/admin/products/${initial.id}`, {
+      method: "DELETE",
+    });
+    const result = await response.json().catch(() => ({}));
+    if (response.ok) router.push("/admin/products");
+    else setMessage(result.error ?? "Product could not be deleted");
+  }
+  async function duplicate() {
+    if (
+      !initial.id ||
+      !window.confirm(
+        "Create a draft copy? Images and stock are intentionally not copied.",
+      )
+    )
+      return;
+    setPending(true);
+    setMessage("");
+    const response = await fetch(`/api/admin/products/${initial.id}`, {
+      method: "POST",
+    });
+    const result = await response.json().catch(() => ({}));
+    setPending(false);
+    if (response.ok) router.push(`/admin/products/${result.product.id}`);
+    else setMessage(result.error ?? "Product could not be duplicated");
+  }
+  return (
+    <form onSubmit={submit} className="admin-form">
+      {validationIssues.length > 0 && (
+        <div className="form-error validation-summary" role="alert">
+          <strong>Product not saved. Fix the following fields:</strong>
+          <ul>
+            {validationIssues.map((issue, index) => (
+              <li key={`${issue.path}-${index}`}>
+                <a href={`#${issue.section}`}>{issue.field}: {issue.message}</a>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      <section className="admin-panel" id="variant-dimensions">
+        <div className="panel-heading">
+          <div>
+            <h2>Variant dimensions</h2>
+            <p>
+              Optional millimetre overrides take precedence over the product
+              shipping profile.
+            </p>
+          </div>
+        </div>
+        <div className="admin-stack">
+          {variants.map((variant, index) => (
+            <div
+              className="field-grid three"
+              key={`shipping-${variant.id ?? index}`}
+            >
+              <label className="field">
+                {variant.name} length (mm)
+                <input
+                  type="number"
+                  min="1"
+                  value={variant.lengthMm ?? ""}
+                  onChange={(event) =>
+                    updateVariant(
+                      setVariants,
+                      index,
+                      "lengthMm",
+                      event.target.value ? Number(event.target.value) : null,
+                    )
+                  }
+                />
+              </label>
+              <label className="field">
+                Width (mm)
+                <input
+                  type="number"
+                  min="1"
+                  value={variant.widthMm ?? ""}
+                  onChange={(event) =>
+                    updateVariant(
+                      setVariants,
+                      index,
+                      "widthMm",
+                      event.target.value ? Number(event.target.value) : null,
+                    )
+                  }
+                />
+              </label>
+              <label className="field">
+                Height (mm)
+                <input
+                  type="number"
+                  min="1"
+                  value={variant.heightMm ?? ""}
+                  onChange={(event) =>
+                    updateVariant(
+                      setVariants,
+                      index,
+                      "heightMm",
+                      event.target.value ? Number(event.target.value) : null,
+                    )
+                  }
+                />
+              </label>
+            </div>
+          ))}
+        </div>
+      </section>
+      <section className="admin-panel" id="product-details">
+        <div className="panel-heading">
+          <div>
+            <h2>Product details</h2>
+            <p>Customer-facing information and publication state.</p>
+          </div>
+        </div>
+        <div className="field-grid">
+          <label className={issueFor("name") ? "field field-invalid" : "field"}>
+            Name
+            <input
+              name="name"
+              defaultValue={initial.name}
+              onChange={(event) => setNamePreview(event.target.value)}
+              required
+            />
+            {issueFor("name") && <small className="form-error">{issueFor("name")}</small>}
+          </label>
+          <label className={issueFor("slug") ? "field field-invalid" : "field"}>
+            Slug
+            <input
+              name="slug"
+              defaultValue={initial.slug}
+              onChange={(event) => setSlugPreview(event.target.value)}
+              pattern="[a-z0-9]+(?:-[a-z0-9]+)*"
+              required
+            />
+            {issueFor("slug") && <small className="form-error">{issueFor("slug")}</small>}
+          </label>
+          <label className="field">
+            Category
+            <select name="categoryId" defaultValue={initial.categoryId}>
+              <option value="">Uncategorised</option>
+              {categories.map((category) => (
+                <option value={category.id} key={category.id}>
+                  {category.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="field">
+            NFC profile type
+            <select name="type" defaultValue={initial.type}>
+              {[
+                "PET",
+                "CHILD",
+                "EMERGENCY",
+                "SOCIAL",
+                "BUSINESS",
+                "LUGGAGE",
+                "REVIEW",
+                "CUSTOM",
+                "ACCESSORY",
+              ].map((type) => (
+                <option key={type}>{type}</option>
+              ))}
+            </select>
+          </label>
+          <label className="field">
+            Status
+            <select name="status" defaultValue={initial.status}>
+              {["DRAFT", "ACTIVE", "HIDDEN", "OUT_OF_STOCK", "ARCHIVED"].map(
+                (status) => (
+                  <option key={status}>{status}</option>
+                ),
+              )}
+            </select>
+          </label>
+          <label className="field">
+            Brand
+            <input name="brand" defaultValue={initial.brand} required />
+          </label>
+        </div>
+        <label className={issueFor("description") ? "field field-invalid" : "field"}>
+          Short description
+          <textarea
+            name="description"
+            defaultValue={initial.description}
+            maxLength={500}
+            required
+          />
+          {issueFor("description") && <small className="form-error">{issueFor("description")}</small>}
+        </label>
+        <label className="field">
+          Full description
+          <textarea
+            name="fullDescription"
+            defaultValue={initial.fullDescription}
+            className="large-textarea"
+          />
+        </label>
+        <div className="check-row">
+          <label className="check-field">
+            <input
+              type="checkbox"
+              name="featured"
+              defaultChecked={initial.featured}
+            />
+            <span>Featured product</span>
+          </label>
+          <label className="check-field">
+            <input
+              type="checkbox"
+              name="shopVisible"
+              defaultChecked={initial.shopVisible}
+            />
+            <span>Visible and purchasable in Shop</span>
+          </label>
+          <label className="check-field">
+            <input
+              type="checkbox"
+              name="gstInclusive"
+              defaultChecked={initial.gstInclusive}
+            />
+            <span>Prices include GST</span>
+          </label>
+        </div>
+      </section>
+      <section className="admin-panel" id="shipping">
+        <div className="panel-heading">
+          <div>
+            <h2>Shipping profile</h2>
+            <p>
+              Physical data is used only on the server to pack and quote this
+              product.
+            </p>
+          </div>
+        </div>
+        <div className="field-grid three">
+          <label className="field">
+            Weight (g)
+            <input
+              name="weightGrams"
+              type="number"
+              min="1"
+              defaultValue={initial.weightGrams ?? ""}
+            />
+          </label>
+          <label className="field">
+            Length (mm)
+            <input
+              name="lengthMm"
+              type="number"
+              min="1"
+              defaultValue={initial.lengthMm ?? ""}
+            />
+          </label>
+          <label className="field">
+            Width (mm)
+            <input
+              name="widthMm"
+              type="number"
+              min="1"
+              defaultValue={initial.widthMm ?? ""}
+            />
+          </label>
+          <label className="field">
+            Height (mm)
+            <input
+              name="heightMm"
+              type="number"
+              min="1"
+              defaultValue={initial.heightMm ?? ""}
+            />
+          </label>
+          <label className="field">
+            Default packaging
+            <select
+              name="defaultPackagingId"
+              defaultValue={initial.defaultPackagingId}
+            >
+              <option value="">Store default</option>
+              {packaging.map((item) => (
+                <option value={item.id} key={item.id}>
+                  {item.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+        <label className="field">
+          Special handling
+          <textarea
+            name="specialHandling"
+            defaultValue={initial.specialHandling}
+            maxLength={500}
+          />
+        </label>
+        <label className="check-field">
+          <input
+            type="checkbox"
+            name="shipsSeparately"
+            defaultChecked={initial.shipsSeparately}
+          />
+          <span>Ship each unit separately</span>
+        </label>
+      </section>
+      <section className="admin-panel" id="customs">
+        <div className="panel-heading">
+          <div>
+            <h2>International customs</h2>
+            <p>
+              Structured carrier-ready data for declarations. Provider-specific
+              CN22/CN23 generation remains an adapter responsibility.
+            </p>
+          </div>
+        </div>
+        <div className="field-grid three">
+          <label className="field">
+            Country of origin (ISO)
+            <input
+              name="countryOfOrigin"
+              defaultValue={initial.countryOfOrigin}
+              pattern="[A-Za-z]{2}"
+              maxLength={2}
+              placeholder="AU"
+            />
+          </label>
+          <label className="field">
+            HS code
+            <input
+              name="hsCode"
+              defaultValue={initial.hsCode}
+              inputMode="numeric"
+              pattern="[0-9]{4,10}"
+            />
+          </label>
+          <label className="field">
+            Customs value {"("}store currency{")"}
+            <input
+              name="customsValue"
+              defaultValue={initial.customsValue}
+              inputMode="decimal"
+            />
+          </label>
+          <label className="field">
+            Duties and taxes
+            <select name="dutiesHandling" defaultValue={initial.dutiesHandling}>
+              <option value="UNDETERMINED">Not configured</option>
+              <option value="RECIPIENT_PAYS">Recipient pays</option>
+              <option value="SENDER_PAYS">Sender pays</option>
+            </select>
+          </label>
+        </div>
+        <label className="field">
+          Customs description
+          <textarea
+            name="customsDescription"
+            defaultValue={initial.customsDescription}
+            maxLength={200}
+          />
+        </label>
+        <label className="check-field">
+          <input
+            type="checkbox"
+            name="restrictedItem"
+            defaultChecked={initial.restrictedItem}
+          />
+          <span>Restricted item — require carrier/customs review</span>
+        </label>
+      </section>
+      <section className="admin-panel" id="variants">
+        <div className="panel-heading">
+          <div>
+            <h2>Variants and inventory</h2>
+            <p>
+              Choose colour, size and style from the configured product
+              choices. Each variant then carries its own SKU, price, stock and
+              shipping data.
+            </p>
+          </div>
+          <div className="actions">
+            {(["colour", "shape", "size"] as const)
+              .filter((choice) => !options.some((option) => option.code === choice))
+              .map((choice) => (
+                <button className="button secondary" type="button" key={choice} onClick={() => setOptions((current) => [...current, productChoicePresets[choice]])}>
+                  <Plus size={16} /> Add {choice === "shape" ? "style" : choice}
+                </button>
+              ))}
+            <button
+              className="button secondary"
+              type="button"
+              onClick={() =>
+                setVariants((current) => [
+                  ...current.map((item) => ({ ...item, isDefault: false })),
+                  blankVariant(),
+                ])
+              }
+            >
+              <Plus size={16} /> Add variant
+            </button>
+          </div>
+        </div>
+        <div className="admin-stack">
+          {variants.map((variant, index) => (
+            <div className="variant-editor" key={variant.id ?? index}>
+              <div className="variant-title">
+                <strong>Variant {index + 1}</strong>
+                {variants.length > 1 && (
+                  <button
+                    type="button"
+                    className="icon-button"
+                    onClick={() =>
+                      setVariants((current) =>
+                        current.filter((_, itemIndex) => itemIndex !== index),
+                      )
+                    }
+                  >
+                    <Trash2 size={17} />
+                  </button>
+                )}
+              </div>
+              <div className="field-grid three">
+                <label className={variantIssue(index, "sku") ? "field field-invalid" : "field"}>
+                  SKU
+                  <input
+                    value={variant.sku}
+                    onChange={(event) =>
+                      updateVariant(
+                        setVariants,
+                        index,
+                        "sku",
+                        event.target.value.toUpperCase(),
+                      )
+                    }
+                    required
+                  />
+                  {variantIssue(index, "sku") && <small className="form-error">{variantIssue(index, "sku")}</small>}
+                </label>
+                <label className={variantIssue(index, "name") ? "field field-invalid" : "field"}>
+                  Name
+                  <input
+                    value={variant.name}
+                    onChange={(event) =>
+                      updateVariant(
+                        setVariants,
+                        index,
+                        "name",
+                        event.target.value,
+                      )
+                    }
+                    required
+                  />
+                  {variantIssue(index, "name") && <small className="form-error">{variantIssue(index, "name")}</small>}
+                </label>
+                <VariantChoiceField fallbackName="Colour" option={options.find((option) => option.type === "COLOUR")} value={selectionValue(variant.optionSelection, options.find((option) => option.type === "COLOUR")?.code ?? "colour")} onChange={(value, label) => updateVariantChoice(setVariants, index, options.find((option) => option.type === "COLOUR")?.code ?? "colour", value, label)} />
+                <VariantChoiceField fallbackName="Size" option={choiceByCode("size")} value={selectionValue(variant.optionSelection, "size")} onChange={(value, label) => updateVariantChoice(setVariants, index, "size", value, label)} />
+                <VariantChoiceField fallbackName="Style / shape" option={choiceByCode("shape")} value={selectionValue(variant.optionSelection, "shape")} onChange={(value) => updateVariantChoice(setVariants, index, "shape", value)} />
+                {selectionOptions.filter((option) => option.type !== "COLOUR" && !["size", "shape"].includes(option.code)).map((option) => <VariantChoiceField key={option.code} option={option} value={selectionValue(variant.optionSelection, option.code)} onChange={(value, label) => updateVariantChoice(setVariants, index, option.code, value, label)} />)}
+                <label className="field">
+                  Material
+                  <input
+                    value={variant.material}
+                    onChange={(event) =>
+                      updateVariant(
+                        setVariants,
+                        index,
+                        "material",
+                        event.target.value,
+                      )
+                    }
+                  />
+                </label>
+                <label className="field">
+                  Price AUD
+                  <input
+                    inputMode="decimal"
+                    value={variant.price}
+                    onChange={(event) =>
+                      updateVariant(
+                        setVariants,
+                        index,
+                        "price",
+                        event.target.value,
+                      )
+                    }
+                    required
+                  />
+                </label>
+                <label className="field">
+                  Compare-at AUD
+                  <input
+                    inputMode="decimal"
+                    value={variant.compareAtPrice}
+                    onChange={(event) =>
+                      updateVariant(
+                        setVariants,
+                        index,
+                        "compareAtPrice",
+                        event.target.value,
+                      )
+                    }
+                  />
+                </label>
+                <label className="field">
+                  Internal cost AUD
+                  <input
+                    inputMode="decimal"
+                    value={variant.cost}
+                    onChange={(event) =>
+                      updateVariant(
+                        setVariants,
+                        index,
+                        "cost",
+                        event.target.value,
+                      )
+                    }
+                  />
+                </label>
+                <label className="field">
+                  Stock
+                  <input
+                    type="number"
+                    min="0"
+                    value={variant.inventory}
+                    readOnly={Boolean(variant.id)}
+                    title={variant.id ? "Adjust existing stock in Catalog → Inventory" : "Initial stock"}
+                    onChange={(event) =>
+                      updateVariant(
+                        setVariants,
+                        index,
+                        "inventory",
+                        Number(event.target.value),
+                      )
+                    }
+                  />
+                  {variant.id && <small>Adjust stock in <a href="/admin/inventory">Catalog → Inventory</a>.</small>}
+                </label>
+                <label className="field">
+                  Low-stock alert
+                  <input
+                    type="number"
+                    min="0"
+                    value={variant.lowStockThreshold}
+                    onChange={(event) =>
+                      updateVariant(
+                        setVariants,
+                        index,
+                        "lowStockThreshold",
+                        Number(event.target.value),
+                      )
+                    }
+                  />
+                </label>
+                <label className="field">
+                  Backorders
+                  <select
+                    value={variant.backorderPolicy}
+                    onChange={(event) =>
+                      updateVariant(
+                        setVariants,
+                        index,
+                        "backorderPolicy",
+                        event.target.value as "DENY" | "ALLOW",
+                      )
+                    }
+                  >
+                    <option value="DENY">Do not allow</option>
+                    <option value="ALLOW">Allow</option>
+                  </select>
+                </label>
+                {variantIssue(index, "optionSelection") && <p className="form-error variant-form-error">{variantIssue(index, "optionSelection")}</p>}
+                <label className="field">
+                  Weight override (g)
+                  <input
+                    type="number"
+                    min="1"
+                    value={variant.weightGrams ?? ""}
+                    onChange={(event) =>
+                      updateVariant(
+                        setVariants,
+                        index,
+                        "weightGrams",
+                        event.target.value ? Number(event.target.value) : null,
+                      )
+                    }
+                  />
+                </label>
+                <label className="field">
+                  Packaging override
+                  <select
+                    value={variant.defaultPackagingId}
+                    onChange={(event) =>
+                      updateVariant(
+                        setVariants,
+                        index,
+                        "defaultPackagingId",
+                        event.target.value,
+                      )
+                    }
+                  >
+                    <option value="">Product default</option>
+                    {packaging.map((item) => (
+                      <option value={item.id} key={item.id}>
+                        {item.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+              <div className="check-row">
+                <label className="check-field">
+                  <input
+                    type="radio"
+                    name="defaultVariant"
+                    checked={variant.isDefault}
+                    onChange={() =>
+                      setVariants((current) =>
+                        current.map((item, itemIndex) => ({
+                          ...item,
+                          isDefault: itemIndex === index,
+                        })),
+                      )
+                    }
+                  />
+                  <span>Default variant</span>
+                </label>
+                <label className="check-field">
+                  <input
+                    type="checkbox"
+                    checked={variant.trackInventory}
+                    onChange={(event) =>
+                      updateVariant(
+                        setVariants,
+                        index,
+                        "trackInventory",
+                        event.target.checked,
+                      )
+                    }
+                  />
+                  <span>Track inventory</span>
+                </label>
+                <label className="check-field">
+                  <input
+                    type="checkbox"
+                    checked={variant.active}
+                    onChange={(event) =>
+                      updateVariant(
+                        setVariants,
+                        index,
+                        "active",
+                        event.target.checked,
+                      )
+                    }
+                  />
+                  <span>Enabled</span>
+                </label>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+      <section className="admin-panel" id="choices">
+        <div className="panel-heading">
+          <div>
+            <h2>Product choices & personalisation</h2>
+            <p>
+              Add colour, style and size first. Personalisation controls only
+              customer-supplied content and remains independent from NFC.
+            </p>
+          </div>
+          <div className="actions">
+            {(["colour", "shape", "size"] as const).map((choice) => (
+              <button
+                className="button secondary"
+                type="button"
+                key={choice}
+                onClick={() =>
+                  setOptions((current) =>
+                    current.some((option) => option.code === choice)
+                      ? current
+                      : [...current, productChoicePresets[choice]],
+                  )
+                }
+              >
+                <Plus size={16} /> Add{" "}
+                {choice === "shape" ? "style / shape" : choice}
+              </button>
+            ))}
+            <button
+              className="button secondary"
+              type="button"
+              onClick={() =>
+                setOptions((current) => [...current, blankOption()])
+              }
+            >
+              <Plus size={16} /> Add custom field
+            </button>
+          </div>
+        </div>
+        <label className="field">
+          Personalisation purchase mode
+          <select
+            name="personalisationMode"
+            defaultValue={initial.personalisationMode}
+          >
+            <option value="NONE">NONE — no custom input</option>
+            <option value="OPTIONAL">OPTIONAL — Basic or Personalised</option>
+            <option value="REQUIRED">
+              REQUIRED — customer must personalise
+            </option>
+          </select>
+        </label>
+        {options.length ? (
+          <div className="admin-stack">
+            {options.map((option, index) => (
+              <div className="variant-editor" key={option.id ?? index}>
+                <div className="variant-title">
+                  <strong>Field {index + 1}</strong>
+                  <button
+                    type="button"
+                    className="icon-button"
+                    onClick={() =>
+                      setOptions((current) =>
+                        current.filter((_, itemIndex) => itemIndex !== index),
+                      )
+                    }
+                  >
+                    <Trash2 size={17} />
+                  </button>
+                </div>
+                <div className="field-grid three">
+                  <label className="field">
+                    Label
+                    <input
+                      value={option.name}
+                      onChange={(event) =>
+                        updateOption(
+                          setOptions,
+                          index,
+                          "name",
+                          event.target.value,
+                        )
+                      }
+                      required
+                    />
+                  </label>
+                  <label className="field">
+                    Code
+                    <input
+                      value={option.code}
+                      onChange={(event) =>
+                        updateOption(
+                          setOptions,
+                          index,
+                          "code",
+                          event.target.value
+                            .toLowerCase()
+                            .replace(/[^a-z0-9-]/g, ""),
+                        )
+                      }
+                      required
+                    />
+                  </label>
+                  <label className="field">
+                    Input type
+                    <select
+                      value={option.type}
+                      onChange={(event) =>
+                        updateOption(
+                          setOptions,
+                          index,
+                          "type",
+                          event.target.value as OptionForm["type"],
+                        )
+                      }
+                    >
+                      {[
+                        "SHORT_TEXT",
+                        "LONG_TEXT",
+                        "SELECT",
+                        "RADIO",
+                        "CHECKBOX",
+                        "COLOUR",
+                        "IMAGE",
+                      ].map((type) => (
+                        <option key={type}>{type}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="field">
+                    Max length
+                    <input
+                      type="number"
+                      min="1"
+                      value={option.maxLength ?? ""}
+                      onChange={(event) =>
+                        updateOption(
+                          setOptions,
+                          index,
+                          "maxLength",
+                          event.target.value
+                            ? Number(event.target.value)
+                            : null,
+                        )
+                      }
+                    />
+                  </label>
+                  <label className="field">
+                    Additional price AUD
+                    <input
+                      value={option.price}
+                      onChange={(event) =>
+                        updateOption(
+                          setOptions,
+                          index,
+                          "price",
+                          event.target.value,
+                        )
+                      }
+                    />
+                  </label>
+                </div>
+                <label className="check-field">
+                  <input
+                    type="checkbox"
+                    checked={option.required}
+                    onChange={(event) =>
+                      updateOption(
+                        setOptions,
+                        index,
+                        "required",
+                        event.target.checked,
+                      )
+                    }
+                  />
+                  <span>Required</span>
+                </label>
+                {["SELECT", "RADIO", "COLOUR"].includes(option.type) && (
+                  <OptionValuesEditor
+                    values={option.values}
+                    colour={option.type === "COLOUR"}
+                    onChange={(values) =>
+                      updateOption(setOptions, index, "values", values)
+                    }
+                  />
+                )}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="admin-empty">
+            No options. Add selection fields for colour/shape, or custom fields
+            for printed names and text.
+          </div>
+        )}
+      </section>
+      <section className="admin-panel" id="search">
+        <div className="panel-heading">
+          <div>
+            <h2>Search and social</h2>
+            <p>
+              Optional overrides; strong defaults are generated automatically.
+            </p>
+          </div>
+        </div>
+        <div className="field-grid">
+          <label className="field">
+            SEO title
+            <input
+              name="seoTitle"
+              defaultValue={initial.seoTitle}
+              onChange={(event) => setSeoTitlePreview(event.target.value)}
+              maxLength={70}
+            />
+          </label>
+          <label className="field">
+            Meta description
+            <input
+              name="seoDescription"
+              defaultValue={initial.seoDescription}
+              onChange={(event) => setSeoDescriptionPreview(event.target.value)}
+              maxLength={170}
+            />
+          </label>
+          <label className="field">
+            Canonical URL
+            <input
+              name="canonicalUrl"
+              type="url"
+              defaultValue={initial.canonicalUrl}
+            />
+          </label>
+          <label className="field">
+            Social image URL
+            <input
+              name="ogImageUrl"
+              type="url"
+              defaultValue={initial.ogImageUrl}
+            />
+          </label>
+        </div>
+        <div
+          className="seo-preview"
+          aria-label="Approximate search result preview"
+        >
+          <small>
+            Current environment / products / {slugPreview || "product-slug"}
+          </small>
+          <strong>{seoTitlePreview || namePreview || "Product title"}</strong>
+          <p>
+            {seoDescriptionPreview ||
+              initial.description ||
+              "Add a useful product description to preview the search result."}
+          </p>
+        </div>
+        <label className="check-field">
+          <input
+            type="checkbox"
+            name="indexable"
+            defaultChecked={initial.indexable}
+          />
+          <span>Allow search engines to index this product</span>
+        </label>
+      </section>
+      {message && (
+        <div
+          className={message === "Product saved" ? "notice" : "form-error"}
+          role="status"
+        >
+          {message}
+        </div>
+      )}
+      <div className="admin-form-actions">
+        {initial.id && (
+          <button
+            type="button"
+            className="button secondary"
+            onClick={duplicate}
+            disabled={pending}
+          >
+            <Copy size={16} /> Duplicate
+          </button>
+        )}
+        {initial.id && (
+          <button
+            type="button"
+            className="button secondary"
+            onClick={() => changeStatus("HIDDEN")}
+          >
+            <EyeOff size={16} /> Hide
+          </button>
+        )}
+        {initial.id && (
+          <button
+            type="button"
+            className="button danger"
+            onClick={() => changeStatus("ARCHIVED")}
+          >
+            <Archive size={16} /> Archive
+          </button>
+        )}
+        {initial.id && canDelete && (
+          <button type="button" className="button danger" onClick={hardDelete}>
+            <Trash2 size={16} /> Delete permanently
+          </button>
+        )}
+        <button className="button" disabled={pending}>
+          {pending ? "Saving…" : "Save product"}
+        </button>
+      </div>
+    </form>
+  );
+}
+
+function updateVariant<K extends keyof VariantForm>(
+  setter: React.Dispatch<React.SetStateAction<VariantForm[]>>,
+  index: number,
+  key: K,
+  value: VariantForm[K],
+) {
+  setter((current) =>
+    current.map((item, itemIndex) =>
+      itemIndex === index ? { ...item, [key]: value } : item,
+    ),
+  );
+}
+function updateOption<K extends keyof OptionForm>(
+  setter: React.Dispatch<React.SetStateAction<OptionForm[]>>,
+  index: number,
+  key: K,
+  value: OptionForm[K],
+) {
+  setter((current) =>
+    current.map((item, itemIndex) =>
+      itemIndex === index ? { ...item, [key]: value } : item,
+    ),
+  );
+}
+function OptionValuesEditor({
+  values,
+  colour,
+  onChange,
+}: {
+  values: OptionValueForm[];
+  colour: boolean;
+  onChange: (values: OptionValueForm[]) => void;
+}) {
+  const update = <K extends keyof OptionValueForm>(
+    index: number,
+    key: K,
+    value: OptionValueForm[K],
+  ) =>
+    onChange(
+      values.map((item, itemIndex) =>
+        itemIndex === index ? { ...item, [key]: value } : item,
+      ),
+    );
+  const updateLabel = (index: number, label: string) =>
+    onChange(
+      values.map((item, itemIndex) =>
+        itemIndex === index
+          ? {
+              ...item,
+              label,
+              value:
+                item.value ||
+                label
+                  .toLowerCase()
+                  .replace(/[^a-z0-9]+/g, "-")
+                  .replace(/^-|-$/g, ""),
+            }
+          : item,
+      ),
+    );
+  return (
+    <div className="option-values">
+      <div className="variant-title">
+        <strong>Choices</strong>
+        <button
+          className="button secondary"
+          type="button"
+          onClick={() => onChange([...values, blankOptionValue()])}
+        >
+          <Plus size={15} /> Add choice
+        </button>
+      </div>
+      {values.map((value, index) => (
+        <div className="option-value-row" key={value.id ?? index}>
+          <label className="field">
+            Label
+            <input
+              value={value.label}
+              onChange={(event) => updateLabel(index, event.target.value)}
+            />
+          </label>
+          <label className="field">
+            Stored value
+            <input
+              value={value.value}
+              onChange={(event) =>
+                update(
+                  index,
+                  "value",
+                  event.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""),
+                )
+              }
+            />
+          </label>
+          <label className="field">
+            Price + AUD
+            <input
+              inputMode="decimal"
+              value={value.price}
+              onChange={(event) => update(index, "price", event.target.value)}
+            />
+          </label>
+          {colour && (
+            <>
+              <label className="field colour-field">
+                Primary colour
+                <input
+                  type="color"
+                  value={value.swatchHex || "#000000"}
+                  onChange={(event) =>
+                    update(index, "swatchHex", event.target.value)
+                  }
+                />
+              </label>
+              <label className="field colour-field">
+                Second colour
+                <input
+                  type="color"
+                  value={value.swatchHexSecondary || "#ffffff"}
+                  onChange={(event) =>
+                    update(index, "swatchHexSecondary", event.target.value)
+                  }
+                />
+              </label>
+              <label className="field">
+                Swatch image URL
+                <input
+                  type="url"
+                  value={value.swatchImageUrl}
+                  onChange={(event) =>
+                    update(index, "swatchImageUrl", event.target.value)
+                  }
+                />
+              </label>
+            </>
+          )}
+          <button
+            type="button"
+            className="icon-button"
+            aria-label="Remove choice"
+            onClick={() =>
+              onChange(values.filter((_, itemIndex) => itemIndex !== index))
+            }
+          >
+            <Trash2 size={16} />
+          </button>
+        </div>
+      ))}
+    </div>
+  );
+}
+function parseSelection(value: string) {
+  return Object.fromEntries(
+    value
+      .split(",")
+      .map((pair) => pair.trim())
+      .filter(Boolean)
+      .map((pair) => pair.split("=").map((part) => part.trim()))
+      .filter(
+        (pair): pair is [string, string] =>
+          pair.length === 2 && Boolean(pair[0]) && Boolean(pair[1]),
+      ),
+  );
+}
+function selectionValue(value: string, key: string) {
+  return parseSelection(value)[key] ?? "";
+}
+function updateVariantChoice(
+  setter: React.Dispatch<React.SetStateAction<VariantForm[]>>,
+  index: number,
+  key: string,
+  value: string,
+  label = value,
+) {
+  setter((current) =>
+    current.map((item, itemIndex) => {
+      if (itemIndex !== index) return item;
+      const selection = parseSelection(item.optionSelection);
+      if (value) selection[key] = value;
+      else delete selection[key];
+      return {
+        ...item,
+        ...(key === "colour"
+          ? { colour: label }
+          : key === "size"
+            ? { size: label }
+            : {}),
+        optionSelection: Object.entries(selection)
+          .map(([code, selected]) => `${code}=${selected}`)
+          .join(","),
+      };
+    }),
+  );
+}
+
+function VariantChoiceField({
+  option,
+  fallbackName,
+  value,
+  onChange,
+}: {
+  option: OptionForm | undefined;
+  fallbackName?: string;
+  value: string;
+  onChange: (value: string, label: string) => void;
+}) {
+  if (!option) {
+    return <div className="field variant-choice-missing"><strong>{fallbackName ?? "Product choice"} not configured</strong><small>Add it above, then set its values in Product choices.</small></div>;
+  }
+  const activeValues = option.values.filter((item) => item.active);
+  if (option.type === "COLOUR") {
+    return <fieldset className="field variant-colour-picker"><legend>{option.name}</legend><div className="variant-colour-options">{activeValues.map((item) => <button type="button" key={item.id ?? item.value} className={value === item.value ? "active" : ""} aria-pressed={value === item.value} onClick={() => onChange(item.value, item.label)}><span className="colour-swatch" style={adminSwatchStyle(item)} /><span>{item.label}</span></button>)}</div>{activeValues.length === 0 && <small>Add at least one colour value below.</small>}</fieldset>;
+  }
+  return <label className="field">{option.name}<select value={value} onChange={(event) => { const selected = activeValues.find((item) => item.value === event.target.value); onChange(event.target.value, selected?.label ?? event.target.value); }}><option value="">Select {option.name.toLowerCase()}</option>{activeValues.map((item) => <option value={item.value} key={item.id ?? item.value}>{item.label}</option>)}</select>{activeValues.length === 0 && <small>Add values in Product choices first.</small>}</label>;
+}
+
+function adminSwatchStyle(value: OptionValueForm) {
+  if (value.swatchImageUrl) return { backgroundImage: `url(${value.swatchImageUrl})` };
+  if (value.swatchHexSecondary) return { background: `linear-gradient(135deg, ${value.swatchHex || "#cccccc"} 50%, ${value.swatchHexSecondary} 50%)` };
+  return { background: value.swatchHex || "#cccccc" };
+}
+function slugValue(value: string) {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+function optionalNumber(value: FormDataEntryValue | null) {
+  const raw = String(value ?? "").trim();
+  return raw ? Number(raw) : null;
+}

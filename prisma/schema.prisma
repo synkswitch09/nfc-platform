@@ -13,12 +13,182 @@ enum Role {
   ADMIN
 }
 
+enum StoreStatus {
+  DRAFT
+  ACTIVE
+  HIDDEN
+  ARCHIVED
+}
+
+enum StoreCapability {
+  COMMERCE
+  NFC
+  DIGITAL_PROFILE
+  PET_PROFILE
+  CHILD_SAFETY
+  SOCIAL_PROFILE
+  BUSINESS_PROFILE
+  CUSTOM_PERSONALISATION
+  PRINT_3D
+  INVENTORY
+}
+
+enum StoreMembershipRole {
+  CUSTOMER
+  STAFF
+  ADMIN
+}
+
+enum DeploymentEnvironment {
+  DEVELOPMENT
+  STAGING
+  PRODUCTION
+  LEGACY
+}
+
+enum AccountStatus {
+  ACTIVE
+  SUSPENDED
+  DISABLED
+}
+
+enum AuthProvider {
+  GOOGLE
+  APPLE
+  MICROSOFT
+}
+
 enum ProductType {
   PET
   CHILD
+  EMERGENCY
   SOCIAL
   BUSINESS
   LUGGAGE
+  REVIEW
+  CUSTOM
+  ACCESSORY
+}
+
+enum ProductStatus {
+  DRAFT
+  ACTIVE
+  HIDDEN
+  OUT_OF_STOCK
+  ARCHIVED
+}
+
+enum CustomsDutiesHandling {
+  UNDETERMINED
+  RECIPIENT_PAYS
+  SENDER_PAYS
+}
+
+enum CategoryStatus {
+  DRAFT
+  PUBLISHED
+  HIDDEN
+  ARCHIVED
+}
+
+enum CategoryVisualTheme {
+  CORAL
+  SKY
+  MIDNIGHT
+  VIOLET
+  AMBER
+}
+
+enum CategoryLandingLayout {
+  EDITORIAL
+  ASSURANCE
+  EXECUTIVE
+  MOMENTUM
+  JOURNEY
+}
+
+enum CustomisationFieldType {
+  SHORT_TEXT
+  LONG_TEXT
+  SELECT
+  RADIO
+  CHECKBOX
+  COLOUR
+  IMAGE
+}
+
+enum BackorderPolicy {
+  DENY
+  ALLOW
+}
+
+enum PersonalisationMode {
+  NONE
+  OPTIONAL
+  REQUIRED
+}
+
+enum PersonalisationChoice {
+  BASIC
+  PERSONALISED
+}
+
+enum ShippingProviderKind {
+  MANUAL
+  MOCK
+  AUSTRALIA_POST
+}
+
+enum ShippingQuoteStatus {
+  ACTIVE
+  CONSUMED
+  EXPIRED
+}
+
+enum ShipmentStatus {
+  DRAFT
+  LABEL_READY
+  IN_TRANSIT
+  DELIVERED
+  CANCELLED
+}
+
+enum PrintDocumentType {
+  SHIPPING_LABEL
+}
+
+enum PrintJobStatus {
+  QUEUED
+  CLAIMED
+  PRINTED
+  FAILED
+  CANCELLED
+}
+
+enum LandingSectionType {
+  HERO
+  FEATURE_BADGES
+  BENEFITS
+  STEPS
+  PRODUCT_SHOWCASE
+  FEATURE_LIST
+  MEDIA_CONTENT
+  STORY_PROCESS
+  FAQ
+  CTA_BANNER
+  PRODUCT_GRID
+  CATEGORY_GRID
+  RICH_TEXT
+  TRUST_STRIP
+  STATS
+}
+
+enum ContentPageKind {
+  HOME
+  CATEGORY
+  CAMPAIGN
+  COLLECTION
+  LEGAL
 }
 
 enum TagStatus {
@@ -42,9 +212,12 @@ enum SocialMode {
 
 enum OrderStatus {
   PENDING
+  PAYMENT_PENDING
   PAID
   PROCESSING
+  READY_TO_SHIP
   SHIPPED
+  DELIVERED
   COMPLETED
   CANCELLED
   REFUNDED
@@ -57,136 +230,1126 @@ enum PaymentStatus {
   REFUNDED
 }
 
+enum ManufacturingStatus {
+  GENERATED
+  PROGRAMMED
+  VERIFIED
+  ASSEMBLED
+  READY
+  ASSIGNED
+  SOLD
+}
+
+enum ManufacturingJobStatus {
+  QUEUED
+  PRINTING
+  POST_PROCESSING
+  QA
+  ASSEMBLY
+  PACKING
+  READY
+  FAILED
+  CANCELLED
+}
+
+enum InventoryMovementType {
+  RECEIPT
+  RESERVATION
+  RELEASE
+  SALE
+  RETURN
+  ADJUSTMENT
+}
+
+// Marketplace credentials are kept separate from customer OAuth accounts. A
+// connection belongs to a Store, never to the currently signed-in operator.
+enum MarketplaceKind {
+  ETSY
+}
+
+enum MarketplaceConnectionStatus {
+  CONNECTING
+  ACTIVE
+  EXPIRED
+  ERROR
+  DISCONNECTED
+}
+
+enum MarketplaceSyncJobType {
+  INVENTORY
+  RECEIPTS
+}
+
+enum MarketplaceSyncJobStatus {
+  QUEUED
+  PROCESSING
+  SUCCEEDED
+  FAILED
+}
+
 model User {
-  id              String   @id @default(uuid()) @db.Uuid
-  email           String   @unique
-  passwordHash    String
-  name            String
-  phone           String?
-  role            Role     @default(CUSTOMER)
-  emailVerifiedAt DateTime?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  addresses       Address[]
-  orders          Order[]
-  tags            NFCTag[]
-  sessions        Session[]
-  auditLogs       AuditLog[]
-  emailTokens     EmailVerification[]
-  passwordResets  PasswordReset[]
+  id                        String               @id @default(uuid()) @db.Uuid
+  email                     String               @unique
+  passwordHash              String?
+  name                      String
+  phone                     String?
+  role                      Role                 @default(CUSTOMER)
+  status                    AccountStatus        @default(ACTIVE)
+  emailVerifiedAt           DateTime?
+  createdAt                 DateTime             @default(now())
+  updatedAt                 DateTime             @updatedAt
+  addresses                 Address[]
+  orders                    Order[]
+  tags                      NFCTag[]
+  sessions                  Session[]
+  oauthAccounts             OAuthAccount[]
+  carts                     Cart[]
+  orderStatusChanges        OrderStatusHistory[] @relation("OrderStatusActor")
+  inventoryChanges          InventoryMovement[]  @relation("InventoryActor")
+  manufacturingBatches      ManufacturingBatch[] @relation("ManufacturingCreator")
+  assignedManufacturingJobs ManufacturingJob[]   @relation("ManufacturingAssignee")
+  auditLogs                 AuditLog[]
+  emailTokens               EmailVerification[]
+  passwordResets            PasswordReset[]
+  storeMemberships          StoreMembership[]
+  createdShippingOrigins    ShippingOrigin[]     @relation("ShippingOriginCreator")
+  createdShipments          Shipment[]           @relation("ShipmentCreator")
+  createdPrintAgents        PrintAgent[]         @relation("PrintAgentCreator")
+}
+
+model Store {
+  id                   String               @id @default(uuid()) @db.Uuid
+  slug                 String               @unique
+  name                 String
+  displayName          String
+  legalName            String?
+  status               StoreStatus          @default(DRAFT)
+  logoUrl              String?
+  faviconUrl           String?
+  supportEmail         String?
+  country              String               @default("AU") @db.Char(2)
+  currency             String               @default("AUD") @db.Char(3)
+  timezone             String               @default("Australia/Adelaide")
+  theme                Json                 @default("{}")
+  homepage             Json                 @default("{}")
+  seoTitle             String
+  seoDescription       String
+  socialImageUrl       String?
+  organization         Json                 @default("{}")
+  socialLinks          Json                 @default("{}")
+  shippingConfig       Json                 @default("{}")
+  headerConfig         Json                 @default("{}")
+  footerConfig         Json                 @default("{}")
+  petProfileConfig     Json                 @default("{}")
+  defaultLocale        String               @default("en-AU")
+  enabledLocales       String[]             @default(["en-AU"])
+  capabilities         StoreCapability[]    @default([])
+  paymentProfileKey    String?
+  createdAt            DateTime             @default(now())
+  updatedAt            DateTime             @updatedAt
+  domains              StoreDomain[]
+  memberships          StoreMembership[]
+  sessions             Session[]
+  emailTokens          EmailVerification[]
+  passwordResets       PasswordReset[]
+  categories           ProductCategory[]
+  products             Product[]
+  categoryImages       CategoryImage[]
+  contentPages         ContentPage[]
+  locales              StoreLocale[]
+  carts                Cart[]
+  orders               Order[]
+  tags                 NFCTag[]
+  manufacturingBatches ManufacturingBatch[]
+  manufacturingJobs    ManufacturingJob[]
+  auditLogs            AuditLog[]
+  shippingOrigins      ShippingOrigin[]
+  packaging            Packaging[]
+  shippingZones        ShippingZone[]
+  shippingProviders    ShippingProvider[]
+  shippingRates        ShippingRate[]
+  shippingQuotes       ShippingQuote[]
+  shipments            Shipment[]
+  printAgents          PrintAgent[]
+  printJobs            PrintJob[]
+  landingSections      LandingPageSection[]
+  marketplaceConnections MarketplaceConnection[]
+
+  @@index([status, name])
+}
+
+model StoreDomain {
+  id          String                @id @default(uuid()) @db.Uuid
+  storeId     String                @db.Uuid
+  environment DeploymentEnvironment
+  hostname    String
+  protocol    String                @default("https")
+  port        Int?
+  isPrimary   Boolean               @default(false)
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
+  store       Store                 @relation(fields: [storeId], references: [id], onDelete: Restrict)
+
+  @@unique([environment, hostname])
+  @@index([storeId, environment, isPrimary])
+}
+
+model StoreMembership {
+  id                 String              @id @default(uuid()) @db.Uuid
+  storeId            String              @db.Uuid
+  userId             String              @db.Uuid
+  role               StoreMembershipRole @default(CUSTOMER)
+  marketingConsentAt DateTime?
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  store              Store               @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  user               User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([storeId, userId])
+  @@index([userId, role])
+}
+
+model OAuthAccount {
+  id                String       @id @default(uuid()) @db.Uuid
+  userId            String       @db.Uuid
+  provider          AuthProvider
+  providerAccountId String
+  providerEmail     String?
+  emailVerified     Boolean      @default(false)
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+  user              User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
 }
 
 model Session {
   id        String   @id @default(uuid()) @db.Uuid
   tokenHash String   @unique
   userId    String   @db.Uuid
+  storeId   String   @db.Uuid
   expiresAt DateTime
   createdAt DateTime @default(now())
   lastSeen  DateTime @default(now())
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  @@index([userId])
+  store     Store    @relation(fields: [storeId], references: [id], onDelete: Restrict)
+
+  @@index([userId, storeId])
   @@index([expiresAt])
 }
 
 model EmailVerification {
-  id        String   @id @default(uuid()) @db.Uuid
-  tokenHash String   @unique
-  userId    String   @db.Uuid
-  expiresAt DateTime
-  createdAt DateTime @default(now())
-  usedAt    DateTime?
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  @@index([userId, expiresAt])
+  id           String    @id @default(uuid()) @db.Uuid
+  tokenHash    String    @unique
+  userId       String    @db.Uuid
+  storeId      String    @db.Uuid
+  expiresAt    DateTime
+  createdAt    DateTime  @default(now())
+  usedAt       DateTime?
+  orderClaimId String?   @db.Uuid
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  store        Store     @relation(fields: [storeId], references: [id], onDelete: Restrict)
+
+  @@index([userId, storeId, expiresAt])
+  @@index([orderClaimId])
 }
 
 model PasswordReset {
-  id        String   @id @default(uuid()) @db.Uuid
-  tokenHash String   @unique
-  userId    String   @db.Uuid
+  id        String    @id @default(uuid()) @db.Uuid
+  tokenHash String    @unique
+  userId    String    @db.Uuid
+  storeId   String    @db.Uuid
   expiresAt DateTime
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
   usedAt    DateTime?
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  @@index([userId, expiresAt])
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  store     Store     @relation(fields: [storeId], references: [id], onDelete: Restrict)
+
+  @@index([userId, storeId, expiresAt])
 }
 
 model Address {
-  id         String   @id @default(uuid()) @db.Uuid
-  userId     String   @db.Uuid
-  label      String?
-  recipient  String
-  line1      String
-  line2      String?
-  suburb     String
-  state      String
-  postcode   String
-  country    String   @default("AU")
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  orders     Order[]
+  id                 String   @id @default(uuid()) @db.Uuid
+  userId             String   @db.Uuid
+  label              String?
+  recipient          String
+  company            String?
+  line1              String
+  line2              String?
+  suburb             String?
+  state              String?
+  locality           String
+  dependentLocality  String?
+  administrativeArea String?
+  postcode           String
+  country            String   @default("AU")
+  phone              String?
+  formattedAddress   String?  @db.Text
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orders             Order[]
+
   @@index([userId])
 }
 
 model Product {
-  id          String        @id @default(uuid()) @db.Uuid
-  slug        String        @unique
-  name        String
-  description String
-  type        ProductType
-  active      Boolean       @default(true)
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
-  variants    ProductVariant[]
-  tags        NFCTag[]
+  id                  String                @id @default(uuid()) @db.Uuid
+  storeId             String                @db.Uuid
+  slug                String
+  legacySlugs         String[]              @default([])
+  name                String
+  description         String
+  shortDescription    String?
+  fullDescription     String?               @db.Text
+  type                ProductType
+  status              ProductStatus         @default(DRAFT)
+  featured            Boolean               @default(false)
+  shopVisible         Boolean               @default(true)
+  categoryId          String?               @db.Uuid
+  seoTitle            String?
+  seoDescription      String?
+  ogImageUrl          String?
+  canonicalUrl        String?
+  indexable           Boolean               @default(true)
+  brand               String
+  gstInclusive        Boolean               @default(true)
+  personalisationMode PersonalisationMode   @default(NONE)
+  weightGrams         Int?
+  lengthMm            Int?
+  widthMm             Int?
+  heightMm            Int?
+  defaultPackagingId  String?               @db.Uuid
+  shipsSeparately     Boolean               @default(false)
+  specialHandling     String?
+  countryOfOrigin     String?
+  customsDescription  String?
+  hsCode              String?
+  customsValueCents   Int?
+  dutiesHandling      CustomsDutiesHandling @default(UNDETERMINED)
+  restrictedItem      Boolean               @default(false)
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
+  category            ProductCategory?      @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  store               Store                 @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  variants            ProductVariant[]
+  images              ProductImage[]
+  options             ProductOption[]
+  tags                NFCTag[]
+  batches             ManufacturingBatch[]
+  defaultPackaging    Packaging?            @relation(fields: [defaultPackagingId], references: [id], onDelete: SetNull)
+  marketplaceListings MarketplaceListing[]
+
+  @@unique([storeId, slug])
+  @@index([storeId, categoryId, status])
+  @@index([storeId, status, featured])
+  @@index([legacySlugs], type: Gin)
+}
+
+// One seller account can be connected for each marketplace per Store. Tokens
+// are AES-GCM encrypted at rest; never expose them to a browser or audit log.
+model MarketplaceConnection {
+  id                    String                      @id @default(uuid()) @db.Uuid
+  storeId               String                      @db.Uuid
+  kind                  MarketplaceKind
+  status                MarketplaceConnectionStatus @default(CONNECTING)
+  shopId                String?
+  shopName              String?
+  sellerId              String?
+  accessTokenEncrypted  String?
+  refreshTokenEncrypted String?
+  tokenExpiresAt        DateTime?
+  scopes                String[]                    @default([])
+  listingDefaults       Json                        @default("{}")
+  syncEnabled           Boolean                     @default(true)
+  lastSyncedAt          DateTime?
+  lastOrderSyncedAt     DateTime?
+  lastError             String?
+  connectedAt           DateTime?
+  createdAt             DateTime                    @default(now())
+  updatedAt             DateTime                    @updatedAt
+  store                 Store                       @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  listings              MarketplaceListing[]
+  syncJobs              MarketplaceSyncJob[]
+  orders                MarketplaceOrder[]
+
+  @@unique([storeId, kind])
+  @@index([storeId, status])
+}
+
+// A link is explicit: no Etsy listing is touched unless an administrator links
+// it to one local product after confirming its SKU variation mapping.
+model MarketplaceListing {
+  id             String                @id @default(uuid()) @db.Uuid
+  connectionId   String                @db.Uuid
+  productId      String                @db.Uuid
+  externalId     String
+  externalUrl    String?
+  state          String?
+  lastSyncedAt   DateTime?
+  lastError      String?
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
+  connection     MarketplaceConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  product        Product               @relation(fields: [productId], references: [id], onDelete: Restrict)
+  syncJobs       MarketplaceSyncJob[]
+
+  @@unique([connectionId, productId])
+  @@unique([connectionId, externalId])
+  @@index([productId])
+}
+
+// Transactional outbox. Inventory changes enqueue a single coalesced job per
+// linked listing; the worker retries safely without holding checkout open.
+model MarketplaceSyncJob {
+  id            String                   @id @default(uuid()) @db.Uuid
+  connectionId  String                   @db.Uuid
+  listingId     String?                  @db.Uuid
+  type          MarketplaceSyncJobType
+  status        MarketplaceSyncJobStatus @default(QUEUED)
+  dedupeKey     String?                  @unique
+  attempts      Int                      @default(0)
+  payload       Json                     @default("{}")
+  lastError     String?
+  availableAt   DateTime                 @default(now())
+  startedAt     DateTime?
+  completedAt   DateTime?
+  createdAt     DateTime                 @default(now())
+  updatedAt     DateTime                 @updatedAt
+  connection    MarketplaceConnection    @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  listing       MarketplaceListing?      @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  @@index([status, availableAt])
+  @@index([connectionId, status])
+}
+
+// Receipt imports are recorded separately from orders so retrying a poll can
+// never deduct stock or create manufacturing work twice for the same Etsy sale.
+model MarketplaceOrder {
+  id            String                @id @default(uuid()) @db.Uuid
+  connectionId  String                @db.Uuid
+  orderId       String                @unique @db.Uuid
+  externalId    String
+  externalState String?
+  externalData  Json                  @default("{}")
+  importedAt    DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
+  connection    MarketplaceConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  order         Order                 @relation(fields: [orderId], references: [id], onDelete: Restrict)
+
+  @@unique([connectionId, externalId])
+  @@index([connectionId, importedAt])
+}
+
+model ProductCategory {
+  id                  String                @id @default(uuid()) @db.Uuid
+  storeId             String                @db.Uuid
+  slug                String
+  legacySlugs         String[]              @default([])
+  name                String
+  shortDescription    String?
+  description         String?               @db.Text
+  icon                String?
+  imageUrl            String?
+  cardTitle           String?
+  cardText            String?
+  cardImageUrl        String?
+  cardImageAlt        String?
+  heroEyebrow         String?
+  heroHeadline        String?
+  heroDescription     String?               @db.Text
+  heroImageUrl        String?
+  heroImageAlt        String?
+  secondaryImageUrl   String?
+  ctaLabel            String?
+  ctaHref             String?
+  secondaryCtaLabel   String?
+  secondaryCtaHref    String?
+  benefits            Json                  @default("[]")
+  useCases            Json                  @default("[]")
+  howItWorks          Json                  @default("[]")
+  contentSections     Json                  @default("[]")
+  faq                 Json                  @default("[]")
+  finalCtaEyebrow     String?
+  finalCtaHeadline    String?
+  finalCtaDescription String?               @db.Text
+  finalCtaLabel       String?
+  finalCtaHref        String?
+  visualTheme         CategoryVisualTheme   @default(CORAL)
+  landingLayout       CategoryLandingLayout @default(EDITORIAL)
+  status              CategoryStatus        @default(DRAFT)
+  sortOrder           Int                   @default(0)
+  showOnHomepage      Boolean               @default(true)
+  showInNavigation    Boolean               @default(true)
+  showInShop          Boolean               @default(true)
+  showLanding         Boolean               @default(true)
+  seoTitle            String?
+  seoDescription      String?
+  ogImageUrl          String?
+  canonicalUrl        String?
+  indexable           Boolean               @default(true)
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
+  products            Product[]
+  store               Store                 @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  landingSections     LandingPageSection[]
+  images              CategoryImage[]
+  contentPage         ContentPage?
+
+  @@unique([storeId, slug])
+  @@index([storeId, status, sortOrder])
+  @@index([storeId, status, showOnHomepage, sortOrder])
+  @@index([storeId, status, showInNavigation, sortOrder])
+  @@index([storeId, status, showInShop, sortOrder])
+  @@index([legacySlugs], type: Gin)
+}
+
+model ProductImage {
+  id            String              @id @default(uuid()) @db.Uuid
+  productId     String              @db.Uuid
+  storageKey    String              @unique
+  url           String
+  altText       String
+  mimeType      String
+  byteSize      Int
+  width         Int?
+  height        Int?
+  sortOrder     Int                 @default(0)
+  isPrimary     Boolean             @default(false)
+  optionValueId String?             @db.Uuid
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+  product       Product             @relation(fields: [productId], references: [id], onDelete: Cascade)
+  variants      ProductVariant[]    @relation("VariantImage")
+  optionValue   ProductOptionValue? @relation(fields: [optionValueId], references: [id], onDelete: SetNull)
+
+  @@index([productId, sortOrder])
+  @@index([productId, optionValueId, sortOrder])
+}
+
+model CategoryImage {
+  id         String           @id @default(uuid()) @db.Uuid
+  storeId    String           @db.Uuid
+  categoryId String?          @db.Uuid
+  pageId     String?          @db.Uuid
+  storageKey String           @unique
+  url        String
+  altText    String?
+  purpose    String           @default("content-image")
+  mimeType   String
+  byteSize   Int
+  width      Int
+  height     Int
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+  store      Store            @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  category   ProductCategory? @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  page       ContentPage?     @relation(fields: [pageId], references: [id], onDelete: SetNull)
+
+  @@index([storeId, categoryId, createdAt])
+  @@index([storeId, pageId, createdAt])
+}
+
+model ProductOption {
+  id              String                 @id @default(uuid()) @db.Uuid
+  productId       String                 @db.Uuid
+  name            String
+  code            String
+  type            CustomisationFieldType
+  required        Boolean                @default(false)
+  maxLength       Int?
+  priceDeltaCents Int                    @default(0)
+  sortOrder       Int                    @default(0)
+  active          Boolean                @default(true)
+  helpText        String?
+  product         Product                @relation(fields: [productId], references: [id], onDelete: Cascade)
+  values          ProductOptionValue[]
+
+  @@unique([productId, code])
+  @@index([productId, active, sortOrder])
+}
+
+model ProductOptionValue {
+  id                 String         @id @default(uuid()) @db.Uuid
+  optionId           String         @db.Uuid
+  label              String
+  value              String
+  priceDeltaCents    Int            @default(0)
+  sortOrder          Int            @default(0)
+  active             Boolean        @default(true)
+  swatchHex          String?
+  swatchHexSecondary String?
+  swatchImageUrl     String?
+  option             ProductOption  @relation(fields: [optionId], references: [id], onDelete: Cascade)
+  images             ProductImage[]
+
+  @@unique([optionId, value])
+  @@index([optionId, active, sortOrder])
 }
 
 model ProductVariant {
-  id          String   @id @default(uuid()) @db.Uuid
-  productId   String   @db.Uuid
-  sku         String   @unique
-  name        String
-  colour      String?
-  priceCents  Int
-  inventory   Int      @default(0)
-  active      Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  product     Product  @relation(fields: [productId], references: [id], onDelete: Restrict)
-  orderItems  OrderItem[]
-  tags        NFCTag[]
+  id                  String               @id @default(uuid()) @db.Uuid
+  productId           String               @db.Uuid
+  sku                 String               @unique
+  name                String
+  colour              String?
+  size                String?
+  material            String?
+  priceCents          Int
+  compareAtPriceCents Int?
+  costCents           Int?
+  inventory           Int                  @default(0)
+  reservedInventory   Int                  @default(0)
+  trackInventory      Boolean              @default(true)
+  lowStockThreshold   Int                  @default(5)
+  backorderPolicy     BackorderPolicy      @default(DENY)
+  imageId             String?              @db.Uuid
+  active              Boolean              @default(true)
+  isDefault           Boolean              @default(false)
+  optionSelection     Json                 @default("{}")
+  weightGrams         Int?
+  lengthMm            Int?
+  widthMm             Int?
+  heightMm            Int?
+  defaultPackagingId  String?              @db.Uuid
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  product             Product              @relation(fields: [productId], references: [id], onDelete: Restrict)
+  image               ProductImage?        @relation("VariantImage", fields: [imageId], references: [id], onDelete: SetNull)
+  orderItems          OrderItem[]
+  cartItems           CartItem[]
+  tags                NFCTag[]
+  batches             ManufacturingBatch[]
+  inventoryMovements  InventoryMovement[]
+  manufacturingJobs   ManufacturingJob[]
+  defaultPackaging    Packaging?           @relation(fields: [defaultPackagingId], references: [id], onDelete: SetNull)
+
   @@index([productId, active])
+  @@index([trackInventory, inventory])
+}
+
+model Cart {
+  id             String     @id @default(uuid()) @db.Uuid
+  userId         String?    @db.Uuid
+  storeId        String     @db.Uuid
+  sessionKeyHash String?    @unique
+  currency       String     @default("AUD")
+  expiresAt      DateTime
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+  user           User?      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  store          Store      @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  items          CartItem[]
+
+  @@index([storeId, userId, updatedAt])
+  @@index([expiresAt])
+}
+
+model CartItem {
+  id              String         @id @default(uuid()) @db.Uuid
+  cartId          String         @db.Uuid
+  variantId       String         @db.Uuid
+  quantity        Int
+  personalisation Json?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  cart            Cart           @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  variant         ProductVariant @relation(fields: [variantId], references: [id], onDelete: Restrict)
+
+  @@index([cartId])
+  @@index([variantId])
 }
 
 model Order {
-  id              String      @id @default(uuid()) @db.Uuid
-  orderNumber     String      @unique
-  userId          String      @db.Uuid
-  shippingAddressId String?    @db.Uuid
-  status          OrderStatus @default(PENDING)
-  currency        String      @default("AUD")
-  subtotalCents   Int
-  shippingCents   Int         @default(0)
-  totalCents      Int
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
-  user            User        @relation(fields: [userId], references: [id], onDelete: Restrict)
-  shippingAddress Address?     @relation(fields: [shippingAddressId], references: [id], onDelete: SetNull)
-  items           OrderItem[]
-  payments        Payment[]
-  @@index([userId, createdAt])
+  id                         String                @id @default(uuid()) @db.Uuid
+  orderNumber                String                @unique
+  userId                     String?               @db.Uuid
+  storeId                    String                @db.Uuid
+  sourceDomain               String
+  checkoutEnvironment        DeploymentEnvironment
+  storeDisplayName           String
+  guestEmail                 String?
+  customerName               String?
+  claimTokenHash             String?               @unique
+  claimExpiresAt             DateTime?
+  claimedAt                  DateTime?
+  shippingAddressId          String?               @db.Uuid
+  shippingName               String?
+  shippingCompany            String?
+  shippingLine1              String?
+  shippingLine2              String?
+  shippingSuburb             String?
+  shippingState              String?
+  shippingLocality           String?
+  shippingDependentLocality  String?
+  shippingAdministrativeArea String?
+  shippingPostcode           String?
+  shippingCountry            String                @default("AU")
+  shippingPhone              String?
+  shippingFormattedAddress   String?               @db.Text
+  shippingCarrier            String?
+  trackingNumber             String?
+  shippingProviderKey        String?
+  shippingServiceCode        String?
+  shippingServiceName        String?
+  shippingQuoteId            String?               @unique @db.Uuid
+  shippingQuoteSnapshot      Json?
+  packagingSnapshot          Json?
+  shippingOriginSnapshot     Json?
+  shippedAt                  DateTime?
+  status                     OrderStatus           @default(PENDING)
+  currency                   String                @default("AUD")
+  subtotalCents              Int
+  shippingCents              Int                   @default(0)
+  totalCents                 Int
+  createdAt                  DateTime              @default(now())
+  updatedAt                  DateTime              @updatedAt
+  user                       User?                 @relation(fields: [userId], references: [id], onDelete: Restrict)
+  store                      Store                 @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  shippingAddress            Address?              @relation(fields: [shippingAddressId], references: [id], onDelete: SetNull)
+  items                      OrderItem[]
+  payments                   Payment[]
+  notifications              OrderNotification[]
+  statusHistory              OrderStatusHistory[]
+  inventoryMovements         InventoryMovement[]
+  shippingQuote              ShippingQuote?        @relation(fields: [shippingQuoteId], references: [id], onDelete: SetNull)
+  shipments                  Shipment[]
+  marketplaceOrder           MarketplaceOrder?
+
+  @@index([storeId, userId, createdAt])
+  @@index([storeId, guestEmail, createdAt])
+  @@index([storeId, status, createdAt])
+  @@index([trackingNumber])
 }
 
 model OrderItem {
-  id              String   @id @default(uuid()) @db.Uuid
-  orderId         String   @db.Uuid
-  variantId       String   @db.Uuid
-  quantity        Int
-  unitPriceCents  Int
-  personalisation Json?
-  order            Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  variant          ProductVariant @relation(fields: [variantId], references: [id], onDelete: Restrict)
+  id                    String                @id @default(uuid()) @db.Uuid
+  orderId               String                @db.Uuid
+  variantId             String                @db.Uuid
+  quantity              Int
+  packedQuantity        Int                   @default(0)
+  packedAt              DateTime?
+  unitPriceCents        Int
+  productName           String
+  variantName           String
+  sku                   String
+  productType           ProductType
+  personalisation       Json?
+  personalisationMode   PersonalisationMode   @default(NONE)
+  personalisationChoice PersonalisationChoice @default(BASIC)
+  selectedOptions       Json?
+  shippingSnapshot      Json?
+  order                 Order                 @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  variant               ProductVariant        @relation(fields: [variantId], references: [id], onDelete: Restrict)
+  tags                  NFCTag[]
+  manufacturingJobs     ManufacturingJob[]
+
   @@index([orderId])
+}
+
+model OrderStatusHistory {
+  id         String       @id @default(uuid()) @db.Uuid
+  orderId    String       @db.Uuid
+  fromStatus OrderStatus?
+  toStatus   OrderStatus
+  actorId    String?      @db.Uuid
+  note       String?
+  createdAt  DateTime     @default(now())
+  order      Order        @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  actor      User?        @relation("OrderStatusActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([orderId, createdAt])
+}
+
+model InventoryMovement {
+  id        String                @id @default(uuid()) @db.Uuid
+  variantId String                @db.Uuid
+  orderId   String?               @db.Uuid
+  actorId   String?               @db.Uuid
+  type      InventoryMovementType
+  quantity  Int
+  reason    String?
+  createdAt DateTime              @default(now())
+  variant   ProductVariant        @relation(fields: [variantId], references: [id], onDelete: Restrict)
+  order     Order?                @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  actor     User?                 @relation("InventoryActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([variantId, createdAt])
+  @@index([orderId])
+}
+
+model ManufacturingBatch {
+  id               String              @id @default(uuid()) @db.Uuid
+  batchNumber      String              @unique
+  storeId          String              @db.Uuid
+  productId        String              @db.Uuid
+  productVariantId String?             @db.Uuid
+  quantity         Int
+  status           ManufacturingStatus @default(GENERATED)
+  createdById      String?             @db.Uuid
+  notes            String?
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+  product          Product             @relation(fields: [productId], references: [id], onDelete: Restrict)
+  store            Store               @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  productVariant   ProductVariant?     @relation(fields: [productVariantId], references: [id], onDelete: SetNull)
+  createdBy        User?               @relation("ManufacturingCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  tags             NFCTag[]
+
+  @@index([storeId, status, createdAt])
+  @@index([storeId, productId, createdAt])
+}
+
+model ManufacturingJob {
+  id               String                 @id @default(uuid()) @db.Uuid
+  storeId          String                 @db.Uuid
+  orderItemId      String                 @db.Uuid
+  productVariantId String                 @db.Uuid
+  sequence         Int                    @default(1)
+  quantity         Int
+  status           ManufacturingJobStatus @default(QUEUED)
+  priority         Int                    @default(0)
+  material         String?
+  colour           String?
+  requiresNfc      Boolean                @default(false)
+  estimatedMinutes Int?
+  actualMinutes    Int?
+  qaPassed         Boolean?
+  failureReason    String?
+  assignedToId     String?                @db.Uuid
+  startedAt        DateTime?
+  completedAt      DateTime?
+  createdAt        DateTime               @default(now())
+  updatedAt        DateTime               @updatedAt
+  store            Store                  @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  orderItem        OrderItem              @relation(fields: [orderItemId], references: [id], onDelete: Restrict)
+  productVariant   ProductVariant         @relation(fields: [productVariantId], references: [id], onDelete: Restrict)
+  assignedTo       User?                  @relation("ManufacturingAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+
+  @@unique([orderItemId, sequence])
+  @@index([storeId, status, priority, createdAt])
+  @@index([productVariantId, status])
+  @@index([assignedToId, status])
+}
+
+model ShippingOrigin {
+  id          String     @id @default(uuid()) @db.Uuid
+  storeId     String     @db.Uuid
+  name        String
+  senderName  String
+  company     String?
+  line1       String
+  line2       String?
+  suburb      String
+  state       String
+  postcode    String
+  country     String     @default("AU") @db.Char(2)
+  phone       String?
+  email       String?
+  isDefault   Boolean    @default(false)
+  active      Boolean    @default(true)
+  createdById String?    @db.Uuid
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  store       Store      @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  createdBy   User?      @relation("ShippingOriginCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  shipments   Shipment[]
+
+  @@unique([storeId, name])
+  @@index([storeId, active, isDefault])
+}
+
+model Packaging {
+  id               String           @id @default(uuid()) @db.Uuid
+  storeId          String           @db.Uuid
+  name             String
+  code             String
+  lengthMm         Int
+  widthMm          Int
+  heightMm         Int
+  emptyWeightGrams Int              @default(0)
+  maxWeightGrams   Int?
+  costCents        Int              @default(0)
+  active           Boolean          @default(true)
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+  store            Store            @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  products         Product[]
+  variants         ProductVariant[]
+  shippingRates    ShippingRate[]
+
+  @@unique([storeId, code])
+  @@index([storeId, active, name])
+}
+
+model ShippingZone {
+  id            String         @id @default(uuid()) @db.Uuid
+  storeId       String         @db.Uuid
+  name          String
+  countries     String[]       @default(["AU"])
+  states        String[]       @default([])
+  postcodeRules Json           @default("[]")
+  priority      Int            @default(0)
+  active        Boolean        @default(true)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  store         Store          @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  rates         ShippingRate[]
+
+  @@unique([storeId, name])
+  @@index([storeId, active, priority])
+}
+
+model ShippingProvider {
+  id             String               @id @default(uuid()) @db.Uuid
+  storeId        String               @db.Uuid
+  key            String
+  name           String
+  kind           ShippingProviderKind
+  active         Boolean              @default(true)
+  supportsRates  Boolean              @default(false)
+  supportsLabels Boolean              @default(false)
+  settings       Json                 @default("{}")
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+  store          Store                @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  rates          ShippingRate[]
+  shipments      Shipment[]
+
+  @@unique([storeId, key])
+  @@index([storeId, active])
+}
+
+model ShippingRate {
+  id               String            @id @default(uuid()) @db.Uuid
+  storeId          String            @db.Uuid
+  zoneId           String            @db.Uuid
+  providerId       String?           @db.Uuid
+  packagingId      String?           @db.Uuid
+  serviceCode      String
+  serviceName      String
+  amountCents      Int
+  freeOverCents    Int?
+  minWeightGrams   Int?
+  maxWeightGrams   Int?
+  estimatedDaysMin Int?
+  estimatedDaysMax Int?
+  priority         Int               @default(0)
+  active           Boolean           @default(true)
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  store            Store             @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  zone             ShippingZone      @relation(fields: [zoneId], references: [id], onDelete: Restrict)
+  provider         ShippingProvider? @relation(fields: [providerId], references: [id], onDelete: SetNull)
+  packaging        Packaging?        @relation(fields: [packagingId], references: [id], onDelete: SetNull)
+
+  @@unique([storeId, zoneId, serviceCode, packagingId])
+  @@index([storeId, active, priority])
+  @@index([zoneId, active])
+}
+
+model ShippingQuote {
+  id                String              @id @default(uuid()) @db.Uuid
+  storeId           String              @db.Uuid
+  tokenHash         String              @unique
+  status            ShippingQuoteStatus @default(ACTIVE)
+  cartHash          String
+  destinationHash   String
+  providerKey       String
+  serviceCode       String
+  serviceName       String
+  amountCents       Int
+  currency          String              @default("AUD") @db.Char(3)
+  estimatedDaysMin  Int?
+  estimatedDaysMax  Int?
+  originSnapshot    Json
+  packagingSnapshot Json
+  expiresAt         DateTime
+  consumedAt        DateTime?
+  createdAt         DateTime            @default(now())
+  store             Store               @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  order             Order?
+
+  @@index([storeId, status, expiresAt])
+}
+
+model Shipment {
+  id                 String            @id @default(uuid()) @db.Uuid
+  idempotencyKey     String            @unique
+  storeId            String            @db.Uuid
+  orderId            String            @db.Uuid
+  originId           String?           @db.Uuid
+  providerId         String?           @db.Uuid
+  providerShipmentId String?
+  status             ShipmentStatus    @default(DRAFT)
+  serviceCode        String
+  serviceName        String
+  trackingNumber     String?
+  trackingUrl        String?
+  labelStorageKey    String?
+  labelMimeType      String?
+  labelCreatedAt     DateTime?
+  createdById        String?           @db.Uuid
+  shippedAt          DateTime?
+  deliveredAt        DateTime?
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+  store              Store             @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  order              Order             @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  origin             ShippingOrigin?   @relation(fields: [originId], references: [id], onDelete: SetNull)
+  provider           ShippingProvider? @relation(fields: [providerId], references: [id], onDelete: SetNull)
+  createdBy          User?             @relation("ShipmentCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  printJobs          PrintJob[]
+
+  @@index([storeId, status, createdAt])
+  @@index([orderId, createdAt])
+  @@index([trackingNumber])
+}
+
+model PrintAgent {
+  id          String     @id @default(uuid()) @db.Uuid
+  storeId     String     @db.Uuid
+  name        String
+  tokenHash   String     @unique
+  active      Boolean    @default(true)
+  printerName String?
+  lastSeenAt  DateTime?
+  createdById String?    @db.Uuid
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  store       Store      @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  createdBy   User?      @relation("PrintAgentCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  jobs        PrintJob[]
+
+  @@unique([storeId, name])
+  @@index([storeId, active])
+}
+
+model PrintJob {
+  id             String            @id @default(uuid()) @db.Uuid
+  storeId        String            @db.Uuid
+  shipmentId     String            @db.Uuid
+  printAgentId   String?           @db.Uuid
+  documentType   PrintDocumentType @default(SHIPPING_LABEL)
+  status         PrintJobStatus    @default(QUEUED)
+  copies         Int               @default(1)
+  attempts       Int               @default(0)
+  leaseTokenHash String?
+  leaseExpiresAt DateTime?
+  claimedAt      DateTime?
+  printedAt      DateTime?
+  failedAt       DateTime?
+  errorMessage   String?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+  shipment       Shipment          @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+  printAgent     PrintAgent?       @relation(fields: [printAgentId], references: [id], onDelete: SetNull)
+  store          Store             @relation(fields: [storeId], references: [id], onDelete: Restrict)
+
+  @@index([storeId, status, createdAt])
+  @@index([printAgentId, status])
+  @@index([leaseExpiresAt])
+}
+
+model LandingPageSection {
+  id           String                          @id @default(uuid()) @db.Uuid
+  storeId      String                          @db.Uuid
+  pageId       String                          @db.Uuid
+  categoryId   String?                         @db.Uuid
+  type         LandingSectionType
+  name         String
+  visible      Boolean                         @default(true)
+  sortOrder    Int                             @default(0)
+  content      Json                            @default("{}")
+  createdAt    DateTime                        @default(now())
+  updatedAt    DateTime                        @updatedAt
+  store        Store                           @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  page         ContentPage                     @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  category     ProductCategory?                @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  translations LandingPageSectionTranslation[]
+
+  @@index([storeId, pageId, visible, sortOrder])
+  @@index([storeId, categoryId, visible, sortOrder])
+}
+
+model ContentPage {
+  id             String                   @id @default(uuid()) @db.Uuid
+  storeId        String                   @db.Uuid
+  categoryId     String?                  @unique @db.Uuid
+  kind           ContentPageKind
+  slug           String
+  legacySlugs    String[]                 @default([])
+  name           String
+  status         CategoryStatus           @default(DRAFT)
+  sortOrder      Int                      @default(0)
+  showInHeader   Boolean                  @default(false)
+  showInFooter   Boolean                  @default(false)
+  headerLabel    String?
+  footerLabel    String?
+  navigationOrder Int                     @default(0)
+  visualTheme    CategoryVisualTheme      @default(CORAL)
+  defaultLocale  String                   @default("en-AU")
+  seoTitle       String?
+  seoDescription String?
+  ogImageUrl     String?
+  canonicalUrl   String?
+  indexable      Boolean                  @default(true)
+  createdAt      DateTime                 @default(now())
+  updatedAt      DateTime                 @updatedAt
+  store          Store                    @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  category       ProductCategory?         @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  sections       LandingPageSection[]
+  translations   ContentPageTranslation[]
+  images         CategoryImage[]
+
+  @@unique([storeId, slug])
+  @@index([storeId, kind, status, sortOrder])
+  @@index([legacySlugs], type: Gin)
+}
+
+model ContentPageTranslation {
+  id             String      @id @default(uuid()) @db.Uuid
+  pageId         String      @db.Uuid
+  locale         String
+  name           String?
+  seoTitle       String?
+  seoDescription String?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+  page           ContentPage @relation(fields: [pageId], references: [id], onDelete: Cascade)
+
+  @@unique([pageId, locale])
+  @@index([locale])
+}
+
+model LandingPageSectionTranslation {
+  id        String             @id @default(uuid()) @db.Uuid
+  sectionId String             @db.Uuid
+  locale    String
+  content   Json               @default("{}")
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+  section   LandingPageSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+
+  @@unique([sectionId, locale])
+  @@index([locale])
+}
+
+model StoreLocale {
+  id        String   @id @default(uuid()) @db.Uuid
+  storeId   String   @db.Uuid
+  code      String
+  name      String
+  isDefault Boolean  @default(false)
+  active    Boolean  @default(true)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  store     Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@unique([storeId, code])
+  @@index([storeId, active, sortOrder])
 }
 
 model Payment {
@@ -198,54 +1361,116 @@ model Payment {
   amountCents             Int
   currency                String        @default("AUD")
   status                  PaymentStatus @default(PENDING)
+  refundedAmountCents     Int           @default(0)
+  refundRestockedAt       DateTime?
+  refunds                 PaymentRefund[]
   createdAt               DateTime      @default(now())
   updatedAt               DateTime      @updatedAt
   order                   Order         @relation(fields: [orderId], references: [id], onDelete: Restrict)
+
   @@index([orderId])
 }
 
+model PaymentRefund {
+  id               String   @id @default(uuid()) @db.Uuid
+  paymentId        String   @db.Uuid
+  requestKey       String   @unique
+  providerRefundId String?  @unique
+  amountCents      Int
+  currency         String
+  reason           String
+  status           String   @default("REQUESTED")
+  lastError        String?
+  nextAttemptAt    DateTime @default(now())
+  leaseUntil       DateTime?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  payment          Payment  @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+
+  @@index([status, nextAttemptAt])
+}
+
+model OrderNotification {
+  id           String   @id @default(uuid()) @db.Uuid
+  orderId      String   @db.Uuid
+  dedupeKey    String   @unique
+  to           String
+  subject      String
+  text         String
+  status       String   @default("PENDING")
+  attempts     Int      @default(0)
+  availableAt  DateTime @default(now())
+  leaseUntil   DateTime?
+  leaseToken   String?
+  lastError    String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  order        Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([status, availableAt])
+}
+
 model NFCTag {
-  id                 String      @id @default(uuid()) @db.Uuid
-  publicTagId        String      @unique @db.VarChar(24)
-  activationCodeHash String
-  ownerId            String?     @db.Uuid
-  productId          String      @db.Uuid
-  productVariantId   String?     @db.Uuid
-  productType        ProductType
-  status             TagStatus   @default(MANUFACTURED)
-  activatedAt        DateTime?
-  createdAt          DateTime    @default(now())
-  updatedAt          DateTime    @updatedAt
-  owner              User?       @relation(fields: [ownerId], references: [id], onDelete: SetNull)
-  product            Product     @relation(fields: [productId], references: [id], onDelete: Restrict)
-  productVariant     ProductVariant? @relation(fields: [productVariantId], references: [id], onDelete: SetNull)
-  activations        TagActivation[]
-  profile            TagProfile?
-  scans              ScanEvent[]
-  @@index([ownerId, status])
-  @@index([productId, status])
+  id                          String              @id @default(uuid()) @db.Uuid
+  publicTagId                 String              @unique @db.VarChar(24)
+  storeId                     String              @db.Uuid
+  activationCodeHash          String
+  activationCodeVersion       Int                 @default(1)
+  activationCodeRegeneratedAt DateTime?
+  activationLockedUntil       DateTime?
+  ownerId                     String?             @db.Uuid
+  productId                   String              @db.Uuid
+  productVariantId            String?             @db.Uuid
+  orderItemId                 String?             @db.Uuid
+  productType                 ProductType
+  status                      TagStatus           @default(MANUFACTURED)
+  manufacturingStatus         ManufacturingStatus @default(GENERATED)
+  manufacturingBatchId        String?             @db.Uuid
+  batchSequence               Int?
+  programmedAt                DateTime?
+  verifiedAt                  DateTime?
+  assembledAt                 DateTime?
+  activatedAt                 DateTime?
+  createdAt                   DateTime            @default(now())
+  updatedAt                   DateTime            @updatedAt
+  owner                       User?               @relation(fields: [ownerId], references: [id], onDelete: SetNull)
+  store                       Store               @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  product                     Product             @relation(fields: [productId], references: [id], onDelete: Restrict)
+  productVariant              ProductVariant?     @relation(fields: [productVariantId], references: [id], onDelete: SetNull)
+  orderItem                   OrderItem?          @relation(fields: [orderItemId], references: [id], onDelete: SetNull)
+  manufacturingBatch          ManufacturingBatch? @relation(fields: [manufacturingBatchId], references: [id], onDelete: SetNull)
+  activations                 TagActivation[]
+  profile                     TagProfile?
+  scans                       ScanEvent[]
+
+  @@unique([manufacturingBatchId, batchSequence])
+  @@index([storeId, ownerId, status])
+  @@index([storeId, productId, status])
+  @@index([orderItemId])
+  @@index([manufacturingStatus, createdAt])
 }
 
 model TagActivation {
-  id            String   @id @default(uuid()) @db.Uuid
-  tagId         String   @db.Uuid
-  userId        String?  @db.Uuid
-  success       Boolean
-  ipHash        String?
-  attemptedAt   DateTime @default(now())
-  tag           NFCTag   @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  id          String   @id @default(uuid()) @db.Uuid
+  tagId       String   @db.Uuid
+  userId      String?  @db.Uuid
+  success     Boolean
+  ipHash      String?
+  attemptedAt DateTime @default(now())
+  tag         NFCTag   @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
   @@index([tagId, attemptedAt])
   @@index([ipHash, attemptedAt])
 }
 
 model TagProfile {
-  id          String   @id @default(uuid()) @db.Uuid
-  tagId       String   @unique @db.Uuid
+  id          String             @id @default(uuid()) @db.Uuid
+  tagId       String             @unique @db.Uuid
   displayName String?
-  isPublic    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  tag         NFCTag   @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  isPublic    Boolean            @default(true)
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+  tag         NFCTag             @relation(fields: [tagId], references: [id], onDelete: Cascade)
   pet         PetProfile?
   child       ChildProfile?
   social      SocialProfile?
@@ -255,8 +1480,8 @@ model TagProfile {
 }
 
 model PetProfile {
-  id             String   @id @default(uuid()) @db.Uuid
-  tagProfileId   String   @unique @db.Uuid
+  id             String     @id @default(uuid()) @db.Uuid
+  tagProfileId   String     @unique @db.Uuid
   photoUrl       String?
   species        String?
   breed          String?
@@ -272,59 +1497,60 @@ model PetProfile {
 }
 
 model ChildProfile {
-  id                    String      @id @default(uuid()) @db.Uuid
-  tagProfileId          String      @unique @db.Uuid
-  photoUrl              String?
-  approximateAge        String?
-  criticalMedicalInfo   String?
-  allergies             String?
-  communicationNotes    String?
-  status                ChildStatus @default(NORMAL)
-  tagProfile            TagProfile  @relation(fields: [tagProfileId], references: [id], onDelete: Cascade)
+  id                  String      @id @default(uuid()) @db.Uuid
+  tagProfileId        String      @unique @db.Uuid
+  photoUrl            String?
+  approximateAge      String?
+  criticalMedicalInfo String?
+  allergies           String?
+  communicationNotes  String?
+  status              ChildStatus @default(NORMAL)
+  tagProfile          TagProfile  @relation(fields: [tagProfileId], references: [id], onDelete: Cascade)
 }
 
 model SocialProfile {
-  id             String     @id @default(uuid()) @db.Uuid
-  tagProfileId   String     @unique @db.Uuid
-  mode           SocialMode @default(MULTI_LINK)
-  redirectUrl    String?
-  links          Json       @default("{}")
-  bio            String?
-  tagProfile     TagProfile @relation(fields: [tagProfileId], references: [id], onDelete: Cascade)
+  id           String     @id @default(uuid()) @db.Uuid
+  tagProfileId String     @unique @db.Uuid
+  mode         SocialMode @default(MULTI_LINK)
+  redirectUrl  String?
+  links        Json       @default("{}")
+  bio          String?
+  tagProfile   TagProfile @relation(fields: [tagProfileId], references: [id], onDelete: Cascade)
 }
 
 model BusinessProfile {
-  id           String   @id @default(uuid()) @db.Uuid
-  tagProfileId String   @unique @db.Uuid
+  id           String     @id @default(uuid()) @db.Uuid
+  tagProfileId String     @unique @db.Uuid
   company      String?
   jobTitle     String?
   phone        String?
   email        String?
   website      String?
   linkedIn     String?
-  socialLinks  Json     @default("{}")
+  socialLinks  Json       @default("{}")
   bio          String?
   tagProfile   TagProfile @relation(fields: [tagProfileId], references: [id], onDelete: Cascade)
 }
 
 model LuggageProfile {
-  id             String   @id @default(uuid()) @db.Uuid
-  tagProfileId   String   @unique @db.Uuid
-  message        String?
-  contactName    String?
-  contactPhone   String?
-  contactEmail   String?
-  tagProfile     TagProfile @relation(fields: [tagProfileId], references: [id], onDelete: Cascade)
+  id           String     @id @default(uuid()) @db.Uuid
+  tagProfileId String     @unique @db.Uuid
+  message      String?
+  contactName  String?
+  contactPhone String?
+  contactEmail String?
+  tagProfile   TagProfile @relation(fields: [tagProfileId], references: [id], onDelete: Cascade)
 }
 
 model EmergencyContact {
-  id           String   @id @default(uuid()) @db.Uuid
-  tagProfileId String   @db.Uuid
+  id           String     @id @default(uuid()) @db.Uuid
+  tagProfileId String     @db.Uuid
   name         String
   relationship String?
   phone        String
-  priority     Int      @default(0)
+  priority     Int        @default(0)
   tagProfile   TagProfile @relation(fields: [tagProfileId], references: [id], onDelete: Cascade)
+
   @@index([tagProfileId, priority])
 }
 
@@ -337,6 +1563,7 @@ model ScanEvent {
   countryCode    String?  @db.Char(2)
   region         String?
   tag            NFCTag   @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
   @@index([tagId, scannedAt])
   @@index([tagId, dayBucket])
 }
@@ -344,13 +1571,17 @@ model ScanEvent {
 model AuditLog {
   id         BigInt   @id @default(autoincrement())
   actorId    String?  @db.Uuid
+  storeId    String?  @db.Uuid
   action     String
   entityType String
   entityId   String?
   metadata   Json?
   createdAt  DateTime @default(now())
   actor      User?    @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  store      Store?   @relation(fields: [storeId], references: [id], onDelete: SetNull)
+
   @@index([actorId, createdAt])
+  @@index([storeId, createdAt])
   @@index([entityType, entityId])
 }
 
@@ -366,5 +1597,21 @@ model SecurityEvent {
   keyHash   String
   action    String
   createdAt DateTime @default(now())
+
   @@index([keyHash, action, createdAt])
+}
+
+model StoreSettings {
+  id                    String   @id @default("default")
+  storeName             String   @default("Tapkin")
+  businessName          String?
+  supportEmail          String?
+  currency              String   @default("AUD")
+  defaultCountry        String   @default("AU")
+  siteTitle             String   @default("Tapkin Smart Products")
+  siteDescription       String   @default("Smart NFC products designed and made in Australia.")
+  defaultSocialImageUrl String?
+  socialLinks           Json     @default("{}")
+  shippingConfig        Json     @default("{}")
+  updatedAt             DateTime @updatedAt
 }

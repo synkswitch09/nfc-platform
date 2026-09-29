@@ -1,0 +1,50 @@
+import { describe, expect, it } from "vitest";
+import { buildEtsyDraftInventoryPayload, buildEtsyInventoryPayload, buildEtsyListingContentPayload, codeChallenge, etsyMoneyToCents, normaliseEtsyReceipt, verifyEtsyVariationValues } from "@/lib/etsy";
+
+describe("Etsy marketplace sync", () => {
+  it("uses the required PKCE SHA-256 URL-safe challenge", () => {
+    expect(codeChallenge("vvkdljkejllufrvbhgeiegrnvufrhvrffnkvcknjvfid")).toBe("DSWlW2Abh-cf8CeLL8-g3hQ2WQyYdKyiu83u_s7nRhI");
+  });
+
+  it("updates quantities and prices without discarding Etsy variation properties", () => {
+    const payload = buildEtsyInventoryPayload({ products: [{ sku: "TAG-MINT-S", property_values: [{ property_id: 200, values: ["Mint"] }], offerings: [{ quantity: 2, price: 10, is_enabled: true, readiness_state_id: 4 }] }] }, [{ sku: "TAG-MINT-S", priceCents: 2495, inventory: 7, reservedInventory: 2, active: true, trackInventory: true, backorderPolicy: "DENY" }]);
+    expect(payload.products?.[0]).toMatchObject({ sku: "TAG-MINT-S", property_values: [{ property_id: 200 }] });
+    expect(payload.products?.[0]?.offerings?.[0]).toMatchObject({ quantity: 5, price: 24.95, is_enabled: true, readiness_state_id: 4 });
+  });
+
+  it("refuses a partial SKU mapping instead of changing the wrong Etsy variation", () => {
+    expect(() => buildEtsyInventoryPayload({ products: [{ sku: "TAG-PINK", offerings: [{}] }] }, [{ sku: "TAG-MINT", priceCents: 2495, inventory: 1, reservedInventory: 0, active: true, trackInventory: true, backorderPolicy: "DENY" }])).toThrow(/SKU mapping/i);
+  });
+
+  it("checks mapped Etsy colour values and builds a safe listing content update", () => {
+    const remote = { products: [{ sku: "TAG-MINT-S", property_values: [{ property_name: "Color", values: ["Mint"] }], offerings: [{}] }] };
+    const variants = [{ sku: "TAG-MINT-S", priceCents: 2495, inventory: 1, reservedInventory: 0, active: true, trackInventory: true, backorderPolicy: "DENY" as const, optionSelection: { colour: "mint" } }];
+    const options = [{ code: "colour", name: "Colour", type: "COLOUR", values: [{ label: "Mint", value: "mint", active: true }] }];
+    expect(() => verifyEtsyVariationValues(remote, variants, options)).not.toThrow();
+    expect(() => verifyEtsyVariationValues({ ...remote, products: [{ ...remote.products[0], property_values: [{ property_name: "Color", values: ["Black"] }] }] }, variants, options)).toThrow(/variation mismatch/i);
+    expect(buildEtsyListingContentPayload({ name: "Mint pet tag", description: "Short description", fullDescription: "Long Etsy-ready description" }).toString()).toContain("title=Mint+pet+tag");
+  });
+
+  it("builds Etsy custom colour, size and style variations from Tapkin choices", () => {
+    const payload = buildEtsyDraftInventoryPayload({
+      variants: [{ sku: "TAG-MINT-S-BONE", name: "Mint small bone", priceCents: 2495, inventory: 4, reservedInventory: 1, active: true, trackInventory: true, backorderPolicy: "DENY", optionSelection: { colour: "mint", size: "small", shape: "bone" } }],
+      options: [
+        { code: "colour", name: "Colour", type: "COLOUR", values: [{ label: "Mint", value: "mint", active: true }] },
+        { code: "size", name: "Size", type: "SELECT", values: [{ label: "Small", value: "small", active: true }] },
+        { code: "shape", name: "Style", type: "SELECT", values: [{ label: "Bone", value: "bone", active: true }] },
+      ],
+    }, "12345");
+    expect(payload.products[0]).toMatchObject({ sku: "TAG-MINT-S-BONE", offerings: [{ quantity: 3, readiness_state_id: 12345 }], property_values: [{ property_id: 513, property_name: "Colour", values: ["Mint"] }, { property_id: 514, property_name: "Size", values: ["Small"] }, { property_id: 516, property_name: "Style", values: ["Bone"] }] });
+    expect(payload.sku_on_property).toEqual([513, 514, 516]);
+  });
+
+  it("normalises a paid receipt using Etsy money divisors and SKU line items", () => {
+    const receipt = normaliseEtsyReceipt({ receipt_id: 12345, is_paid: true, name: "Ava Buyer", buyer_email: "ava@example.test", first_line: "1 Test Street", city: "Sydney", state: "NSW", zip: "2000", country_iso: "AU", grandtotal: { amount: 5490, divisor: 100, currency_code: "AUD" }, total_shipping_cost: { amount: 500, divisor: 100, currency_code: "AUD" }, transactions: [{ listing_id: 987, sku: "TAG-MINT-S", quantity: 2, title: "Mint tag", price: { amount: 2495, divisor: 100, currency_code: "AUD" }, variations: [{ formatted_name: "Name", formatted_value: "Milo" }] }] });
+    expect(receipt).toMatchObject({ externalId: "12345", currency: "AUD", totalCents: 5490, shippingCents: 500, customerName: "Ava Buyer", lines: [{ listingId: "987", sku: "TAG-MINT-S", quantity: 2, unitPriceCents: 2495 }] });
+  });
+
+  it("rejects an unpaid or malformed receipt before it can affect inventory", () => {
+    expect(() => normaliseEtsyReceipt({ receipt_id: 12345, is_paid: false, transactions: [] })).toThrow(/not paid/i);
+    expect(() => etsyMoneyToCents({ amount: 2495, divisor: 3 }, "price")).toThrow(/divisor/i);
+  });
+});
