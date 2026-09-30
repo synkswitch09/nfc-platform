@@ -24,6 +24,18 @@ export async function sendTransactionalEmail(input: { to: string; subject: strin
     if (!response.ok || (await response.json() as { success?: boolean }).success !== true) throw new Error("Email delivery failed");
     return true;
   }
+  if (email.provider === "resend") {
+    if (!email.fromAddress) throw new Error("Resend sender is not configured");
+    const response = await fetch(email.webhookUrl, {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${email.webhookSecret}`, ...(input.idempotencyKey ? { "Idempotency-Key": input.idempotencyKey } : {}) },
+      body: JSON.stringify({ from: email.fromAddress, to: [input.to], subject: input.subject, text: input.text }),
+      signal: AbortSignal.timeout(15_000),
+      redirect: "error",
+    });
+    if (!response.ok) throw new Error("Email delivery failed");
+    return true;
+  }
   const response = await fetch(email.webhookUrl, { method:"POST", headers:{"content-type":"application/json",authorization:`Bearer ${email.webhookSecret}`, ...(input.idempotencyKey ? { "Idempotency-Key": input.idempotencyKey } : {})}, body:JSON.stringify({ ...input, environment: appEnv, mode: email.mode }), signal: AbortSignal.timeout(15_000), redirect: "error" });
   if (!response.ok) throw new Error("Email delivery failed");
   return true;
