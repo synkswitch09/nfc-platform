@@ -25,6 +25,14 @@ export function AuthForm({ mode, storeName }: { mode: "login" | "register"; stor
     const data = await response.json().catch(() => ({}));
     setPending(false);
     if (!response.ok) return setError(data.error ?? "Something went wrong");
+    if (data.verificationRequired) {
+      const params = new URLSearchParams();
+      if (next?.startsWith("/") && !next.startsWith("//")) params.set("next", next);
+      if (data.verificationEmailSent === false) params.set("sent", "0");
+      router.push(`/verify-email${params.size ? `?${params}` : ""}`);
+      router.refresh();
+      return;
+    }
     router.push(next?.startsWith("/") && !next.startsWith("//") ? next : "/dashboard");
     router.refresh();
   }

@@ -79,14 +79,14 @@ async function waitForHealth() {
   throw new Error("Application did not become healthy within 60 seconds");
 }
 
-async function latestVerificationToken() {
+async function latestVerificationCode() {
   for (let attempt = 0; attempt < 40; attempt += 1) {
     const outbox = await readFile(emailOutbox, "utf8").catch(() => "");
-    const matches = [...outbox.matchAll(/\/verify-email\?token=([A-Za-z0-9_-]+)/g)];
+    const matches = [...outbox.matchAll(/verification code is (\d{6})/g)];
     if (matches.length) return matches.at(-1)[1];
     await new Promise(resolve => setTimeout(resolve, 250));
   }
-  throw new Error("Email verification token was not captured in the isolated E2E outbox");
+  throw new Error("Email verification code was not captured in the isolated E2E outbox");
 }
 
 async function main() {
@@ -149,10 +149,14 @@ async function main() {
   assert(await db.webhookEvent.count({ where: { id: stripeEventId } }) === 1, "Duplicate Stripe event is persisted only once");
 
   // FLOW B — create and verify an account after purchase; the previous order is attached.
-  await jsonResponse(await request("/api/auth/register", { method: "POST", jar: customerJar, json: { name: "E2E Customer", email: guestEmail, password: guestPassword, orderNumber, orderClaimToken: claimToken } }), 201, "Guest creates an account from the purchase");
-  const verificationToken = await latestVerificationToken();
-  const verification = await request(`/api/auth/verify-email?token=${verificationToken}`, { jar: customerJar, redirect: "manual" });
-  assert([302, 303, 307, 308].includes(verification.status), "Email ownership verification completes");
+  const registered = await jsonResponse(await request("/api/auth/register", { method: "POST", jar: customerJar, json: { name: "E2E Customer", email: guestEmail, password: guestPassword, orderNumber, orderClaimToken: claimToken } }), 201, "Guest creates an account from the purchase");
+  assert(registered.verificationRequired === true, "New password account requires email verification");
+  const pendingDashboard = await request("/dashboard", { jar: customerJar, redirect: "manual" });
+  assert([302, 303, 307, 308].includes(pendingDashboard.status) && (pendingDashboard.headers.get("location") ?? "").includes("/verify-email"), "Unverified session cannot access dashboard");
+  const verificationCode = await latestVerificationCode();
+  await jsonResponse(await request("/api/auth/verify-email", { method: "POST", jar: customerJar, json: { code: verificationCode === "000000" ? "000001" : "000000" } }), 400, "Incorrect verification code is rejected");
+  const verification = await jsonResponse(await request("/api/auth/verify-email", { method: "POST", jar: customerJar, json: { code: verificationCode } }), 200, "Email ownership verification completes");
+  assert(verification.verified === true, "Correct code verifies the account");
   const dashboard = await bodyText(await request("/dashboard", { jar: customerJar }));
   assert(dashboard.text.includes(orderNumber), "Previous guest purchase appears in the account");
   const crossStoreDashboard = await request("/dashboard", { host: "home.localhost", jar: customerJar, redirect: "manual" });
