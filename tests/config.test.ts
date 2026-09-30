@@ -45,6 +45,14 @@ describe("runtime configuration", () => {
     expect(() => parseRuntimeConfig({ ...staging, APP_ENV: "production", STRIPE_SECRET_KEY: "sk_live_example", NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: "pk_live_example", EMAIL_MODE: "live" })).toThrow("restricted to staging");
   });
 
+  it("requires a verified sender and the official Resend endpoint for live production", () => {
+    const production = { ...nonDevelopment("production"), STRIPE_SECRET_KEY: undefined, STRIPE_WEBHOOK_SECRET: undefined, NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: undefined, EMAIL_PROVIDER: "resend", EMAIL_FROM_ADDRESS: "hello@tapkin.com.au", EMAIL_WEBHOOK_URL: "https://api.resend.com/emails" };
+    expect(parseRuntimeConfig(production).email.provider).toBe("resend");
+    expect(() => parseRuntimeConfig({ ...production, EMAIL_FROM_ADDRESS: undefined })).toThrow("verified sender address");
+    expect(() => parseRuntimeConfig({ ...production, EMAIL_WEBHOOK_URL: "https://email.example/send" })).toThrow("official HTTPS email endpoint");
+    expect(() => parseRuntimeConfig({ ...production, APP_ENV: "staging", EMAIL_MODE: "sandbox" })).toThrow("live production email");
+  });
+
   it("requires an explicit deployment environment in a production runtime", () => {
     expect(() => parseRuntimeConfig({ NODE_ENV: "production" })).toThrow("APP_ENV must be explicit");
   });

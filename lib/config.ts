@@ -31,7 +31,7 @@ const runtimeConfigSchema = z.object({
   AZURE_STORAGE_CONTAINER_URL: optionalUrl,
   AZURE_STORAGE_SAS_TOKEN: optionalString,
   EMAIL_MODE: z.enum(["mock", "sandbox", "live"]).default("mock"),
-  EMAIL_PROVIDER: z.enum(["webhook", "mailtrap-sandbox"]).default("webhook"),
+  EMAIL_PROVIDER: z.enum(["webhook", "mailtrap-sandbox", "resend"]).default("webhook"),
   EMAIL_FROM_ADDRESS: z.preprocess(blankToUndefined, z.email().optional()),
   EMAIL_WEBHOOK_URL: optionalUrl,
   EMAIL_WEBHOOK_SECRET: optionalString,
@@ -125,6 +125,12 @@ const runtimeConfigSchema = z.object({
     if (!/^https:\/\/sandbox\.api\.mailtrap\.io\/api\/send\/[1-9][0-9]*$/.test(value.EMAIL_WEBHOOK_URL ?? "")) issue("EMAIL_WEBHOOK_URL", "Mailtrap Sandbox requires its exact HTTPS sandbox inbox URL");
   }
 
+  if (value.EMAIL_PROVIDER === "resend") {
+    if (value.APP_ENV !== "production" || value.EMAIL_MODE !== "live") issue("EMAIL_PROVIDER", "Resend requires live production email");
+    if (!value.EMAIL_FROM_ADDRESS) issue("EMAIL_FROM_ADDRESS", "Resend requires a verified sender address");
+    if (value.EMAIL_WEBHOOK_URL !== "https://api.resend.com/emails") issue("EMAIL_WEBHOOK_URL", "Resend requires the official HTTPS email endpoint");
+  }
+
   if (value.APP_ENV === "production") {
     if (value.PRODUCTION_PREVIEW_MODE) {
       if (value.STRIPE_SECRET_KEY || value.STRIPE_WEBHOOK_SECRET || value.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY) issue("STRIPE_SECRET_KEY", "Preview mode must not have Stripe credentials");
@@ -152,7 +158,7 @@ export type RuntimeConfig = {
   activationPepper?: string;
   trustProxy: boolean;
   storage: { provider: "local" | "azure-blob"; environment?: AppEnvironment; uploadDir: string; containerUrl?: string; sasToken?: string };
-  email: { mode: "mock" | "sandbox" | "live"; provider: "webhook" | "mailtrap-sandbox"; fromAddress?: string; webhookUrl?: string; webhookSecret?: string; testOutboxPath?: string };
+  email: { mode: "mock" | "sandbox" | "live"; provider: "webhook" | "mailtrap-sandbox" | "resend"; fromAddress?: string; webhookUrl?: string; webhookSecret?: string; testOutboxPath?: string };
   stripe: { secretKey?: string; webhookSecret?: string; reconcileSecret?: string; publishableKey?: string; testCheckout: boolean };
   etsy: { apiKey?: string; sharedSecret?: string; syncSecret?: string };
   analyticsStores: Record<string, { measurementId: string; apiSecret: string }>;
