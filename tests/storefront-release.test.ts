@@ -26,6 +26,14 @@ describe("storefront release validation", () => {
     });
   });
 
+  it("preserves the Home page's negative sort order during export and import", () => {
+    const parsed = storefrontReleaseSchema.parse({
+      ...release,
+      pages: [{ slug: "home", name: "Home", kind: "HOME", sortOrder: -1 }],
+    });
+    expect(parsed.pages[0].sortOrder).toBe(-1);
+  });
+
   it("rejects an unrelated JSON file or unsafe media key", () => {
     expect(storefrontReleaseSchema.safeParse({ ...release, kind: "backup" }).success).toBe(false);
     expect(storefrontReleaseSchema.safeParse({ ...release, assets: [{ storageKey: "../secrets", mimeType: "image/png", byteSize: 1, width: 1, height: 1, bytesBase64: "AA==" }] }).success).toBe(false);
