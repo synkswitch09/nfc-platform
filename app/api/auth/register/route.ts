@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
   await createSession(user.id, store);
   const verificationToken = createOpaqueToken();
   await db.emailVerification.create({ data:{userId:user.id,storeId:store.id,tokenHash:sha256(verificationToken),expiresAt:new Date(Date.now()+24*60*60*1000),orderClaimId:claimOrder?.id} });
-  await sendTransactionalEmail({to:user.email,subject:`Verify your ${store.displayName} email`,text:`Verify your email: ${store.origin}/verify-email?token=${verificationToken}`}).catch(() => undefined);
+  await sendTransactionalEmail({to:user.email,subject:`Verify your ${store.displayName} email`,text:`Verify your email: ${store.origin}/verify-email?token=${verificationToken}`,storeSlug:store.slug}).catch(() => undefined);
   await db.auditLog.create({ data: { actorId: user.id, storeId: store.id, action: "USER_REGISTERED", entityType: "User", entityId: user.id } });
   return NextResponse.json({ user }, { status: 201 });
 }

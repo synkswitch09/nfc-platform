@@ -33,8 +33,10 @@ const runtimeConfigSchema = z.object({
   EMAIL_MODE: z.enum(["mock", "sandbox", "live"]).default("mock"),
   EMAIL_PROVIDER: z.enum(["webhook", "mailtrap-sandbox", "resend"]).default("webhook"),
   EMAIL_FROM_ADDRESS: z.preprocess(blankToUndefined, z.email().optional()),
+  EMAIL_FROM_ADDRESS_KOSYKIN: z.preprocess(blankToUndefined, z.email().optional()),
   EMAIL_WEBHOOK_URL: optionalUrl,
   EMAIL_WEBHOOK_SECRET: optionalString,
+  EMAIL_WEBHOOK_SECRET_KOSYKIN: optionalString,
   EMAIL_TEST_OUTBOX_PATH: optionalString,
   STRIPE_SECRET_KEY: optionalString,
   STRIPE_WEBHOOK_SECRET: optionalString,
@@ -68,6 +70,7 @@ const runtimeConfigSchema = z.object({
   paired(value.ETSY_API_KEY, value.ETSY_SHARED_SECRET, "ETSY_API_KEY", "ETSY_SHARED_SECRET");
   paired(value.DEV_ADMIN_EMAIL, value.DEV_ADMIN_PASSWORD, "DEV_ADMIN_EMAIL", "DEV_ADMIN_PASSWORD");
   paired(value.STAGING_ADMIN_EMAIL, value.STAGING_ADMIN_PASSWORD, "STAGING_ADMIN_EMAIL", "STAGING_ADMIN_PASSWORD");
+  paired(value.EMAIL_FROM_ADDRESS_KOSYKIN, value.EMAIL_WEBHOOK_SECRET_KOSYKIN, "EMAIL_FROM_ADDRESS_KOSYKIN", "EMAIL_WEBHOOK_SECRET_KOSYKIN");
   if (value.ANALYTICS_ID) issue("ANALYTICS_ID", "Use per-store ANALYTICS_GA4_STORES instead of a shared analytics ID");
   const ids = Object.values(value.ANALYTICS_GA4_STORES).map(item => item.measurementId);
   if (new Set(ids).size !== ids.length) issue("ANALYTICS_GA4_STORES", "Each store needs a separate GA4 web stream");
@@ -129,6 +132,9 @@ const runtimeConfigSchema = z.object({
     if (value.APP_ENV !== "production" || value.EMAIL_MODE !== "live") issue("EMAIL_PROVIDER", "Resend requires live production email");
     if (!value.EMAIL_FROM_ADDRESS) issue("EMAIL_FROM_ADDRESS", "Resend requires a verified sender address");
     if (value.EMAIL_WEBHOOK_URL !== "https://api.resend.com/emails") issue("EMAIL_WEBHOOK_URL", "Resend requires the official HTTPS email endpoint");
+    if (value.EMAIL_FROM_ADDRESS_KOSYKIN && !value.EMAIL_FROM_ADDRESS_KOSYKIN.toLowerCase().endsWith("@kosykin.com.au")) issue("EMAIL_FROM_ADDRESS_KOSYKIN", "Kosykin sender must use its verified domain");
+  } else if (value.EMAIL_FROM_ADDRESS_KOSYKIN || value.EMAIL_WEBHOOK_SECRET_KOSYKIN) {
+    issue("EMAIL_FROM_ADDRESS_KOSYKIN", "Kosykin credentials require Resend");
   }
 
   if (value.APP_ENV === "production") {
@@ -158,7 +164,7 @@ export type RuntimeConfig = {
   activationPepper?: string;
   trustProxy: boolean;
   storage: { provider: "local" | "azure-blob"; environment?: AppEnvironment; uploadDir: string; containerUrl?: string; sasToken?: string };
-  email: { mode: "mock" | "sandbox" | "live"; provider: "webhook" | "mailtrap-sandbox" | "resend"; fromAddress?: string; webhookUrl?: string; webhookSecret?: string; testOutboxPath?: string };
+  email: { mode: "mock" | "sandbox" | "live"; provider: "webhook" | "mailtrap-sandbox" | "resend"; fromAddress?: string; kosykinFromAddress?: string; webhookUrl?: string; webhookSecret?: string; kosykinWebhookSecret?: string; testOutboxPath?: string };
   stripe: { secretKey?: string; webhookSecret?: string; reconcileSecret?: string; publishableKey?: string; testCheckout: boolean };
   etsy: { apiKey?: string; sharedSecret?: string; syncSecret?: string };
   analyticsStores: Record<string, { measurementId: string; apiSecret: string }>;
@@ -184,7 +190,7 @@ export function parseRuntimeConfig(environment: Record<string, string | undefine
     activationPepper: value.ACTIVATION_PEPPER,
     trustProxy: value.TRUST_PROXY,
     storage: { provider: value.STORAGE_PROVIDER, environment: value.STORAGE_ENVIRONMENT, uploadDir: value.UPLOAD_DIR, containerUrl: value.AZURE_STORAGE_CONTAINER_URL, sasToken: value.AZURE_STORAGE_SAS_TOKEN },
-    email: { mode: value.EMAIL_MODE, provider: value.EMAIL_PROVIDER, fromAddress: value.EMAIL_FROM_ADDRESS, webhookUrl: value.EMAIL_WEBHOOK_URL, webhookSecret: value.EMAIL_WEBHOOK_SECRET, testOutboxPath: value.EMAIL_TEST_OUTBOX_PATH },
+    email: { mode: value.EMAIL_MODE, provider: value.EMAIL_PROVIDER, fromAddress: value.EMAIL_FROM_ADDRESS, kosykinFromAddress: value.EMAIL_FROM_ADDRESS_KOSYKIN, webhookUrl: value.EMAIL_WEBHOOK_URL, webhookSecret: value.EMAIL_WEBHOOK_SECRET, kosykinWebhookSecret: value.EMAIL_WEBHOOK_SECRET_KOSYKIN, testOutboxPath: value.EMAIL_TEST_OUTBOX_PATH },
     stripe: { reconcileSecret: value.CHECKOUT_RECONCILE_SECRET, secretKey: value.STRIPE_SECRET_KEY, webhookSecret: value.STRIPE_WEBHOOK_SECRET, publishableKey: value.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY, testCheckout: value.ENABLE_TEST_CHECKOUT },
     etsy: { apiKey: value.ETSY_API_KEY, sharedSecret: value.ETSY_SHARED_SECRET, syncSecret: value.ETSY_SYNC_SECRET },
     analyticsStores: value.ANALYTICS_GA4_STORES,

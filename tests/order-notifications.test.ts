@@ -7,7 +7,7 @@ import { processOrderNotifications, queuePaidOrder } from "@/lib/order-notificat
 beforeEach(() => {
   vi.resetAllMocks();
   m.updateMany.mockResolvedValue({ count: 1 });
-  m.findMany.mockResolvedValue([{ id: "n", to: "test@example.com", subject: "Paid", text: "Payment received", attempts: 0 }]);
+  m.findMany.mockResolvedValue([{ id: "n", to: "test@example.com", subject: "Paid", text: "Payment received", attempts: 0, order: { store: { slug: "kosykin" } } }]);
 });
 it("deduplicates customer/operations recipients and uses a stable event key", async () => {
   m.order.mockResolvedValue({ user: { email: "test@example.com" }, store: { supportEmail: "test@example.com" }, orderNumber: "T1", storeDisplayName: "Tapkin" });
@@ -20,6 +20,7 @@ it("records acceptance without claiming delivery and fences completion by lease 
   m.send.mockResolvedValue(true);
   await processOrderNotifications();
   expect(m.send.mock.calls[0][0].idempotencyKey).toBe("n");
+  expect(m.send.mock.calls[0][0].storeSlug).toBe("kosykin");
   const claim = m.updateMany.mock.calls[1][0];
   expect(m.updateMany.mock.calls[2][0]).toMatchObject({ where: { id: "n", leaseToken: claim.data.leaseToken }, data: { status: "ACCEPTED" } });
 });
@@ -29,7 +30,7 @@ it("keeps a failed attempt pending for retry", async () => {
   expect(m.updateMany.mock.calls.at(-1)?.[0].data).toMatchObject({ status: "PENDING", lastError: expect.any(String) });
 });
 it("stops after the fifth attempt and exposes failure", async () => {
-  m.findMany.mockResolvedValue([{ id: "n", attempts: 4 }]);
+  m.findMany.mockResolvedValue([{ id: "n", attempts: 4, order: { store: { slug: "kosykin" } } }]);
   m.send.mockRejectedValue(new Error("network"));
   await processOrderNotifications();
   expect(m.updateMany.mock.calls.at(-1)?.[0].data.status).toBe("FAILED");
