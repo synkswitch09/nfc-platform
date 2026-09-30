@@ -6,6 +6,8 @@ import { isSafeStorageKey } from "@/lib/storage/keys";
 const slug = z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/).max(160);
 const text = z.string().max(100_000);
 const integer = z.number().int().min(0).max(2_147_483_647);
+// Home pages can have a negative sort order so they precede regular pages.
+const pageSortOrder = z.number().int().min(-2_147_483_648).max(2_147_483_647);
 const json = z.json();
 
 export const STOREFRONT_RELEASE_KIND = "tapkin-storefront-release";
@@ -85,7 +87,7 @@ export const releaseContentPageFields = z.object({
   slug: slug,
   name: z.string().min(1).max(200),
   status: z.enum(["DRAFT","PUBLISHED","HIDDEN","ARCHIVED"]).optional(),
-  sortOrder: integer.optional(),
+  sortOrder: pageSortOrder.optional(),
   showInHeader: z.boolean().optional(),
   showInFooter: z.boolean().optional(),
   headerLabel: text.nullable().optional(),
