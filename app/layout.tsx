@@ -30,6 +30,11 @@ const inter = Inter({
   display: "swap",
 });
 
+const productionSearchConsoleVerification: Record<string, string | undefined> = {
+  tapkin: process.env.GOOGLE_SITE_VERIFICATION_TAPKIN,
+  kosykin: process.env.GOOGLE_SITE_VERIFICATION_KOSYKIN,
+};
+
 export async function generateMetadata(): Promise<Metadata> {
   const store = await getCurrentStorefront();
   const settings = await getStoreSettings(store);
@@ -42,6 +47,9 @@ export async function generateMetadata(): Promise<Metadata> {
   const socialImage = home?.ogImageUrl || settings.defaultSocialImageUrl;
   return {
     metadataBase: new URL(store.origin),
+    verification: config.appEnv === "production" && !config.previewMode && productionSearchConsoleVerification[store.slug]
+      ? { google: productionSearchConsoleVerification[store.slug] }
+      : undefined,
     robots:
       store.status === StoreStatus.ACTIVE
         ? searchEnginePolicy(config.appEnv, config.previewMode)
