@@ -23,5 +23,5 @@ export async function POST(request: NextRequest) {
   await createSession(user.id, store);
   logEvent("info", "auth.login_succeeded", { requestId: request.headers.get("x-request-id"), userId: user.id, role: user.role, storeId: store.id, storeSlug: store.slug });
   await db.auditLog.create({ data: { actorId: user.id, storeId: store.id, action: "USER_LOGIN", entityType: "User", entityId: user.id } });
-  return NextResponse.json({ user: { id: user.id, name: user.name, email: user.email, role: user.role } });
+  return NextResponse.json({ user: { id: user.id, name: user.name, email: user.email, role: user.role }, verificationRequired: !user.emailVerifiedAt });
 }

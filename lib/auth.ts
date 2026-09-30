@@ -30,7 +30,7 @@ export async function destroySession() {
   jar.set(SESSION_COOKIE, "", { httpOnly: true, expires: new Date(0), path: "/" });
 }
 
-export async function getCurrentUser() {
+export async function getSessionUser() {
   const token = (await cookies()).get(SESSION_COOKIE)?.value;
   if (!token) return null;
   const session = await db.session.findUnique({
@@ -54,9 +54,15 @@ export async function getCurrentUser() {
   return session.user;
 }
 
+export async function getCurrentUser() {
+  const user = await getSessionUser();
+  return user?.emailVerifiedAt ? user : null;
+}
+
 export async function requireUser() {
-  const user = await getCurrentUser();
+  const user = await getSessionUser();
   if (!user) redirect("/login?next=/dashboard");
+  if (!user.emailVerifiedAt) redirect("/verify-email");
   return user;
 }
 
