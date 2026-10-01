@@ -9,6 +9,8 @@ import { getRuntimeConfig, searchEnginePolicy } from "@/lib/config";
 import { getCurrentStorefront, hasStoreCapability } from "@/lib/storefront";
 import { StoreCapability, StoreStatus } from "@prisma/client";
 import { canonicalForStore, nonEmpty, productOffers } from "@/lib/seo";
+import { KEYCHAIN_SLUG } from "@/lib/keychain-order";
+import { KEYCHAIN_PREVIEW_NAME, KEYCHAIN_PREVIEW_DESCRIPTION, KEYCHAIN_PREVIEW_OPTIONS } from "@/lib/keychain-shop-preview";
 
 const getProductForStore = cache((storeId: string, slug: string) => db.product.findFirst({
   where: { storeId, OR: [{ slug }, { legacySlugs: { has: slug } }], status: "ACTIVE", shopVisible: true, category: { storeId, status: "PUBLISHED" } },
@@ -27,8 +29,12 @@ async function getProduct(slug: string) {
 }
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
-  const product = await getProduct((await params).slug);
-  if (!product) return {};
+  const slug = (await params).slug;
+  const product = await getProduct(slug);
+  if (!product) {
+    const store = await getCurrentStorefront();
+    return store.slug === "kosykin" && store.status === StoreStatus.ACTIVE && slug === KEYCHAIN_SLUG ? { title: KEYCHAIN_PREVIEW_NAME, description: KEYCHAIN_PREVIEW_DESCRIPTION, robots: { index: false, follow: false } } : {};
+  }
   const store = await getCurrentStorefront();
   const title = nonEmpty(product.seoTitle, product.name);
   const description = nonEmpty(product.seoDescription, product.shortDescription ?? product.description);
@@ -42,9 +48,13 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 }
 
 export default async function ProductPage({ params }: { params: Promise<{ slug: string }> }) {
-  const [product, store] = await Promise.all([getProduct((await params).slug), getCurrentStorefront()]);
-  if (!product) notFound();
-  if (product.slug !== (await params).slug) permanentRedirect(`/products/${product.slug}`);
+  const slug = (await params).slug;
+  const [product, store] = await Promise.all([getProduct(slug), getCurrentStorefront()]);
+  if (!product) {
+    if (store.slug !== "kosykin" || store.status !== StoreStatus.ACTIVE || slug !== KEYCHAIN_SLUG) notFound();
+    return <section className="product-detail"><nav className="breadcrumbs" aria-label="Breadcrumb"><Link href="/">Home</Link><span>/</span><Link href="/shop">Shop</Link></nav><ProductPurchase previewOnly checkoutEnabled={false} productName={KEYCHAIN_PREVIEW_NAME} productSlug={KEYCHAIN_SLUG} storeSlug={store.slug} description={KEYCHAIN_PREVIEW_DESCRIPTION} categoryName="Custom 3D print" storeName={store.displayName} currency={store.currency} connected={false} personalisationMode="REQUIRED" variants={[]} options={KEYCHAIN_PREVIEW_OPTIONS} images={[]} /></section>;
+  }
+  if (product.slug !== slug) permanentRedirect(`/products/${product.slug}`);
   const origin = store.origin;
   const connected = hasStoreCapability(store, StoreCapability.NFC);
   const checkoutEnabled = getRuntimeConfig().checkoutEnabled;
