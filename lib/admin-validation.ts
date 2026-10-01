@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { isSafeImageSource } from "@/lib/image-source";
+import { KEYCHAIN_COLOURS, KEYCHAIN_FONTS, KEYCHAIN_SIZES } from "@/lib/keychain";
 
 const optionalUrl = z.string().trim().url().refine(value => /^https?:\/\//i.test(value)).or(z.literal("")).optional();
 const optionalImageSource = z.string().trim().refine(isSafeImageSource, "Use an uploaded image or an HTTP(S) image URL").optional();
@@ -44,6 +45,19 @@ export const adminProductSchema = z.object({
   variants: z.array(variantSchema).min(1).max(50),
   options: z.array(optionSchema).max(20),
 }).superRefine((value, context) => {
+  if (value.slug === "custom-name-keychain") {
+    const required = { "keychain-name": "SHORT_TEXT", "keychain-font": "SELECT", "keychain-size": "SELECT", "base-colour": "COLOUR", "letter-colour": "COLOUR" } as const;
+    if (value.personalisationMode !== "REQUIRED") context.addIssue({code:"custom",message:"The keychain requires personalisation",path:["personalisationMode"]});
+    for (const [code,type] of Object.entries(required)) {
+      const option=value.options.find(item=>item.code===code);
+      if(!option||option.type!==type||!option.required||!option.active)context.addIssue({code:"custom",message:`${code} must be an active required ${type} field`,path:["options"]});
+      if(code==="keychain-name" && option?.maxLength !== 24)context.addIssue({code:"custom",message:"Name limit must be 24 characters",path:["options"]});
+      const allowed=code==="keychain-font"?KEYCHAIN_FONTS:code==="keychain-size"?KEYCHAIN_SIZES:code.endsWith("colour")?KEYCHAIN_COLOURS:null;
+      if(allowed && option && (!option.values.some(item=>item.active)||option.values.some(item=>item.active && !(item.value in allowed))))context.addIssue({code:"custom",message:`${code} has unsupported choices`,path:["options"]});
+      if(code.endsWith("colour") && option?.values.some(item=>item.active && item.swatchHex?.toLowerCase()!==KEYCHAIN_COLOURS[item.value]?.toLowerCase()))context.addIssue({code:"custom",message:`${code} swatches must match the 3D palette`,path:["options"]});
+    }
+    if(value.status==="ACTIVE" && value.variants.some(item=>item.priceCents<=0))context.addIssue({code:"custom",message:"Set a price before publishing the keychain",path:["variants"]});
+  }
   if (new Set(value.variants.map(variant => variant.sku)).size !== value.variants.length) context.addIssue({ code: "custom", message: "Variant SKUs must be unique", path: ["variants"] });
   if (value.variants.filter(variant => variant.isDefault).length > 1) context.addIssue({ code: "custom", message: "Only one variant can be the default", path: ["variants"] });
   if (new Set(value.options.map(option => option.code)).size !== value.options.length) context.addIssue({ code: "custom", message: "Personalisation codes must be unique", path: ["options"] });
