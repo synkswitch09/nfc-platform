@@ -47,12 +47,12 @@ export async function generateMetadata(): Promise<Metadata> {
   const socialImage = home?.ogImageUrl || settings.defaultSocialImageUrl;
   return {
     metadataBase: new URL(store.origin),
-    verification: searchEnginePolicy(config.appEnv).index && productionSearchConsoleVerification[store.slug]
+    verification: config.appEnv === "production" && !config.previewMode && productionSearchConsoleVerification[store.slug]
       ? { google: productionSearchConsoleVerification[store.slug] }
       : undefined,
     robots:
       store.status === StoreStatus.ACTIVE
-        ? searchEnginePolicy(config.appEnv)
+        ? searchEnginePolicy(config.appEnv, config.previewMode)
         : { index: false, follow: false },
     title: {
       default: title,
@@ -155,7 +155,7 @@ export default async function RootLayout({
   const commerce = isStoreCommerceAvailable(store);
   const nfcEnabled = hasStoreCapability(store, StoreCapability.NFC);
   const runtime = getRuntimeConfig();
-  const analyticsEnabled = runtime.appEnv === "production" && Boolean(runtime.analyticsStores[store.slug]);
+  const analyticsEnabled = runtime.appEnv === "production" && !runtime.previewMode && Boolean(runtime.analyticsStores[store.slug]);
   return (
     <html lang={locale}>
       <body
@@ -164,6 +164,8 @@ export default async function RootLayout({
         data-theme-style={store.theme.fontStyle}
         style={storeThemeStyle(store.theme)}
       >
+        {runtime.previewMode && <div role="status" style={{ background: "#253334", color: "#fff", padding: "0.65rem 1rem", textAlign: "center" }}>Preview only · {settings.storeName} is not accepting orders yet.</div>}
+        {!runtime.previewMode && !runtime.checkoutEnabled && <div role="status" style={{ background: "#253334", color: "#fff", padding: "0.65rem 1rem", textAlign: "center" }}>{settings.storeName} is open for browsing. Orders are not open yet.</div>}
         <CartProvider storageKey={`commerce-cart:${store.id}:v1`}>
           <SiteHeader
             config={settings.headerConfig}

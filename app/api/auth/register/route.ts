@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { createSession } from "@/lib/auth";
-import { createOpaqueToken, hashPassword, sha256 } from "@/lib/crypto";
-import { sendTransactionalEmail } from "@/lib/email";
+import { hashPassword, sha256 } from "@/lib/crypto";
+import { sendEmailVerificationCode } from "@/lib/email-verification";
 import { assertSameOrigin, getClientIp, jsonError } from "@/lib/http";
 import { rateLimit } from "@/lib/rate-limit";
 import { registerSchema } from "@/lib/validation";
@@ -31,9 +31,7 @@ export async function POST(request: NextRequest) {
     select: { id: true, name: true, email: true },
   });
   await createSession(user.id, store);
-  const verificationToken = createOpaqueToken();
-  await db.emailVerification.create({ data:{userId:user.id,storeId:store.id,tokenHash:sha256(verificationToken),expiresAt:new Date(Date.now()+24*60*60*1000),orderClaimId:claimOrder?.id} });
-  await sendTransactionalEmail({to:user.email,subject:`Verify your ${store.displayName} email`,text:`Verify your email: ${store.origin}/verify-email?token=${verificationToken}`}).catch(() => undefined);
+  const verificationEmailSent = await sendEmailVerificationCode(user, store, claimOrder?.id);
   await db.auditLog.create({ data: { actorId: user.id, storeId: store.id, action: "USER_REGISTERED", entityType: "User", entityId: user.id } });
-  return NextResponse.json({ user }, { status: 201 });
+  return NextResponse.json({ user, verificationRequired: true, verificationEmailSent }, { status: 201 });
 }

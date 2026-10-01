@@ -2,7 +2,7 @@ import { appendFile } from "node:fs/promises";
 import { getRuntimeConfig } from "@/lib/config";
 import { logEvent } from "@/lib/logger";
 
-export async function sendTransactionalEmail(input: { to: string; subject: string; text: string; idempotencyKey?: string }) {
+export async function sendTransactionalEmail(input: { to: string; subject: string; text: string; idempotencyKey?: string; storeSlug?: string }) {
   const { email, appEnv } = getRuntimeConfig();
   if (email.mode === "mock") {
     if (email.testOutboxPath) {
@@ -22,6 +22,20 @@ export async function sendTransactionalEmail(input: { to: string; subject: strin
       redirect: "error",
     });
     if (!response.ok || (await response.json() as { success?: boolean }).success !== true) throw new Error("Email delivery failed");
+    return true;
+  }
+  if (email.provider === "resend") {
+    const fromAddress = input.storeSlug === "kosykin" ? email.kosykinFromAddress : email.fromAddress;
+    const secret = input.storeSlug === "kosykin" ? email.kosykinWebhookSecret : email.webhookSecret;
+    if (!fromAddress || !secret) throw new Error("Resend sender is not configured for store");
+    const response = await fetch(email.webhookUrl, {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${secret}`, ...(input.idempotencyKey ? { "Idempotency-Key": input.idempotencyKey } : {}) },
+      body: JSON.stringify({ from: fromAddress, to: [input.to], subject: input.subject, text: input.text }),
+      signal: AbortSignal.timeout(15_000),
+      redirect: "error",
+    });
+    if (!response.ok) throw new Error("Email delivery failed");
     return true;
   }
   const response = await fetch(email.webhookUrl, { method:"POST", headers:{"content-type":"application/json",authorization:`Bearer ${email.webhookSecret}`, ...(input.idempotencyKey ? { "Idempotency-Key": input.idempotencyKey } : {})}, body:JSON.stringify({ ...input, environment: appEnv, mode: email.mode }), signal: AbortSignal.timeout(15_000), redirect: "error" });

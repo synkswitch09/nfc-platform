@@ -36,12 +36,12 @@ export function variantOfferPrice(variant: VariantOffer, options: PriceOption[],
   return ((variant.priceCents + surcharge) / 100).toFixed(2);
 }
 
-export function productOffers(variants: VariantOffer[], options: PriceOption[], personalisationMode: string, currency: string, url: string) {
+export function productOffers(variants: VariantOffer[], options: PriceOption[], personalisationMode: string, currency: string, url: string, checkoutEnabled = true) {
   return variants.flatMap(variant => {
     const price = variantOfferPrice(variant, options, personalisationMode);
     if (price === null) return [];
     return [{ "@type": "Offer", sku: variant.sku, priceCurrency: currency, price,
-      availability: !variant.trackInventory || variant.inventory > variant.reservedInventory ? "https://schema.org/InStock" : variant.backorderPolicy === "ALLOW" ? "https://schema.org/BackOrder" : "https://schema.org/OutOfStock",
+      availability: !checkoutEnabled ? "https://schema.org/OutOfStock" : !variant.trackInventory || variant.inventory > variant.reservedInventory ? "https://schema.org/InStock" : variant.backorderPolicy === "ALLOW" ? "https://schema.org/BackOrder" : "https://schema.org/OutOfStock",
       url }];
   });
 }

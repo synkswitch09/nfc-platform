@@ -48,6 +48,8 @@ export const adminProductSchema = z.object({
   if (value.slug === "custom-name-keychain") {
     const required = { "keychain-name": "SHORT_TEXT", "keychain-font": "SELECT", "keychain-size": "SELECT", "base-colour": "COLOUR", "letter-colour": "COLOUR" } as const;
     if (value.personalisationMode !== "REQUIRED") context.addIssue({code:"custom",message:"The keychain requires personalisation",path:["personalisationMode"]});
+    if (value.options.length !== Object.keys(required).length || value.options.some(option => !(option.code in required))) context.addIssue({code:"custom",message:"The keychain supports only name, font, size and two colours",path:["options"]});
+    if (value.variants.length !== 1) context.addIssue({code:"custom",message:"The keychain uses one made-to-order variant",path:["variants"]});
     for (const [code,type] of Object.entries(required)) {
       const option=value.options.find(item=>item.code===code);
       if(!option||option.type!==type||!option.required||!option.active)context.addIssue({code:"custom",message:`${code} must be an active required ${type} field`,path:["options"]});

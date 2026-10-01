@@ -6,12 +6,14 @@ import { getStoreSettings } from "@/lib/settings";
 import { getCurrentStorefront, hasStoreCapability, isStoreCommerceAvailable } from "@/lib/storefront";
 import { StoreCapability } from "@prisma/client";
 import { notFound } from "next/navigation";
+import { getRuntimeConfig } from "@/lib/config";
 
 export const metadata: Metadata = { title: "Checkout", robots: { index: false, follow: false } };
 
 export default async function CheckoutPage() {
   const [user, store] = await Promise.all([getCurrentUser(), getCurrentStorefront()]);
   if (!isStoreCommerceAvailable(store)) notFound();
+  if (!getRuntimeConfig().checkoutEnabled) return <section className="section compact-section"><div className="section-head"><h1 className="page-title">Orders are not open yet</h1><p className="lead">You can browse our products while checkout is closed.</p></div></section>;
   const [address, settings, zones] = await Promise.all([user ? db.address.findFirst({ where: { userId: user.id }, orderBy: { createdAt: "asc" }, select: { recipient: true, company: true, line1: true, line2: true, dependentLocality: true, locality: true, administrativeArea: true, postcode: true, country: true, phone: true } }) : null, getStoreSettings(store), db.shippingZone.findMany({ where: { storeId: store.id, active: true }, select: { countries: true } })]);
   const countries = [...new Set(zones.flatMap(zone => zone.countries))];
   const nfcEnabled = hasStoreCapability(store, StoreCapability.NFC);
