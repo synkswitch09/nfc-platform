@@ -5,6 +5,8 @@ import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { PackageCheck, Radio, RefreshCw, ShieldCheck, Truck } from "lucide-react";
 import { useCart } from "@/components/cart-provider";
+import { KeychainPreview } from "@/components/keychain-preview";
+import { generateKeychain, type KeychainFont, type KeychainSize } from "@/lib/keychain";
 
 type ProductImage = { id: string; url: string; altText: string; isPrimary: boolean; optionValueId: string | null };
 type Variant = { id: string; name: string; priceCents: number; inventory: number; reservedInventory: number; trackInventory: boolean; backorderPolicy: "DENY" | "ALLOW"; isDefault: boolean; optionSelection: Record<string, string>; imageId: string | null };
@@ -12,7 +14,7 @@ type OptionValue = { id: string; label: string; value: string; priceDeltaCents: 
 type Option = { code: string; name: string; type: string; required: boolean; maxLength: number | null; priceDeltaCents: number; helpText: string | null; values: OptionValue[] };
 type Choice = "BASIC" | "PERSONALISED";
 
-export function ProductPurchase({ productName, description, categoryName, storeName, currency, connected, personalisationMode, variants, options, images }: { productName: string; description: string; categoryName: string | null; storeName: string; currency: string; connected: boolean; personalisationMode: "NONE" | "OPTIONAL" | "REQUIRED"; variants: Variant[]; options: Option[]; images: ProductImage[] }) {
+export function ProductPurchase({ productName, productSlug, storeSlug, description, categoryName, storeName, currency, connected, personalisationMode, variants, options, images }: { productName: string; productSlug: string; storeSlug: string; description: string; categoryName: string | null; storeName: string; currency: string; connected: boolean; personalisationMode: "NONE" | "OPTIONAL" | "REQUIRED"; variants: Variant[]; options: Option[]; images: ProductImage[] }) {
   const router = useRouter();
   const cart = useCart();
   const defaultVariant = variants.find(item => item.isDefault) ?? variants[0];
@@ -25,6 +27,10 @@ export function ProductPurchase({ productName, description, categoryName, storeN
   const [choice, setChoice] = useState<Choice>(personalisationMode === "REQUIRED" ? "PERSONALISED" : "BASIC");
   const [activeImageId, setActiveImageId] = useState("");
   const [error, setError] = useState("");
+  const isKeychain = storeSlug === "kosykin" && productSlug === "custom-name-keychain";
+  const keychainInput = { name: customValues["keychain-name"] ?? "Daniel", font: (selections["keychain-font"] ?? "rounded") as KeychainFont, size: (selections["keychain-size"] ?? "regular") as KeychainSize, baseColour: selections["base-colour"] ?? "peach", letterColour: selections["letter-colour"] ?? "white" };
+  let keychainError = "";
+  if (isKeychain && customValues["keychain-name"]) { try { generateKeychain(keychainInput); } catch (cause) { keychainError = cause instanceof Error ? cause.message : "Invalid name"; } }
   const variant = variants.find(item => item.id === variantId) ?? defaultVariant;
   const colourOption = selectionOptions.find(option => option.type === "COLOUR");
   const selectedColourValue = colourOption?.values.find(value => value.value === selections[colourOption.code]);
@@ -68,6 +74,7 @@ export function ProductPurchase({ productName, description, categoryName, storeN
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
+    if (isKeychain) { try { generateKeychain({ ...keychainInput, name: customValues["keychain-name"] ?? "" }); } catch (cause) { return setError(cause instanceof Error ? cause.message : "Invalid keychain name"); } }
     if (!variant || soldOut) return setError(selectionMatchesVariant ? "This option is currently unavailable." : "That option combination is currently unavailable.");
     const personalisation = { ...selections, ...(choice === "PERSONALISED" ? Object.fromEntries(Object.entries(customValues).filter(([, value]) => value)) : {}) };
     cart.add({ variantId: variant.id, productName, variantName: variant.name, unitPriceCents: variant.priceCents + optionPriceCents, quantity: 1, personalisationChoice: choice, personalisation });
@@ -76,8 +83,8 @@ export function ProductPurchase({ productName, description, categoryName, storeN
 
   return <div className="product-layout">
     <div className="product-gallery">
-      {activeImage ? <Image src={activeImage.url} alt={activeImage.altText} width={900} height={900} priority unoptimized /> : <div className="product-placeholder"><Radio size={64} /><span>{storeName}</span><strong>{productName}</strong><small>Made to order in Adelaide</small></div>}
-      {gallery.length > 1 && <div className="product-thumbs">{gallery.map(image => <button type="button" key={image.id} className={image.id === activeImage?.id ? "active" : ""} onClick={() => setActiveImageId(image.id)} aria-label={`View ${image.altText}`}><Image src={image.url} alt="" width={160} height={160} unoptimized /></button>)}</div>}
+      {isKeychain && choice === "PERSONALISED" ? <KeychainPreview input={keychainInput} /> : activeImage ? <Image src={activeImage.url} alt={activeImage.altText} width={900} height={900} priority unoptimized /> : <div className="product-placeholder"><Radio size={64} /><span>{storeName}</span><strong>{productName}</strong><small>Made to order in Adelaide</small></div>}
+      {!isKeychain && gallery.length > 1 && <div className="product-thumbs">{gallery.map(image => <button type="button" key={image.id} className={image.id === activeImage?.id ? "active" : ""} onClick={() => setActiveImageId(image.id)} aria-label={`View ${image.altText}`}><Image src={image.url} alt="" width={160} height={160} unoptimized /></button>)}</div>}
     </div>
     <div className="product-copy">
       <p className="eyebrow">{categoryName ?? (connected ? "Smart NFC product" : "Made-to-order product")}</p>
@@ -88,9 +95,10 @@ export function ProductPurchase({ productName, description, categoryName, storeN
         {selectionOptions.map(option => <SelectionField key={option.code} option={option} value={selections[option.code] ?? ""} onChange={value => chooseSelection(option, value)} />)}
         {personalisationMode === "OPTIONAL" && <fieldset className="purchase-choice"><legend>Choose your finish</legend><label><input type="radio" name="personalisationChoice" checked={choice === "BASIC"} onChange={() => { setChoice("BASIC"); setCustomValues({}); }} /><span><strong>Basic</strong><small>Standard product without custom printed details</small></span></label><label><input type="radio" name="personalisationChoice" checked={choice === "PERSONALISED"} onChange={() => setChoice("PERSONALISED")} /><span><strong>Personalised</strong><small>Add the custom details configured below</small></span></label></fieldset>}
         {choice === "PERSONALISED" && customOptions.map(option => <CustomField key={option.code} option={option} value={customValues[option.code] ?? ""} onChange={value => setCustomValues(current => ({ ...current, [option.code]: value }))} />)}
+        {keychainError && <p className="form-error" role="status">{keychainError}</p>}
         <div className="purchase-total"><span>Price</span><strong>{variant ? new Intl.NumberFormat("en-AU", { style: "currency", currency }).format((variant.priceCents + optionPriceCents) / 100) : "Unavailable"}</strong></div>
         {error && <div className="form-error" role="alert">{error}</div>}
-        <button className="button purchase-button" disabled={soldOut}>{soldOut ? (selectionMatchesVariant ? "Out of stock" : "Unavailable combination") : "Add to cart"}</button>
+        <button className="button purchase-button" disabled={soldOut || Boolean(keychainError)}>{soldOut ? (selectionMatchesVariant ? "Out of stock" : "Unavailable combination") : "Add to cart"}</button>
         <p className="fine-print">Secure checkout · Prices include GST where applicable</p>
       </form>
       <div className="trust-list">{connected && <span><ShieldCheck /> Personal data stays off the NFC chip</span>}{connected && <span><RefreshCw /> Update the profile any time</span>}<span><PackageCheck /> Made to order</span><span><Truck /> Australia-wide delivery</span></div>
