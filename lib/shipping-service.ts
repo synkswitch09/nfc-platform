@@ -1,10 +1,11 @@
 import type { Prisma } from "@prisma/client";
-import { assertVariantSelection, availableInventory, CatalogValidationError, normalisePersonalisation } from "@/lib/catalog";
+import { assertVariantSelection, availableInventory, normalisePersonalisation } from "@/lib/catalog";
 import { createOpaqueToken, sha256 } from "@/lib/crypto";
 import { db } from "@/lib/db";
 import { packPhysicalLines, shippingCartHash, shippingDestinationHash, type ShippingCartInput, type ShippingDestination, zoneMatches } from "@/lib/shipping";
 import { shippingProviderAdapter, type ConfiguredRate, type ProviderRate } from "@/lib/shipping-providers";
 import type { Storefront } from "@/lib/storefront";
+import { isKeychainProduct, validateKeychainOptions } from "@/lib/keychain-order";
 
 const QUOTE_TTL_MS = 15 * 60 * 1000;
 
@@ -36,8 +37,9 @@ export async function createShippingQuotes(items: ShippingCartInput[], destinati
     try {
       normalised = normalisePersonalisation(variant.product.options, item.personalisation, variant.product.personalisationMode, item.personalisationChoice);
       assertVariantSelection(variant.optionSelection, normalised.selectedOptions);
+      if (isKeychainProduct(store.slug, variant.product.slug)) validateKeychainOptions(normalised.personalisation, normalised.selectedOptions);
     }
-    catch (error) { throw new ShippingError(error instanceof CatalogValidationError ? error.message : "Invalid personalisation"); }
+    catch (error) { throw new ShippingError(error instanceof Error ? error.message : "Invalid personalisation"); }
     if (variant.trackInventory && variant.backorderPolicy === "DENY" && availableInventory(variant) < item.quantity) throw new ShippingError(`${variant.product.name} does not have enough stock`, 409);
     subtotalCents += (variant.priceCents + normalised.priceDeltaCents) * item.quantity;
     return {
