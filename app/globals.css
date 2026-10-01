@@ -1271,6 +1271,26 @@ h3 {
   border-radius: 32px;
   background: #e9f2ee;
 }
+.keychain-preview {
+  border-radius: 32px;
+  overflow: hidden;
+  background: #f7f5ef;
+  box-shadow: var(--shadow);
+}
+.keychain-preview canvas {
+  display: block;
+  width: 100%;
+  height: min(65vw, 510px);
+  max-height: 510px;
+  min-height: 280px;
+  touch-action: none;
+  cursor: grab;
+}
+.keychain-preview canvas:active { cursor: grabbing; }
+.keychain-preview p { padding: 12px 20px 18px; margin: 0; font-size: .85rem; color: var(--muted); }
+.keychain-preview-error { padding: 35px; min-height: 300px; display: grid; place-items: center; text-align: center; }
+.keychain-downloads { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 12px 0; }
+.keychain-downloads small { flex-basis: 100%; }
 .product-placeholder {
   min-height: 590px;
   border-radius: 32px;

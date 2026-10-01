@@ -1,7 +1,7 @@
 import { changeReservation, consumeStock, orderReservations } from "@/lib/inventory-service";
 import { randomUUID } from "node:crypto";
 import { Prisma, StoreCapability, StoreStatus } from "@prisma/client";
-import { assertVariantSelection, availableInventory, CatalogValidationError, normalisePersonalisation, resolvePersonalisationChoice } from "@/lib/catalog";
+import { assertVariantSelection, availableInventory, normalisePersonalisation, resolvePersonalisationChoice } from "@/lib/catalog";
 import { calculateQuotedOrderTotals } from "@/lib/commerce";
 import { createOpaqueToken, sha256 } from "@/lib/crypto";
 import { db } from "@/lib/db";
@@ -11,6 +11,7 @@ import { shippingCartHash, shippingDestinationHash } from "@/lib/shipping";
 import { notifyPaidOrder, queuePaidOrder } from "@/lib/order-notifications";
 import type { ShippingDestination } from "@/lib/shipping";
 import { queueEtsyInventorySync } from "@/lib/etsy";
+import { isKeychainProduct, validateKeychainOptions } from "@/lib/keychain-order";
 
 export type CheckoutItemInput = { variantId: string; quantity: number; personalisationChoice?: "BASIC" | "PERSONALISED"; personalisation?: Record<string, string> };
 export type CheckoutCustomerInput = {
@@ -44,8 +45,9 @@ export async function createPendingOrder(items: CheckoutItemInput[], customer: C
         personalisationChoice = resolvePersonalisationChoice(variant.product.personalisationMode, item.personalisationChoice);
         normalised = normalisePersonalisation(variant.product.options, item.personalisation, variant.product.personalisationMode, personalisationChoice);
         assertVariantSelection(variant.optionSelection, normalised.selectedOptions);
+        if (isKeychainProduct(store.slug, variant.product.slug)) validateKeychainOptions(normalised.personalisation, normalised.selectedOptions);
       }
-      catch (error) { throw new CheckoutError(error instanceof CatalogValidationError ? error.message : "Invalid personalisation"); }
+      catch (error) { throw new CheckoutError(error instanceof Error ? error.message : "Invalid personalisation"); }
       const unitPriceCents = variant.priceCents + normalised.priceDeltaCents;
       if (unitPriceCents < 0) throw new CheckoutError("Invalid product price", 409);
       return { item, variant, unitPriceCents, personalisationChoice, personalisation: normalised.personalisation, selectedOptions: normalised.selectedOptions };
