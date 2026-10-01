@@ -213,11 +213,15 @@ export function AdminProductForm({
   initial,
   categories,
   packaging,
+  storeSlug,
+  setupKind,
   canDelete = false,
 }: {
   initial: AdminProductInitial;
   categories: Array<{ id: string; name: string }>;
   packaging: Array<{ id: string; name: string }>;
+  storeSlug: string;
+  setupKind: string;
   canDelete?: boolean;
 }) {
   const router = useRouter();
@@ -234,6 +238,9 @@ export function AdminProductForm({
   const [seoDescriptionPreview, setSeoDescriptionPreview] = useState(
     initial.seoDescription,
   );
+  const isKeychain = storeSlug === "kosykin" && initial.slug === "custom-name-keychain";
+  const guidedColours = isKeychain || setupKind === "colour" || setupKind === "two-colour";
+  const simpleVariant = !["nfc", "variants"].includes(setupKind) && variants.length === 1;
   const selectionOptions = options.filter((option) =>
     ["SELECT", "RADIO", "COLOUR"].includes(option.type),
   );
@@ -403,74 +410,14 @@ export function AdminProductForm({
           </ul>
         </div>
       )}
-      <section className="admin-panel" id="variant-dimensions">
-        <div className="panel-heading">
-          <div>
-            <h2>Variant dimensions</h2>
-            <p>
-              Optional millimetre overrides take precedence over the product
-              shipping profile.
-            </p>
-          </div>
-        </div>
-        <div className="admin-stack">
-          {variants.map((variant, index) => (
-            <div
-              className="field-grid three"
-              key={`shipping-${variant.id ?? index}`}
-            >
-              <label className="field">
-                {variant.name} length (mm)
-                <input
-                  type="number"
-                  min="1"
-                  value={variant.lengthMm ?? ""}
-                  onChange={(event) =>
-                    updateVariant(
-                      setVariants,
-                      index,
-                      "lengthMm",
-                      event.target.value ? Number(event.target.value) : null,
-                    )
-                  }
-                />
-              </label>
-              <label className="field">
-                Width (mm)
-                <input
-                  type="number"
-                  min="1"
-                  value={variant.widthMm ?? ""}
-                  onChange={(event) =>
-                    updateVariant(
-                      setVariants,
-                      index,
-                      "widthMm",
-                      event.target.value ? Number(event.target.value) : null,
-                    )
-                  }
-                />
-              </label>
-              <label className="field">
-                Height (mm)
-                <input
-                  type="number"
-                  min="1"
-                  value={variant.heightMm ?? ""}
-                  onChange={(event) =>
-                    updateVariant(
-                      setVariants,
-                      index,
-                      "heightMm",
-                      event.target.value ? Number(event.target.value) : null,
-                    )
-                  }
-                />
-              </label>
-            </div>
-          ))}
-        </div>
-      </section>
+      <nav className="product-form-nav" aria-label="Product setup sections">
+        <a href="#product-details">1. Details</a>
+        {setupKind !== "standard" && <a href="#choices">2. Customer choices</a>}
+        <a href="#variants">{setupKind === "standard" ? "2" : "3"}. Price & inventory</a>
+        <a href="#shipping">{setupKind === "standard" ? "3" : "4"}. Shipping</a>
+        <a href="#advanced-product-settings">Advanced</a>
+      </nav>
+      {isKeychain && <div className="notice">This keychain uses fixed choices: name, three fonts, three sizes and two colours. Set a price before publishing. Inventory and checkout can remain closed while you review the design in the Shop.</div>}
       <section className="admin-panel" id="product-details">
         <div className="panel-heading">
           <div>
@@ -511,7 +458,7 @@ export function AdminProductForm({
               ))}
             </select>
           </label>
-          <label className="field">
+          {storeSlug === "tapkin" ? <label className="field">
             NFC profile type
             <select name="type" defaultValue={initial.type}>
               {[
@@ -528,7 +475,7 @@ export function AdminProductForm({
                 <option key={type}>{type}</option>
               ))}
             </select>
-          </label>
+          </label> : <input type="hidden" name="type" value={initial.type} />}
           <label className="field">
             Status
             <select name="status" defaultValue={initial.status}>
@@ -589,160 +536,208 @@ export function AdminProductForm({
           </label>
         </div>
       </section>
-      <section className="admin-panel" id="shipping">
+      {setupKind === "standard" ? <input type="hidden" name="personalisationMode" value="NONE" /> : <section className="admin-panel" id="choices">
         <div className="panel-heading">
           <div>
-            <h2>Shipping profile</h2>
-            <p>
-              Physical data is used only on the server to pack and quote this
-              product.
-            </p>
+            <h2>{isKeychain ? "Keychain choices" : guidedColours ? "Available colours" : "Product choices & personalisation"}</h2>
+            <p>{isKeychain ? "Choose which fonts, sizes and colours shoppers may select. The name field is always required." : guidedColours ? "Enable only the colours you can make. The shopper chooses from these swatches." : "Configure customer choices and personalised fields. Variants carry prices and stock separately."}</p>
           </div>
-        </div>
-        <div className="field-grid three">
-          <label className="field">
-            Weight (g)
-            <input
-              name="weightGrams"
-              type="number"
-              min="1"
-              defaultValue={initial.weightGrams ?? ""}
-            />
-          </label>
-          <label className="field">
-            Length (mm)
-            <input
-              name="lengthMm"
-              type="number"
-              min="1"
-              defaultValue={initial.lengthMm ?? ""}
-            />
-          </label>
-          <label className="field">
-            Width (mm)
-            <input
-              name="widthMm"
-              type="number"
-              min="1"
-              defaultValue={initial.widthMm ?? ""}
-            />
-          </label>
-          <label className="field">
-            Height (mm)
-            <input
-              name="heightMm"
-              type="number"
-              min="1"
-              defaultValue={initial.heightMm ?? ""}
-            />
-          </label>
-          <label className="field">
-            Default packaging
-            <select
-              name="defaultPackagingId"
-              defaultValue={initial.defaultPackagingId}
+          {!guidedColours && <div className="actions">
+            {(["colour", "shape", "size"] as const).map((choice) => (
+              <button
+                className="button secondary"
+                type="button"
+                key={choice}
+                onClick={() =>
+                  setOptions((current) =>
+                    current.some((option) => option.code === choice)
+                      ? current
+                      : [...current, productChoicePresets[choice]],
+                  )
+                }
+              >
+                <Plus size={16} /> Add{" "}
+                {choice === "shape" ? "style / shape" : choice}
+              </button>
+            ))}
+            <button
+              className="button secondary"
+              type="button"
+              onClick={() =>
+                setOptions((current) => [...current, blankOption()])
+              }
             >
-              <option value="">Store default</option>
-              {packaging.map((item) => (
-                <option value={item.id} key={item.id}>
-                  {item.name}
-                </option>
-              ))}
-            </select>
-          </label>
+              <Plus size={16} /> Add custom field
+            </button>
+          </div>}
         </div>
-        <label className="field">
-          Special handling
-          <textarea
-            name="specialHandling"
-            defaultValue={initial.specialHandling}
-            maxLength={500}
-          />
-        </label>
-        <label className="check-field">
-          <input
-            type="checkbox"
-            name="shipsSeparately"
-            defaultChecked={initial.shipsSeparately}
-          />
-          <span>Ship each unit separately</span>
-        </label>
-      </section>
-      <section className="admin-panel" id="customs">
-        <div className="panel-heading">
-          <div>
-            <h2>International customs</h2>
-            <p>
-              Structured carrier-ready data for declarations. Provider-specific
-              CN22/CN23 generation remains an adapter responsibility.
-            </p>
+        {guidedColours ? <input type="hidden" name="personalisationMode" value="REQUIRED" /> : <label className="field">
+          Personalisation purchase mode
+          <select
+            name="personalisationMode"
+            defaultValue={initial.personalisationMode}
+          >
+            <option value="NONE">NONE — no custom input</option>
+            <option value="OPTIONAL">OPTIONAL — Basic or Personalised</option>
+            <option value="REQUIRED">
+              REQUIRED — customer must personalise
+            </option>
+          </select>
+        </label>}
+        {guidedColours ? <div className="admin-stack">{options.filter(option => option.values.length > 0).map(option => {
+          const index = options.indexOf(option);
+          return <fieldset className="keychain-admin-choices" key={option.code}><legend>{option.name}</legend><div>{option.values.map((value, valueIndex) => <div key={value.value} className="keychain-choice-row"><label className="check-field"><input type="checkbox" checked={value.active} onChange={event => updateOption(setOptions, index, "values", option.values.map((item, i) => i === valueIndex ? { ...item, active: event.target.checked } : item))} />{value.swatchHex && <span className="colour-swatch" style={{ background: value.swatchHex }} />}<span>{value.label}</span></label>{option.code === "keychain-size" && <label className="field">Extra AUD<input inputMode="decimal" value={value.price} onChange={event => updateOption(setOptions, index, "values", option.values.map((item, i) => i === valueIndex ? { ...item, price: event.target.value } : item))} /></label>}</div>)}</div></fieldset>;
+        })}</div> : options.length ? (
+          <div className="admin-stack">
+            {options.map((option, index) => (
+              <div className="variant-editor" key={option.id ?? index}>
+                <div className="variant-title">
+                  <strong>Field {index + 1}</strong>
+                  <button
+                    type="button"
+                    className="icon-button"
+                    onClick={() =>
+                      setOptions((current) =>
+                        current.filter((_, itemIndex) => itemIndex !== index),
+                      )
+                    }
+                  >
+                    <Trash2 size={17} />
+                  </button>
+                </div>
+                <div className="field-grid three">
+                  <label className="field">
+                    Label
+                    <input
+                      value={option.name}
+                      onChange={(event) =>
+                        updateOption(
+                          setOptions,
+                          index,
+                          "name",
+                          event.target.value,
+                        )
+                      }
+                      required
+                    />
+                  </label>
+                  <label className="field">
+                    Code
+                    <input
+                      value={option.code}
+                      onChange={(event) =>
+                        updateOption(
+                          setOptions,
+                          index,
+                          "code",
+                          event.target.value
+                            .toLowerCase()
+                            .replace(/[^a-z0-9-]/g, ""),
+                        )
+                      }
+                      required
+                    />
+                  </label>
+                  <label className="field">
+                    Input type
+                    <select
+                      value={option.type}
+                      onChange={(event) =>
+                        updateOption(
+                          setOptions,
+                          index,
+                          "type",
+                          event.target.value as OptionForm["type"],
+                        )
+                      }
+                    >
+                      {[
+                        "SHORT_TEXT",
+                        "LONG_TEXT",
+                        "SELECT",
+                        "RADIO",
+                        "CHECKBOX",
+                        "COLOUR",
+                        "IMAGE",
+                      ].map((type) => (
+                        <option key={type}>{type}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="field">
+                    Max length
+                    <input
+                      type="number"
+                      min="1"
+                      value={option.maxLength ?? ""}
+                      onChange={(event) =>
+                        updateOption(
+                          setOptions,
+                          index,
+                          "maxLength",
+                          event.target.value
+                            ? Number(event.target.value)
+                            : null,
+                        )
+                      }
+                    />
+                  </label>
+                  <label className="field">
+                    Additional price AUD
+                    <input
+                      value={option.price}
+                      onChange={(event) =>
+                        updateOption(
+                          setOptions,
+                          index,
+                          "price",
+                          event.target.value,
+                        )
+                      }
+                    />
+                  </label>
+                </div>
+                <label className="check-field">
+                  <input
+                    type="checkbox"
+                    checked={option.required}
+                    onChange={(event) =>
+                      updateOption(
+                        setOptions,
+                        index,
+                        "required",
+                        event.target.checked,
+                      )
+                    }
+                  />
+                  <span>Required</span>
+                </label>
+                {["SELECT", "RADIO", "COLOUR"].includes(option.type) && (
+                  <OptionValuesEditor
+                    values={option.values}
+                    colour={option.type === "COLOUR"}
+                    onChange={(values) =>
+                      updateOption(setOptions, index, "values", values)
+                    }
+                  />
+                )}
+              </div>
+            ))}
           </div>
-        </div>
-        <div className="field-grid three">
-          <label className="field">
-            Country of origin (ISO)
-            <input
-              name="countryOfOrigin"
-              defaultValue={initial.countryOfOrigin}
-              pattern="[A-Za-z]{2}"
-              maxLength={2}
-              placeholder="AU"
-            />
-          </label>
-          <label className="field">
-            HS code
-            <input
-              name="hsCode"
-              defaultValue={initial.hsCode}
-              inputMode="numeric"
-              pattern="[0-9]{4,10}"
-            />
-          </label>
-          <label className="field">
-            Customs value {"("}store currency{")"}
-            <input
-              name="customsValue"
-              defaultValue={initial.customsValue}
-              inputMode="decimal"
-            />
-          </label>
-          <label className="field">
-            Duties and taxes
-            <select name="dutiesHandling" defaultValue={initial.dutiesHandling}>
-              <option value="UNDETERMINED">Not configured</option>
-              <option value="RECIPIENT_PAYS">Recipient pays</option>
-              <option value="SENDER_PAYS">Sender pays</option>
-            </select>
-          </label>
-        </div>
-        <label className="field">
-          Customs description
-          <textarea
-            name="customsDescription"
-            defaultValue={initial.customsDescription}
-            maxLength={200}
-          />
-        </label>
-        <label className="check-field">
-          <input
-            type="checkbox"
-            name="restrictedItem"
-            defaultChecked={initial.restrictedItem}
-          />
-          <span>Restricted item — require carrier/customs review</span>
-        </label>
-      </section>
+        ) : (
+          <div className="admin-empty">
+            No options. Add selection fields for colour/shape, or custom fields
+            for printed names and text.
+          </div>
+        )}
+      </section>}
       <section className="admin-panel" id="variants">
         <div className="panel-heading">
           <div>
-            <h2>Variants and inventory</h2>
-            <p>
-              Choose colour, size and style from the configured product
-              choices. Each variant then carries its own SKU, price, stock and
-              shipping data.
-            </p>
+            <h2>{isKeychain ? "Price and inventory" : "Variants and inventory"}</h2>
+            <p>{isKeychain ? "One made-to-order variant covers every selected name, font, size and colour. Keep inventory at zero until orders open." : "Each variant carries its own SKU, price, stock and shipping data."}</p>
           </div>
-          <div className="actions">
+          {!simpleVariant && <div className="actions">
             {(["colour", "shape", "size"] as const)
               .filter((choice) => !options.some((option) => option.code === choice))
               .map((choice) => (
@@ -762,9 +757,14 @@ export function AdminProductForm({
             >
               <Plus size={16} /> Add variant
             </button>
-          </div>
+          </div>}
         </div>
-        <div className="admin-stack">
+        {simpleVariant ? <div className="field-grid three">
+          <label className="field">SKU<input value={variants[0].sku} onChange={event => updateVariant(setVariants, 0, "sku", event.target.value.toUpperCase())} required /></label>
+          <label className="field">Material<input value={variants[0].material} onChange={event => updateVariant(setVariants, 0, "material", event.target.value)} /></label>
+          <label className="field">Base price AUD<input inputMode="decimal" value={variants[0].price} onChange={event => updateVariant(setVariants, 0, "price", event.target.value)} required /></label>
+          <label className="field">Initial stock<input type="number" min="0" value={variants[0].inventory} readOnly={Boolean(variants[0].id)} onChange={event => updateVariant(setVariants, 0, "inventory", Number(event.target.value))} />{variants[0].id && <small>Adjust stock in <a href="/admin/inventory">Catalog → Inventory</a>.</small>}</label>
+        </div> : <div className="admin-stack">
           {variants.map((variant, index) => (
             <div className="variant-editor" key={variant.id ?? index}>
               <div className="variant-title">
@@ -816,10 +816,10 @@ export function AdminProductForm({
                   />
                   {variantIssue(index, "name") && <small className="form-error">{variantIssue(index, "name")}</small>}
                 </label>
-                <VariantChoiceField fallbackName="Colour" option={options.find((option) => option.type === "COLOUR")} value={selectionValue(variant.optionSelection, options.find((option) => option.type === "COLOUR")?.code ?? "colour")} onChange={(value, label) => updateVariantChoice(setVariants, index, options.find((option) => option.type === "COLOUR")?.code ?? "colour", value, label)} />
+                {!isKeychain && <><VariantChoiceField fallbackName="Colour" option={options.find((option) => option.type === "COLOUR")} value={selectionValue(variant.optionSelection, options.find((option) => option.type === "COLOUR")?.code ?? "colour")} onChange={(value, label) => updateVariantChoice(setVariants, index, options.find((option) => option.type === "COLOUR")?.code ?? "colour", value, label)} />
                 <VariantChoiceField fallbackName="Size" option={choiceByCode("size")} value={selectionValue(variant.optionSelection, "size")} onChange={(value, label) => updateVariantChoice(setVariants, index, "size", value, label)} />
                 <VariantChoiceField fallbackName="Style / shape" option={choiceByCode("shape")} value={selectionValue(variant.optionSelection, "shape")} onChange={(value) => updateVariantChoice(setVariants, index, "shape", value)} />
-                {selectionOptions.filter((option) => option.type !== "COLOUR" && !["size", "shape"].includes(option.code)).map((option) => <VariantChoiceField key={option.code} option={option} value={selectionValue(variant.optionSelection, option.code)} onChange={(value, label) => updateVariantChoice(setVariants, index, option.code, value, label)} />)}
+                {selectionOptions.filter((option) => option.type !== "COLOUR" && !["size", "shape"].includes(option.code)).map((option) => <VariantChoiceField key={option.code} option={option} value={selectionValue(variant.optionSelection, option.code)} onChange={(value, label) => updateVariantChoice(setVariants, index, option.code, value, label)} />)}</>}
                 <label className="field">
                   Material
                   <input
@@ -1021,202 +1021,220 @@ export function AdminProductForm({
               </div>
             </div>
           ))}
-        </div>
+        </div>}
       </section>
-      <section className="admin-panel" id="choices">
+      <section className="admin-panel" id="shipping">
         <div className="panel-heading">
           <div>
-            <h2>Product choices & personalisation</h2>
+            <h2>Shipping profile</h2>
             <p>
-              Add colour, style and size first. Personalisation controls only
-              customer-supplied content and remains independent from NFC.
+              Physical data is used only on the server to pack and quote this
+              product.
             </p>
           </div>
-          <div className="actions">
-            {(["colour", "shape", "size"] as const).map((choice) => (
-              <button
-                className="button secondary"
-                type="button"
-                key={choice}
-                onClick={() =>
-                  setOptions((current) =>
-                    current.some((option) => option.code === choice)
-                      ? current
-                      : [...current, productChoicePresets[choice]],
-                  )
-                }
-              >
-                <Plus size={16} /> Add{" "}
-                {choice === "shape" ? "style / shape" : choice}
-              </button>
-            ))}
-            <button
-              className="button secondary"
-              type="button"
-              onClick={() =>
-                setOptions((current) => [...current, blankOption()])
-              }
+        </div>
+        <div className="field-grid three">
+          <label className="field">
+            Weight (g)
+            <input
+              name="weightGrams"
+              type="number"
+              min="1"
+              defaultValue={initial.weightGrams ?? ""}
+            />
+          </label>
+          <label className="field">
+            Length (mm)
+            <input
+              name="lengthMm"
+              type="number"
+              min="1"
+              defaultValue={initial.lengthMm ?? ""}
+            />
+          </label>
+          <label className="field">
+            Width (mm)
+            <input
+              name="widthMm"
+              type="number"
+              min="1"
+              defaultValue={initial.widthMm ?? ""}
+            />
+          </label>
+          <label className="field">
+            Height (mm)
+            <input
+              name="heightMm"
+              type="number"
+              min="1"
+              defaultValue={initial.heightMm ?? ""}
+            />
+          </label>
+          <label className="field">
+            Default packaging
+            <select
+              name="defaultPackagingId"
+              defaultValue={initial.defaultPackagingId}
             >
-              <Plus size={16} /> Add custom field
-            </button>
-          </div>
+              <option value="">Store default</option>
+              {packaging.map((item) => (
+                <option value={item.id} key={item.id}>
+                  {item.name}
+                </option>
+              ))}
+            </select>
+          </label>
         </div>
         <label className="field">
-          Personalisation purchase mode
-          <select
-            name="personalisationMode"
-            defaultValue={initial.personalisationMode}
-          >
-            <option value="NONE">NONE — no custom input</option>
-            <option value="OPTIONAL">OPTIONAL — Basic or Personalised</option>
-            <option value="REQUIRED">
-              REQUIRED — customer must personalise
-            </option>
-          </select>
+          Special handling
+          <textarea
+            name="specialHandling"
+            defaultValue={initial.specialHandling}
+            maxLength={500}
+          />
         </label>
-        {options.length ? (
-          <div className="admin-stack">
-            {options.map((option, index) => (
-              <div className="variant-editor" key={option.id ?? index}>
-                <div className="variant-title">
-                  <strong>Field {index + 1}</strong>
-                  <button
-                    type="button"
-                    className="icon-button"
-                    onClick={() =>
-                      setOptions((current) =>
-                        current.filter((_, itemIndex) => itemIndex !== index),
-                      )
-                    }
-                  >
-                    <Trash2 size={17} />
-                  </button>
-                </div>
-                <div className="field-grid three">
-                  <label className="field">
-                    Label
-                    <input
-                      value={option.name}
-                      onChange={(event) =>
-                        updateOption(
-                          setOptions,
-                          index,
-                          "name",
-                          event.target.value,
-                        )
-                      }
-                      required
-                    />
-                  </label>
-                  <label className="field">
-                    Code
-                    <input
-                      value={option.code}
-                      onChange={(event) =>
-                        updateOption(
-                          setOptions,
-                          index,
-                          "code",
-                          event.target.value
-                            .toLowerCase()
-                            .replace(/[^a-z0-9-]/g, ""),
-                        )
-                      }
-                      required
-                    />
-                  </label>
-                  <label className="field">
-                    Input type
-                    <select
-                      value={option.type}
-                      onChange={(event) =>
-                        updateOption(
-                          setOptions,
-                          index,
-                          "type",
-                          event.target.value as OptionForm["type"],
-                        )
-                      }
-                    >
-                      {[
-                        "SHORT_TEXT",
-                        "LONG_TEXT",
-                        "SELECT",
-                        "RADIO",
-                        "CHECKBOX",
-                        "COLOUR",
-                        "IMAGE",
-                      ].map((type) => (
-                        <option key={type}>{type}</option>
-                      ))}
-                    </select>
-                  </label>
-                  <label className="field">
-                    Max length
-                    <input
-                      type="number"
-                      min="1"
-                      value={option.maxLength ?? ""}
-                      onChange={(event) =>
-                        updateOption(
-                          setOptions,
-                          index,
-                          "maxLength",
-                          event.target.value
-                            ? Number(event.target.value)
-                            : null,
-                        )
-                      }
-                    />
-                  </label>
-                  <label className="field">
-                    Additional price AUD
-                    <input
-                      value={option.price}
-                      onChange={(event) =>
-                        updateOption(
-                          setOptions,
-                          index,
-                          "price",
-                          event.target.value,
-                        )
-                      }
-                    />
-                  </label>
-                </div>
-                <label className="check-field">
-                  <input
-                    type="checkbox"
-                    checked={option.required}
-                    onChange={(event) =>
-                      updateOption(
-                        setOptions,
-                        index,
-                        "required",
-                        event.target.checked,
-                      )
-                    }
-                  />
-                  <span>Required</span>
-                </label>
-                {["SELECT", "RADIO", "COLOUR"].includes(option.type) && (
-                  <OptionValuesEditor
-                    values={option.values}
-                    colour={option.type === "COLOUR"}
-                    onChange={(values) =>
-                      updateOption(setOptions, index, "values", values)
-                    }
-                  />
-                )}
-              </div>
-            ))}
+        <label className="check-field">
+          <input
+            type="checkbox"
+            name="shipsSeparately"
+            defaultChecked={initial.shipsSeparately}
+          />
+          <span>Ship each unit separately</span>
+        </label>
+      </section>
+      <details className="product-form-advanced" id="advanced-product-settings" open={validationIssues.some(issue => ["variant-dimensions", "customs", "search"].includes(issue.section))}>
+        <summary>Advanced settings <small>Variant dimensions, international customs and search metadata</small></summary>
+      <section className="admin-panel" id="variant-dimensions">
+        <div className="panel-heading">
+          <div>
+            <h2>Variant dimensions</h2>
+            <p>
+              Optional millimetre overrides take precedence over the product
+              shipping profile.
+            </p>
           </div>
-        ) : (
-          <div className="admin-empty">
-            No options. Add selection fields for colour/shape, or custom fields
-            for printed names and text.
+        </div>
+        <div className="admin-stack">
+          {variants.map((variant, index) => (
+            <div
+              className="field-grid three"
+              key={`shipping-${variant.id ?? index}`}
+            >
+              <label className="field">
+                {variant.name} length (mm)
+                <input
+                  type="number"
+                  min="1"
+                  value={variant.lengthMm ?? ""}
+                  onChange={(event) =>
+                    updateVariant(
+                      setVariants,
+                      index,
+                      "lengthMm",
+                      event.target.value ? Number(event.target.value) : null,
+                    )
+                  }
+                />
+              </label>
+              <label className="field">
+                Width (mm)
+                <input
+                  type="number"
+                  min="1"
+                  value={variant.widthMm ?? ""}
+                  onChange={(event) =>
+                    updateVariant(
+                      setVariants,
+                      index,
+                      "widthMm",
+                      event.target.value ? Number(event.target.value) : null,
+                    )
+                  }
+                />
+              </label>
+              <label className="field">
+                Height (mm)
+                <input
+                  type="number"
+                  min="1"
+                  value={variant.heightMm ?? ""}
+                  onChange={(event) =>
+                    updateVariant(
+                      setVariants,
+                      index,
+                      "heightMm",
+                      event.target.value ? Number(event.target.value) : null,
+                    )
+                  }
+                />
+              </label>
+            </div>
+          ))}
+        </div>
+      </section>
+      <section className="admin-panel" id="customs">
+        <div className="panel-heading">
+          <div>
+            <h2>International customs</h2>
+            <p>
+              Structured carrier-ready data for declarations. Provider-specific
+              CN22/CN23 generation remains an adapter responsibility.
+            </p>
           </div>
-        )}
+        </div>
+        <div className="field-grid three">
+          <label className="field">
+            Country of origin (ISO)
+            <input
+              name="countryOfOrigin"
+              defaultValue={initial.countryOfOrigin}
+              pattern="[A-Za-z]{2}"
+              maxLength={2}
+              placeholder="AU"
+            />
+          </label>
+          <label className="field">
+            HS code
+            <input
+              name="hsCode"
+              defaultValue={initial.hsCode}
+              inputMode="numeric"
+              pattern="[0-9]{4,10}"
+            />
+          </label>
+          <label className="field">
+            Customs value {"("}store currency{")"}
+            <input
+              name="customsValue"
+              defaultValue={initial.customsValue}
+              inputMode="decimal"
+            />
+          </label>
+          <label className="field">
+            Duties and taxes
+            <select name="dutiesHandling" defaultValue={initial.dutiesHandling}>
+              <option value="UNDETERMINED">Not configured</option>
+              <option value="RECIPIENT_PAYS">Recipient pays</option>
+              <option value="SENDER_PAYS">Sender pays</option>
+            </select>
+          </label>
+        </div>
+        <label className="field">
+          Customs description
+          <textarea
+            name="customsDescription"
+            defaultValue={initial.customsDescription}
+            maxLength={200}
+          />
+        </label>
+        <label className="check-field">
+          <input
+            type="checkbox"
+            name="restrictedItem"
+            defaultChecked={initial.restrictedItem}
+          />
+          <span>Restricted item — require carrier/customs review</span>
+        </label>
       </section>
       <section className="admin-panel" id="search">
         <div className="panel-heading">
@@ -1286,6 +1304,7 @@ export function AdminProductForm({
           <span>Allow search engines to index this product</span>
         </label>
       </section>
+      </details>
       {message && (
         <div
           className={message === "Product saved" ? "notice" : "form-error"}
