@@ -19,13 +19,13 @@ export async function processOrderNotifications(orderId?: string) {
   const due = { OR: [{ status: "PENDING", availableAt: { lte: now } }, { status: "PROCESSING", leaseUntil: { lt: now } }] };
   // Exhausted crashed attempts need a visible terminal state, not a permanently stuck lease.
   await db.orderNotification.updateMany({ where: { ...due, attempts: { gte: 5 }, ...(orderId ? { orderId } : {}) }, data: { status: "FAILED", leaseToken: null, leaseUntil: null, lastError: "Retry limit reached; inspect provider before retrying" } });
-  const rows = await db.orderNotification.findMany({ where: { ...due, attempts: { lt: 5 }, ...(orderId ? { orderId } : {}) }, orderBy: { availableAt: "asc" }, take: 5 });
+  const rows = await db.orderNotification.findMany({ where: { ...due, attempts: { lt: 5 }, ...(orderId ? { orderId } : {}) }, include: { order: { select: { store: { select: { slug: true } } } } }, orderBy: { availableAt: "asc" }, take: 5 });
   for (const row of rows) {
     const token = randomUUID();
     const claimed = await db.orderNotification.updateMany({ where: { id: row.id, ...due, attempts: { lt: 5 } }, data: { status: "PROCESSING", attempts: { increment: 1 }, leaseToken: token, leaseUntil: new Date(Date.now() + 120_000) } });
     if (!claimed.count) continue;
     try {
-      const accepted = await sendTransactionalEmail({ to: row.to, subject: row.subject, text: row.text, idempotencyKey: row.id });
+      const accepted = await sendTransactionalEmail({ to: row.to, subject: row.subject, text: row.text, idempotencyKey: row.id, storeSlug: row.order.store.slug });
       await db.orderNotification.updateMany({ where: { id: row.id, leaseToken: token }, data: { status: accepted ? "ACCEPTED" : "MOCKED", leaseToken: null, leaseUntil: null, lastError: null } });
     } catch {
       await db.orderNotification.updateMany({ where: { id: row.id, leaseToken: token }, data: { status: row.attempts + 1 >= 5 ? "FAILED" : "PENDING", availableAt: new Date(Date.now() + Math.min(3600, 30 * 2 ** row.attempts) * 1000), leaseToken: null, leaseUntil: null, lastError: "Provider request failed or its outcome is uncertain. Acceptance does not prove delivery." } });

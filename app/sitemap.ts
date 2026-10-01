@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const config = getRuntimeConfig();
   const store = await getCurrentStorefront();
-  if (store.status !== StoreStatus.ACTIVE || !searchEnginePolicy(config.appEnv).index) return [];
+  if (store.status !== StoreStatus.ACTIVE || !searchEnginePolicy(config.appEnv, config.previewMode).index) return [];
   const { origin } = store;
   const entry = (path: string, updatedAt?: Date, translatedLocales: string[] = []): MetadataRoute.Sitemap => {
     const locales = [store.defaultLocale, ...translatedLocales.filter(locale => locale !== store.defaultLocale && store.enabledLocales.includes(locale))];

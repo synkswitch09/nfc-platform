@@ -9,6 +9,6 @@ export default async function robots(): Promise<MetadataRoute.Robots> {
   const config = getRuntimeConfig();
   const store = await getCurrentStorefront();
   const origin = store.origin;
-  if (store.status !== StoreStatus.ACTIVE || !searchEnginePolicy(config.appEnv).index) return { rules: [{ userAgent: "*", disallow: "/" }] };
+  if (store.status !== StoreStatus.ACTIVE || !searchEnginePolicy(config.appEnv, config.previewMode).index) return { rules: [{ userAgent: "*", disallow: "/" }] };
   return { rules: [{ userAgent: "*", allow: ["/", "/api/media/"], disallow: ["/admin/", "/dashboard/", "/api/", "/checkout", "/claim-order", "/activate", "/t/"] }], sitemap: `${origin}/sitemap.xml` };
 }

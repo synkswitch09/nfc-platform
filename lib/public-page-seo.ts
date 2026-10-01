@@ -16,5 +16,6 @@ export async function reservedPageMetadata(slug: "faq" | "terms" | "privacy", fa
   const url = canonicalForStore(store.origin, localizedPath(`/${slug}`, locale, store.defaultLocale), page?.canonicalUrl);
   const translated = new Set(page?.translations.map(item => item.locale));
   const available = page?.canonicalUrl ? [store.defaultLocale] : [store.defaultLocale, ...store.enabledLocales.filter(code => translated.has(code) && page?.sections.some(section => section.translations.some(item => item.locale === code)))];
-  return { title, description, alternates: { canonical: url, languages: languageAlternates(`/${slug}`, store.origin, available, store.defaultLocale) }, robots: page?.indexable && page.sections.length && searchEnginePolicy(getRuntimeConfig().appEnv).index ? { index: true, follow: true } : { index: false, follow: false }, openGraph: { type: "website", title, description, url, images: page?.ogImageUrl ? [page.ogImageUrl] : undefined } };
+  const runtime = getRuntimeConfig();
+  return { title, description, alternates: { canonical: url, languages: languageAlternates(`/${slug}`, store.origin, available, store.defaultLocale) }, robots: page?.indexable && page.sections.length && searchEnginePolicy(runtime.appEnv, runtime.previewMode).index ? { index: true, follow: true } : { index: false, follow: false }, openGraph: { type: "website", title, description, url, images: page?.ogImageUrl ? [page.ogImageUrl] : undefined } };
 }

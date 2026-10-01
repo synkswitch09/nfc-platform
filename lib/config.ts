@@ -31,10 +31,12 @@ const runtimeConfigSchema = z.object({
   AZURE_STORAGE_CONTAINER_URL: optionalUrl,
   AZURE_STORAGE_SAS_TOKEN: optionalString,
   EMAIL_MODE: z.enum(["mock", "sandbox", "live"]).default("mock"),
-  EMAIL_PROVIDER: z.enum(["webhook", "mailtrap-sandbox"]).default("webhook"),
+  EMAIL_PROVIDER: z.enum(["webhook", "mailtrap-sandbox", "resend"]).default("webhook"),
   EMAIL_FROM_ADDRESS: z.preprocess(blankToUndefined, z.email().optional()),
+  EMAIL_FROM_ADDRESS_KOSYKIN: z.preprocess(blankToUndefined, z.email().optional()),
   EMAIL_WEBHOOK_URL: optionalUrl,
   EMAIL_WEBHOOK_SECRET: optionalString,
+  EMAIL_WEBHOOK_SECRET_KOSYKIN: optionalString,
   EMAIL_TEST_OUTBOX_PATH: optionalString,
   STRIPE_SECRET_KEY: optionalString,
   STRIPE_WEBHOOK_SECRET: optionalString,
@@ -48,6 +50,8 @@ const runtimeConfigSchema = z.object({
   ETSY_SHARED_SECRET: optionalString,
   ETSY_SYNC_SECRET: optionalString,
   ENABLE_TEST_CHECKOUT: booleanString,
+  PRODUCTION_PREVIEW_MODE: booleanString,
+  PRODUCTION_CHECKOUT_ENABLED: booleanString,
   ANALYTICS_ID: optionalString,
   ANALYTICS_GA4_STORES: analyticsStores,
   LOG_LEVEL: z.enum(["info", "warn", "error"]).default("info"),
@@ -66,6 +70,7 @@ const runtimeConfigSchema = z.object({
   paired(value.ETSY_API_KEY, value.ETSY_SHARED_SECRET, "ETSY_API_KEY", "ETSY_SHARED_SECRET");
   paired(value.DEV_ADMIN_EMAIL, value.DEV_ADMIN_PASSWORD, "DEV_ADMIN_EMAIL", "DEV_ADMIN_PASSWORD");
   paired(value.STAGING_ADMIN_EMAIL, value.STAGING_ADMIN_PASSWORD, "STAGING_ADMIN_EMAIL", "STAGING_ADMIN_PASSWORD");
+  paired(value.EMAIL_FROM_ADDRESS_KOSYKIN, value.EMAIL_WEBHOOK_SECRET_KOSYKIN, "EMAIL_FROM_ADDRESS_KOSYKIN", "EMAIL_WEBHOOK_SECRET_KOSYKIN");
   if (value.ANALYTICS_ID) issue("ANALYTICS_ID", "Use per-store ANALYTICS_GA4_STORES instead of a shared analytics ID");
   const ids = Object.values(value.ANALYTICS_GA4_STORES).map(item => item.measurementId);
   if (new Set(ids).size !== ids.length) issue("ANALYTICS_GA4_STORES", "Each store needs a separate GA4 web stream");
@@ -99,20 +104,23 @@ const runtimeConfigSchema = z.object({
       if (!container.endsWith(`-${value.APP_ENV}`)) issue("AZURE_STORAGE_CONTAINER_URL", "The Blob container name must end with the APP_ENV name");
     }
     if (!value.AZURE_STORAGE_SAS_TOKEN) issue("AZURE_STORAGE_SAS_TOKEN", "AZURE_STORAGE_SAS_TOKEN is required for Azure Blob storage");
-    if (value.EMAIL_MODE === "mock") issue("EMAIL_MODE", "Staging and production require an isolated sandbox or live email provider");
-    if (!value.EMAIL_WEBHOOK_URL) issue("EMAIL_WEBHOOK_URL", "EMAIL_WEBHOOK_URL is required outside development");
-    if (!value.EMAIL_WEBHOOK_SECRET) issue("EMAIL_WEBHOOK_SECRET", "EMAIL_WEBHOOK_SECRET is required outside development");
+    if (value.EMAIL_MODE === "mock" && !value.PRODUCTION_PREVIEW_MODE) issue("EMAIL_MODE", "Staging and production require an isolated sandbox or live email provider");
+    if (!value.EMAIL_WEBHOOK_URL && !value.PRODUCTION_PREVIEW_MODE) issue("EMAIL_WEBHOOK_URL", "EMAIL_WEBHOOK_URL is required outside development");
+    if (!value.EMAIL_WEBHOOK_SECRET && !value.PRODUCTION_PREVIEW_MODE) issue("EMAIL_WEBHOOK_SECRET", "EMAIL_WEBHOOK_SECRET is required outside development");
     if (value.EMAIL_TEST_OUTBOX_PATH) issue("EMAIL_TEST_OUTBOX_PATH", "The test email outbox is restricted to development");
     if (value.ENABLE_TEST_CHECKOUT) issue("ENABLE_TEST_CHECKOUT", "Test checkout is restricted to development");
     if (value.DEV_ADMIN_EMAIL || value.DEV_ADMIN_PASSWORD) issue("DEV_ADMIN_EMAIL", "Development administrator credentials are forbidden outside development");
   }
 
   if (value.APP_ENV === "staging") {
+    if (value.PRODUCTION_PREVIEW_MODE) issue("PRODUCTION_PREVIEW_MODE", "Preview mode is restricted to production");
     if (!value.STRIPE_SECRET_KEY?.startsWith("sk_test_")) issue("STRIPE_SECRET_KEY", "Staging requires a Stripe test secret key");
     if (!value.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY?.startsWith("pk_test_")) issue("NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY", "Staging requires a Stripe test publishable key");
     if (!value.STRIPE_WEBHOOK_SECRET?.startsWith("whsec_")) issue("STRIPE_WEBHOOK_SECRET", "Staging requires its own Stripe webhook secret");
     if (value.EMAIL_MODE !== "sandbox") issue("EMAIL_MODE", "Staging email must use sandbox mode");
   }
+
+  if (value.APP_ENV === "development" && value.PRODUCTION_PREVIEW_MODE) issue("PRODUCTION_PREVIEW_MODE", "Preview mode is restricted to production");
 
   if (value.EMAIL_PROVIDER === "mailtrap-sandbox") {
     if (value.APP_ENV !== "staging" || value.EMAIL_MODE !== "sandbox") issue("EMAIL_PROVIDER", "Mailtrap Sandbox is restricted to staging sandbox email");
@@ -120,11 +128,29 @@ const runtimeConfigSchema = z.object({
     if (!/^https:\/\/sandbox\.api\.mailtrap\.io\/api\/send\/[1-9][0-9]*$/.test(value.EMAIL_WEBHOOK_URL ?? "")) issue("EMAIL_WEBHOOK_URL", "Mailtrap Sandbox requires its exact HTTPS sandbox inbox URL");
   }
 
+  if (value.EMAIL_PROVIDER === "resend") {
+    if (value.APP_ENV !== "production" || value.EMAIL_MODE !== "live") issue("EMAIL_PROVIDER", "Resend requires live production email");
+    if (!value.EMAIL_FROM_ADDRESS) issue("EMAIL_FROM_ADDRESS", "Resend requires a verified sender address");
+    if (value.EMAIL_WEBHOOK_URL !== "https://api.resend.com/emails") issue("EMAIL_WEBHOOK_URL", "Resend requires the official HTTPS email endpoint");
+    if (value.EMAIL_FROM_ADDRESS_KOSYKIN && !value.EMAIL_FROM_ADDRESS_KOSYKIN.toLowerCase().endsWith("@kosykin.com.au")) issue("EMAIL_FROM_ADDRESS_KOSYKIN", "Kosykin sender must use its verified domain");
+  } else if (value.EMAIL_FROM_ADDRESS_KOSYKIN || value.EMAIL_WEBHOOK_SECRET_KOSYKIN) {
+    issue("EMAIL_FROM_ADDRESS_KOSYKIN", "Kosykin credentials require Resend");
+  }
+
   if (value.APP_ENV === "production") {
-    if (!value.STRIPE_SECRET_KEY?.startsWith("sk_live_")) issue("STRIPE_SECRET_KEY", "Production requires a Stripe live secret key");
-    if (!value.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY?.startsWith("pk_live_")) issue("NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY", "Production requires a Stripe live publishable key");
-    if (!value.STRIPE_WEBHOOK_SECRET?.startsWith("whsec_")) issue("STRIPE_WEBHOOK_SECRET", "Production requires its own Stripe webhook secret");
-    if (value.EMAIL_MODE !== "live") issue("EMAIL_MODE", "Production email must use live mode");
+    if (value.PRODUCTION_PREVIEW_MODE) {
+      if (value.STRIPE_SECRET_KEY || value.STRIPE_WEBHOOK_SECRET || value.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY) issue("STRIPE_SECRET_KEY", "Preview mode must not have Stripe credentials");
+      if (value.EMAIL_MODE !== "mock" || value.EMAIL_WEBHOOK_URL || value.EMAIL_WEBHOOK_SECRET) issue("EMAIL_MODE", "Preview mode must not deliver email");
+    } else {
+      if (value.PRODUCTION_CHECKOUT_ENABLED) {
+        if (!value.STRIPE_SECRET_KEY?.startsWith("sk_live_")) issue("STRIPE_SECRET_KEY", "Production checkout requires a Stripe live secret key");
+        if (!value.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY?.startsWith("pk_live_")) issue("NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY", "Production checkout requires a Stripe live publishable key");
+        if (!value.STRIPE_WEBHOOK_SECRET?.startsWith("whsec_")) issue("STRIPE_WEBHOOK_SECRET", "Production checkout requires its own Stripe webhook secret");
+      } else if (value.STRIPE_SECRET_KEY || value.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || value.STRIPE_WEBHOOK_SECRET) {
+        issue("STRIPE_SECRET_KEY", "Production checkout is disabled; leave Stripe credentials unset");
+      }
+      if (value.EMAIL_MODE !== "live") issue("EMAIL_MODE", "Production email must use live mode");
+    }
     if (value.STAGING_ADMIN_EMAIL || value.STAGING_ADMIN_PASSWORD) issue("STAGING_ADMIN_EMAIL", "Staging administrator credentials are forbidden in production");
   }
 });
@@ -138,11 +164,13 @@ export type RuntimeConfig = {
   activationPepper?: string;
   trustProxy: boolean;
   storage: { provider: "local" | "azure-blob"; environment?: AppEnvironment; uploadDir: string; containerUrl?: string; sasToken?: string };
-  email: { mode: "mock" | "sandbox" | "live"; provider: "webhook" | "mailtrap-sandbox"; fromAddress?: string; webhookUrl?: string; webhookSecret?: string; testOutboxPath?: string };
+  email: { mode: "mock" | "sandbox" | "live"; provider: "webhook" | "mailtrap-sandbox" | "resend"; fromAddress?: string; kosykinFromAddress?: string; webhookUrl?: string; webhookSecret?: string; kosykinWebhookSecret?: string; testOutboxPath?: string };
   stripe: { secretKey?: string; webhookSecret?: string; reconcileSecret?: string; publishableKey?: string; testCheckout: boolean };
   etsy: { apiKey?: string; sharedSecret?: string; syncSecret?: string };
   analyticsStores: Record<string, { measurementId: string; apiSecret: string }>;
   logLevel: "info" | "warn" | "error";
+  previewMode: boolean;
+  checkoutEnabled: boolean;
 };
 
 export function parseRuntimeConfig(environment: Record<string, string | undefined>): RuntimeConfig {
@@ -162,11 +190,13 @@ export function parseRuntimeConfig(environment: Record<string, string | undefine
     activationPepper: value.ACTIVATION_PEPPER,
     trustProxy: value.TRUST_PROXY,
     storage: { provider: value.STORAGE_PROVIDER, environment: value.STORAGE_ENVIRONMENT, uploadDir: value.UPLOAD_DIR, containerUrl: value.AZURE_STORAGE_CONTAINER_URL, sasToken: value.AZURE_STORAGE_SAS_TOKEN },
-    email: { mode: value.EMAIL_MODE, provider: value.EMAIL_PROVIDER, fromAddress: value.EMAIL_FROM_ADDRESS, webhookUrl: value.EMAIL_WEBHOOK_URL, webhookSecret: value.EMAIL_WEBHOOK_SECRET, testOutboxPath: value.EMAIL_TEST_OUTBOX_PATH },
+    email: { mode: value.EMAIL_MODE, provider: value.EMAIL_PROVIDER, fromAddress: value.EMAIL_FROM_ADDRESS, kosykinFromAddress: value.EMAIL_FROM_ADDRESS_KOSYKIN, webhookUrl: value.EMAIL_WEBHOOK_URL, webhookSecret: value.EMAIL_WEBHOOK_SECRET, kosykinWebhookSecret: value.EMAIL_WEBHOOK_SECRET_KOSYKIN, testOutboxPath: value.EMAIL_TEST_OUTBOX_PATH },
     stripe: { reconcileSecret: value.CHECKOUT_RECONCILE_SECRET, secretKey: value.STRIPE_SECRET_KEY, webhookSecret: value.STRIPE_WEBHOOK_SECRET, publishableKey: value.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY, testCheckout: value.ENABLE_TEST_CHECKOUT },
     etsy: { apiKey: value.ETSY_API_KEY, sharedSecret: value.ETSY_SHARED_SECRET, syncSecret: value.ETSY_SYNC_SECRET },
     analyticsStores: value.ANALYTICS_GA4_STORES,
     logLevel: value.LOG_LEVEL,
+    previewMode: value.PRODUCTION_PREVIEW_MODE,
+    checkoutEnabled: !value.PRODUCTION_PREVIEW_MODE && (value.APP_ENV !== "production" || value.PRODUCTION_CHECKOUT_ENABLED),
   };
 }
 
@@ -176,8 +206,8 @@ export function currentAppEnvironment(environment: Record<string, string | undef
   return appEnvironments.includes(environment.APP_ENV as AppEnvironment) ? environment.APP_ENV as AppEnvironment : "development";
 }
 
-export function searchEnginePolicy(environment: AppEnvironment) {
-  return environment === "production"
+export function searchEnginePolicy(environment: AppEnvironment, previewMode = false) {
+  return environment === "production" && !previewMode
     ? { index: true, follow: true, noarchive: false }
     : { index: false, follow: false, noarchive: true };
 }

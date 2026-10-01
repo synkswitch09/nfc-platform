@@ -13,6 +13,9 @@ function watertight(triangles: Triangle[]) {
   }
   return [...edges.values()].every(count=>count===2);
 }
+function signedVolume(triangles: Triangle[]) {
+  return triangles.reduce((sum, [x,y,z,a,b,c,p,q,r]) => sum + (x*(b*r-c*q)+y*(c*p-a*r)+z*(a*q-b*p))/6, 0);
+}
 
 describe("made-to-order keychain",()=>{
   it("fits longer names by reducing glyph height while keeping a watertight two-part mesh",()=>{
@@ -21,10 +24,16 @@ describe("made-to-order keychain",()=>{
     expect(long.widthMm).toBeLessThanOrEqual(90.4);
     expect(watertight(long.base)).toBe(true);
     expect(watertight(long.letters)).toBe(true);
-    expect(Math.max(...long.base.flatMap(t=>[t[2],t[5],t[8]]))).toBe(3.5);
-    expect(Math.max(...long.letters.flatMap(t=>[t[2],t[5],t[8]]))).toBe(4.5);
+    expect(signedVolume(long.base)).toBeGreaterThan(0);
+    expect(signedVolume(long.letters)).toBeGreaterThan(0);
+    expect(long.base.reduce((height, t) => Math.max(height, t[2], t[5], t[8]), 0)).toBe(3.5);
+    expect(long.letters.reduce((height, t) => Math.max(height, t[2], t[5], t[8]), 0)).toBe(4.5);
+    expect(long.base.some(t => t[2] !== t[5] && t[0] !== t[3] && t[1] !== t[4])).toBe(true);
   });
   it("rejects unprintable combinations and preserves the size limit",()=>{
+    const medium=generateKeychain({...choices,name:"Daniel",size:"medium"});
+    expect(medium.letterHeightMm).toBe(15);
+    expect(medium.widthMm).toBeLessThanOrEqual(110.2);
     expect(()=>generateKeychain({...choices,name:"Maximilian Alexander"})).toThrow(/too long/);
     expect(()=>generateKeychain({...choices,name:"Daniel",letterColour:"peach"})).toThrow(/different/);
     expect(()=>generateKeychain({...choices,name:"<script>"})).toThrow();

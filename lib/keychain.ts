@@ -1,13 +1,13 @@
 import fontData from "./keychain-fonts.json";
 
 export type KeychainFont = keyof typeof fontData;
-export type KeychainSize = "regular" | "large";
+export type KeychainSize = "regular" | "medium" | "large";
 export type KeychainInput = { name: string; font: KeychainFont; size: KeychainSize; baseColour: string; letterColour: string };
 export type Triangle = [number, number, number, number, number, number, number, number, number];
 export type KeychainModel = { base: Triangle[]; letters: Triangle[]; widthMm: number; heightMm: number; letterHeightMm: number; input: KeychainInput };
 
 export const KEYCHAIN_FONTS: Record<KeychainFont, string> = { rounded: "Rounded bold", classic: "Classic serif", mono: "Mono bold" };
-export const KEYCHAIN_SIZES = { regular: { height: 10, minimum: 8, maxLength: 90 }, large: { height: 20, minimum: 15, maxLength: 130 } } as const;
+export const KEYCHAIN_SIZES = { regular: { height: 10, minimum: 8, maxLength: 90 }, medium: { height: 15, minimum: 10, maxLength: 110 }, large: { height: 20, minimum: 12, maxLength: 130 } } as const;
 export const KEYCHAIN_COLOURS: Record<string, string> = { white: "#F7F5EF", black: "#28282B", peach: "#F5AA82", lavender: "#BCA7D9", mint: "#A5CDBC", sky: "#A6CBE2", yellow: "#F0CE72", pink: "#E9ADBF" };
 
 function contains(x: number, y: number, paths: number[][][]) {
@@ -25,17 +25,47 @@ function addFace(out: Triangle[], a: number[], b: number[], c: number[], d: numb
 
 function gridMesh(grid: Uint8Array, w: number, h: number, originX: number, originY: number, pitch: number, bottom: number, top: number) {
   const triangles: Triangle[] = [];
-  const has = (x: number, y: number) => x >= 0 && y >= 0 && x < w && y < h && grid[y * w + x] === 1;
-  const coord = (value: number) => Math.round(value*1000)/1000;
-  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
-    if (!has(x, y)) continue;
-    const x0 = coord(originX + x * pitch), x1 = coord(originX + (x+1)*pitch), y0 = coord(originY + y * pitch), y1 = coord(originY + (y+1)*pitch);
-    addFace(triangles, [x0,y0,top], [x1,y0,top], [x1,y1,top], [x0,y1,top]);
-    addFace(triangles, [x0,y1,bottom], [x1,y1,bottom], [x1,y0,bottom], [x0,y0,bottom]);
-    if (!has(x,y-1)) addFace(triangles, [x0,y0,bottom], [x1,y0,bottom], [x1,y0,top], [x0,y0,top]);
-    if (!has(x+1,y)) addFace(triangles, [x1,y0,bottom], [x1,y1,bottom], [x1,y1,top], [x1,y0,top]);
-    if (!has(x,y+1)) addFace(triangles, [x1,y1,bottom], [x0,y1,bottom], [x0,y1,top], [x1,y1,top]);
-    if (!has(x-1,y)) addFace(triangles, [x0,y1,bottom], [x0,y0,bottom], [x0,y0,top], [x0,y1,top]);
+  const coord = (value: number) => Math.round(value * 1000) / 1000;
+  type Point = [number, number];
+  const midpoint = (a: Point, b: Point): Point => [coord((a[0] + b[0]) / 2), coord((a[1] + b[1]) / 2)];
+  const cap = (polygon: Point[]) => {
+    for (let i = 1; i < polygon.length - 1; i++) {
+      const [a, b, c] = [polygon[0], polygon[i], polygon[i + 1]];
+      triangles.push([a[0], a[1], top, b[0], b[1], top, c[0], c[1], top]);
+      triangles.push([c[0], c[1], bottom, b[0], b[1], bottom, a[0], a[1], bottom]);
+    }
+  };
+  const cutTriangle = (points: [Point, Point, Point], inside: [boolean, boolean, boolean]) => {
+    const polygon: Point[] = [], crossings: Point[] = [];
+    for (let i = 0; i < 3; i++) {
+      const next = (i + 1) % 3;
+      if (inside[i]) polygon.push(points[i]);
+      if (inside[i] !== inside[next]) {
+        const crossing = midpoint(points[i], points[next]);
+        polygon.push(crossing);
+        crossings.push(crossing);
+      }
+    }
+    if (polygon.length >= 3) cap(polygon);
+    if (crossings.length === 2) {
+      const [a, b] = polygon.indexOf(crossings[1]) === (polygon.indexOf(crossings[0]) + 1) % polygon.length ? crossings : [crossings[1], crossings[0]];
+      addFace(triangles, [a[0], a[1], bottom], [b[0], b[1], bottom], [b[0], b[1], top], [a[0], a[1], top]);
+    }
+  };
+  for (let y = 0; y < h - 1; y++) for (let x = 0; x < w - 1; x++) {
+    const bits = [grid[y*w+x], grid[y*w+x+1], grid[(y+1)*w+x+1], grid[(y+1)*w+x]];
+    const count = bits[0] + bits[1] + bits[2] + bits[3];
+    if (!count) continue;
+    const x0 = coord(originX + (x + .5) * pitch), x1 = coord(originX + (x + 1.5) * pitch);
+    const y0 = coord(originY + (y + .5) * pitch), y1 = coord(originY + (y + 1.5) * pitch);
+    const points: Point[] = [[x0,y0], [x1,y0], [x1,y1], [x0,y1]];
+    if (count === 4) { cap(points); continue; }
+    const centre: Point = midpoint(points[0], points[2]);
+    const centreInside = count >= 3 || (count === 2 && (bits[0] === bits[1] || bits[1] === bits[2] || bits[2] === bits[3] || bits[3] === bits[0]));
+    for (let i = 0; i < 4; i++) {
+      const next = (i + 1) % 4;
+      cutTriangle([points[i], points[next], centre], [Boolean(bits[i]), Boolean(bits[next]), centreInside]);
+    }
   }
   return triangles;
 }
@@ -52,7 +82,7 @@ export function generateKeychain(input: KeychainInput): KeychainModel {
   const widthUnits = advances.reduce((a, b) => a + b, 0);
   const outerAllowance = 11; // contour and left-hand keyring loop
   const height = Math.min(config.height, (config.maxLength - outerAllowance) * cap / widthUnits);
-  if (height < config.minimum) throw new Error("This name is too long for this size and font. Choose Large or shorten the name.");
+  if (height < config.minimum) throw new Error("This name is too long for this size and font. Try another size or shorten the name.");
   const scale = height / cap;
   const glyphs: { offset: number; paths: number[][][]; minX: number; maxX: number; minY: number; maxY: number }[] = [];
   let cursor = 0;
@@ -65,7 +95,7 @@ export function generateKeychain(input: KeychainInput): KeychainModel {
   }
   const minY = Math.min(0, ...glyphs.map(g => g.minY * scale));
   const maxY = Math.max(height, ...glyphs.map(g => g.maxY * scale));
-  const pitch = 0.4, padding = 5, tabX = -3.5, tabY = (minY + maxY) / 2;
+  const pitch = 0.2, padding = 5, tabX = -3.5, tabY = (minY + maxY) / 2;
   const originX = Math.floor((tabX - 3.5 - padding) / pitch) * pitch;
   const originY = Math.floor((minY - padding) / pitch) * pitch;
   const w = Math.ceil((cursor + padding - originX) / pitch), h = Math.ceil((maxY + padding - originY) / pitch);
