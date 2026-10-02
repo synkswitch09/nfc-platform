@@ -1263,6 +1263,18 @@ h3 {
   gap: 70px;
   align-items: start;
 }
+.keychain-product-layout .product-gallery {
+  position: sticky;
+  top: 22px;
+  align-self: start;
+}
+.keychain-product-layout .product-copy {
+  position: static;
+}
+.keychain-product-layout .keychain-preview canvas {
+  height: min(510px, 65vw, calc(100dvh - 110px));
+  min-height: 200px;
+}
 .product-gallery > img {
   width: 100%;
   height: auto;
@@ -4560,6 +4572,14 @@ body:has(.admin-shell) > footer {
   .product-copy,
   .order-summary {
     position: static;
+  }
+  .keychain-product-layout .product-gallery {
+    top: 8px;
+    z-index: 4;
+  }
+  .keychain-product-layout .keychain-preview canvas {
+    height: clamp(160px, 28dvh, 240px);
+    min-height: 0;
   }
   .product-placeholder {
     min-height: 430px;
