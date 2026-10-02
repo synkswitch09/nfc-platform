@@ -9,7 +9,7 @@ export function keychainInputFromOptions(personalisation: unknown, selectedOptio
   const input = {
     name: fields["keychain-name"], font: choices["keychain-font"], size: choices["keychain-size"],
     baseColour: choices["base-colour"], letterColour: choices["letter-colour"],
-    baseShape: choices["base-shape"] ?? "contour",
+    baseShape: choices["base-shape"] ?? "contour", attachment: choices["keychain-attachment"] ?? "keychain",
   };
   if (Object.values(input).some(v=>typeof v!=="string")) throw new Error("Keychain options are incomplete.");
   return input as KeychainInput;
