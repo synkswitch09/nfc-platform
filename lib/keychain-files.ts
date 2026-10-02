@@ -37,22 +37,29 @@ function xmlEscape(s: string) { return s.replaceAll("&","&amp;").replaceAll("<",
 
 export function keychain3mf(input: KeychainInput) {
   const model=generateKeychain(input);
-  const objects=[model.base,model.letters].map((triangles,index)=>{
+  const parts=[{name:"Base",triangles:model.base,extruder:1},...(model.baseCap.length?[{name:"Base top",triangles:model.baseCap,extruder:1}]:[]),{name:"Letters",triangles:model.letters,extruder:2}];
+  const objects=parts.map(({triangles},index)=>{
     const vertices:string[]=[], faces:string[]=[], ids=new Map<string,number>();
     for(const t of triangles){const face:number[]=[];for(let i=0;i<9;i+=3){const p=t.slice(i,i+3);const key=p.join(",");let id=ids.get(key);if(id===undefined){id=ids.size;ids.set(key,id);vertices.push(`<vertex x="${p[0]}" y="${p[1]}" z="${p[2]}"/>`)}face.push(id)}faces.push(`<triangle v1="${face[0]}" v2="${face[1]}" v3="${face[2]}"/>`)}
-    return `<object id="${index+2}" type="model" pid="1" pindex="${index}"><mesh><vertices>${vertices.join("")}</vertices><triangles>${faces.join("")}</triangles></mesh></object>`;
+    return `<?xml version="1.0" encoding="UTF-8"?><model unit="millimeter" xmlns="http://schemas.microsoft.com/3dmanufacturing/core/2015/02" xmlns:p="http://schemas.microsoft.com/3dmanufacturing/production/2015/06" requiredextensions="p"><resources><object id="${index+2}" type="model"><mesh><vertices>${vertices.join("")}</vertices><triangles>${faces.join("")}</triangles></mesh></object></resources><build><item objectid="${index+2}"/></build></model>`;
   });
-  const colours=[input.baseColour,input.letterColour].map((key,i)=>`<m:base name="${i?"Letters":"Base"} ${xmlEscape(key)}" displaycolor="${KEYCHAIN_COLOURS[key]}FF"/>`).join("");
-  const xml=`<?xml version="1.0" encoding="UTF-8"?><model unit="millimeter" xml:lang="en-US" xmlns="http://schemas.microsoft.com/3dmanufacturing/core/2015/02" xmlns:m="http://schemas.microsoft.com/3dmanufacturing/material/2015/02" xmlns:BambuStudio="http://schemas.bambulab.com/package/2021"><metadata name="Application">BambuStudio</metadata><metadata name="BambuStudio:3mfVersion">1</metadata><metadata name="Title">Kosykin ${xmlEscape(input.name)}</metadata><resources><m:basematerials id="1">${colours}</m:basematerials>${objects.join("")}<object id="4" type="model"><components><component objectid="2"/><component objectid="3"/></components></object></resources><build><item objectid="4"/></build></model>`;
+  const objectId=parts.length+2;
+  const components=parts.map((_,index)=>`<component p:path="/3D/Objects/object_${index+2}.model" objectid="${index+2}"/>`).join("");
+  const xml=`<?xml version="1.0" encoding="UTF-8"?><model unit="millimeter" xml:lang="en-US" xmlns="http://schemas.microsoft.com/3dmanufacturing/core/2015/02" xmlns:p="http://schemas.microsoft.com/3dmanufacturing/production/2015/06" xmlns:BambuStudio="http://schemas.bambulab.com/package/2021" requiredextensions="p"><metadata name="Application">BambuStudio-02.08.02.61</metadata><metadata name="BambuStudio:3mfVersion">1</metadata><metadata name="Title">Kosykin ${xmlEscape(input.name)}</metadata><resources><object id="${objectId}" type="model"><components>${components}</components></object></resources><build><item objectid="${objectId}" printable="1"/></build></model>`;
   // Bambu Studio uses "top" for every exposed top surface (base and raised letters);
   // "topmost" would iron only the highest surface.
   const profile = { ...bambuProfile, ironing_type: "top", filament_colour: [KEYCHAIN_COLOURS[input.baseColour], KEYCHAIN_COLOURS[input.letterColour], ...bambuProfile.filament_colour.slice(2)] };
-  const modelSettings = `<?xml version="1.0" encoding="UTF-8"?><config><object id="4"><metadata key="name" value="Kosykin ${xmlEscape(input.name)}"/><part id="2" subtype="normal_part"><metadata key="name" value="Base"/><metadata key="extruder" value="1"/></part><part id="3" subtype="normal_part"><metadata key="name" value="Letters"/><metadata key="extruder" value="2"/></part></object><plate><metadata key="plater_id" value="1"/><model_instance><metadata key="object_id" value="4"/><metadata key="instance_id" value="0"/></model_instance></plate></config>`;
+  const partSettings=parts.map((part,index)=>`<part id="${index+2}" subtype="normal_part"><metadata key="name" value="${part.name}"/><metadata key="extruder" value="${part.extruder}"/></part>`).join("");
+  const modelSettings = `<?xml version="1.0" encoding="UTF-8"?><config><object id="${objectId}"><metadata key="name" value="Kosykin ${xmlEscape(input.name)}"/><metadata key="extruder" value="1"/>${partSettings}</object><plate><metadata key="plater_id" value="1"/><model_instance><metadata key="object_id" value="${objectId}"/><metadata key="instance_id" value="0"/></model_instance></plate></config>`;
+  const modelRels=`<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${parts.map((_,index)=>`<Relationship Target="/3D/Objects/object_${index+2}.model" Id="rel-${index+1}" Type="http://schemas.microsoft.com/3dmanufacturing/2013/01/3dmodel"/>`).join("")}</Relationships>`;
   return zip([
     {name:"[Content_Types].xml",content:Buffer.from('<?xml version="1.0" encoding="UTF-8"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="model" ContentType="application/vnd.ms-package.3dmanufacturing-3dmodel+xml"/></Types>')},
     {name:"_rels/.rels",content:Buffer.from('<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Target="/3D/3dmodel.model" Id="rel0" Type="http://schemas.microsoft.com/3dmanufacturing/2013/01/3dmodel"/></Relationships>')},
     {name:"3D/3dmodel.model",content:Buffer.from(xml)},
+    {name:"3D/_rels/3dmodel.model.rels",content:Buffer.from(modelRels)},
+    ...objects.map((object,index)=>({name:`3D/Objects/object_${index+2}.model`,content:Buffer.from(object)})),
     {name:"Metadata/model_settings.config",content:Buffer.from(modelSettings)},
     {name:"Metadata/project_settings.config",content:Buffer.from(JSON.stringify(profile))},
+    {name:"Metadata/slice_info.config",content:Buffer.from('<?xml version="1.0" encoding="UTF-8"?><config><header><header_item key="X-BBL-Client-Type" value="slicer"/><header_item key="X-BBL-Client-Version" value="02.08.02.61"/></header></config>')},
   ]);
 }

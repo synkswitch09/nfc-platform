@@ -16,7 +16,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const context = await getAdminApiContext(); if (!context) return jsonError("Forbidden", 403);
   const { user, store } = context;
   const parsed = schema.safeParse(await request.json().catch(() => null));
-  if (!parsed.success) return jsonError("Invalid order update");
+  if (!parsed.success) return jsonError(parsed.error.issues[0]?.message ?? "Invalid order update");
   const { orderId } = await params;
   const order = await db.order.findFirst({ where: { id: orderId, storeId: store.id }, select: { status: true, payments: { select: { status: true } } } });
   if (!order) return jsonError("Order not found", 404);

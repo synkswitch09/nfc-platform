@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { PackageCheck, Radio, RefreshCw, ShieldCheck, Truck } from "lucide-react";
 import { useCart } from "@/components/cart-provider";
 import { KeychainPreview } from "@/components/keychain-preview";
-import { generateKeychain, type KeychainAttachment, type KeychainBaseShape, type KeychainFont, type KeychainSize } from "@/lib/keychain";
+import { generateKeychain, type KeychainAttachment, type KeychainBaseShape, type KeychainFont, type KeychainLetterFinish, type KeychainSize } from "@/lib/keychain";
 
 type ProductImage = { id: string; url: string; altText: string; isPrimary: boolean; optionValueId: string | null };
 type Variant = { id: string; name: string; priceCents: number; inventory: number; reservedInventory: number; trackInventory: boolean; backorderPolicy: "DENY" | "ALLOW"; isDefault: boolean; optionSelection: Record<string, string>; imageId: string | null };
@@ -29,7 +29,7 @@ export function ProductPurchase({ checkoutEnabled, previewOnly = false, productN
   const [error, setError] = useState("");
   const isKeychain = storeSlug === "kosykin" && productSlug === "custom-name-keychain";
   const selectedSize = (selections["keychain-size"] ?? "regular") as KeychainSize;
-  const keychainInput = { name: customValues["keychain-name"] ?? "", font: (selections["keychain-font"] ?? "rounded") as KeychainFont, size: selectedSize, baseShape: (selections["base-shape"] ?? "contour") as KeychainBaseShape, attachment: (selections["keychain-attachment"] ?? "keychain") as KeychainAttachment, baseColour: selections["base-colour"] ?? "peach", letterColour: selections["letter-colour"] ?? "white" };
+  const keychainInput = { name: customValues["keychain-name"] ?? "", font: (selections["keychain-font"] ?? "rounded") as KeychainFont, size: selectedSize, baseShape: (selections["base-shape"] ?? "contour") as KeychainBaseShape, attachment: (selections["keychain-attachment"] ?? "keychain") as KeychainAttachment, letterFinish: (selections["letter-finish"] ?? "raised") as KeychainLetterFinish, baseColour: selections["base-colour"] ?? "peach", letterColour: selections["letter-colour"] ?? "white" };
   let keychainError = "";
   if (isKeychain && customValues["keychain-name"]) { try { generateKeychain(keychainInput); } catch (cause) { keychainError = cause instanceof Error ? cause.message : "Invalid name"; } }
   const variant = variants.find(item => item.id === variantId) ?? defaultVariant;
