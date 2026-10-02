@@ -2,12 +2,14 @@ import fontData from "./keychain-fonts.json";
 
 export type KeychainFont = keyof typeof fontData;
 export type KeychainSize = "regular" | "medium" | "large";
-export type KeychainInput = { name: string; font: KeychainFont; size: KeychainSize; baseColour: string; letterColour: string };
+export type KeychainBaseShape = "contour" | "rectangle";
+export type KeychainInput = { name: string; font: KeychainFont; size: KeychainSize; baseShape?: KeychainBaseShape; baseColour: string; letterColour: string };
 export type Triangle = [number, number, number, number, number, number, number, number, number];
 export type KeychainModel = { base: Triangle[]; letters: Triangle[]; widthMm: number; heightMm: number; letterHeightMm: number; input: KeychainInput };
 
 export const KEYCHAIN_FONTS: Record<KeychainFont, string> = { rounded: "Rounded bold", classic: "Classic serif", mono: "Mono bold" };
 export const KEYCHAIN_SIZES = { regular: { height: 10, minimum: 8, maxLength: 90 }, medium: { height: 15, minimum: 10, maxLength: 110 }, large: { height: 20, minimum: 12, maxLength: 130 } } as const;
+export const KEYCHAIN_BASE_SHAPES: Record<KeychainBaseShape, string> = { contour: "Follows the name", rectangle: "Rounded rectangle" };
 export const KEYCHAIN_COLOURS: Record<string, string> = { white: "#F7F5EF", black: "#28282B", peach: "#F5AA82", lavender: "#BCA7D9", mint: "#A5CDBC", sky: "#A6CBE2", yellow: "#F0CE72", pink: "#E9ADBF" };
 
 function contains(x: number, y: number, paths: number[][][]) {
@@ -21,6 +23,17 @@ function contains(x: number, y: number, paths: number[][][]) {
 
 function addFace(out: Triangle[], a: number[], b: number[], c: number[], d: number[]) {
   out.push([...a, ...b, ...c] as Triangle, [...a, ...c, ...d] as Triangle);
+}
+
+function smoothMask(grid: Uint8Array, w: number, h: number) {
+  const field = new Uint8Array(grid.length);
+  for (let y = 1; y < h - 1; y++) for (let x = 1; x < w - 1; x++) {
+    let sum = 0;
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++)
+      sum += grid[(y + dy) * w + x + dx] * (dx === 0 ? 2 : 1) * (dy === 0 ? 2 : 1);
+    field[y * w + x] = sum >= 8 ? 1 : 0;
+  }
+  return field;
 }
 
 function gridMesh(grid: Uint8Array, w: number, h: number, originX: number, originY: number, pitch: number, bottom: number, top: number) {
@@ -41,9 +54,9 @@ function gridMesh(grid: Uint8Array, w: number, h: number, originX: number, origi
       const next = (i + 1) % 3;
       if (inside[i]) polygon.push(points[i]);
       if (inside[i] !== inside[next]) {
-        const crossing = midpoint(points[i], points[next]);
-        polygon.push(crossing);
-        crossings.push(crossing);
+        const point = midpoint(points[i], points[next]);
+        polygon.push(point);
+        crossings.push(point);
       }
     }
     if (polygon.length >= 3) cap(polygon);
@@ -74,6 +87,7 @@ export function generateKeychain(input: KeychainInput): KeychainModel {
   const name = input.name.trim().normalize("NFC");
   if (!name || name.length > 24 || !/^[a-zA-ZÁÉÍÓÚÜÑáéíóúüñ]+(?:[ '-][a-zA-ZÁÉÍÓÚÜÑáéíóúüñ]+)*$/.test(name)) throw new Error("Use 1–24 letters; spaces, apostrophes and hyphens are allowed between words.");
   if (!(input.font in KEYCHAIN_FONTS) || !(input.size in KEYCHAIN_SIZES)) throw new Error("Choose an available font and size.");
+  if (input.baseShape !== undefined && !(input.baseShape in KEYCHAIN_BASE_SHAPES)) throw new Error("Choose an available backing shape.");
   if (!(input.baseColour in KEYCHAIN_COLOURS) || !(input.letterColour in KEYCHAIN_COLOURS) || input.baseColour === input.letterColour) throw new Error("Choose two different available colours.");
   const config = KEYCHAIN_SIZES[input.size];
   const font = fontData[input.font] as { unitsPerEm: number; glyphs: Record<string,{advance:number;paths:number[][][]}> };
@@ -95,7 +109,7 @@ export function generateKeychain(input: KeychainInput): KeychainModel {
   }
   const minY = Math.min(0, ...glyphs.map(g => g.minY * scale));
   const maxY = Math.max(height, ...glyphs.map(g => g.maxY * scale));
-  const pitch = 0.2, padding = 5, tabX = -3.5, tabY = (minY + maxY) / 2;
+  const pitch = 0.15, padding = 5, tabX = -3.5, tabY = (minY + maxY) / 2;
   const originX = Math.floor((tabX - 3.5 - padding) / pitch) * pitch;
   const originY = Math.floor((minY - padding) / pitch) * pitch;
   const w = Math.ceil((cursor + padding - originX) / pitch), h = Math.ceil((maxY + padding - originY) / pitch);
@@ -119,12 +133,24 @@ export function generateKeychain(input: KeychainInput): KeychainModel {
   for (let y=0;y<h;y++) for (let x=0;x<w;x++) {
     const px=originX+(x+.5)*pitch, py=originY+(y+.5)*pitch;
     const distance=Math.hypot(px-tabX,py-tabY);
+    if (input.baseShape === "rectangle") {
+      // A narrow border follows the measured glyph extents; the corner radius is 2 mm.
+      const left = -1.5, right = cursor + 1.5, bottom = minY - 1.5, top = maxY + 1.5;
+      const qx = Math.max(left + 2 - px, 0, px - (right - 2));
+      const qy = Math.max(bottom + 2 - py, 0, py - (top - 2));
+      base[y*w+x] = qx*qx + qy*qy <= 4 ? 1 : 0;
+    } else if (px >= 0 && px <= cursor && Math.abs(py - (minY + maxY)/2) < 1.2) {
+      // Join letters across font spacing without filling the scalloped outline.
+      base[y*w+x] = 1;
+    }
     if (distance <= 3.2 || (px>=tabX && px<=1.2 && Math.abs(py-tabY)<=2.2)) base[y*w+x]=1;
     if (distance < 1.6) base[y*w+x]=0;
   }
-  const occupied = (grid: Uint8Array) => { const xs:number[]=[], ys:number[]=[]; for(let y=0;y<h;y++) for(let x=0;x<w;x++) if(grid[y*w+x]){xs.push(x);ys.push(y)} return {xs,ys}; };
-  const bounds = occupied(base);
-  const actualWidth = (Math.max(...bounds.xs)-Math.min(...bounds.xs)+1)*pitch;
+  let left=w, right=0, bottom=h, top=0;
+  for (let y=0;y<h;y++) for (let x=0;x<w;x++) if(base[y*w+x]) {
+    left=Math.min(left,x);right=Math.max(right,x);bottom=Math.min(bottom,y);top=Math.max(top,y);
+  }
+  const actualWidth = (right-left+1)*pitch;
   if (actualWidth > config.maxLength + pitch) throw new Error("Name exceeds the maximum keychain length.");
-  return { base: gridMesh(base,w,h,originX,originY,pitch,0,3.5), letters: gridMesh(text,w,h,originX,originY,pitch,3.5,4.5), widthMm: Math.round(actualWidth*10)/10, heightMm: Math.round((Math.max(...bounds.ys)-Math.min(...bounds.ys)+1)*pitch*10)/10, letterHeightMm: Math.round(height*10)/10, input: {...input,name} };
+  return { base: gridMesh(smoothMask(base,w,h),w,h,originX,originY,pitch,0,3.5), letters: gridMesh(smoothMask(text,w,h),w,h,originX,originY,pitch,3.5,4.5), widthMm: Math.round(actualWidth*10)/10, heightMm: Math.round((top-bottom+1)*pitch*10)/10, letterHeightMm: Math.round(height*10)/10, input: {...input,name,baseShape:input.baseShape ?? "contour"} };
 }

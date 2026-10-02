@@ -16,6 +16,25 @@ function watertight(triangles: Triangle[]) {
 function signedVolume(triangles: Triangle[]) {
   return triangles.reduce((sum, [x,y,z,a,b,c,p,q,r]) => sum + (x*(b*r-c*q)+y*(c*p-a*r)+z*(a*q-b*p))/6, 0);
 }
+function components(triangles: Triangle[]) {
+  const vertexIds = new Map<string, number>(), parent: number[] = [];
+  const find = (start: number): number => {
+    let current = start;
+    while (parent[current] !== current) { parent[current] = parent[parent[current]]; current = parent[current]; }
+    return current;
+  };
+  const id = (point: number[]) => {
+    const key = point.map(value => value.toFixed(3)).join(",");
+    if (!vertexIds.has(key)) { vertexIds.set(key, parent.length); parent.push(parent.length); }
+    return vertexIds.get(key)!;
+  };
+  for (const triangle of triangles) {
+    const ids = [id(triangle.slice(0,3)),id(triangle.slice(3,6)),id(triangle.slice(6,9))];
+    parent[find(ids[1])] = find(ids[0]);
+    parent[find(ids[2])] = find(ids[0]);
+  }
+  return new Set(parent.map((_, index) => find(index))).size;
+}
 
 describe("made-to-order keychain",()=>{
   it("fits longer names by reducing glyph height while keeping a watertight two-part mesh",()=>{
@@ -38,6 +57,20 @@ describe("made-to-order keychain",()=>{
     expect(()=>generateKeychain({...choices,name:"Daniel",letterColour:"peach"})).toThrow(/different/);
     expect(()=>generateKeychain({...choices,name:"<script>"})).toThrow();
   });
+  it("keeps a continuous backing for each shape and size, with the raised name aligned",()=>{
+    for (const size of ["regular","medium","large"] as const) {
+      const contour=generateKeychain({...choices,name:"Daniel",size,baseShape:"contour"});
+      const rectangle=generateKeychain({...choices,name:"Daniel",size,baseShape:"rectangle"});
+      expect(components(contour.base)).toBe(1);
+      expect(components(rectangle.base)).toBe(1);
+      expect(watertight(rectangle.base)).toBe(true);
+      expect(watertight(rectangle.letters)).toBe(true);
+      expect(rectangle.base).not.toEqual(contour.base);
+      expect(rectangle.letterHeightMm).toBe(contour.letterHeightMm);
+      expect(rectangle.letters).toEqual(contour.letters);
+    }
+    expect(()=>generateKeychain({...choices,name:"Daniel",baseShape:"star" as "contour"})).toThrow(/shape/);
+  }, 30000);
   it("exports STL geometry and a 3MF with aligned parts",()=>{
     const input={...choices,name:"Daniel"},model=generateKeychain(input),stl=binaryStl(model.base),mf=keychain3mf(input);
     expect(stl.readUInt32LE(80)).toBe(model.base.length);
