@@ -115,17 +115,24 @@ export function generateKeychain(input: KeychainInput): KeychainModel {
   const cursor = widthUnits * scale;
   const minY = Math.min(0, ...glyphs.map(g => g.minY * scale));
   const maxY = Math.max(height, ...glyphs.map(g => g.maxY * scale));
-  const pitch = 0.15, padding = 7, tabY = minY + (maxY-minY)*.7;
+  const pitch = 0.15, padding = 7, tabY = minY + (maxY-minY)*.55;
   const originX = Math.floor((-8-padding) / pitch) * pitch;
   const originY = Math.floor((minY - padding) / pitch) * pitch;
   const w = Math.ceil((cursor + padding - originX) / pitch), h = Math.ceil((maxY + padding - originY) / pitch);
   const text = new Uint8Array(w*h), base = new Uint8Array(w*h);
+  const rowLeft = glyphs.map(() => new Int32Array(h).fill(w));
+  const rowRight = glyphs.map(() => new Int32Array(h).fill(-1));
   for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
     const px = originX + (x+.5)*pitch, py = originY + (y+.5)*pitch;
-    for (const g of glyphs) {
+    for (let index=0;index<glyphs.length;index++) {
+      const g=glyphs[index];
       const gx = (px - g.offset) / scale, gy = py / scale;
       if (gx < g.minX-1 || gx > g.maxX+1 || gy < g.minY-1 || gy > g.maxY+1) continue;
-      if (contains(gx, gy, g.paths)) { text[y*w+x] = 1; break; }
+      if (contains(gx, gy, g.paths)) {
+        text[y*w+x] = 1;
+        rowLeft[index][y] = Math.min(rowLeft[index][y],x);
+        rowRight[index][y] = Math.max(rowRight[index][y],x);
+      }
     }
   }
   // Morphological offset joins the glyph islands, including dots and counters, into a solid backing.
@@ -135,6 +142,25 @@ export function generateKeychain(input: KeychainInput): KeychainModel {
       const xx=x+dx, yy=y+dy; if (xx>=0 && xx<w && yy>=0 && yy<h) base[yy*w+xx]=1;
     }
   }
+  // Fill each visible gap between neighbouring glyphs through their shared height.
+  // This produces a broad backing under the name, rather than a narrow spine.
+  for (let y=0;y<h;y++) for (let index=0;index<glyphs.length-1;index++) {
+    const from=rowRight[index][y], to=rowLeft[index+1][y];
+    if (from<0 || to>=w || to-from>Math.ceil(height*.55/pitch)) continue;
+    for(let x=from;x<=to;x++) base[y*w+x]=1;
+  }
+  // Interior counters such as D, a, and e need backing colour under the raised letter.
+  // Flood the exterior before adding the keyring, so its hole stays open.
+  const outside=new Uint8Array(base.length), queue=new Int32Array(base.length);
+  let head=0,tail=0;
+  const visit=(index:number)=>{if(!base[index]&&!outside[index]){outside[index]=1;queue[tail++]=index}};
+  for(let x=0;x<w;x++){visit(x);visit((h-1)*w+x)}
+  for(let y=0;y<h;y++){visit(y*w);visit(y*w+w-1)}
+  while(head<tail){const index=queue[head++], x=index%w;
+    if(x>0)visit(index-1);if(x<w-1)visit(index+1);
+    if(index>=w)visit(index-w);if(index<base.length-w)visit(index+w);
+  }
+  for(let index=0;index<base.length;index++) if(!base[index]&&!outside[index])base[index]=1;
   // The loop overlaps the silhouette of the first letter directly; there is no connecting bar.
   let firstLeft = Infinity;
   for (let y=0;y<h;y++) if (Math.abs(originY+(y+.5)*pitch-tabY)<.75)
