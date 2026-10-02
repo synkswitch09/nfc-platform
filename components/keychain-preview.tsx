@@ -44,7 +44,7 @@ export function KeychainPreview({ input }: { input: KeychainInput }) {
         gl.clearColor(0.97,0.96,0.94,1);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);gl.enable(gl.DEPTH_TEST);
         gl.uniform2f(gl.getUniformLocation(program,"angles"),angles.current.x,angles.current.y);
         gl.uniform3f(gl.getUniformLocation(program,"origin"),model.centreX,model.centreY,2);
-        gl.uniform1f(gl.getUniformLocation(program,"scale"),Math.min(1.65/model.widthMm,1.45/model.heightMm));
+        gl.uniform1f(gl.getUniformLocation(program,"scale"),Math.min(1.65/model.widthMm,1.45/(model.heightMm*(width/height))));
         gl.uniform1f(gl.getUniformLocation(program,"aspect"),width/height);
         buffers.forEach(item=>{const value=KEYCHAIN_COLOURS[item.colour],rgb=[1,3,5].map(start=>parseInt(value.slice(start,start+2),16)/255);gl.uniform3f(gl.getUniformLocation(program,"colour"),rgb[0],rgb[1],rgb[2]);gl.bindBuffer(gl.ARRAY_BUFFER,item.buffer);gl.vertexAttribPointer(position,3,gl.FLOAT,false,24,0);gl.vertexAttribPointer(normal,3,gl.FLOAT,false,24,12);gl.enableVertexAttribArray(position);gl.enableVertexAttribArray(normal);gl.drawArrays(gl.TRIANGLES,0,item.count)});
       };
