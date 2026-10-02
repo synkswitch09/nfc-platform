@@ -83,7 +83,7 @@ export function ProductPurchase({ checkoutEnabled, previewOnly = false, productN
     router.push("/cart");
   }
 
-  return <div className="product-layout">
+  return <div className={`product-layout${isKeychain ? " keychain-product-layout" : ""}`}>
     <div className="product-gallery">
       {isKeychain && choice === "PERSONALISED" ? <KeychainPreview input={keychainInput} /> : activeImage ? <Image src={activeImage.url} alt={activeImage.altText} width={900} height={900} priority unoptimized /> : <div className="product-placeholder"><Radio size={64} /><span>{storeName}</span><strong>{productName}</strong><small>Made to order in Adelaide</small></div>}
       {!isKeychain && gallery.length > 1 && <div className="product-thumbs">{gallery.map(image => <button type="button" key={image.id} className={image.id === activeImage?.id ? "active" : ""} onClick={() => setActiveImageId(image.id)} aria-label={`View ${image.altText}`}><Image src={image.url} alt="" width={160} height={160} unoptimized /></button>)}</div>}
