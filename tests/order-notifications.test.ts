@@ -1,8 +1,9 @@
 import { beforeEach, expect, it, vi } from "vitest";
 import type { Prisma } from "@prisma/client";
-const m = vi.hoisted(() => ({ findMany: vi.fn(), updateMany: vi.fn(), send: vi.fn(), order: vi.fn(), createMany: vi.fn() }));
+const m = vi.hoisted(() => ({ findMany: vi.fn(), updateMany: vi.fn(), send: vi.fn(), order: vi.fn(), createMany: vi.fn(), model: vi.fn() }));
 vi.mock("@/lib/db", () => ({ db: { orderNotification: { findMany: m.findMany, updateMany: m.updateMany } } }));
 vi.mock("@/lib/email", () => ({ sendTransactionalEmail: m.send }));
+vi.mock("@/lib/keychain-files", () => ({ keychain3mf: m.model }));
 import { processOrderNotifications, queuePaidOrder } from "@/lib/order-notifications";
 beforeEach(() => {
   vi.resetAllMocks();
@@ -44,4 +45,25 @@ it("mock delivery remains distinguishable from provider acceptance", async () =>
   m.send.mockResolvedValue(false);
   await processOrderNotifications();
   expect(m.updateMany.mock.calls.at(-1)?.[0].data.status).toBe("MOCKED");
+});
+it("attaches the paid Kosykin print file only to the operations recipient", async () => {
+  const order = { orderNumber: "KOSY-123", store: { slug: "kosykin", supportEmail: "seller@example.com" }, items: [{ id: "abcdef12345", personalisation: { "keychain-name": "Daniel" }, selectedOptions: { "keychain-font": "rounded", "keychain-size": "regular", "base-colour": "peach", "letter-colour": "white", "base-shape": "rectangle" } }] };
+  m.model.mockReturnValue(Buffer.from("3mf-data"));
+  m.send.mockResolvedValue(true);
+  m.findMany.mockResolvedValue([
+    { id: "customer", dedupeKey: "paid:o:customer@example.com", to: "customer@example.com", subject: "Paid", text: "Payment received", attempts: 0, order },
+    { id: "seller", dedupeKey: "paid:o:seller@example.com", to: "seller@example.com", subject: "Paid", text: "Payment received", attempts: 0, order },
+  ]);
+  await processOrderNotifications();
+  expect(m.send.mock.calls[0][0]).not.toHaveProperty("attachments");
+  expect(m.send.mock.calls[1][0]).toMatchObject({ attachments: [{ filename: "kosykin-KOSY-123-abcdef12.3mf", content: Buffer.from("3mf-data") }] });
+  expect(m.model).toHaveBeenCalledWith(expect.objectContaining({ name: "Daniel", baseShape: "rectangle" }));
+});
+it("delivers an admin fallback instruction if the model cannot be attached", async () => {
+  m.model.mockImplementation(() => { throw new Error("Generation failed"); });
+  m.send.mockResolvedValue(true);
+  m.findMany.mockResolvedValue([{ id: "seller", dedupeKey: "paid:o:seller@example.com", to: "seller@example.com", subject: "Paid", text: "Payment received", attempts: 0, order: { orderNumber: "KOSY-123", store: { slug: "kosykin", supportEmail: "seller@example.com" }, items: [{ id: "item", personalisation: {}, selectedOptions: {} }] } }]);
+  await processOrderNotifications();
+  expect(m.send.mock.calls[0][0]).not.toHaveProperty("attachments");
+  expect(m.send.mock.calls[0][0].text).toContain("could not be attached");
 });
