@@ -13,7 +13,8 @@ export async function GET(_: Request, { params }: { params: Promise<{orderId:str
   if(!order||!["PAID","PROCESSING","READY_TO_SHIP","SHIPPED","DELIVERED"].includes(order.status)||!order.items[0]||!isKeychainProduct(context.store.slug,order.items[0].variant.product.slug))return new NextResponse("Not found",{status:404});
   try{
     const input=keychainInputFromOptions(order.items[0].personalisation,order.items[0].selectedOptions);
-    const output=format==="model.3mf"?keychain3mf(input):binaryStl(format==="base.stl"?generateKeychain(input).base:generateKeychain(input).letters);
+    const model=format==="model.3mf"?null:generateKeychain(input);
+    const output=format==="model.3mf"?keychain3mf(input):binaryStl(format==="base.stl"?[...model!.base,...model!.baseCap]:model!.letters);
     return new NextResponse(new Uint8Array(output),{headers:{"content-type":format.endsWith("3mf")?"model/3mf":"model/stl","content-disposition":`attachment; filename="kosykin-${itemId}-${format}"`,"cache-control":"private, no-store","x-content-type-options":"nosniff","x-robots-tag":"noindex"}});
   }catch{return new NextResponse("Model generation failed; review the order details.",{status:422})}
 }
