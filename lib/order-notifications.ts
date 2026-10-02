@@ -2,6 +2,10 @@ import { randomUUID } from "node:crypto";
 import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { sendTransactionalEmail } from "@/lib/email";
+import { keychainInputFromOptions } from "@/lib/keychain-order";
+import { keychain3mf } from "@/lib/keychain-files";
+
+const MAX_PRINT_ATTACHMENTS_BYTES = 15 * 1024 * 1024;
 
 export async function queueOrderNotice(tx: Prisma.TransactionClient, orderId: string, key: string, title: string, text: string, includeOperations = false) {
   const order = await tx.order.findUnique({ where: { id: orderId }, include: { user: { select: { email: true } }, store: { select: { supportEmail: true } } } });
@@ -19,13 +23,32 @@ export async function processOrderNotifications(orderId?: string) {
   const due = { OR: [{ status: "PENDING", availableAt: { lte: now } }, { status: "PROCESSING", leaseUntil: { lt: now } }] };
   // Exhausted crashed attempts need a visible terminal state, not a permanently stuck lease.
   await db.orderNotification.updateMany({ where: { ...due, attempts: { gte: 5 }, ...(orderId ? { orderId } : {}) }, data: { status: "FAILED", leaseToken: null, leaseUntil: null, lastError: "Retry limit reached; inspect provider before retrying" } });
-  const rows = await db.orderNotification.findMany({ where: { ...due, attempts: { lt: 5 }, ...(orderId ? { orderId } : {}) }, include: { order: { select: { store: { select: { slug: true } } } } }, orderBy: { availableAt: "asc" }, take: 5 });
+  const rows = await db.orderNotification.findMany({ where: { ...due, attempts: { lt: 5 }, ...(orderId ? { orderId } : {}) }, include: { order: { select: { orderNumber: true, store: { select: { slug: true, supportEmail: true } }, items: { where: { variant: { product: { slug: "custom-name-keychain" } } }, select: { id: true, personalisation: true, selectedOptions: true } } } } }, orderBy: { availableAt: "asc" }, take: 5 });
   for (const row of rows) {
     const token = randomUUID();
     const claimed = await db.orderNotification.updateMany({ where: { id: row.id, ...due, attempts: { lt: 5 } }, data: { status: "PROCESSING", attempts: { increment: 1 }, leaseToken: token, leaseUntil: new Date(Date.now() + 120_000) } });
     if (!claimed.count) continue;
     try {
-      const accepted = await sendTransactionalEmail({ to: row.to, subject: row.subject, text: row.text, idempotencyKey: row.id, storeSlug: row.order.store.slug });
+      const printNotice = row.dedupeKey?.startsWith("paid:") && row.order.store.slug === "kosykin" && row.to === row.order.store.supportEmail;
+      const attachments: { filename: string; content: Buffer }[] = [];
+      let printInstructions = "";
+      if (printNotice && row.order.items.length) {
+        try {
+          let total = 0;
+          for (const item of row.order.items) {
+            const input = keychainInputFromOptions(item.personalisation, item.selectedOptions);
+            const content = keychain3mf(input);
+            total += content.length;
+            if (total > MAX_PRINT_ATTACHMENTS_BYTES) throw new Error("Print attachments exceed email limit");
+            attachments.push({ filename: `kosykin-${row.order.orderNumber}-${item.id.slice(0, 8)}.3mf`, content });
+          }
+          printInstructions = "\n\n3MF files for printing are attached. Confirm colours and slice settings in Bambu Studio. You can also download each file in Kosykin Admin → Orders.";
+        } catch {
+          attachments.length = 0;
+          printInstructions = "\n\nThe 3MF files could not be attached. Open Kosykin Admin → Orders and download them from this order before printing.";
+        }
+      }
+      const accepted = await sendTransactionalEmail({ to: row.to, subject: row.subject, text: row.text + printInstructions, idempotencyKey: row.id, storeSlug: row.order.store.slug, ...(attachments.length ? { attachments } : {}) });
       await db.orderNotification.updateMany({ where: { id: row.id, leaseToken: token }, data: { status: accepted ? "ACCEPTED" : "MOCKED", leaseToken: null, leaseUntil: null, lastError: null } });
     } catch {
       await db.orderNotification.updateMany({ where: { id: row.id, leaseToken: token }, data: { status: row.attempts + 1 >= 5 ? "FAILED" : "PENDING", availableAt: new Date(Date.now() + Math.min(3600, 30 * 2 ** row.attempts) * 1000), leaseToken: null, leaseUntil: null, lastError: "Provider request failed or its outcome is uncertain. Acceptance does not prove delivery." } });
