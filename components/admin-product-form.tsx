@@ -236,6 +236,7 @@ export function AdminProductForm({
     const missing: OptionForm[] = [
       { name: "Backing shape", code: "base-shape", type: "RADIO" as const, required: true, maxLength: null, price: "0", helpText: "Choose a backing that follows the letters or a rounded rectangle.", values: [value("Follows the name", "contour"), value("Rounded rectangle", "rectangle")] },
       { name: "Finish", code: "keychain-attachment", type: "RADIO" as const, required: true, maxLength: null, price: "0", helpText: "Choose a keyring loop or a plain tag without a loop.", values: [value("Keyring loop", "keychain"), value("Plain tag", "tag")] },
+      { name: "Letter finish", code: "letter-finish", type: "RADIO" as const, required: true, maxLength: null, price: "0", helpText: "Raised: 3 mm base and 1 mm letters. Flush: letters sit in the top 1 mm of a 4 mm base.", values: [value("Raised letters", "raised"), value("Flush letters", "inlaid")] },
     ].filter((choice) => !initial.options.some((option) => option.code === choice.code));
     return [...initial.options, ...missing];
   });

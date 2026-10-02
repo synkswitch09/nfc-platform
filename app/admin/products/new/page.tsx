@@ -31,17 +31,18 @@ export default async function NewProductPage({ searchParams }: { searchParams: P
   if (template === "nfc") initial.type = "PET";
   if (template === "keychain") {
     const value=(label:string,value:string,swatchHex="")=>({label,value,price:"0",active:true,swatchHex,swatchHexSecondary:"",swatchImageUrl:""});
-    initial.name="Personalised 3D name keychain";initial.slug="custom-name-keychain";initial.description="A made-to-order two-colour 3D name keychain with raised lettering and a live preview.";
+    initial.name="Personalised 3D name keychain";initial.slug="custom-name-keychain";initial.description="A made-to-order two-colour 3D name keychain with raised or flush lettering and a live preview.";
     initial.fullDescription="Choose a name, a typeface, a size and two colours. Choose a backing that follows the name or a rounded rectangle, then finish as a plain tag or a keyring. Made to order in Adelaide.";
-    initial.type="CUSTOM";initial.personalisationMode="REQUIRED";initial.weightGrams=25;initial.lengthMm=130;initial.widthMm=30;initial.heightMm=5;
+    initial.type="CUSTOM";initial.personalisationMode="REQUIRED";initial.weightGrams=25;initial.lengthMm=130;initial.widthMm=30;initial.heightMm=4;
     initial.categoryId=categories.find(c=>/3d|print|keychain/i.test(c.name))?.id??categories[0]?.id??"";
-    initial.variants=[{sku:"KOS-NAME-3D",name:"Made to order",colour:"",size:"",material:"PLA",price:"0",compareAtPrice:"",cost:"",inventory:0,trackInventory:true,lowStockThreshold:5,backorderPolicy:"DENY",active:true,isDefault:true,optionSelection:"",weightGrams:25,lengthMm:130,widthMm:30,heightMm:5,defaultPackagingId:""}];
+    initial.variants=[{sku:"KOS-NAME-3D",name:"Made to order",colour:"",size:"",material:"PLA",price:"0",compareAtPrice:"",cost:"",inventory:0,trackInventory:true,lowStockThreshold:5,backorderPolicy:"DENY",active:true,isDefault:true,optionSelection:"",weightGrams:25,lengthMm:130,widthMm:30,heightMm:4,defaultPackagingId:""}];
     initial.options=[
       {name:"Name",code:"keychain-name",type:"SHORT_TEXT",required:true,maxLength:24,price:"0",helpText:"The shape and length adjust to your name.",values:[]},
       {name:"Font",code:"keychain-font",type:"SELECT",required:true,maxLength:null,price:"0",helpText:"Choose a printable typeface.",values:Object.entries(KEYCHAIN_FONTS).map(([key,label])=>value(label,key))},
       {name:"Size",code:"keychain-size",type:"SELECT",required:true,maxLength:null,price:"0",helpText:"Regular 10 mm, Medium 15 mm, Large 20 mm letters. Long names shrink to fit.",values:[value("Regular","regular"),value("Medium","medium"),value("Large","large")]},
       {name:"Base colour",code:"base-colour",type:"COLOUR",required:true,maxLength:null,price:"0",helpText:"Colour of the background and keyring loop.",values:Object.entries(KEYCHAIN_COLOURS).sort(([a],[b])=>a==="peach"?-1:b==="peach"?1:0).map(([key,hex])=>value(key[0].toUpperCase()+key.slice(1),key,hex))},
-      {name:"Letter colour",code:"letter-colour",type:"COLOUR",required:true,maxLength:null,price:"0",helpText:"Raised lettering; choose a different colour from the base.",values:Object.entries(KEYCHAIN_COLOURS).map(([key,hex])=>value(key[0].toUpperCase()+key.slice(1),key,hex))},
+      {name:"Letter colour",code:"letter-colour",type:"COLOUR",required:true,maxLength:null,price:"0",helpText:"Choose a different colour from the base.",values:Object.entries(KEYCHAIN_COLOURS).map(([key,hex])=>value(key[0].toUpperCase()+key.slice(1),key,hex))},
+      {name:"Letter finish",code:"letter-finish",type:"RADIO",required:true,maxLength:null,price:"0",helpText:"Raised: 3 mm base and 1 mm letters. Flush: letters sit in the top 1 mm of a 4 mm base.",values:[value("Raised letters","raised"),value("Flush letters","inlaid")]},
       {name:"Backing shape",code:"base-shape",type:"RADIO",required:true,maxLength:null,price:"0",helpText:"Choose a backing that follows the letters or a rounded rectangle.",values:[value("Follows the name","contour"),value("Rounded rectangle","rectangle")]},
       {name:"Finish",code:"keychain-attachment",type:"RADIO",required:true,maxLength:null,price:"0",helpText:"Choose a keyring loop or a plain tag without a loop.",values:[value("Keyring loop","keychain"),value("Plain tag","tag")]},
     ];
