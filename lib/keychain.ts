@@ -4,13 +4,15 @@ export type KeychainFont = keyof typeof fontData;
 export type KeychainSize = "regular" | "medium" | "large";
 export type KeychainBaseShape = "contour" | "rectangle";
 export type KeychainAttachment = "keychain" | "tag";
-export type KeychainInput = { name: string; font: KeychainFont; size: KeychainSize; baseShape?: KeychainBaseShape; attachment?: KeychainAttachment; baseColour: string; letterColour: string };
+export type KeychainLetterFinish = "raised" | "inlaid";
+export type KeychainInput = { name: string; font: KeychainFont; size: KeychainSize; baseShape?: KeychainBaseShape; attachment?: KeychainAttachment; letterFinish?: KeychainLetterFinish; baseColour: string; letterColour: string };
 export type Triangle = [number, number, number, number, number, number, number, number, number];
-export type KeychainModel = { base: Triangle[]; letters: Triangle[]; widthMm: number; heightMm: number; centreX: number; centreY: number; letterHeightMm: number; input: KeychainInput };
+export type KeychainModel = { base: Triangle[]; baseCap: Triangle[]; letters: Triangle[]; widthMm: number; heightMm: number; centreX: number; centreY: number; letterHeightMm: number; input: KeychainInput };
 
 export const KEYCHAIN_FONTS: Record<KeychainFont, string> = { rounded: "Rounded bold", classic: "Classic serif", mono: "Mono bold" };
 export const KEYCHAIN_SIZES = { regular: { height: 10, minimum: 8, maxLength: 90 }, medium: { height: 15, minimum: 10, maxLength: 110 }, large: { height: 20, minimum: 12, maxLength: 130 } } as const;
 export const KEYCHAIN_BASE_SHAPES: Record<KeychainBaseShape, string> = { contour: "Follows the name", rectangle: "Rounded rectangle" };
+export const KEYCHAIN_LETTER_FINISHES: Record<KeychainLetterFinish, string> = { raised: "Raised letters", inlaid: "Flush letters" };
 export const KEYCHAIN_COLOURS: Record<string, string> = { white: "#F7F5EF", black: "#28282B", peach: "#F5AA82", lavender: "#BCA7D9", mint: "#A5CDBC", sky: "#A6CBE2", yellow: "#F0CE72", pink: "#E9ADBF" };
 
 function contains(x: number, y: number, paths: number[][][]) {
@@ -90,6 +92,7 @@ export function generateKeychain(input: KeychainInput): KeychainModel {
   if (!(input.font in KEYCHAIN_FONTS) || !(input.size in KEYCHAIN_SIZES)) throw new Error("Choose an available font and size.");
   if (input.baseShape !== undefined && !(input.baseShape in KEYCHAIN_BASE_SHAPES)) throw new Error("Choose an available backing shape.");
   if (input.attachment !== undefined && !["keychain", "tag"].includes(input.attachment)) throw new Error("Choose a tag or keyring.");
+  if (input.letterFinish !== undefined && !(input.letterFinish in KEYCHAIN_LETTER_FINISHES)) throw new Error("Choose raised or flush letters.");
   if (!(input.baseColour in KEYCHAIN_COLOURS) || !(input.letterColour in KEYCHAIN_COLOURS) || input.baseColour === input.letterColour) throw new Error("Choose two different available colours.");
   const config = KEYCHAIN_SIZES[input.size];
   const font = fontData[input.font] as { unitsPerEm: number; glyphs: Record<string,{advance:number;paths:number[][][]}> };
@@ -115,17 +118,24 @@ export function generateKeychain(input: KeychainInput): KeychainModel {
   const cursor = widthUnits * scale;
   const minY = Math.min(0, ...glyphs.map(g => g.minY * scale));
   const maxY = Math.max(height, ...glyphs.map(g => g.maxY * scale));
-  const pitch = 0.15, padding = 7, tabY = minY + (maxY-minY)*.7;
+  const pitch = 0.15, padding = 7, tabY = minY + (maxY-minY)*.55;
   const originX = Math.floor((-8-padding) / pitch) * pitch;
   const originY = Math.floor((minY - padding) / pitch) * pitch;
   const w = Math.ceil((cursor + padding - originX) / pitch), h = Math.ceil((maxY + padding - originY) / pitch);
   const text = new Uint8Array(w*h), base = new Uint8Array(w*h);
+  const rowLeft = glyphs.map(() => new Int32Array(h).fill(w));
+  const rowRight = glyphs.map(() => new Int32Array(h).fill(-1));
   for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
     const px = originX + (x+.5)*pitch, py = originY + (y+.5)*pitch;
-    for (const g of glyphs) {
+    for (let index=0;index<glyphs.length;index++) {
+      const g=glyphs[index];
       const gx = (px - g.offset) / scale, gy = py / scale;
       if (gx < g.minX-1 || gx > g.maxX+1 || gy < g.minY-1 || gy > g.maxY+1) continue;
-      if (contains(gx, gy, g.paths)) { text[y*w+x] = 1; break; }
+      if (contains(gx, gy, g.paths)) {
+        text[y*w+x] = 1;
+        rowLeft[index][y] = Math.min(rowLeft[index][y],x);
+        rowRight[index][y] = Math.max(rowRight[index][y],x);
+      }
     }
   }
   // Morphological offset joins the glyph islands, including dots and counters, into a solid backing.
@@ -135,6 +145,25 @@ export function generateKeychain(input: KeychainInput): KeychainModel {
       const xx=x+dx, yy=y+dy; if (xx>=0 && xx<w && yy>=0 && yy<h) base[yy*w+xx]=1;
     }
   }
+  // Fill each visible gap between neighbouring glyphs through their shared height.
+  // This produces a broad backing under the name, rather than a narrow spine.
+  for (let y=0;y<h;y++) for (let index=0;index<glyphs.length-1;index++) {
+    const from=rowRight[index][y], to=rowLeft[index+1][y];
+    if (from<0 || to>=w || to-from>Math.ceil(height*.55/pitch)) continue;
+    for(let x=from;x<=to;x++) base[y*w+x]=1;
+  }
+  // Interior counters such as D, a, and e need backing colour under the raised letter.
+  // Flood the exterior before adding the keyring, so its hole stays open.
+  const outside=new Uint8Array(base.length), queue=new Int32Array(base.length);
+  let head=0,tail=0;
+  const visit=(index:number)=>{if(!base[index]&&!outside[index]){outside[index]=1;queue[tail++]=index}};
+  for(let x=0;x<w;x++){visit(x);visit((h-1)*w+x)}
+  for(let y=0;y<h;y++){visit(y*w);visit(y*w+w-1)}
+  while(head<tail){const index=queue[head++], x=index%w;
+    if(x>0)visit(index-1);if(x<w-1)visit(index+1);
+    if(index>=w)visit(index-w);if(index<base.length-w)visit(index+w);
+  }
+  for(let index=0;index<base.length;index++) if(!base[index]&&!outside[index])base[index]=1;
   // The loop overlaps the silhouette of the first letter directly; there is no connecting bar.
   let firstLeft = Infinity;
   for (let y=0;y<h;y++) if (Math.abs(originY+(y+.5)*pitch-tabY)<.75)
@@ -161,5 +190,12 @@ export function generateKeychain(input: KeychainInput): KeychainModel {
   }
   const actualWidth = (rightPixel-left+1)*pitch;
   if (actualWidth > config.maxLength + pitch) throw new Error("Name exceeds the maximum keychain length.");
-  return { base: gridMesh(smoothMask(base,w,h),w,h,originX,originY,pitch,0,3.5), letters: gridMesh(smoothMask(text,w,h),w,h,originX,originY,pitch,3.5,4.5), widthMm: Math.round(actualWidth*10)/10, heightMm: Math.round((top-bottom+1)*pitch*10)/10, centreX: originX+(left+rightPixel+1)*pitch/2, centreY: originY+(bottom+top+1)*pitch/2, letterHeightMm: Math.round(height*10)/10, input: {...input,name,baseShape:input.baseShape ?? "contour",attachment:input.attachment ?? "keychain"} };
+  const backing = smoothMask(base,w,h), lettering = smoothMask(text,w,h);
+  const flush = input.letterFinish === "inlaid";
+  // The flush cap is the complement of the letters. Both coloured volumes meet at z=3,
+  // so their top faces are coplanar at z=4 without overlapping material.
+  const flushCap = new Uint8Array(backing.length);
+  if (flush) for (let index=0;index<flushCap.length;index++) flushCap[index]=backing[index] && !lettering[index] ? 1 : 0;
+  const baseMesh=gridMesh(backing,w,h,originX,originY,pitch,0,3);
+  return { base: baseMesh, baseCap: flush ? gridMesh(flushCap,w,h,originX,originY,pitch,3,4) : [], letters: gridMesh(lettering,w,h,originX,originY,pitch,3,4), widthMm: Math.round(actualWidth*10)/10, heightMm: Math.round((top-bottom+1)*pitch*10)/10, centreX: originX+(left+rightPixel+1)*pitch/2, centreY: originY+(bottom+top+1)*pitch/2, letterHeightMm: Math.round(height*10)/10, input: {...input,name,baseShape:input.baseShape ?? "contour",attachment:input.attachment ?? "keychain",letterFinish:input.letterFinish ?? "raised"} };
 }

@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { isSafeImageSource } from "@/lib/image-source";
-import { KEYCHAIN_COLOURS, KEYCHAIN_FONTS, KEYCHAIN_SIZES } from "@/lib/keychain";
+import { KEYCHAIN_BASE_SHAPES, KEYCHAIN_COLOURS, KEYCHAIN_FONTS, KEYCHAIN_LETTER_FINISHES, KEYCHAIN_SIZES } from "@/lib/keychain";
 
 const optionalUrl = z.string().trim().url().refine(value => /^https?:\/\//i.test(value)).or(z.literal("")).optional();
 const optionalImageSource = z.string().trim().refine(isSafeImageSource, "Use an uploaded image or an HTTP(S) image URL").optional();
@@ -46,15 +46,15 @@ export const adminProductSchema = z.object({
   options: z.array(optionSchema).max(20),
 }).superRefine((value, context) => {
   if (value.slug === "custom-name-keychain") {
-    const required = { "keychain-name": "SHORT_TEXT", "keychain-font": "SELECT", "keychain-size": "SELECT", "base-colour": "COLOUR", "letter-colour": "COLOUR" } as const;
+    const required = { "keychain-name": "SHORT_TEXT", "keychain-font": "SELECT", "keychain-size": "SELECT", "base-colour": "COLOUR", "letter-colour": "COLOUR", "base-shape": "RADIO", "keychain-attachment": "RADIO", "letter-finish": "RADIO" } as const;
     if (value.personalisationMode !== "REQUIRED") context.addIssue({code:"custom",message:"The keychain requires personalisation",path:["personalisationMode"]});
-    if (value.options.length !== Object.keys(required).length || value.options.some(option => !(option.code in required))) context.addIssue({code:"custom",message:"The keychain supports only name, font, size and two colours",path:["options"]});
+    if (value.options.length !== Object.keys(required).length || value.options.some(option => !(option.code in required))) context.addIssue({code:"custom",message:"The keychain supports only name, font, size, two colours, backing shape, attachment and lettering finish",path:["options"]});
     if (value.variants.length !== 1) context.addIssue({code:"custom",message:"The keychain uses one made-to-order variant",path:["variants"]});
     for (const [code,type] of Object.entries(required)) {
       const option=value.options.find(item=>item.code===code);
       if(!option||option.type!==type||!option.required||!option.active)context.addIssue({code:"custom",message:`${code} must be an active required ${type} field`,path:["options"]});
       if(code==="keychain-name" && option?.maxLength !== 24)context.addIssue({code:"custom",message:"Name limit must be 24 characters",path:["options"]});
-      const allowed=code==="keychain-font"?KEYCHAIN_FONTS:code==="keychain-size"?KEYCHAIN_SIZES:code.endsWith("colour")?KEYCHAIN_COLOURS:null;
+      const allowed=code==="keychain-font"?KEYCHAIN_FONTS:code==="keychain-size"?KEYCHAIN_SIZES:code.endsWith("colour")?KEYCHAIN_COLOURS:code==="base-shape"?KEYCHAIN_BASE_SHAPES:code==="keychain-attachment"?{keychain:true,tag:true}:code==="letter-finish"?KEYCHAIN_LETTER_FINISHES:null;
       if(allowed && option && (!option.values.some(item=>item.active)||option.values.some(item=>item.active && !(item.value in allowed))))context.addIssue({code:"custom",message:`${code} has unsupported choices`,path:["options"]});
       if(code.endsWith("colour") && option?.values.some(item=>item.active && item.swatchHex?.toLowerCase()!==KEYCHAIN_COLOURS[item.value]?.toLowerCase()))context.addIssue({code:"custom",message:`${code} swatches must match the 3D palette`,path:["options"]});
     }

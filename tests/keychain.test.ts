@@ -35,6 +35,15 @@ function components(triangles: Triangle[]) {
   }
   return new Set(parent.map((_, index) => find(index))).size;
 }
+function covers(triangles: Triangle[], x: number, y: number, z: number) {
+  return triangles.some(([ax,ay,az,bx,by,bz,cx,cy,cz]) => {
+    if (az !== z || bz !== z || cz !== z) return false;
+    const determinant=(by-cy)*(ax-cx)+(cx-bx)*(ay-cy);
+    const a=((by-cy)*(x-cx)+(cx-bx)*(y-cy))/determinant;
+    const b=((cy-ay)*(x-cx)+(ax-cx)*(y-cy))/determinant;
+    return a>=0 && b>=0 && a+b<=1;
+  });
+}
 
 describe("made-to-order keychain",()=>{
   it("fits longer names by reducing glyph height while keeping a watertight two-part mesh",()=>{
@@ -45,8 +54,8 @@ describe("made-to-order keychain",()=>{
     expect(watertight(long.letters)).toBe(true);
     expect(signedVolume(long.base)).toBeGreaterThan(0);
     expect(signedVolume(long.letters)).toBeGreaterThan(0);
-    expect(long.base.reduce((height, t) => Math.max(height, t[2], t[5], t[8]), 0)).toBe(3.5);
-    expect(long.letters.reduce((height, t) => Math.max(height, t[2], t[5], t[8]), 0)).toBe(4.5);
+    expect(long.base.reduce((height, t) => Math.max(height, t[2], t[5], t[8]), 0)).toBe(3);
+    expect(long.letters.reduce((height, t) => Math.max(height, t[2], t[5], t[8]), 0)).toBe(4);
     expect(long.base.some(t => t[2] !== t[5] && t[0] !== t[3] && t[1] !== t[4])).toBe(true);
   });
   it("rejects unprintable combinations and preserves the size limit",()=>{
@@ -80,12 +89,13 @@ describe("made-to-order keychain",()=>{
     while(mf.readUInt32LE(offset)===0x04034b50){
       const nameLength=mf.readUInt16LE(offset+26),length=mf.readUInt32LE(offset+18),start=offset+30+nameLength;
       const name=mf.subarray(offset+30,start).toString("utf8");
-      if(name==="3D/3dmodel.model")xml=inflateRawSync(mf.subarray(start,start+length)).toString("utf8");
-      if(name==="Metadata/project_settings.config")settings=inflateRawSync(mf.subarray(start,start+length)).toString("utf8");
+      const content=mf.subarray(start,start+length), decoded=mf.readUInt16LE(offset+8)===8?inflateRawSync(content):content;
+      if(name==="3D/3dmodel.model")xml=decoded.toString("utf8");
+      if(name==="Metadata/project_settings.config")settings=decoded.toString("utf8");
       offset=start+length;
     }
-    expect(xml).toContain('<component objectid="2"/>');
-    expect(xml).toContain('<component objectid="3"/>');
+    expect(xml).toContain('objectid="2"');
+    expect(xml).toContain('objectid="3"');
     expect(JSON.parse(settings)).toMatchObject({ printer_model: "Bambu Lab X2D", ironing_type: "top", ironing_pattern: "zig-zag", ironing_speed: "80", ironing_flow: "30%" });
   });
   it("scales the outline with the letters and offers a solid tag without the keyring hole",()=>{
@@ -99,5 +109,46 @@ describe("made-to-order keychain",()=>{
     expect(watertight(large.base)).toBe(true);
     expect(loop.widthMm).toBeGreaterThan(regular.widthMm + 2);
     expect(()=>generateKeychain({...choices,name:"Name",attachment:"clip" as "tag"})).toThrow(/tag/);
+  },30000);
+  it("fills counters and gaps under all names while keeping the keyring hole open",()=>{
+    const daniel=generateKeychain({...choices,name:"Daniel",attachment:"tag"});
+    const yuliany=generateKeychain({...choices,name:"Yuliany",attachment:"tag"});
+    expect(covers(daniel.base,3.5,5,3)).toBe(true); // Inside D
+    expect(covers(daniel.letters,3.5,5,4)).toBe(false);
+    expect(covers(yuliany.base,2.5,4,3)).toBe(true); // Between Y and u
+    for(const font of ["rounded","classic","mono"] as const){
+      const model=generateKeychain({...choices,name:"Amelia",font,attachment:"tag"});
+      expect(components(model.base)).toBe(1);
+      expect(watertight(model.base)).toBe(true);
+    }
+  },30000);
+  it("makes the flush finish coplanar and keeps the base colour around the glyphs",()=>{
+    for(const baseShape of ["contour","rectangle"] as const){
+      const model=generateKeychain({...choices,name:"Daniel",letterFinish:"inlaid",baseShape});
+      expect(model.base.reduce((z,t)=>Math.max(z,t[2],t[5],t[8]),0)).toBe(3);
+      expect(model.baseCap.reduce((z,t)=>Math.max(z,t[2],t[5],t[8]),0)).toBe(4);
+      expect(model.letters.reduce((z,t)=>Math.max(z,t[2],t[5],t[8]),0)).toBe(4);
+      expect(model.letters.reduce((z,t)=>Math.min(z,t[2],t[5],t[8]),Infinity)).toBe(3);
+      expect(watertight(model.base)).toBe(true);
+      expect(watertight(model.baseCap)).toBe(true);
+      expect(covers(model.baseCap,3.5,5,4)).toBe(true); // Counter inside D is base colour.
+      expect(covers(model.letters,3.5,5,4)).toBe(false);
+      expect(covers(model.baseCap,2,5,4)).toBe(false); // Glyph is letter colour.
+      expect(()=>generateKeychain({...choices,name:"Daniel",letterFinish:"unknown" as "raised"})).toThrow(/raised or flush/);
+    }
+    const mf=keychain3mf({...choices,name:"Daniel",letterFinish:"inlaid"});
+    const files=new Map<string,string>();let offset=0;
+    while(mf.readUInt32LE(offset)===0x04034b50){
+      const nameLength=mf.readUInt16LE(offset+26),length=mf.readUInt32LE(offset+18),start=offset+30+nameLength;
+      const bytes=mf.subarray(start,start+length);
+      files.set(mf.subarray(offset+30,start).toString("utf8"),(mf.readUInt16LE(offset+8)===8?inflateRawSync(bytes):bytes).toString("utf8"));
+      offset=start+length;
+    }
+    expect(files.get("3D/3dmodel.model")).toContain('objectid="4"');
+    expect(files.get("3D/Objects/object_4.model")).toContain('object id="4"');
+    expect(files.get("Metadata/model_settings.config")).toContain('<part id="3" subtype="normal_part"><metadata key="name" value="Base top"/><metadata key="extruder" value="1"/>');
+    expect(files.get("Metadata/model_settings.config")).toContain('<part id="4" subtype="normal_part"><metadata key="name" value="Letters"/><metadata key="extruder" value="2"/>');
+    expect(files.get("Metadata/slice_info.config")).toContain('X-BBL-Client-Type');
+    expect(JSON.parse(files.get("Metadata/project_settings.config")!)).toMatchObject({ironing_type:"top",ironing_pattern:"zig-zag"});
   },30000);
 });

@@ -15,12 +15,12 @@ export async function sendTransactionalEmail(input: { to: string; subject: strin
   }
   if (!email.webhookUrl || !email.webhookSecret) throw new Error("Email provider is not configured");
   if (email.provider === "mailtrap-sandbox") {
-    // Mailtrap captures the notice; production files remain downloadable in Admin.
+    // Mailtrap captures the same print attachment without delivering to a real inbox.
     if (!email.fromAddress) throw new Error("Mailtrap Sandbox sender is not configured");
     const response = await fetch(email.webhookUrl, {
       method: "POST",
       headers: { "content-type": "application/json", "Api-Token": email.webhookSecret },
-      body: JSON.stringify({ from: { email: email.fromAddress }, to: [{ email: input.to }], subject: input.subject, text: input.text }),
+      body: JSON.stringify({ from: { email: email.fromAddress }, to: [{ email: input.to }], subject: input.subject, text: input.text, ...(input.attachments?.length ? { attachments: input.attachments.map(({ filename, content }) => ({ filename, content: content.toString("base64"), type: "model/3mf", disposition: "attachment" })) } : {}) }),
       signal: AbortSignal.timeout(15_000),
       redirect: "error",
     });

@@ -27,7 +27,7 @@ function shader(gl: WebGLRenderingContext, type: number, source: string) {
 export function KeychainPreview({ input }: { input: KeychainInput }) {
   const canvas=useRef<HTMLCanvasElement>(null), angles=useRef({x:0.48,y:-0.28}), pointer=useRef<{x:number;y:number}|null>(null), drawRef=useRef<()=>void>(()=>{});
   const [webglError,setWebglError]=useState(false);
-  const result=useMemo(()=>{try{return {model:generateKeychain(input),error:""}}catch(error){return {model:null,error:error instanceof Error?error.message:"Invalid keychain"}}},[input.name,input.font,input.size,input.baseShape,input.attachment,input.baseColour,input.letterColour]);
+  const result=useMemo(()=>{try{return {model:generateKeychain(input),error:""}}catch(error){return {model:null,error:error instanceof Error?error.message:"Invalid keychain"}}},[input.name,input.font,input.size,input.baseShape,input.attachment,input.letterFinish,input.baseColour,input.letterColour]);
   useEffect(()=>{
     const element=canvas.current, model=result.model; if(!element||!model)return;
     const gl=element.getContext("webgl",{antialias:true,alpha:false});if(!gl){setWebglError(true);return}
@@ -37,7 +37,7 @@ export function KeychainPreview({ input }: { input: KeychainInput }) {
       gl.attachShader(program,shader(gl,gl.FRAGMENT_SHADER,`precision mediump float;uniform vec3 colour;varying float light;void main(){gl_FragColor=vec4(colour*light,1.0);}`));
       gl.linkProgram(program);if(!gl.getProgramParameter(program,gl.LINK_STATUS))throw new Error("3D preview unavailable");gl.useProgram(program);
       const position=gl.getAttribLocation(program,"position"),normal=gl.getAttribLocation(program,"normal");
-      const buffers=[model.base,model.letters].map(tris=>{const buffer=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,buffer);gl.bufferData(gl.ARRAY_BUFFER,geometry(tris),gl.STATIC_DRAW);return {buffer,count:tris.length*3}});
+      const buffers=[{triangles:model.base,colour:input.baseColour},{triangles:model.baseCap,colour:input.baseColour},{triangles:model.letters,colour:input.letterColour}].map(({triangles,colour})=>{const buffer=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,buffer);gl.bufferData(gl.ARRAY_BUFFER,geometry(triangles),gl.STATIC_DRAW);return {buffer,count:triangles.length*3,colour}});
       const draw=()=>{
         const width=element.clientWidth||500,height=element.clientHeight||330,dpr=Math.min(devicePixelRatio||1,2);
         element.width=Math.round(width*dpr);element.height=Math.round(height*dpr);gl.viewport(0,0,element.width,element.height);
@@ -46,7 +46,7 @@ export function KeychainPreview({ input }: { input: KeychainInput }) {
         gl.uniform3f(gl.getUniformLocation(program,"origin"),model.centreX,model.centreY,2);
         gl.uniform1f(gl.getUniformLocation(program,"scale"),Math.min(1.65/model.widthMm,1.45/model.heightMm));
         gl.uniform1f(gl.getUniformLocation(program,"aspect"),width/height);
-        buffers.forEach((item,i)=>{const value=KEYCHAIN_COLOURS[i?input.letterColour:input.baseColour],rgb=[1,3,5].map(start=>parseInt(value.slice(start,start+2),16)/255);gl.uniform3f(gl.getUniformLocation(program,"colour"),rgb[0],rgb[1],rgb[2]);gl.bindBuffer(gl.ARRAY_BUFFER,item.buffer);gl.vertexAttribPointer(position,3,gl.FLOAT,false,24,0);gl.vertexAttribPointer(normal,3,gl.FLOAT,false,24,12);gl.enableVertexAttribArray(position);gl.enableVertexAttribArray(normal);gl.drawArrays(gl.TRIANGLES,0,item.count)});
+        buffers.forEach(item=>{const value=KEYCHAIN_COLOURS[item.colour],rgb=[1,3,5].map(start=>parseInt(value.slice(start,start+2),16)/255);gl.uniform3f(gl.getUniformLocation(program,"colour"),rgb[0],rgb[1],rgb[2]);gl.bindBuffer(gl.ARRAY_BUFFER,item.buffer);gl.vertexAttribPointer(position,3,gl.FLOAT,false,24,0);gl.vertexAttribPointer(normal,3,gl.FLOAT,false,24,12);gl.enableVertexAttribArray(position);gl.enableVertexAttribArray(normal);gl.drawArrays(gl.TRIANGLES,0,item.count)});
       };
       drawRef.current=draw;draw();const observer=new ResizeObserver(draw);observer.observe(element);
       return()=>{observer.disconnect();drawRef.current=()=>{};buffers.forEach(item=>gl.deleteBuffer(item.buffer));gl.deleteProgram(program)};
@@ -55,7 +55,7 @@ export function KeychainPreview({ input }: { input: KeychainInput }) {
   return <div className="keychain-preview">
     {result.error?<div className="keychain-preview-error" role="status">{result.error}</div>:<>
       {webglError?<div className="keychain-preview-error">3D preview is unavailable on this device. Your selected details remain in the form.</div>:<canvas ref={canvas} aria-label={`3D preview of ${input.name || "your name"} keychain`} onPointerDown={event=>{pointer.current={x:event.clientX,y:event.clientY};event.currentTarget.setPointerCapture(event.pointerId)}} onPointerMove={event=>{if(!pointer.current)return;angles.current.y+=(event.clientX-pointer.current.x)*0.012;angles.current.x=Math.max(-1.4,Math.min(1.4,angles.current.x+(event.clientY-pointer.current.y)*0.012));pointer.current={x:event.clientX,y:event.clientY};drawRef.current()}} onPointerUp={()=>{pointer.current=null}} />}
-      <p>Drag to rotate · {result.model?.widthMm} × {result.model?.heightMm} × 4.5 mm · Letters {result.model?.letterHeightMm} mm high</p>
+      <p>Drag to rotate · {result.model?.widthMm} × {result.model?.heightMm} × 4 mm · {input.letterFinish === "inlaid" ? "Flush letters" : "Raised letters"} {result.model?.letterHeightMm} mm high</p>
     </>}
   </div>;
 }
