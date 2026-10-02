@@ -76,14 +76,28 @@ describe("made-to-order keychain",()=>{
     expect(stl.readUInt32LE(80)).toBe(model.base.length);
     expect(stl.length).toBe(84+model.base.length*50);
     expect(mf.readUInt32LE(0)).toBe(0x04034b50);
-    let offset=0,xml="";
+    let offset=0,xml="",settings="";
     while(mf.readUInt32LE(offset)===0x04034b50){
       const nameLength=mf.readUInt16LE(offset+26),length=mf.readUInt32LE(offset+18),start=offset+30+nameLength;
       const name=mf.subarray(offset+30,start).toString("utf8");
       if(name==="3D/3dmodel.model")xml=inflateRawSync(mf.subarray(start,start+length)).toString("utf8");
+      if(name==="Metadata/project_settings.config")settings=inflateRawSync(mf.subarray(start,start+length)).toString("utf8");
       offset=start+length;
     }
     expect(xml).toContain('<component objectid="2"/>');
     expect(xml).toContain('<component objectid="3"/>');
+    expect(JSON.parse(settings)).toMatchObject({ printer_model: "Bambu Lab X2D", ironing_type: "top", ironing_pattern: "zig-zag", ironing_speed: "80", ironing_flow: "30%" });
   });
+  it("scales the outline with the letters and offers a solid tag without the keyring hole",()=>{
+    const regular=generateKeychain({...choices,name:"Name",attachment:"tag"});
+    const large=generateKeychain({...choices,name:"Name",size:"large",attachment:"tag"});
+    const loop=generateKeychain({...choices,name:"Name",attachment:"keychain"});
+    expect(components(regular.base)).toBe(1);
+    expect(components(large.base)).toBe(1);
+    expect(components(loop.base)).toBe(1);
+    expect(large.heightMm).toBeGreaterThan(regular.heightMm * 1.7);
+    expect(watertight(large.base)).toBe(true);
+    expect(loop.widthMm).toBeGreaterThan(regular.widthMm + 2);
+    expect(()=>generateKeychain({...choices,name:"Name",attachment:"clip" as "tag"})).toThrow(/tag/);
+  },30000);
 });
