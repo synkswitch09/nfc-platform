@@ -14,3 +14,13 @@ JOIN "Store" s ON s."id" = p."storeId"
 CROSS JOIN (VALUES ('Raised letters', 'raised', 0), ('Flush letters', 'inlaid', 1)) AS choice("label", "value", "sortOrder")
 WHERE s."slug" = 'kosykin' AND p."slug" = 'custom-name-keychain' AND o."code" = 'letter-finish'
 ON CONFLICT ("optionId", "value") DO NOTHING;
+
+UPDATE "Product" p SET "heightMm" = 4
+FROM "Store" s
+WHERE s."id" = p."storeId" AND s."slug" = 'kosykin'
+  AND p."slug" = 'custom-name-keychain' AND p."heightMm" = 5;
+
+UPDATE "ProductVariant" v SET "heightMm" = 4
+FROM "Product" p JOIN "Store" s ON s."id" = p."storeId"
+WHERE v."productId" = p."id" AND s."slug" = 'kosykin'
+  AND p."slug" = 'custom-name-keychain' AND v."heightMm" = 5;
