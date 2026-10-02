@@ -27,7 +27,7 @@ function shader(gl: WebGLRenderingContext, type: number, source: string) {
 export function KeychainPreview({ input }: { input: KeychainInput }) {
   const canvas=useRef<HTMLCanvasElement>(null), angles=useRef({x:0.48,y:-0.28}), pointer=useRef<{x:number;y:number}|null>(null), drawRef=useRef<()=>void>(()=>{});
   const [webglError,setWebglError]=useState(false);
-  const result=useMemo(()=>{try{return {model:generateKeychain(input),error:""}}catch(error){return {model:null,error:error instanceof Error?error.message:"Invalid keychain"}}},[input.name,input.font,input.size,input.baseColour,input.letterColour]);
+  const result=useMemo(()=>{try{return {model:generateKeychain(input),error:""}}catch(error){return {model:null,error:error instanceof Error?error.message:"Invalid keychain"}}},[input.name,input.font,input.size,input.baseShape,input.baseColour,input.letterColour]);
   useEffect(()=>{
     const element=canvas.current, model=result.model; if(!element||!model)return;
     const gl=element.getContext("webgl",{antialias:true,alpha:false});if(!gl){setWebglError(true);return}
