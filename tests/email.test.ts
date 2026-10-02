@@ -35,6 +35,22 @@ describe("Mailtrap staging sandbox", () => {
     expect(JSON.parse(options.body as string)).toEqual({ from: { email: env.EMAIL_FROM_ADDRESS }, to: [{ email: message.to }], subject: message.subject, text: message.text });
     await expect(sendTransactionalEmail(message)).rejects.toThrow("Email delivery failed");
   });
+  it("includes a 3MF as an attachment in the Mailtrap sandbox", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ success: true }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const env = {
+      APP_ENV: "staging", APP_URL: "https://staging.kosykin.com.au",
+      DATABASE_URL: "postgresql://app:password@db.example/kosykin_staging?sslmode=require", DATABASE_EXPECTED_NAME: "kosykin_staging",
+      SESSION_SECRET: "a-staging-session-secret-over-32-characters", ACTIVATION_PEPPER: "a-staging-activation-pepper-over-32-characters",
+      STORAGE_PROVIDER: "azure-blob", STORAGE_ENVIRONMENT: "staging", AZURE_STORAGE_CONTAINER_URL: "https://store.blob.core.windows.net/tapkin-staging", AZURE_STORAGE_SAS_TOKEN: "?test-token",
+      EMAIL_MODE: "sandbox", EMAIL_PROVIDER: "mailtrap-sandbox", EMAIL_FROM_ADDRESS: "staging@tapkin.com.au", EMAIL_WEBHOOK_URL: "https://sandbox.api.mailtrap.io/api/send/12345", EMAIL_WEBHOOK_SECRET: "test-api-token",
+      STRIPE_SECRET_KEY: "sk_test_example", STRIPE_WEBHOOK_SECRET: "whsec_example", NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: "pk_test_example",
+    };
+    for (const [key, value] of Object.entries(env)) vi.stubEnv(key, value);
+    await sendTransactionalEmail({ to: "seller@example.test", subject: "Kosykin order", text: "Paid", attachments: [{ filename: "name.3mf", content: Buffer.from("model") }] });
+    const [, options] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(JSON.parse(options.body as string).attachments).toEqual([{ filename: "name.3mf", content: Buffer.from("model").toString("base64"), type: "model/3mf", disposition: "attachment" }]);
+  });
 });
 
 describe("Resend production email", () => {

@@ -35,6 +35,15 @@ function components(triangles: Triangle[]) {
   }
   return new Set(parent.map((_, index) => find(index))).size;
 }
+function covers(triangles: Triangle[], x: number, y: number, z: number) {
+  return triangles.some(([ax,ay,az,bx,by,bz,cx,cy,cz]) => {
+    if (az !== z || bz !== z || cz !== z) return false;
+    const determinant=(by-cy)*(ax-cx)+(cx-bx)*(ay-cy);
+    const a=((by-cy)*(x-cx)+(cx-bx)*(y-cy))/determinant;
+    const b=((cy-ay)*(x-cx)+(ax-cx)*(y-cy))/determinant;
+    return a>=0 && b>=0 && a+b<=1;
+  });
+}
 
 describe("made-to-order keychain",()=>{
   it("fits longer names by reducing glyph height while keeping a watertight two-part mesh",()=>{
@@ -99,5 +108,17 @@ describe("made-to-order keychain",()=>{
     expect(watertight(large.base)).toBe(true);
     expect(loop.widthMm).toBeGreaterThan(regular.widthMm + 2);
     expect(()=>generateKeychain({...choices,name:"Name",attachment:"clip" as "tag"})).toThrow(/tag/);
+  },30000);
+  it("fills counters and gaps under all names while keeping the keyring hole open",()=>{
+    const daniel=generateKeychain({...choices,name:"Daniel",attachment:"tag"});
+    const yuliany=generateKeychain({...choices,name:"Yuliany",attachment:"tag"});
+    expect(covers(daniel.base,3.5,5,3.5)).toBe(true); // Inside D
+    expect(covers(daniel.letters,3.5,5,4.5)).toBe(false);
+    expect(covers(yuliany.base,2.5,4,3.5)).toBe(true); // Between Y and u
+    for(const font of ["rounded","classic","mono"] as const){
+      const model=generateKeychain({...choices,name:"Amelia",font,attachment:"tag"});
+      expect(components(model.base)).toBe(1);
+      expect(watertight(model.base)).toBe(true);
+    }
   },30000);
 });
