@@ -70,10 +70,11 @@ describe("Resend production email", () => {
       EMAIL_FROM_ADDRESS_KOSYKIN: "hello@kosykin.com.au", EMAIL_WEBHOOK_SECRET_KOSYKIN: "kosykin-only-key",
     };
     for (const [key, value] of Object.entries(env)) vi.stubEnv(key, value);
-    await sendTransactionalEmail({ to: "customer@example.test", subject: "Kosykin order", text: "Shipped", storeSlug: "kosykin" });
+    await sendTransactionalEmail({ to: "customer@example.test", subject: "Kosykin order", text: "Shipped", storeSlug: "kosykin", attachments: [{ filename: "order.3mf", content: Buffer.from("printable model") }] });
     const [, options] = fetchMock.mock.calls[0] as [string, RequestInit];
     expect(options.headers).toMatchObject({ authorization: "Bearer kosykin-only-key" });
     expect(JSON.parse(options.body as string).from).toBe("hello@kosykin.com.au");
+    expect(JSON.parse(options.body as string).attachments).toEqual([{ filename: "order.3mf", content: Buffer.from("printable model").toString("base64") }]);
     vi.stubEnv("EMAIL_WEBHOOK_SECRET_KOSYKIN", "");
     vi.stubEnv("EMAIL_FROM_ADDRESS_KOSYKIN", "");
     await expect(sendTransactionalEmail({ to: "customer@example.test", subject: "Kosykin order", text: "Shipped", storeSlug: "kosykin" })).rejects.toThrow("not configured for store");

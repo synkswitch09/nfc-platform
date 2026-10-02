@@ -27,7 +27,7 @@ function shader(gl: WebGLRenderingContext, type: number, source: string) {
 export function KeychainPreview({ input }: { input: KeychainInput }) {
   const canvas=useRef<HTMLCanvasElement>(null), angles=useRef({x:0.48,y:-0.28}), pointer=useRef<{x:number;y:number}|null>(null), drawRef=useRef<()=>void>(()=>{});
   const [webglError,setWebglError]=useState(false);
-  const result=useMemo(()=>{try{return {model:generateKeychain(input),error:""}}catch(error){return {model:null,error:error instanceof Error?error.message:"Invalid keychain"}}},[input.name,input.font,input.size,input.baseShape,input.baseColour,input.letterColour]);
+  const result=useMemo(()=>{try{return {model:generateKeychain(input),error:""}}catch(error){return {model:null,error:error instanceof Error?error.message:"Invalid keychain"}}},[input.name,input.font,input.size,input.baseShape,input.attachment,input.baseColour,input.letterColour]);
   useEffect(()=>{
     const element=canvas.current, model=result.model; if(!element||!model)return;
     const gl=element.getContext("webgl",{antialias:true,alpha:false});if(!gl){setWebglError(true);return}
@@ -43,7 +43,7 @@ export function KeychainPreview({ input }: { input: KeychainInput }) {
         element.width=Math.round(width*dpr);element.height=Math.round(height*dpr);gl.viewport(0,0,element.width,element.height);
         gl.clearColor(0.97,0.96,0.94,1);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);gl.enable(gl.DEPTH_TEST);
         gl.uniform2f(gl.getUniformLocation(program,"angles"),angles.current.x,angles.current.y);
-        gl.uniform3f(gl.getUniformLocation(program,"origin"),model.widthMm/2-7,model.letterHeightMm/2,2);
+        gl.uniform3f(gl.getUniformLocation(program,"origin"),model.centreX,model.centreY,2);
         gl.uniform1f(gl.getUniformLocation(program,"scale"),Math.min(1.65/model.widthMm,1.45/model.heightMm));
         gl.uniform1f(gl.getUniformLocation(program,"aspect"),width/height);
         buffers.forEach((item,i)=>{const value=KEYCHAIN_COLOURS[i?input.letterColour:input.baseColour],rgb=[1,3,5].map(start=>parseInt(value.slice(start,start+2),16)/255);gl.uniform3f(gl.getUniformLocation(program,"colour"),rgb[0],rgb[1],rgb[2]);gl.bindBuffer(gl.ARRAY_BUFFER,item.buffer);gl.vertexAttribPointer(position,3,gl.FLOAT,false,24,0);gl.vertexAttribPointer(normal,3,gl.FLOAT,false,24,12);gl.enableVertexAttribArray(position);gl.enableVertexAttribArray(normal);gl.drawArrays(gl.TRIANGLES,0,item.count)});

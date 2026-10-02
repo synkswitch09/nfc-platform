@@ -3,9 +3,10 @@ import fontData from "./keychain-fonts.json";
 export type KeychainFont = keyof typeof fontData;
 export type KeychainSize = "regular" | "medium" | "large";
 export type KeychainBaseShape = "contour" | "rectangle";
-export type KeychainInput = { name: string; font: KeychainFont; size: KeychainSize; baseShape?: KeychainBaseShape; baseColour: string; letterColour: string };
+export type KeychainAttachment = "keychain" | "tag";
+export type KeychainInput = { name: string; font: KeychainFont; size: KeychainSize; baseShape?: KeychainBaseShape; attachment?: KeychainAttachment; baseColour: string; letterColour: string };
 export type Triangle = [number, number, number, number, number, number, number, number, number];
-export type KeychainModel = { base: Triangle[]; letters: Triangle[]; widthMm: number; heightMm: number; letterHeightMm: number; input: KeychainInput };
+export type KeychainModel = { base: Triangle[]; letters: Triangle[]; widthMm: number; heightMm: number; centreX: number; centreY: number; letterHeightMm: number; input: KeychainInput };
 
 export const KEYCHAIN_FONTS: Record<KeychainFont, string> = { rounded: "Rounded bold", classic: "Classic serif", mono: "Mono bold" };
 export const KEYCHAIN_SIZES = { regular: { height: 10, minimum: 8, maxLength: 90 }, medium: { height: 15, minimum: 10, maxLength: 110 }, large: { height: 20, minimum: 12, maxLength: 130 } } as const;
@@ -88,29 +89,34 @@ export function generateKeychain(input: KeychainInput): KeychainModel {
   if (!name || name.length > 24 || !/^[a-zA-ZÁÉÍÓÚÜÑáéíóúüñ]+(?:[ '-][a-zA-ZÁÉÍÓÚÜÑáéíóúüñ]+)*$/.test(name)) throw new Error("Use 1–24 letters; spaces, apostrophes and hyphens are allowed between words.");
   if (!(input.font in KEYCHAIN_FONTS) || !(input.size in KEYCHAIN_SIZES)) throw new Error("Choose an available font and size.");
   if (input.baseShape !== undefined && !(input.baseShape in KEYCHAIN_BASE_SHAPES)) throw new Error("Choose an available backing shape.");
+  if (input.attachment !== undefined && !["keychain", "tag"].includes(input.attachment)) throw new Error("Choose a tag or keyring.");
   if (!(input.baseColour in KEYCHAIN_COLOURS) || !(input.letterColour in KEYCHAIN_COLOURS) || input.baseColour === input.letterColour) throw new Error("Choose two different available colours.");
   const config = KEYCHAIN_SIZES[input.size];
   const font = fontData[input.font] as { unitsPerEm: number; glyphs: Record<string,{advance:number;paths:number[][][]}> };
   const cap = Math.max(...font.glyphs.H.paths.flat().map(point => point[1]));
-  const advances = [...name].map(c => font.glyphs[c]?.advance ?? 0);
-  const widthUnits = advances.reduce((a, b) => a + b, 0);
-  const outerAllowance = 11; // contour and left-hand keyring loop
-  const height = Math.min(config.height, (config.maxLength - outerAllowance) * cap / widthUnits);
-  if (height < config.minimum) throw new Error("This name is too long for this size and font. Try another size or shorten the name.");
-  const scale = height / cap;
-  const glyphs: { offset: number; paths: number[][][]; minX: number; maxX: number; minY: number; maxY: number }[] = [];
-  let cursor = 0;
+  const positioned: { offset: number; paths: number[][][]; minX: number; maxX: number; minY: number; maxY: number }[] = [];
+  let right = 0, pendingSpace = 0;
   for (const c of name) {
     const glyph = font.glyphs[c];
     if (!glyph) throw new Error("Unsupported character in name.");
     const points = glyph.paths.flat();
-    if (points.length) glyphs.push({ offset: cursor, paths: glyph.paths, minX: Math.min(...points.map(p => p[0])), maxX: Math.max(...points.map(p => p[0])), minY: Math.min(...points.map(p => p[1])), maxY: Math.max(...points.map(p => p[1])) });
-    cursor += glyph.advance * scale;
+    if (!points.length) { pendingSpace += glyph.advance; continue; }
+    const minX = Math.min(...points.map(p => p[0])), maxX = Math.max(...points.map(p => p[0]));
+    const offset = positioned.length ? right + (pendingSpace ? cap * .35 : cap * .055) - minX : -minX;
+    positioned.push({ offset, paths: glyph.paths, minX, maxX, minY: Math.min(...points.map(p => p[1])), maxY: Math.max(...points.map(p => p[1])) });
+    right = offset + maxX; pendingSpace = 0;
   }
+  const widthUnits = right;
+  const outerAllowance = input.attachment === "tag" ? 7 : 11;
+  const height = Math.min(config.height, (config.maxLength - outerAllowance) * cap / widthUnits);
+  if (height < config.minimum) throw new Error("This name is too long for this size and font. Try another size or shorten the name.");
+  const scale = height / cap;
+  const glyphs = positioned.map(g => ({ ...g, offset: g.offset * scale }));
+  const cursor = widthUnits * scale;
   const minY = Math.min(0, ...glyphs.map(g => g.minY * scale));
   const maxY = Math.max(height, ...glyphs.map(g => g.maxY * scale));
-  const pitch = 0.15, padding = 5, tabX = -3.5, tabY = (minY + maxY) / 2;
-  const originX = Math.floor((tabX - 3.5 - padding) / pitch) * pitch;
+  const pitch = 0.15, padding = 7, tabY = minY + (maxY-minY)*.7;
+  const originX = Math.floor((-8-padding) / pitch) * pitch;
   const originY = Math.floor((minY - padding) / pitch) * pitch;
   const w = Math.ceil((cursor + padding - originX) / pitch), h = Math.ceil((maxY + padding - originY) / pitch);
   const text = new Uint8Array(w*h), base = new Uint8Array(w*h);
@@ -123,13 +129,17 @@ export function generateKeychain(input: KeychainInput): KeychainModel {
     }
   }
   // Morphological offset joins the glyph islands, including dots and counters, into a solid backing.
-  const radius = Math.ceil(1.6/pitch);
+  const radius = Math.ceil((1.6 * height / 10)/pitch);
   for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (text[y*w+x]) {
     for (let dy=-radius;dy<=radius;dy++) for (let dx=-radius;dx<=radius;dx++) if (dx*dx+dy*dy <= radius*radius) {
       const xx=x+dx, yy=y+dy; if (xx>=0 && xx<w && yy>=0 && yy<h) base[yy*w+xx]=1;
     }
   }
-  // Continuous bridge to the ring; use a rounded loop with an open central hole.
+  // The loop overlaps the silhouette of the first letter directly; there is no connecting bar.
+  let firstLeft = Infinity;
+  for (let y=0;y<h;y++) if (Math.abs(originY+(y+.5)*pitch-tabY)<.75)
+    for (let x=0;x<w;x++) if (text[y*w+x] && originX+(x+.5)*pitch<firstLeft) firstLeft=originX+(x+.5)*pitch;
+  const tabX = (Number.isFinite(firstLeft) ? firstLeft : 0) - 2.6;
   for (let y=0;y<h;y++) for (let x=0;x<w;x++) {
     const px=originX+(x+.5)*pitch, py=originY+(y+.5)*pitch;
     const distance=Math.hypot(px-tabX,py-tabY);
@@ -139,18 +149,17 @@ export function generateKeychain(input: KeychainInput): KeychainModel {
       const qx = Math.max(left + 2 - px, 0, px - (right - 2));
       const qy = Math.max(bottom + 2 - py, 0, py - (top - 2));
       base[y*w+x] = qx*qx + qy*qy <= 4 ? 1 : 0;
-    } else if (px >= 0 && px <= cursor && Math.abs(py - (minY + maxY)/2) < 1.2) {
-      // Join letters across font spacing without filling the scalloped outline.
-      base[y*w+x] = 1;
     }
-    if (distance <= 3.2 || (px>=tabX && px<=1.2 && Math.abs(py-tabY)<=2.2)) base[y*w+x]=1;
-    if (distance < 1.6) base[y*w+x]=0;
+    if (input.attachment !== "tag") {
+      if (distance <= 3.2) base[y*w+x]=1;
+      if (distance < 1.6) base[y*w+x]=0;
+    }
   }
-  let left=w, right=0, bottom=h, top=0;
+  let left=w, rightPixel=0, bottom=h, top=0;
   for (let y=0;y<h;y++) for (let x=0;x<w;x++) if(base[y*w+x]) {
-    left=Math.min(left,x);right=Math.max(right,x);bottom=Math.min(bottom,y);top=Math.max(top,y);
+    left=Math.min(left,x);rightPixel=Math.max(rightPixel,x);bottom=Math.min(bottom,y);top=Math.max(top,y);
   }
-  const actualWidth = (right-left+1)*pitch;
+  const actualWidth = (rightPixel-left+1)*pitch;
   if (actualWidth > config.maxLength + pitch) throw new Error("Name exceeds the maximum keychain length.");
-  return { base: gridMesh(smoothMask(base,w,h),w,h,originX,originY,pitch,0,3.5), letters: gridMesh(smoothMask(text,w,h),w,h,originX,originY,pitch,3.5,4.5), widthMm: Math.round(actualWidth*10)/10, heightMm: Math.round((top-bottom+1)*pitch*10)/10, letterHeightMm: Math.round(height*10)/10, input: {...input,name,baseShape:input.baseShape ?? "contour"} };
+  return { base: gridMesh(smoothMask(base,w,h),w,h,originX,originY,pitch,0,3.5), letters: gridMesh(smoothMask(text,w,h),w,h,originX,originY,pitch,3.5,4.5), widthMm: Math.round(actualWidth*10)/10, heightMm: Math.round((top-bottom+1)*pitch*10)/10, centreX: originX+(left+rightPixel+1)*pitch/2, centreY: originY+(bottom+top+1)*pitch/2, letterHeightMm: Math.round(height*10)/10, input: {...input,name,baseShape:input.baseShape ?? "contour",attachment:input.attachment ?? "keychain"} };
 }
