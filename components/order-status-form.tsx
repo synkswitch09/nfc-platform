@@ -9,7 +9,8 @@ export function OrderStatusForm({ orderId, options, shipping, canOverride = fals
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); setPending(true); setMessage("");
     const form = new FormData(event.currentTarget);
-    const response = await fetch(`/api/admin/orders/${orderId}/status`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ status: form.get("status"), note: form.get("note"), overridePreparation: form.get("overridePreparation") === "on", carrier: form.get("carrier"), trackingNumber: form.get("trackingNumber") }) });
+    const optional = (name: string) => typeof form.get(name) === "string" ? form.get(name) : undefined;
+    const response = await fetch(`/api/admin/orders/${orderId}/status`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ status: form.get("status"), note: optional("note"), overridePreparation: form.get("overridePreparation") === "on", carrier: optional("carrier"), trackingNumber: optional("trackingNumber") }) });
     const result = await response.json().catch(() => ({})); setPending(false);
     if (!response.ok) return setMessage(result.error ?? "Order could not be updated");
     router.refresh();
