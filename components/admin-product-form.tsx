@@ -234,8 +234,8 @@ export function AdminProductForm({
       label, value, price: "0", active: true, swatchHex: "", swatchHexSecondary: "", swatchImageUrl: "",
     });
     const missing: OptionForm[] = [
-      { name: "Backing shape", code: "base-shape", type: "RADIO", required: true, maxLength: null, price: "0", helpText: "Choose a backing that follows the letters or a rounded rectangle.", values: [value("Follows the name", "contour"), value("Rounded rectangle", "rectangle")] },
-      { name: "Finish", code: "keychain-attachment", type: "RADIO", required: true, maxLength: null, price: "0", helpText: "Choose a keyring loop or a plain tag without a loop.", values: [value("Keyring loop", "keychain"), value("Plain tag", "tag")] },
+      { name: "Backing shape", code: "base-shape", type: "RADIO" as const, required: true, maxLength: null, price: "0", helpText: "Choose a backing that follows the letters or a rounded rectangle.", values: [value("Follows the name", "contour"), value("Rounded rectangle", "rectangle")] },
+      { name: "Finish", code: "keychain-attachment", type: "RADIO" as const, required: true, maxLength: null, price: "0", helpText: "Choose a keyring loop or a plain tag without a loop.", values: [value("Keyring loop", "keychain"), value("Plain tag", "tag")] },
     ].filter((choice) => !initial.options.some((option) => option.code === choice.code));
     return [...initial.options, ...missing];
   });
