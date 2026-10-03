@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { FormEvent, useState } from "react";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { PackageCheck, Radio, RefreshCw, ShieldCheck, Truck } from "lucide-react";
 import { useCart } from "@/components/cart-provider";
 import { KeychainPreview } from "@/components/keychain-preview";
@@ -15,19 +15,19 @@ type OptionValue = { id: string; label: string; value: string; priceDeltaCents: 
 type Option = { code: string; name: string; type: string; required: boolean; maxLength: number | null; priceDeltaCents: number; helpText: string | null; values: OptionValue[] };
 type Choice = "BASIC" | "PERSONALISED";
 
-export function ProductPurchase({ checkoutEnabled, previewOnly = false, productName, productSlug, storeSlug, description, categoryName, storeName, currency, connected, personalisationMode, variants, options, images }: { checkoutEnabled: boolean; previewOnly?: boolean; productName: string; productSlug: string; storeSlug: string; description: string; categoryName: string | null; storeName: string; currency: string; connected: boolean; personalisationMode: "NONE" | "OPTIONAL" | "REQUIRED"; variants: Variant[]; options: Option[]; images: ProductImage[] }) {
-  const router = useRouter();
+export function ProductPurchase({ checkoutEnabled, previewOnly = false, productName, productSlug, storeSlug, description, categoryName, storeName, currency, connected, personalisationMode, variants, options, images, initialColour = "" }: { checkoutEnabled: boolean; previewOnly?: boolean; productName: string; productSlug: string; storeSlug: string; description: string; categoryName: string | null; storeName: string; currency: string; connected: boolean; personalisationMode: "NONE" | "OPTIONAL" | "REQUIRED"; variants: Variant[]; options: Option[]; images: ProductImage[]; initialColour?: string }) {
   const cart = useCart();
   const defaultVariant = variants.find(item => item.isDefault) ?? variants[0];
   const selectionOptions = options.filter(option => ["SELECT", "RADIO", "COLOUR"].includes(option.type));
   const customOptions = options.filter(option => !["SELECT", "RADIO", "COLOUR"].includes(option.type));
   const initialSelections = Object.fromEntries(selectionOptions.map(option => [option.code, defaultVariant?.optionSelection[option.code] ?? option.values[0]?.value ?? ""]));
   const [variantId, setVariantId] = useState(defaultVariant?.id ?? "");
-  const [selections, setSelections] = useState<Record<string, string>>(initialSelections);
+  const [selections, setSelections] = useState<Record<string, string>>(() => ({ ...initialSelections, ...(selectionOptions.some(option => option.type === "COLOUR" && option.values.some(value => value.value === initialColour)) ? { [selectionOptions.find(option => option.type === "COLOUR")!.code]: initialColour } : {}) }));
   const [customValues, setCustomValues] = useState<Record<string, string>>(() => storeSlug === "kosykin" && productSlug === "custom-name-keychain" ? { "keychain-name": "Name" } : {} as Record<string, string>);
   const [choice, setChoice] = useState<Choice>(personalisationMode === "REQUIRED" ? "PERSONALISED" : "BASIC");
   const [activeImageId, setActiveImageId] = useState("");
   const [error, setError] = useState("");
+  const [added, setAdded] = useState(false);
   const isKeychain = storeSlug === "kosykin" && productSlug === "custom-name-keychain";
   const selectedSize = (selections["keychain-size"] ?? "regular") as KeychainSize;
   const keychainInput = { name: customValues["keychain-name"] ?? "", font: (selections["keychain-font"] ?? "rounded") as KeychainFont, size: selectedSize, baseShape: (selections["base-shape"] ?? "contour") as KeychainBaseShape, attachment: (selections["keychain-attachment"] ?? "keychain") as KeychainAttachment, letterFinish: (selections["letter-finish"] ?? "raised") as KeychainLetterFinish, baseColour: selections["base-colour"] ?? "peach", letterColour: selections["letter-colour"] ?? "white" };
@@ -82,12 +82,13 @@ export function ProductPurchase({ checkoutEnabled, previewOnly = false, productN
     if (!variant || soldOut) return setError(selectionMatchesVariant ? "This option is currently unavailable." : "That option combination is currently unavailable.");
     const personalisation = { ...selections, ...(choice === "PERSONALISED" ? Object.fromEntries(Object.entries(customValues).filter(([, value]) => value)) : {}) };
     cart.add({ variantId: variant.id, productName, variantName: variant.name, unitPriceCents: variant.priceCents + optionPriceCents, quantity: 1, personalisationChoice: choice, personalisation });
-    router.push("/cart");
+    setAdded(true);
   }
 
   return <div className="product-layout">
     <div className="product-gallery">
       {isKeychain && choice === "PERSONALISED" ? <KeychainPreview input={keychainInput} /> : activeImage ? <Image src={activeImage.url} alt={activeImage.altText} width={900} height={900} priority unoptimized /> : <div className="product-placeholder"><Radio size={64} /><span>{storeName}</span><strong>{productName}</strong><small>Made to order in Adelaide</small></div>}
+      <div className="gallery-price" aria-live="polite">{previewOnly ? "Pricing coming soon" : variant ? new Intl.NumberFormat("en-AU", { style: "currency", currency }).format((variant.priceCents + optionPriceCents) / 100) : "Unavailable"}</div>
       {!isKeychain && gallery.length > 1 && <div className="product-thumbs">{gallery.map(image => <button type="button" key={image.id} className={image.id === activeImage?.id ? "active" : ""} onClick={() => setActiveImageId(image.id)} aria-label={`View ${image.altText}`}><Image src={image.url} alt="" width={160} height={160} unoptimized /></button>)}</div>}
     </div>
     <div className="product-copy">
@@ -100,9 +101,9 @@ export function ProductPurchase({ checkoutEnabled, previewOnly = false, productN
         {personalisationMode === "OPTIONAL" && <fieldset className="purchase-choice"><legend>Choose your finish</legend><label><input type="radio" name="personalisationChoice" checked={choice === "BASIC"} onChange={() => { setChoice("BASIC"); setCustomValues({}); }} /><span><strong>Basic</strong><small>Standard product without custom printed details</small></span></label><label><input type="radio" name="personalisationChoice" checked={choice === "PERSONALISED"} onChange={() => setChoice("PERSONALISED")} /><span><strong>Personalised</strong><small>Add the custom details configured below</small></span></label></fieldset>}
         {choice === "PERSONALISED" && customOptions.map(option => <CustomField key={option.code} option={option} value={customValues[option.code] ?? ""} onChange={value => setCustomValues(current => ({ ...current, [option.code]: value }))} />)}
         {keychainError && <p className="form-error" role="status">{keychainError}</p>}
-        <div className="purchase-total"><span>Price</span><strong>{previewOnly ? "Pricing coming soon" : variant ? new Intl.NumberFormat("en-AU", { style: "currency", currency }).format((variant.priceCents + optionPriceCents) / 100) : "Unavailable"}</strong></div>
         {error && <div className="form-error" role="alert">{error}</div>}
         <button className="button purchase-button" disabled={previewOnly || !checkoutEnabled || soldOut || Boolean(keychainError)}>{previewOnly ? "Preview only · orders closed" : !checkoutEnabled ? "Orders opening soon" : soldOut ? (selectionMatchesVariant ? "Out of stock" : "Unavailable combination") : "Add to cart"}</button>
+        {added && <div className="cart-added" role="status"><strong>Added to your cart</strong><div><button type="button" className="button secondary" onClick={() => setAdded(false)}>Continue shopping</button><Link className="button" href="/checkout">Checkout</Link></div></div>}
         <p className="fine-print">{previewOnly ? "Explore the design here in the Shop. Pricing and ordering will follow." : checkoutEnabled ? "Secure checkout · Prices include GST where applicable" : "Products are visible while orders are closed."}</p>
       </form>
       <div className="trust-list">{connected && <span><ShieldCheck /> Personal data stays off the NFC chip</span>}{connected && <span><RefreshCw /> Update the profile any time</span>}<span><PackageCheck /> Made to order</span><span><Truck /> Australia-wide delivery</span></div>

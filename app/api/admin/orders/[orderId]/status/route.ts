@@ -51,7 +51,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       }
       const history = await tx.orderStatusHistory.create({ data: { orderId, fromStatus: order.status, toStatus: parsed.data.status, actorId: user.id, note: parsed.data.note || null } });
       await tx.auditLog.create({ data: { actorId: user.id, storeId: store.id, action: "ORDER_STATUS_CHANGED", entityType: "Order", entityId: orderId, metadata: { from: order.status, to: parsed.data.status } } });
-      await queueOrderNotice(tx, orderId, `status:${history.id}`, parsed.data.status.replaceAll("_", " "), `Your order is now ${parsed.data.status.replaceAll("_", " ").toLowerCase()}.${parsed.data.status === "SHIPPED" ? ` Carrier: ${parsed.data.carrier}. Tracking: ${parsed.data.trackingNumber}.` : ""}`);
+      if (parsed.data.status === "SHIPPED") await queueOrderNotice(tx, orderId, `status:${history.id}`, "Your order has shipped", `Your order has shipped. Carrier: ${parsed.data.carrier}. Tracking: ${parsed.data.trackingNumber}.`);
       return true;
     }, { isolationLevel: "Serializable" }).catch(error => error instanceof Error && error.message.startsWith("PREPARATION:") ? error.message : false);
     if (typeof changed === "string") return jsonError(changed.slice("PREPARATION:".length), 409);

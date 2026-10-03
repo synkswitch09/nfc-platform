@@ -23,8 +23,7 @@ export default async function NewProductPage({ searchParams }: { searchParams: P
     db.packaging.findMany({ where: { storeId: store.id, active: true }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
   ]);
   if (template === "colour" || template === "two-colour") {
-    const palette = Object.entries(KEYCHAIN_COLOURS).map(([key, hex]) => ({ label: key[0].toUpperCase()+key.slice(1), value: key, price: "0", active: true, swatchHex: hex, swatchHexSecondary: "", swatchImageUrl: "" }));
-    const colourOption = (name: string, code: string) => ({ name, code, type: "COLOUR" as const, required: true, maxLength: null, price: "0", helpText: "Enable only the colours you can make.", values: palette.map(value => ({ ...value })) });
+    const colourOption = (name: string, code: string) => ({ name, code, type: "COLOUR" as const, required: true, maxLength: null, price: "0", helpText: "Add the colours available for this product and upload photos for each colour.", values: [] });
     initial.options = template === "colour" ? [colourOption("Colour", "colour")] : [colourOption("Base colour", "base-colour"), colourOption("Accent colour", "accent-colour")];
     initial.personalisationMode = "REQUIRED";
   }

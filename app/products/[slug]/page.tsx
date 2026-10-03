@@ -47,8 +47,9 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   };
 }
 
-export default async function ProductPage({ params }: { params: Promise<{ slug: string }> }) {
+export default async function ProductPage({ params, searchParams }: { params: Promise<{ slug: string }>; searchParams: Promise<{ colour?: string }> }) {
   const slug = (await params).slug;
+  const initialColour = (await searchParams).colour ?? "";
   const [product, store] = await Promise.all([getProduct(slug), getCurrentStorefront()]);
   if (!product) {
     if (store.slug !== "kosykin" || store.status !== StoreStatus.ACTIVE || slug !== KEYCHAIN_SLUG) notFound();
@@ -73,7 +74,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
     <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData).replaceAll("<", "\\u003c") }} />
     <section className="product-detail">
       <nav className="breadcrumbs" aria-label="Breadcrumb"><Link href="/">Home</Link><span>/</span><Link href="/shop">Shop</Link>{product.category && <><span>/</span><Link href={`/${product.category.slug}`}>{product.category.name}</Link></>}</nav>
-      <ProductPurchase checkoutEnabled={checkoutEnabled} productName={product.name} productSlug={product.slug} storeSlug={store.slug} description={product.shortDescription ?? product.description} categoryName={product.category?.name ?? null} storeName={store.displayName} currency={store.currency} connected={connected} personalisationMode={product.personalisationMode} variants={product.variants.map(variant => ({ id: variant.id, name: variant.name, priceCents: variant.priceCents, inventory: variant.inventory, reservedInventory: variant.reservedInventory, trackInventory: variant.trackInventory, backorderPolicy: variant.backorderPolicy, isDefault: variant.isDefault, optionSelection: variant.optionSelection as Record<string, string>, imageId: variant.imageId }))} options={product.options} images={product.images.map(image => ({ id: image.id, url: image.url, altText: image.altText, isPrimary: image.isPrimary, optionValueId: image.optionValueId }))} />
+      <ProductPurchase initialColour={initialColour} checkoutEnabled={checkoutEnabled} productName={product.name} productSlug={product.slug} storeSlug={store.slug} description={product.shortDescription ?? product.description} categoryName={product.category?.name ?? null} storeName={store.displayName} currency={store.currency} connected={connected} personalisationMode={product.personalisationMode} variants={product.variants.map(variant => ({ id: variant.id, name: variant.name, priceCents: variant.priceCents, inventory: variant.inventory, reservedInventory: variant.reservedInventory, trackInventory: variant.trackInventory, backorderPolicy: variant.backorderPolicy, isDefault: variant.isDefault, optionSelection: variant.optionSelection as Record<string, string>, imageId: variant.imageId }))} options={product.options} images={product.images.map(image => ({ id: image.id, url: image.url, altText: image.altText, isPrimary: image.isPrimary, optionValueId: image.optionValueId }))} />
       <div className="product-story"><div><p className="eyebrow">How it works</p><h2>{connected ? "One physical product. A profile you control." : "Thoughtfully designed. Made for your space."}</h2></div><div><p>{product.fullDescription ?? product.description}</p>{connected && <p>The NFC chip and printed QR code open the same secure {store.displayName} address. Your personal details live in your account, so you can update or disable them without replacing the product.</p>}</div></div>
     </section>
   </>;

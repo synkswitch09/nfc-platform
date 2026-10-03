@@ -61,7 +61,7 @@ export function CheckoutForm({ account, store, countries }: { account: { name: s
     });
     const result = await response.json().catch(() => ({}));
     if (!response.ok) { setPending(false); setError(result.error ?? "Checkout is unavailable"); return; }
-    sessionStorage.setItem("commerce-clear-cart-on-success", "true");
+    sessionStorage.setItem("commerce-checkout-cart", JSON.stringify(cart.lines.map(line => ({ key: line.key, quantity: line.quantity }))));
     window.location.assign(result.url);
   }
 
