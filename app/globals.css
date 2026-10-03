@@ -5176,3 +5176,6 @@ body[data-store="tapkin"] .footer-links {
 .cart-added { padding:16px; border:1px solid var(--line); border-radius:14px; margin-top:14px; background:var(--paper); }
 .cart-added > div { display:flex; flex-wrap:wrap; gap:8px; margin-top:10px; }
 @media(max-width:700px) { .product-layout .product-gallery .gallery-price { display:none; } .purchase-panel .purchase-button { position:sticky; bottom:0; z-index:5; } }
+.product-model-viewer { display:block; width:100%; height:min(510px,65vw,calc(100dvh - 110px)); border-radius:18px; background:var(--paper); }
+.product-3d-button { margin:10px 0; }
+@media(max-width:700px) { .product-model-viewer { height:clamp(150px,28dvh,240px); } }

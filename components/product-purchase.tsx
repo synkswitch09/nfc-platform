@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { FormEvent, useState } from "react";
+import { createElement, FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
 import { PackageCheck, Radio, RefreshCw, ShieldCheck, Truck } from "lucide-react";
 import { useCart } from "@/components/cart-provider";
@@ -10,7 +10,7 @@ import { generateKeychain, type KeychainAttachment, type KeychainBaseShape, type
 import { KeychainFontSample, KeyringSample } from "@/components/keychain-option-samples";
 
 type ProductImage = { id: string; url: string; altText: string; isPrimary: boolean; optionValueId: string | null };
-type Variant = { id: string; name: string; canOrder: boolean; priceCents: number; inventory: number; reservedInventory: number; trackInventory: boolean; backorderPolicy: "DENY" | "ALLOW"; isDefault: boolean; optionSelection: Record<string, string>; imageId: string | null };
+type Variant = { id: string; name: string; canOrder: boolean; priceCents: number; inventory: number; reservedInventory: number; trackInventory: boolean; backorderPolicy: "DENY" | "ALLOW"; isDefault: boolean; optionSelection: Record<string, string>; imageId: string | null; modelUrl: string | null };
 type OptionValue = { id: string; label: string; value: string; priceDeltaCents: number; swatchHex: string | null; swatchHexSecondary: string | null; swatchImageUrl: string | null };
 type Option = { code: string; name: string; type: string; required: boolean; maxLength: number | null; priceDeltaCents: number; helpText: string | null; values: OptionValue[] };
 type Choice = "BASIC" | "PERSONALISED";
@@ -30,12 +30,14 @@ export function ProductPurchase({ checkoutEnabled, previewOnly = false, productN
   const [activeImageId, setActiveImageId] = useState("");
   const [error, setError] = useState("");
   const [added, setAdded] = useState(false);
+  const [view3d, setView3d] = useState(false);
   const isKeychain = storeSlug === "kosykin" && productSlug === "custom-name-keychain";
   const selectedSize = (selections["keychain-size"] ?? "regular") as KeychainSize;
   const keychainInput = { name: customValues["keychain-name"] ?? "", font: (selections["keychain-font"] ?? "rounded") as KeychainFont, size: selectedSize, baseShape: (selections["base-shape"] ?? "contour") as KeychainBaseShape, attachment: (selections["keychain-attachment"] ?? "keychain") as KeychainAttachment, letterFinish: (selections["letter-finish"] ?? "raised") as KeychainLetterFinish, baseColour: selections["base-colour"] ?? "peach", letterColour: selections["letter-colour"] ?? "white" };
   let keychainError = "";
   if (isKeychain && customValues["keychain-name"]) { try { generateKeychain(keychainInput); } catch (cause) { keychainError = cause instanceof Error ? cause.message : "Invalid name"; } }
   const variant = variants.find(item => item.id === variantId) ?? defaultVariant;
+  useEffect(() => { if (view3d && variant?.modelUrl) void import("@google/model-viewer"); }, [view3d, variant?.modelUrl]);
   const colourOption = selectionOptions.find(option => option.type === "COLOUR");
   const selectedColourValue = colourOption?.values.find(value => value.value === selections[colourOption.code]);
   const gallery = (() => {
@@ -59,6 +61,7 @@ export function ProductPurchase({ checkoutEnabled, previewOnly = false, productN
     const next = { ...selections, [option.code]: value };
     if (option.code === "keychain-attachment") next["keyring-hardware"] = value === "tag" ? "none" : (selections["keyring-hardware"] === "none" ? options.find(item => item.code === "keyring-hardware")?.values.find(item => item.value !== "none")?.value ?? "" : selections["keyring-hardware"]);
     setSelections(next);
+    setView3d(false);
     const matching = variants.find(candidate => {
       const entries = Object.entries(candidate.optionSelection);
       return entries.length > 0 && entries.every(([code, selected]) => next[code] === selected);
@@ -73,6 +76,7 @@ export function ProductPurchase({ checkoutEnabled, previewOnly = false, productN
   function chooseVariant(id: string) {
     const next = variants.find(item => item.id === id);
     setVariantId(id);
+    setView3d(false);
     if (next) { setSelections(current => ({ ...current, ...next.optionSelection })); setActiveImageId(next.imageId ?? ""); }
   }
 
@@ -89,9 +93,10 @@ export function ProductPurchase({ checkoutEnabled, previewOnly = false, productN
 
   return <div className="product-layout">
     <div className="product-gallery">
-      {isKeychain && choice === "PERSONALISED" ? <KeychainPreview input={keychainInput} /> : activeImage ? <Image src={activeImage.url} alt={activeImage.altText} width={900} height={900} priority unoptimized /> : <div className="product-placeholder"><Radio size={64} /><span>{storeName}</span><strong>{productName}</strong><small>Made to order in Adelaide</small></div>}
+      {!isKeychain && view3d && variant?.modelUrl ? createElement("model-viewer", { src: variant.modelUrl, "camera-controls": true, "interaction-prompt": "auto", alt: `Rotate ${productName} in 3D`, className: "product-model-viewer" }) : isKeychain && choice === "PERSONALISED" ? <KeychainPreview input={keychainInput} /> : activeImage ? <Image src={activeImage.url} alt={activeImage.altText} width={900} height={900} priority unoptimized /> : <div className="product-placeholder"><Radio size={64} /><span>{storeName}</span><strong>{productName}</strong><small>Made to order in Adelaide</small></div>}
       <div className="gallery-price" aria-live="polite">{previewOnly ? "Pricing coming soon" : variant ? new Intl.NumberFormat("en-AU", { style: "currency", currency }).format((variant.priceCents + optionPriceCents) / 100) : "Unavailable"}</div>
-      {!isKeychain && gallery.length > 1 && <div className="product-thumbs">{gallery.map(image => <button type="button" key={image.id} className={image.id === activeImage?.id ? "active" : ""} onClick={() => setActiveImageId(image.id)} aria-label={`View ${image.altText}`}><Image src={image.url} alt="" width={160} height={160} unoptimized /></button>)}</div>}
+      {!isKeychain && variant?.modelUrl && <button type="button" className="button secondary product-3d-button" onClick={() => setView3d(value => !value)}>{view3d ? "View photos" : "View in 3D"}</button>}
+      {!isKeychain && gallery.length > 1 && <div className="product-thumbs">{gallery.map(image => <button type="button" key={image.id} className={image.id === activeImage?.id ? "active" : ""} onClick={() => { setActiveImageId(image.id); setView3d(false); }} aria-label={`View ${image.altText}`}><Image src={image.url} alt="" width={160} height={160} unoptimized /></button>)}</div>}
     </div>
     <div className="product-copy">
       <p className="eyebrow">{categoryName ?? (connected ? "Smart NFC product" : "Made-to-order product")}</p>
