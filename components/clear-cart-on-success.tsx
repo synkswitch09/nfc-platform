@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useCart } from "@/components/cart-provider";
 
-export function ClearCartOnSuccess({ paid }: { paid: boolean }) {
+export function ClearCartOnSuccess({ paid, orderId }: { paid: boolean; orderId: string }) {
   const { removePurchased, ready } = useCart();
   const router = useRouter();
   useEffect(() => {
@@ -19,8 +19,10 @@ export function ClearCartOnSuccess({ paid }: { paid: boolean }) {
     if (!stored) return;
     try {
       const purchased = JSON.parse(stored);
-      if (Array.isArray(purchased) && purchased.every(item => typeof item.key === "string" && Number.isInteger(item.quantity))) removePurchased(purchased);
-    } finally { sessionStorage.removeItem("commerce-checkout-cart"); }
-  }, [paid, ready, removePurchased]);
+      if (purchased.orderId !== orderId) return;
+      if (Array.isArray(purchased.lines) && purchased.lines.every((item: { key: unknown; quantity: unknown }) => typeof item.key === "string" && Number.isInteger(item.quantity))) removePurchased(purchased.lines);
+    } catch { sessionStorage.removeItem("commerce-checkout-cart"); return; }
+    sessionStorage.removeItem("commerce-checkout-cart");
+  }, [paid, ready, removePurchased, orderId]);
   return null;
 }

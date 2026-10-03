@@ -12,7 +12,6 @@ import { getRuntimeConfig } from "@/lib/config";
 import { getCurrentStorefront, isStoreCommerceAvailable } from "@/lib/storefront";
 
 export async function POST(request: NextRequest) {
-  if (!getRuntimeConfig().checkoutEnabled || getRuntimeConfig().previewMode) return jsonError("This store is not accepting orders yet", 503);
   if (!assertSameOrigin(request)) return jsonError("Invalid request origin", 403);
   const limited = await rateLimit("checkout", getClientIp(request), 20, 60 * 60 * 1000);
   if (!limited.allowed) return jsonError("Too many checkout attempts. Try again later.", 429);
@@ -42,7 +41,7 @@ export async function POST(request: NextRequest) {
     const sessionId = `test_${randomUUID()}`;
     await attachCheckoutSession(checkout.order.id, checkout.order.payments[0].id, sessionId);
     await settleCheckoutEvent({ eventId: `test-event-${randomUUID()}`, eventType: "checkout.session.completed.test", providerSessionId: sessionId, orderId: checkout.order.id, storeId: store.id, amountCents: checkout.order.totalCents, currency: store.currency });
-    return NextResponse.json({ url: `${origin}${successPath}`, testMode: true });
+    return NextResponse.json({ url: `${origin}${successPath}`, orderId: checkout.order.id, testMode: true });
   }
   const stripe = getStripe();
   if (!stripe) {
@@ -64,7 +63,7 @@ export async function POST(request: NextRequest) {
       cancel_url: `${origin}/checkout?cancelled=true`,
     }, { idempotencyKey: `checkout:${checkout.order.payments[0].id}` });
     await attachCheckoutSession(checkout.order.id, checkout.order.payments[0].id, session.id);
-    return NextResponse.json({ url: session.url });
+    return NextResponse.json({ url: session.url, orderId: checkout.order.id });
   } catch {
     // A timeout may happen after Stripe created a payable session. Reconciliation or
     // a signed webhook must resolve it; never release its stock on a network error.
