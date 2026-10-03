@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Archive, Copy, EyeOff, Plus, Trash2 } from "lucide-react";
 import { KEYCHAIN_FONTS, KEYRING_HARDWARE } from "@/lib/keychain";
 import { KeychainFontSample, KeyringSample } from "@/components/keychain-option-samples";
+import { MediaUploadField } from "@/components/media-upload-field";
 
 type ProductValidationIssue = {
   path: string;
@@ -249,6 +250,7 @@ export function AdminProductForm({
   const [pending, setPending] = useState(false);
   const [namePreview, setNamePreview] = useState(initial.name);
   const [slugPreview, setSlugPreview] = useState(initial.slug);
+  const [ogImageUrl, setOgImageUrl] = useState(initial.ogImageUrl);
   const [seoTitlePreview, setSeoTitlePreview] = useState(initial.seoTitle);
   const [seoDescriptionPreview, setSeoDescriptionPreview] = useState(
     initial.seoDescription,
@@ -603,7 +605,7 @@ export function AdminProductForm({
           const index = options.indexOf(option);
           const hardware = option.code === "keyring-hardware";
           const changeValue = (valueIndex: number, patch: Partial<OptionValueForm>) => updateOption(setOptions, index, "values", option.values.map((item, i) => i === valueIndex ? { ...item, ...patch } : item));
-          return <fieldset className="keychain-admin-choices" key={option.code}><legend>{option.name}</legend><div>{option.values.map((value, valueIndex) => hardware && value.value === "none" ? null : <div key={value.id ?? `${option.code}-${valueIndex}`} className="keychain-choice-row"><label className="check-field"><input type="checkbox" checked={value.active} onChange={event => changeValue(valueIndex, { active: event.target.checked })} />{value.swatchHex && <span className="colour-swatch" style={{ background: value.swatchHex }} />}<span>{value.label}</span></label>{option.code === "keychain-font" && <KeychainFontSample font={value.value} />}{hardware && <><KeyringSample value={value.value} imageUrl={value.swatchImageUrl || null} /><label className="field">Name<input value={value.label} onChange={event => changeValue(valueIndex, { label: event.target.value })} /></label><label className="field">Code<input value={value.value} onChange={event => changeValue(valueIndex, { value: event.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "") })} /></label><label className="field">Image URL<input value={value.swatchImageUrl} onChange={event => changeValue(valueIndex, { swatchImageUrl: event.target.value })} placeholder="Optional image URL" /></label><button type="button" className="icon-button" aria-label={`Remove ${value.label}`} onClick={() => updateOption(setOptions,index,"values",option.values.filter((_,i)=>i!==valueIndex))}><Trash2 size={16} /></button></>}{(option.code === "keychain-size" || hardware) && <label className="field">Extra AUD<input inputMode="decimal" value={value.price} onChange={event => changeValue(valueIndex, { price: event.target.value })} /></label>}</div>)}</div>{hardware && <button type="button" className="button secondary" onClick={() => updateOption(setOptions,index,"values",[...option.values,{...blankOptionValue(),label:"New ring",value:`ring-${Date.now()}`,swatchHex:""}])}><Plus size={16} /> Add ring or clasp</button>}</fieldset>;
+          return <fieldset className="keychain-admin-choices" key={option.code}><legend>{option.name}</legend><div>{option.values.map((value, valueIndex) => hardware && value.value === "none" ? null : <div key={value.id ?? `${option.code}-${valueIndex}`} className="keychain-choice-row"><label className="check-field"><input type="checkbox" checked={value.active} onChange={event => changeValue(valueIndex, { active: event.target.checked })} />{value.swatchHex && <span className="colour-swatch" style={{ background: value.swatchHex }} />}<span>{value.label}</span></label>{option.code === "keychain-font" && <KeychainFontSample font={value.value} />}{hardware && <><KeyringSample value={value.value} imageUrl={value.swatchImageUrl || null} /><label className="field">Name<input value={value.label} onChange={event => changeValue(valueIndex, { label: event.target.value })} /></label><label className="field">Code<input value={value.value} onChange={event => changeValue(valueIndex, { value: event.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "") })} /></label><MediaUploadField label={`${value.label} image`} value={value.swatchImageUrl} onChange={url => changeValue(valueIndex, { swatchImageUrl: url })} /><button type="button" className="icon-button" aria-label={`Remove ${value.label}`} onClick={() => updateOption(setOptions,index,"values",option.values.filter((_,i)=>i!==valueIndex))}><Trash2 size={16} /></button></>}{(option.code === "keychain-size" || hardware) && <label className="field">Extra AUD<input inputMode="decimal" value={value.price} onChange={event => changeValue(valueIndex, { price: event.target.value })} /></label>}</div>)}</div>{hardware && <button type="button" className="button secondary" onClick={() => updateOption(setOptions,index,"values",[...option.values,{...blankOptionValue(),label:"New ring",value:`ring-${Date.now()}`,swatchHex:""}])}><Plus size={16} /> Add ring or clasp</button>}</fieldset>;
         })}</div> : options.length ? (
           <div className="admin-stack">
             {options.map((option, index) => (
@@ -1289,14 +1291,7 @@ export function AdminProductForm({
               defaultValue={initial.canonicalUrl}
             />
           </label>
-          <label className="field">
-            Social image URL
-            <input
-              name="ogImageUrl"
-              type="url"
-              defaultValue={initial.ogImageUrl}
-            />
-          </label>
+          <MediaUploadField label="Social image" name="ogImageUrl" value={ogImageUrl} onChange={setOgImageUrl} />
         </div>
         <div
           className="seo-preview"
@@ -1496,16 +1491,7 @@ function OptionValuesEditor({
                   }
                 />
               </label>
-              <label className="field">
-                Swatch image URL
-                <input
-                  type="url"
-                  value={value.swatchImageUrl}
-                  onChange={(event) =>
-                    update(index, "swatchImageUrl", event.target.value)
-                  }
-                />
-              </label>
+              <MediaUploadField label="Swatch image" value={value.swatchImageUrl} onChange={(url) => update(index, "swatchImageUrl", url)} />
             </>
           )}
           <button
