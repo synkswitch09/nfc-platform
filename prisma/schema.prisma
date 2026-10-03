@@ -230,6 +230,18 @@ enum PaymentStatus {
   REFUNDED
 }
 
+enum PromotionKind {
+  PERCENT
+  FIXED
+  FREE_SHIPPING
+}
+
+enum SupportRequestStatus {
+  OPEN
+  IN_REVIEW
+  RESOLVED
+}
+
 enum ManufacturingStatus {
   GENERATED
   PROGRAMMED
@@ -345,6 +357,7 @@ model Store {
   enabledLocales       String[]             @default(["en-AU"])
   capabilities         StoreCapability[]    @default([])
   paymentProfileKey    String?
+  secondPurchaseRewardEnabled Boolean @default(true)
   createdAt            DateTime             @default(now())
   updatedAt            DateTime             @updatedAt
   domains              StoreDomain[]
@@ -354,6 +367,8 @@ model Store {
   passwordResets       PasswordReset[]
   categories           ProductCategory[]
   products             Product[]
+  promotions           Promotion[]
+  supportRequests      OrderSupportRequest[]
   categoryImages       CategoryImage[]
   contentPages         ContentPage[]
   locales              StoreLocale[]
@@ -534,6 +549,7 @@ model Product {
   category            ProductCategory?      @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   store               Store                 @relation(fields: [storeId], references: [id], onDelete: Restrict)
   variants            ProductVariant[]
+  promotions          Promotion[]
   images              ProductImage[]
   options             ProductOption[]
   tags                NFCTag[]
@@ -718,14 +734,17 @@ model ProductImage {
   sortOrder     Int                 @default(0)
   isPrimary     Boolean             @default(false)
   optionValueId String?             @db.Uuid
+  variantId     String?             @db.Uuid
   createdAt     DateTime            @default(now())
   updatedAt     DateTime            @updatedAt
   product       Product             @relation(fields: [productId], references: [id], onDelete: Cascade)
   variants      ProductVariant[]    @relation("VariantImage")
+  galleryVariant ProductVariant?    @relation("VariantGallery", fields: [variantId], references: [id], onDelete: SetNull)
   optionValue   ProductOptionValue? @relation(fields: [optionValueId], references: [id], onDelete: SetNull)
 
   @@index([productId, sortOrder])
   @@index([productId, optionValueId, sortOrder])
+  @@index([variantId, sortOrder])
 }
 
 model CategoryImage {
@@ -796,6 +815,8 @@ model ProductVariant {
   colour              String?
   size                String?
   material            String?
+  productionMinutes   Int?
+  modelStorageKey     String?              @unique
   priceCents          Int
   compareAtPriceCents Int?
   costCents           Int?
@@ -817,6 +838,7 @@ model ProductVariant {
   updatedAt           DateTime             @updatedAt
   product             Product              @relation(fields: [productId], references: [id], onDelete: Restrict)
   image               ProductImage?        @relation("VariantImage", fields: [imageId], references: [id], onDelete: SetNull)
+  galleryImages       ProductImage[]       @relation("VariantGallery")
   orderItems          OrderItem[]
   cartItems           CartItem[]
   tags                NFCTag[]
@@ -902,7 +924,9 @@ model Order {
   currency                   String                @default("AUD")
   subtotalCents              Int
   shippingCents              Int                   @default(0)
-  totalCents                 Int
+  discountCents              Int                   @default(0)
+  promotionId                String?               @db.Uuid
+  totalCents                 Int                   
   createdAt                  DateTime              @default(now())
   updatedAt                  DateTime              @updatedAt
   user                       User?                 @relation(fields: [userId], references: [id], onDelete: Restrict)
@@ -911,10 +935,13 @@ model Order {
   items                      OrderItem[]
   payments                   Payment[]
   notifications              OrderNotification[]
+  supportRequests            OrderSupportRequest[]
   statusHistory              OrderStatusHistory[]
   inventoryMovements         InventoryMovement[]
   shippingQuote              ShippingQuote?        @relation(fields: [shippingQuoteId], references: [id], onDelete: SetNull)
   shipments                  Shipment[]
+  productionBooking          ProductionBooking?
+  promotion                  Promotion?            @relation(fields: [promotionId], references: [id], onDelete: SetNull)
   marketplaceOrder           MarketplaceOrder?
 
   @@index([storeId, userId, createdAt])
@@ -1031,6 +1058,30 @@ model ManufacturingJob {
   @@index([storeId, status, priority, createdAt])
   @@index([productVariantId, status])
   @@index([assignedToId, status])
+}
+
+model ProductionPool {
+  environment           DeploymentEnvironment @id
+  weeklyCapacityMinutes Int                   @default(360)
+  maxBusinessDays       Int                   @default(10)
+  paused                Boolean               @default(false)
+  version               Int                   @default(0)
+  reviewedAt            DateTime?
+  updatedAt             DateTime              @updatedAt
+  bookings              ProductionBooking[]
+}
+
+model ProductionBooking {
+  orderId       String                @id @db.Uuid
+  environment   DeploymentEnvironment
+  minutes       Int
+  promisedAt    DateTime
+  releasedAt    DateTime?
+  createdAt     DateTime              @default(now())
+  order         Order                 @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  pool          ProductionPool        @relation(fields: [environment], references: [environment], onDelete: Restrict)
+
+  @@index([environment, releasedAt, createdAt])
 }
 
 model ShippingOrigin {
@@ -1614,4 +1665,48 @@ model StoreSettings {
   socialLinks           Json     @default("{}")
   shippingConfig        Json     @default("{}")
   updatedAt             DateTime @updatedAt
+}
+
+model Promotion {
+  id                       String        @id @default(uuid()) @db.Uuid
+  storeId                  String        @db.Uuid
+  name                     String
+  code                     String?
+  kind                     PromotionKind
+  percent                  Int?
+  amountCents              Int?
+  productId                String?       @db.Uuid
+  minimumSubtotalCents     Int           @default(0)
+  maxShippingDiscountCents Int?
+  maxShippingWeightGrams   Int?
+  allowedEmailHash         String?
+  usageLimit               Int?
+  startsAt                 DateTime?
+  endsAt                   DateTime?
+  active                   Boolean       @default(true)
+  createdAt                DateTime      @default(now())
+  updatedAt                DateTime      @updatedAt
+  store                    Store         @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  product                  Product?      @relation(fields: [productId], references: [id], onDelete: SetNull)
+  orders                   Order[]
+
+  @@unique([storeId, code])
+  @@index([storeId, active, startsAt, endsAt])
+}
+
+model OrderSupportRequest {
+  id          String               @id @default(uuid()) @db.Uuid
+  orderId     String               @db.Uuid
+  storeId     String               @db.Uuid
+  kind        String
+  message     String               @db.Text
+  status      SupportRequestStatus @default(OPEN)
+  adminNote   String?              @db.Text
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+  order       Order                @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  store       Store                @relation(fields: [storeId], references: [id], onDelete: Restrict)
+
+  @@index([storeId, status, createdAt])
+  @@index([orderId, createdAt])
 }

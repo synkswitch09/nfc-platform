@@ -31,6 +31,7 @@ type VariantForm = {
   colour: string;
   size: string;
   material: string;
+  productionMinutes: number | null;
   price: string;
   compareAtPrice: string;
   cost: string;
@@ -107,6 +108,7 @@ const blankVariant = (): VariantForm => ({
   colour: "",
   size: "",
   material: "PETG",
+  productionMinutes: null,
   price: "24.95",
   compareAtPrice: "",
   cost: "",
@@ -256,8 +258,8 @@ export function AdminProductForm({
     initial.seoDescription,
   );
   const isKeychain = storeSlug === "kosykin" && initial.slug === "custom-name-keychain";
-  const guidedColours = isKeychain || setupKind === "colour" || setupKind === "two-colour";
-  const simpleVariant = !["nfc", "variants"].includes(setupKind) && variants.length === 1;
+  const guidedColours = isKeychain;
+  const simpleVariant = (setupKind === "standard" || isKeychain) && variants.length === 1;
   const selectionOptions = options.filter((option) =>
     ["SELECT", "RADIO", "COLOUR"].includes(option.type),
   );
@@ -604,8 +606,9 @@ export function AdminProductForm({
         {guidedColours ? <div className="admin-stack">{options.filter(option => option.values.length > 0).map(option => {
           const index = options.indexOf(option);
           const hardware = option.code === "keyring-hardware";
+          const colour = option.type === "COLOUR";
           const changeValue = (valueIndex: number, patch: Partial<OptionValueForm>) => updateOption(setOptions, index, "values", option.values.map((item, i) => i === valueIndex ? { ...item, ...patch } : item));
-          return <fieldset className="keychain-admin-choices" key={option.code}><legend>{option.name}</legend><div>{option.values.map((value, valueIndex) => hardware && value.value === "none" ? null : <div key={value.id ?? `${option.code}-${valueIndex}`} className="keychain-choice-row"><label className="check-field"><input type="checkbox" checked={value.active} onChange={event => changeValue(valueIndex, { active: event.target.checked })} />{value.swatchHex && <span className="colour-swatch" style={{ background: value.swatchHex }} />}<span>{value.label}</span></label>{option.code === "keychain-font" && <KeychainFontSample font={value.value} />}{hardware && <><KeyringSample value={value.value} imageUrl={value.swatchImageUrl || null} /><label className="field">Name<input value={value.label} onChange={event => changeValue(valueIndex, { label: event.target.value })} /></label><label className="field">Code<input value={value.value} onChange={event => changeValue(valueIndex, { value: event.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "") })} /></label><MediaUploadField label={`${value.label} image`} value={value.swatchImageUrl} onChange={url => changeValue(valueIndex, { swatchImageUrl: url })} /><button type="button" className="icon-button" aria-label={`Remove ${value.label}`} onClick={() => updateOption(setOptions,index,"values",option.values.filter((_,i)=>i!==valueIndex))}><Trash2 size={16} /></button></>}{(option.code === "keychain-size" || hardware) && <label className="field">Extra AUD<input inputMode="decimal" value={value.price} onChange={event => changeValue(valueIndex, { price: event.target.value })} /></label>}</div>)}</div>{hardware && <button type="button" className="button secondary" onClick={() => updateOption(setOptions,index,"values",[...option.values,{...blankOptionValue(),label:"New ring",value:`ring-${Date.now()}`,swatchHex:""}])}><Plus size={16} /> Add ring or clasp</button>}</fieldset>;
+          return <fieldset className="keychain-admin-choices" key={option.code}><legend>{option.name}</legend><div>{option.values.map((value, valueIndex) => hardware && value.value === "none" ? null : <div key={value.id ?? `${option.code}-${valueIndex}`} className="keychain-choice-row"><label className="check-field"><input type="checkbox" checked={value.active} onChange={event => changeValue(valueIndex, { active: event.target.checked })} />{value.swatchHex && <span className="colour-swatch" style={{ background: value.swatchHex }} />}<span>{value.label}</span></label>{option.code === "keychain-font" && <KeychainFontSample font={value.value} />}{hardware && <><KeyringSample value={value.value} imageUrl={value.swatchImageUrl || null} /><label className="field">Name<input value={value.label} onChange={event => changeValue(valueIndex, { label: event.target.value })} /></label><label className="field">Code<input value={value.value} onChange={event => changeValue(valueIndex, { value: event.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "") })} /></label><MediaUploadField label={`${value.label} image`} value={value.swatchImageUrl} onChange={url => changeValue(valueIndex, { swatchImageUrl: url })} /><button type="button" className="icon-button" aria-label={`Remove ${value.label}`} onClick={() => updateOption(setOptions,index,"values",option.values.filter((_,i)=>i!==valueIndex))}><Trash2 size={16} /></button></>}{colour && <><label className="field">Colour name<input value={value.label} onChange={event => changeValue(valueIndex, { label: event.target.value })} /></label><label className="field">Colour code<input value={value.value} onChange={event => changeValue(valueIndex, { value: event.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "") })} /></label><label className="field">Print colour<input type="color" value={value.swatchHex || "#000000"} onChange={event => changeValue(valueIndex, { swatchHex: event.target.value })} /></label><button type="button" className="icon-button" aria-label={`Remove ${value.label}`} onClick={() => updateOption(setOptions,index,"values",option.values.filter((_,i)=>i!==valueIndex))}><Trash2 size={16} /></button></>}{(option.code === "keychain-size" || hardware) && <label className="field">Extra AUD<input inputMode="decimal" value={value.price} onChange={event => changeValue(valueIndex, { price: event.target.value })} /></label>}</div>)}</div>{hardware && <button type="button" className="button secondary" onClick={() => updateOption(setOptions,index,"values",[...option.values,{...blankOptionValue(),label:"New ring",value:`ring-${Date.now()}`,swatchHex:""}])}><Plus size={16} /> Add ring or clasp</button>}{colour && <button type="button" className="button secondary" onClick={() => updateOption(setOptions,index,"values",[...option.values,{...blankOptionValue(),label:"New colour",value:`colour-${Date.now()}`,swatchHex:"#ffffff"}])}><Plus size={16} /> Add colour</button>}</fieldset>;
         })}</div> : options.length ? (
           <div className="admin-stack">
             {options.map((option, index) => (
@@ -781,6 +784,7 @@ export function AdminProductForm({
         {simpleVariant ? <div className="field-grid three">
           <label className="field">SKU<input value={variants[0].sku} onChange={event => updateVariant(setVariants, 0, "sku", event.target.value.toUpperCase())} required /></label>
           <label className="field">Material<input value={variants[0].material} onChange={event => updateVariant(setVariants, 0, "material", event.target.value)} /></label>
+          <label className="field">Production minutes per item<input type="number" min="1" max="10080" value={variants[0].productionMinutes ?? ""} onChange={event => updateVariant(setVariants, 0, "productionMinutes", event.target.value ? Number(event.target.value) : null)} /> <small>Leave empty for ready stock; set a time for made-to-order items.</small></label>
           <label className="field">Base price AUD<input inputMode="decimal" value={variants[0].price} onChange={event => updateVariant(setVariants, 0, "price", event.target.value)} required /></label>
           <label className="field">Initial stock<input type="number" min="0" value={variants[0].inventory} readOnly={Boolean(variants[0].id)} onChange={event => updateVariant(setVariants, 0, "inventory", Number(event.target.value))} />{variants[0].id && <small>Adjust stock in <a href="/admin/inventory">Catalog → Inventory</a>.</small>}</label>
         </div> : <div className="admin-stack">
@@ -838,7 +842,7 @@ export function AdminProductForm({
                 {!isKeychain && <><VariantChoiceField fallbackName="Colour" option={options.find((option) => option.type === "COLOUR")} value={selectionValue(variant.optionSelection, options.find((option) => option.type === "COLOUR")?.code ?? "colour")} onChange={(value, label) => updateVariantChoice(setVariants, index, options.find((option) => option.type === "COLOUR")?.code ?? "colour", value, label)} />
                 <VariantChoiceField fallbackName="Size" option={choiceByCode("size")} value={selectionValue(variant.optionSelection, "size")} onChange={(value, label) => updateVariantChoice(setVariants, index, "size", value, label)} />
                 <VariantChoiceField fallbackName="Style / shape" option={choiceByCode("shape")} value={selectionValue(variant.optionSelection, "shape")} onChange={(value) => updateVariantChoice(setVariants, index, "shape", value)} />
-                {selectionOptions.filter((option) => option.type !== "COLOUR" && !["size", "shape"].includes(option.code)).map((option) => <VariantChoiceField key={option.code} option={option} value={selectionValue(variant.optionSelection, option.code)} onChange={(value, label) => updateVariantChoice(setVariants, index, option.code, value, label)} />)}</>}
+                {selectionOptions.filter((option) => option !== options.find((item) => item.type === "COLOUR") && !["size", "shape"].includes(option.code)).map((option) => <VariantChoiceField key={option.code} option={option} value={selectionValue(variant.optionSelection, option.code)} onChange={(value, label) => updateVariantChoice(setVariants, index, option.code, value, label)} />)}</>}
                 <label className="field">
                   Material
                   <input
@@ -853,6 +857,7 @@ export function AdminProductForm({
                     }
                   />
                 </label>
+                <label className="field">Production minutes per item<input type="number" min="1" max="10080" value={variant.productionMinutes ?? ""} onChange={event => updateVariant(setVariants, index, "productionMinutes", event.target.value ? Number(event.target.value) : null)} /> <small>Shared X2D time if made to order.</small></label>
                 <label className="field">
                   Price AUD
                   <input

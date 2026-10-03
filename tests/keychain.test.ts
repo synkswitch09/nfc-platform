@@ -60,6 +60,26 @@ describe("made-to-order keychain",()=>{
     expect(validateKeychainOptions(fields, selected).attachment).toBe("keychain");
     expect(() => validateKeychainOptions(fields, { ...selected, "keychain-attachment": "tag" })).toThrow(/hardware/);
   });
+  it("preserves merchant colours in the paid-order snapshot and printable 3MF", () => {
+    const input = validateKeychainOptions({ "keychain-name": "Name" }, {
+      "keychain-font": "rounded", "keychain-size": "regular", "base-colour": "teal", "letter-colour": "cream",
+      "base-colour-hex": "#007F80", "letter-colour-hex": "#FFEEDD", "keychain-attachment": "tag", "keyring-hardware": "none",
+    });
+    expect(input.palette).toEqual({ teal: "#007F80", cream: "#FFEEDD" });
+    const mf = keychain3mf(input);
+    let offset = 0, settings = "";
+    while (mf.readUInt32LE(offset) === 0x04034b50) {
+      const nameLength = mf.readUInt16LE(offset + 26), length = mf.readUInt32LE(offset + 18), start = offset + 30 + nameLength;
+      const name = mf.subarray(offset + 30, start).toString("utf8");
+      if (name === "Metadata/project_settings.config") {
+        const bytes = mf.subarray(start, start + length);
+        settings = (mf.readUInt16LE(offset + 8) === 8 ? inflateRawSync(bytes) : bytes).toString("utf8");
+      }
+      offset = start + length;
+    }
+    expect(JSON.parse(settings).filament_colour.slice(0, 2)).toEqual(["#007F80", "#FFEEDD"]);
+    expect(() => validateKeychainOptions({ "keychain-name": "Name" }, { "keychain-font": "rounded", "keychain-size": "regular", "base-colour": "teal", "letter-colour": "cream", "base-colour-hex": "invalid", "letter-colour-hex": "#FFEEDD", "keychain-attachment": "tag", "keyring-hardware": "none" })).toThrow();
+  });
   it("fits longer names by reducing glyph height while keeping a watertight two-part mesh",()=>{
     const short=generateKeychain({...choices,name:"Daniel"}),long=generateKeychain({...choices,name:"Christopher"});
     expect(long.letterHeightMm).toBeLessThan(short.letterHeightMm);

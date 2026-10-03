@@ -89,6 +89,7 @@ export type Storefront = {
   enabledLocales: string[];
   capabilities: StoreCapability[];
   paymentProfileKey: string | null;
+  secondPurchaseRewardEnabled: boolean;
   hostname: string;
   origin: string;
   environment: DeploymentEnvironment;
@@ -174,6 +175,7 @@ function mapStorefront(
     enabledLocales: row.enabledLocales,
     capabilities: row.capabilities,
     paymentProfileKey: row.paymentProfileKey,
+    secondPurchaseRewardEnabled: row.secondPurchaseRewardEnabled,
     hostname,
     origin: storeDomainOrigin(primary),
     environment,
@@ -217,6 +219,7 @@ function developmentFallback(hostname: string): Storefront {
     enabledLocales: ["en-AU", "es-CO"],
     capabilities: Object.values(StoreCapability),
     paymentProfileKey: null,
+    secondPurchaseRewardEnabled: true,
     hostname,
     origin: "http://localhost:3000",
     environment: DeploymentEnvironment.DEVELOPMENT,
