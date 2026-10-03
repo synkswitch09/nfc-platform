@@ -30,11 +30,6 @@ const inter = Inter({
   display: "swap",
 });
 
-const productionSearchConsoleVerification: Record<string, string | undefined> = {
-  tapkin: process.env.GOOGLE_SITE_VERIFICATION_TAPKIN,
-  kosykin: process.env.GOOGLE_SITE_VERIFICATION_KOSYKIN,
-};
-
 export async function generateMetadata(): Promise<Metadata> {
   const store = await getCurrentStorefront();
   const settings = await getStoreSettings(store);
@@ -47,12 +42,9 @@ export async function generateMetadata(): Promise<Metadata> {
   const socialImage = home?.ogImageUrl || settings.defaultSocialImageUrl;
   return {
     metadataBase: new URL(store.origin),
-    verification: config.appEnv === "production" && !config.previewMode && productionSearchConsoleVerification[store.slug]
-      ? { google: productionSearchConsoleVerification[store.slug] }
-      : undefined,
     robots:
       store.status === StoreStatus.ACTIVE
-        ? searchEnginePolicy(config.appEnv, config.previewMode)
+        ? searchEnginePolicy(config.appEnv)
         : { index: false, follow: false },
     title: {
       default: title,
@@ -155,7 +147,7 @@ export default async function RootLayout({
   const commerce = isStoreCommerceAvailable(store);
   const nfcEnabled = hasStoreCapability(store, StoreCapability.NFC);
   const runtime = getRuntimeConfig();
-  const analyticsEnabled = runtime.appEnv === "production" && !runtime.previewMode && Boolean(runtime.analyticsStores[store.slug]);
+  const analyticsEnabled = runtime.appEnv === "production" && Boolean(runtime.analyticsStores[store.slug]);
   return (
     <html lang={locale}>
       <body
@@ -164,15 +156,13 @@ export default async function RootLayout({
         data-theme-style={store.theme.fontStyle}
         style={storeThemeStyle(store.theme)}
       >
-        {runtime.previewMode && <div role="status" style={{ background: "#253334", color: "#fff", padding: "0.65rem 1rem", textAlign: "center" }}>Preview only · {settings.storeName} is not accepting orders yet.</div>}
-        {!runtime.previewMode && !runtime.checkoutEnabled && <div role="status" style={{ background: "#253334", color: "#fff", padding: "0.65rem 1rem", textAlign: "center" }}>{settings.storeName} is open for browsing. Orders are not open yet.</div>}
         <CartProvider storageKey={`commerce-cart:${store.id}:v1`}>
           <SiteHeader
-            config={settings.headerConfig}
+            config={store.slug === "kosykin" ? { ...settings.headerConfig, showCategories: false, customLinks: [] } : settings.headerConfig}
             storeName={settings.storeName}
             storeLogoUrl={store.logoUrl}
             categories={categories}
-            pages={pageNavigation.filter((page) => page.showInHeader).map((page) => ({ name: page.headerLabel || page.name, slug: page.slug, order: page.navigationOrder }))}
+            pages={store.slug === "kosykin" ? [] : pageNavigation.filter((page) => page.showInHeader).map((page) => ({ name: page.headerLabel || page.name, slug: page.slug, order: page.navigationOrder }))}
             commerce={commerce}
             nfcEnabled={nfcEnabled}
             authenticated={Boolean(user)}

@@ -23,8 +23,7 @@ export default async function NewProductPage({ searchParams }: { searchParams: P
     db.packaging.findMany({ where: { storeId: store.id, active: true }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
   ]);
   if (template === "colour" || template === "two-colour") {
-    const palette = Object.entries(KEYCHAIN_COLOURS).map(([key, hex]) => ({ label: key[0].toUpperCase()+key.slice(1), value: key, price: "0", active: true, swatchHex: hex, swatchHexSecondary: "", swatchImageUrl: "" }));
-    const colourOption = (name: string, code: string) => ({ name, code, type: "COLOUR" as const, required: true, maxLength: null, price: "0", helpText: "Enable only the colours you can make.", values: palette.map(value => ({ ...value })) });
+    const colourOption = (name: string, code: string) => ({ name, code, type: "COLOUR" as const, required: true, maxLength: null, price: "0", helpText: "Add the colours available for this product and upload photos for each colour.", values: [] });
     initial.options = template === "colour" ? [colourOption("Colour", "colour")] : [colourOption("Base colour", "base-colour"), colourOption("Accent colour", "accent-colour")];
     initial.personalisationMode = "REQUIRED";
   }
@@ -35,7 +34,7 @@ export default async function NewProductPage({ searchParams }: { searchParams: P
     initial.fullDescription="Choose a name, a typeface, a size and two colours. Choose a backing that follows the name or a rounded rectangle, then finish as a plain tag or a keyring. Made to order in Adelaide.";
     initial.type="CUSTOM";initial.personalisationMode="REQUIRED";initial.weightGrams=25;initial.lengthMm=130;initial.widthMm=30;initial.heightMm=4;
     initial.categoryId=categories.find(c=>/3d|print|keychain/i.test(c.name))?.id??categories[0]?.id??"";
-    initial.variants=[{sku:"KOS-NAME-3D",name:"Made to order",colour:"",size:"",material:"PLA",price:"0",compareAtPrice:"",cost:"",inventory:0,trackInventory:true,lowStockThreshold:5,backorderPolicy:"DENY",active:true,isDefault:true,optionSelection:"",weightGrams:25,lengthMm:130,widthMm:30,heightMm:4,defaultPackagingId:""}];
+    initial.variants=[{sku:"KOS-NAME-3D",name:"Made to order",colour:"",size:"",material:"PLA",productionMinutes:45,price:"0",compareAtPrice:"",cost:"",inventory:0,trackInventory:true,lowStockThreshold:5,backorderPolicy:"DENY",active:true,isDefault:true,optionSelection:"",weightGrams:25,lengthMm:130,widthMm:30,heightMm:4,defaultPackagingId:""}];
     initial.options=[
       {name:"Name",code:"keychain-name",type:"SHORT_TEXT",required:true,maxLength:24,price:"0",helpText:"The shape and length adjust to your name.",values:[]},
       {name:"Font",code:"keychain-font",type:"SELECT",required:true,maxLength:null,price:"0",helpText:"Choose a printable typeface.",values:Object.entries(KEYCHAIN_FONTS).map(([key,label])=>value(label,key))},

@@ -8,6 +8,7 @@ import { cancelStripeCheckout } from "@/lib/checkout-reconciliation";
 import { canTransitionOrder } from "@/lib/order-status";
 import { preparationIssues } from "@/lib/order-preparation";
 import { queueOrderNotice, notifyPaidOrder } from "@/lib/order-notifications";
+import { releaseProduction } from "@/lib/production-capacity";
 
 const schema = z.object({ status: z.enum(["PENDING", "PAYMENT_PENDING", "PAID", "PROCESSING", "READY_TO_SHIP", "SHIPPED", "DELIVERED", "COMPLETED", "CANCELLED", "REFUNDED"]), note: z.string().trim().max(500).optional(), overridePreparation: z.boolean().optional(), carrier: z.string().trim().max(80).optional(), trackingNumber: z.string().trim().max(100).regex(/^[A-Za-z0-9 ._/-]*$/).optional() }).superRefine((value, context) => { if (value.status === "SHIPPED" && (!value.carrier || !value.trackingNumber)) context.addIssue({ code: "custom", message: "Carrier and tracking number are required when shipping" }); });
 
@@ -39,6 +40,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       const updated = await tx.order.updateMany({ where: { id: orderId, storeId: store.id, status: order.status }, data: { status: parsed.data.status, ...(parsed.data.status === "SHIPPED" ? { shippingCarrier: parsed.data.carrier, trackingNumber: parsed.data.trackingNumber, shippedAt: changedAt } : {}) } });
       if (!updated.count) return false;
       if (parsed.data.status === "SHIPPED") {
+        await releaseProduction(tx, orderId);
         await tx.shipment.updateMany({
           where: { orderId, storeId: store.id, status: "LABEL_READY" },
           data: { status: "IN_TRANSIT", trackingNumber: parsed.data.trackingNumber, shippedAt: changedAt },
@@ -51,7 +53,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       }
       const history = await tx.orderStatusHistory.create({ data: { orderId, fromStatus: order.status, toStatus: parsed.data.status, actorId: user.id, note: parsed.data.note || null } });
       await tx.auditLog.create({ data: { actorId: user.id, storeId: store.id, action: "ORDER_STATUS_CHANGED", entityType: "Order", entityId: orderId, metadata: { from: order.status, to: parsed.data.status } } });
-      await queueOrderNotice(tx, orderId, `status:${history.id}`, parsed.data.status.replaceAll("_", " "), `Your order is now ${parsed.data.status.replaceAll("_", " ").toLowerCase()}.${parsed.data.status === "SHIPPED" ? ` Carrier: ${parsed.data.carrier}. Tracking: ${parsed.data.trackingNumber}.` : ""}`);
+      if (parsed.data.status === "SHIPPED") await queueOrderNotice(tx, orderId, `status:${history.id}`, "Your order has shipped", `Your order has shipped. Carrier: ${parsed.data.carrier}. Tracking: ${parsed.data.trackingNumber}.`);
       return true;
     }, { isolationLevel: "Serializable" }).catch(error => error instanceof Error && error.message.startsWith("PREPARATION:") ? error.message : false);
     if (typeof changed === "string") return jsonError(changed.slice("PREPARATION:".length), 409);

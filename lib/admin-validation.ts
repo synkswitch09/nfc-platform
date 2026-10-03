@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { isSafeImageSource } from "@/lib/image-source";
-import { KEYCHAIN_BASE_SHAPES, KEYCHAIN_COLOURS, KEYCHAIN_FONTS, KEYCHAIN_LETTER_FINISHES, KEYCHAIN_SIZES } from "@/lib/keychain";
+import { KEYCHAIN_BASE_SHAPES, KEYCHAIN_FONTS, KEYCHAIN_LETTER_FINISHES, KEYCHAIN_SIZES } from "@/lib/keychain";
 
 const optionalUrl = z.string().trim().url().refine(value => /^https?:\/\//i.test(value)).or(z.literal("")).optional();
 const optionalImageSource = z.string().trim().refine(isSafeImageSource, "Use an uploaded image or an HTTP(S) image URL").optional();
@@ -9,7 +9,7 @@ const reservedCategorySlugs = new Set(["activate", "admin", "api", "cart", "cate
 const optionValueSchema = z.object({ id: z.string().uuid().optional(), label: z.string().trim().min(1).max(80), value: z.string().trim().min(1).max(80), priceDeltaCents: z.number().int().min(0).max(100_000), active: z.boolean().default(true), swatchHex: z.string().regex(/^#[0-9a-f]{6}$/i).nullable().optional(), swatchHexSecondary: z.string().regex(/^#[0-9a-f]{6}$/i).nullable().optional(), swatchImageUrl: optionalImageSource });
 const optionSchema = z.object({ id: z.string().uuid().optional(), name: z.string().trim().min(1).max(80), code: z.string().trim().toLowerCase().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/), type: z.enum(["SHORT_TEXT", "LONG_TEXT", "SELECT", "RADIO", "CHECKBOX", "COLOUR", "IMAGE"]), required: z.boolean().default(false), maxLength: z.number().int().min(1).max(2_000).nullable().optional(), priceDeltaCents: z.number().int().min(0).max(100_000), helpText: z.string().trim().max(200).nullable().optional(), active: z.boolean().default(true), values: z.array(optionValueSchema).max(50).default([]) });
 const dimension = z.number().int().min(1).max(10_000).nullable().optional();
-const variantSchema = z.object({ id: z.string().uuid().optional(), sku: z.string().trim().toUpperCase().regex(/^[A-Z0-9][A-Z0-9._-]{2,49}$/), name: z.string().trim().min(1).max(100), colour: z.string().trim().max(50).nullable().optional(), size: z.string().trim().max(50).nullable().optional(), material: z.string().trim().max(50).nullable().optional(), priceCents: z.number().int().min(0).max(100_000_000), compareAtPriceCents: z.number().int().min(0).max(100_000_000).nullable().optional(), costCents: z.number().int().min(0).max(100_000_000).nullable().optional(), inventory: z.number().int().min(0).max(1_000_000), trackInventory: z.boolean().default(true), lowStockThreshold: z.number().int().min(0).max(100_000), backorderPolicy: z.enum(["DENY", "ALLOW"]), active: z.boolean().default(true), isDefault: z.boolean().default(false), optionSelection: z.record(z.string(), z.string()).default({}), weightGrams: dimension, lengthMm: dimension, widthMm: dimension, heightMm: dimension, defaultPackagingId: z.string().uuid().nullable().optional() });
+const variantSchema = z.object({ id: z.string().uuid().optional(), sku: z.string().trim().toUpperCase().regex(/^[A-Z0-9][A-Z0-9._-]{2,49}$/), name: z.string().trim().min(1).max(100), colour: z.string().trim().max(50).nullable().optional(), size: z.string().trim().max(50).nullable().optional(), material: z.string().trim().max(50).nullable().optional(), productionMinutes: z.number().int().min(1).max(10080).nullable().optional(), priceCents: z.number().int().min(0).max(100_000_000), compareAtPriceCents: z.number().int().min(0).max(100_000_000).nullable().optional(), costCents: z.number().int().min(0).max(100_000_000).nullable().optional(), inventory: z.number().int().min(0).max(1_000_000), trackInventory: z.boolean().default(true), lowStockThreshold: z.number().int().min(0).max(100_000), backorderPolicy: z.enum(["DENY", "ALLOW"]), active: z.boolean().default(true), isDefault: z.boolean().default(false), optionSelection: z.record(z.string(), z.string()).default({}), weightGrams: dimension, lengthMm: dimension, widthMm: dimension, heightMm: dimension, defaultPackagingId: z.string().uuid().nullable().optional() });
 
 export const adminProductSchema = z.object({
   name: z.string().trim().min(2).max(140),
@@ -54,10 +54,16 @@ export const adminProductSchema = z.object({
       const option=value.options.find(item=>item.code===code);
       if(!option||option.type!==type||!option.required||!option.active)context.addIssue({code:"custom",message:`${code} must be an active required ${type} field`,path:["options"]});
       if(code==="keychain-name" && option?.maxLength !== 24)context.addIssue({code:"custom",message:"Name limit must be 24 characters",path:["options"]});
-      const allowed=code==="keychain-font"?KEYCHAIN_FONTS:code==="keychain-size"?KEYCHAIN_SIZES:code.endsWith("colour")?KEYCHAIN_COLOURS:code==="base-shape"?KEYCHAIN_BASE_SHAPES:code==="keychain-attachment"?{keychain:true,tag:true}:code==="letter-finish"?KEYCHAIN_LETTER_FINISHES:null;
+      const allowed=code==="keychain-font"?KEYCHAIN_FONTS:code==="keychain-size"?KEYCHAIN_SIZES:code==="base-shape"?KEYCHAIN_BASE_SHAPES:code==="keychain-attachment"?{keychain:true,tag:true}:code==="letter-finish"?KEYCHAIN_LETTER_FINISHES:null;
       if(allowed && option && (!option.values.some(item=>item.active)||option.values.some(item=>item.active && !(item.value in allowed))))context.addIssue({code:"custom",message:`${code} has unsupported choices`,path:["options"]});
       if(code==="keyring-hardware" && option && (!option.values.some(item=>item.active&&item.value==="none") || !option.values.some(item=>item.active&&item.value!=="none") || new Set(option.values.map(item=>item.value)).size!==option.values.length || option.values.some(item=>item.value==="none" && item.priceDeltaCents!==0)))context.addIssue({code:"custom",message:"Hardware needs a no-hardware tag choice and at least one distinct ring or clasp",path:["options"]});
-      if(code.endsWith("colour") && option?.values.some(item=>item.active && item.swatchHex?.toLowerCase()!==KEYCHAIN_COLOURS[item.value]?.toLowerCase()))context.addIssue({code:"custom",message:`${code} swatches must match the 3D palette`,path:["options"]});
+      if(code.endsWith("colour") && option && (!option.values.some(item=>item.active) || new Set(option.values.map(item=>item.value)).size!==option.values.length || option.values.some(item=>item.active && !item.swatchHex)))context.addIssue({code:"custom",message:`${code} needs active colours with distinct codes and hex swatches`,path:["options"]});
+    }
+    const palette = new Map<string,string>();
+    for (const option of value.options.filter(item=>item.code==="base-colour" || item.code==="letter-colour")) for (const choice of option.values) {
+      const hex=choice.swatchHex?.toLowerCase();
+      if(hex && palette.has(choice.value) && palette.get(choice.value)!==hex)context.addIssue({code:"custom",message:`${choice.value} must use the same hex in both colour selectors`,path:["options"]});
+      if(hex)palette.set(choice.value,hex);
     }
     if(value.status==="ACTIVE" && value.variants.some(item=>item.priceCents<=0))context.addIssue({code:"custom",message:"Set a price before publishing the keychain",path:["variants"]});
   }
@@ -66,6 +72,14 @@ export const adminProductSchema = z.object({
   if (new Set(value.options.map(option => option.code)).size !== value.options.length) context.addIssue({ code: "custom", message: "Personalisation codes must be unique", path: ["options"] });
   if (value.personalisationMode === "NONE" && value.options.some(option => !["SELECT", "RADIO", "COLOUR"].includes(option.type))) context.addIssue({ code: "custom", message: "Products with personalisation disabled may only use product-selection fields", path: ["personalisationMode"] });
   const selections = new Map(value.options.filter(option => ["SELECT", "RADIO", "COLOUR"].includes(option.type)).map(option => [option.code, new Set(option.values.filter(item => item.active).map(item => item.value))]));
+  if (value.slug !== "custom-name-keychain") {
+    const mappedChoices = value.options.filter(option => option.active && option.values.some(item => item.active) && (option.type === "COLOUR" || value.variants.length > 1 && ["SELECT", "RADIO"].includes(option.type)));
+    value.variants.forEach((variant, index) => mappedChoices.forEach(option => {
+      if (!variant.optionSelection[option.code]) context.addIssue({ code: "custom", message: `Select ${option.name} for this variant`, path: ["variants", index, "optionSelection"] });
+    }));
+    const keys = value.variants.map(variant => JSON.stringify(Object.entries(variant.optionSelection).sort(([a], [b]) => a.localeCompare(b))));
+    if (new Set(keys).size !== keys.length && mappedChoices.length) context.addIssue({ code: "custom", message: "Each variant needs a distinct choice combination", path: ["variants"] });
+  }
   value.variants.forEach((variant, variantIndex) => Object.entries(variant.optionSelection).forEach(([code, selected]) => {
     if (!selections.get(code)?.has(selected)) context.addIssue({ code: "custom", message: `Variant option ${code}=${selected} is not configured`, path: ["variants", variantIndex, "optionSelection"] });
   }));
