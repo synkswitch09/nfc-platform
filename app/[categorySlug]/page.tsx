@@ -60,7 +60,7 @@ export async function generateMetadata({
         languages: languageAlternates(path, store.origin, page.canonicalUrl ? [store.defaultLocale] : [store.defaultLocale, ...store.enabledLocales.filter(code => page.translations.some(item => item.locale === code) && page.sections.some(section => section.translations.some(item => item.locale === code)))], store.defaultLocale),
       },
       robots:
-        page.indexable && searchEnginePolicy(getRuntimeConfig().appEnv, getRuntimeConfig().previewMode).index
+        page.indexable && searchEnginePolicy(getRuntimeConfig().appEnv).index
           ? { index: true, follow: true }
           : { index: false, follow: false },
       openGraph: {
@@ -78,6 +78,7 @@ export async function generateMetadata({
     };
   }
   const store = await getCurrentStorefront();
+  if (store.slug === "kosykin") return { robots: { index: false, follow: true }, alternates: { canonical: canonicalForStore(store.origin, `/shop?category=${encodeURIComponent(category.slug)}`) } };
   const locale = await getRequestLocale(store);
   const pageTranslation = category.contentPage?.translations.find(
     (item) => item.locale === locale,
@@ -97,7 +98,7 @@ export async function generateMetadata({
       languages: languageAlternates(categoryPublicPath(category.slug), store.origin, category.canonicalUrl ? [store.defaultLocale] : [store.defaultLocale, ...store.enabledLocales.filter(code => category.contentPage?.translations.some(item => item.locale === code) && category.landingSections.some(section => section.translations.some(item => item.locale === code)))], store.defaultLocale),
     },
     robots:
-      category.indexable && searchEnginePolicy(getRuntimeConfig().appEnv, getRuntimeConfig().previewMode).index
+      category.indexable && searchEnginePolicy(getRuntimeConfig().appEnv).index
         ? { index: true, follow: true }
         : { index: false, follow: false },
     openGraph: {
@@ -124,6 +125,7 @@ export default async function PublicCategoryPage({
 }) {
   const { categorySlug } = await params;
   const category = await getPublicCategory(categorySlug);
+  if (category && (await getCurrentStorefront()).slug === "kosykin") permanentRedirect(`/shop?category=${encodeURIComponent(category.slug)}`);
   if (!category) {
     const store = await getCurrentStorefront();
     const locale = await getRequestLocale(store);
