@@ -9,6 +9,16 @@ const validProduct = {
 };
 
 describe("admin validation", () => {
+  it("keeps stock and made-to-order production as exclusive fulfilment modes", () => {
+    const stocked = validProduct.variants[0];
+    expect(adminProductSchema.safeParse(validProduct).success).toBe(true);
+    const made = { ...stocked, trackInventory: false, inventory: 0, lowStockThreshold: 0, productionMinutes: 45 };
+    expect(adminProductSchema.safeParse({ ...validProduct, variants: [made] }).success).toBe(true);
+    expect(adminProductSchema.safeParse({ ...validProduct, variants: [{ ...made, productionMinutes: null }] }).success).toBe(false);
+    expect(adminProductSchema.safeParse({ ...validProduct, variants: [{ ...made, inventory: 3 }] }).success).toBe(false);
+    expect(adminProductSchema.safeParse({ ...validProduct, variants: [{ ...stocked, productionMinutes: 45 }] }).success).toBe(false);
+    expect(adminProductSchema.safeParse({ ...validProduct, variants: [{ ...stocked, backorderPolicy: "ALLOW" }] }).success).toBe(false);
+  });
   it("normalises product slugs and SKUs", () => {
     const result = adminProductSchema.parse({ ...validProduct, slug: "pet-tag", variants: [{ ...validProduct.variants[0], sku: "pet-001" }] });
     expect(result.variants[0].sku).toBe("PET-001");
