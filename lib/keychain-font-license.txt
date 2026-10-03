@@ -1,4 +1,4 @@
-The glyph outlines in keychain-fonts.json are derived from DejaVu Sans, DejaVu Serif and DejaVu Sans Mono.
+The glyph outlines in keychain-fonts.json are derived from DejaVu Sans, DejaVu Serif and DejaVu Sans Mono. The italic and compact options transform those outlines at runtime.
 
 Files: *
 Copyright: Copyright (c) 2003 by Bitstream, Inc. All Rights Reserved. 
@@ -45,4 +45,3 @@ License: bitstream-vera
  without prior written authorization from the Gnome Foundation or Bitstream
  Inc., respectively. For further information, contact: fonts at gnome dot
  org.
-
