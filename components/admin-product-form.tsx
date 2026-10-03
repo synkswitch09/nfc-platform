@@ -126,7 +126,7 @@ const blankVariant = (): VariantForm => ({
   defaultPackagingId: "",
 });
 
-function madeToOrder(variant: VariantForm) { return !variant.trackInventory || variant.productionMinutes !== null; }
+function madeToOrder(variant: VariantForm) { return !variant.trackInventory; }
 const blankOption = (): OptionForm => ({
   name: "",
   code: "",
