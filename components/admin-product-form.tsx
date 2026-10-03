@@ -3,6 +3,8 @@
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Archive, Copy, EyeOff, Plus, Trash2 } from "lucide-react";
+import { KEYCHAIN_FONTS, KEYRING_HARDWARE } from "@/lib/keychain";
+import { KeychainFontSample, KeyringSample } from "@/components/keychain-option-samples";
 
 type ProductValidationIssue = {
   path: string;
@@ -237,8 +239,10 @@ export function AdminProductForm({
       { name: "Backing shape", code: "base-shape", type: "RADIO" as const, required: true, maxLength: null, price: "0", helpText: "Choose a backing that follows the letters or a rounded rectangle.", values: [value("Follows the name", "contour"), value("Rounded rectangle", "rectangle")] },
       { name: "Finish", code: "keychain-attachment", type: "RADIO" as const, required: true, maxLength: null, price: "0", helpText: "Choose a keyring loop or a plain tag without a loop.", values: [value("Keyring loop", "keychain"), value("Plain tag", "tag")] },
       { name: "Letter finish", code: "letter-finish", type: "RADIO" as const, required: true, maxLength: null, price: "0", helpText: "Raised: 3 mm base and 1 mm letters. Flush: letters sit in the top 1 mm of a 4 mm base.", values: [value("Raised letters", "raised"), value("Flush letters", "inlaid")] },
+      { name: "Keyring hardware", code: "keyring-hardware", type: "SELECT" as const, required: true, maxLength: null, price: "0", helpText: "Available when the shopper selects a keyring loop.", values: [...Object.entries(KEYRING_HARDWARE).map(([key,label])=>value(label,key)),value("No hardware (tag)","none")] },
     ].filter((choice) => !initial.options.some((option) => option.code === choice.code));
-    return [...initial.options, ...missing];
+    const withNewFonts = initial.options.map(option => option.code === "keychain-font" ? { ...option, values: [...option.values, ...Object.entries(KEYCHAIN_FONTS).filter(([key]) => !option.values.some(item => item.value === key)).map(([key,label]) => value(label,key))] } : option);
+    return [...withNewFonts, ...missing];
   });
   const [message, setMessage] = useState("");
   const [validationIssues, setValidationIssues] = useState<ProductValidationIssue[]>([]);
@@ -428,7 +432,7 @@ export function AdminProductForm({
         <a href="#shipping">{setupKind === "standard" ? "3" : "4"}. Shipping</a>
         <a href="#advanced-product-settings">Advanced</a>
       </nav>
-      {isKeychain && <div className="notice">This keychain uses fixed choices: name, three fonts, three sizes and two colours. Set a price before publishing. Inventory and checkout can remain closed while you review the design in the Shop.</div>}
+      {isKeychain && <div className="notice">Choose the printable fonts, sizes, colours and hardware you can offer. Font shapes are built into the 3D generator; enable or disable them here. Add and edit physical keyring hardware below. Set a price before publishing.</div>}
       <section className="admin-panel" id="product-details">
         <div className="panel-heading">
           <div>
@@ -597,7 +601,9 @@ export function AdminProductForm({
         </label>}
         {guidedColours ? <div className="admin-stack">{options.filter(option => option.values.length > 0).map(option => {
           const index = options.indexOf(option);
-          return <fieldset className="keychain-admin-choices" key={option.code}><legend>{option.name}</legend><div>{option.values.map((value, valueIndex) => <div key={value.value} className="keychain-choice-row"><label className="check-field"><input type="checkbox" checked={value.active} onChange={event => updateOption(setOptions, index, "values", option.values.map((item, i) => i === valueIndex ? { ...item, active: event.target.checked } : item))} />{value.swatchHex && <span className="colour-swatch" style={{ background: value.swatchHex }} />}<span>{value.label}</span></label>{option.code === "keychain-size" && <label className="field">Extra AUD<input inputMode="decimal" value={value.price} onChange={event => updateOption(setOptions, index, "values", option.values.map((item, i) => i === valueIndex ? { ...item, price: event.target.value } : item))} /></label>}</div>)}</div></fieldset>;
+          const hardware = option.code === "keyring-hardware";
+          const changeValue = (valueIndex: number, patch: Partial<OptionValueForm>) => updateOption(setOptions, index, "values", option.values.map((item, i) => i === valueIndex ? { ...item, ...patch } : item));
+          return <fieldset className="keychain-admin-choices" key={option.code}><legend>{option.name}</legend><div>{option.values.map((value, valueIndex) => hardware && value.value === "none" ? null : <div key={value.id ?? `${option.code}-${valueIndex}`} className="keychain-choice-row"><label className="check-field"><input type="checkbox" checked={value.active} onChange={event => changeValue(valueIndex, { active: event.target.checked })} />{value.swatchHex && <span className="colour-swatch" style={{ background: value.swatchHex }} />}<span>{value.label}</span></label>{option.code === "keychain-font" && <KeychainFontSample font={value.value} />}{hardware && <><KeyringSample value={value.value} imageUrl={value.swatchImageUrl || null} /><label className="field">Name<input value={value.label} onChange={event => changeValue(valueIndex, { label: event.target.value })} /></label><label className="field">Code<input value={value.value} onChange={event => changeValue(valueIndex, { value: event.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "") })} /></label><label className="field">Image URL<input value={value.swatchImageUrl} onChange={event => changeValue(valueIndex, { swatchImageUrl: event.target.value })} placeholder="Optional image URL" /></label><button type="button" className="icon-button" aria-label={`Remove ${value.label}`} onClick={() => updateOption(setOptions,index,"values",option.values.filter((_,i)=>i!==valueIndex))}><Trash2 size={16} /></button></>}{(option.code === "keychain-size" || hardware) && <label className="field">Extra AUD<input inputMode="decimal" value={value.price} onChange={event => changeValue(valueIndex, { price: event.target.value })} /></label>}</div>)}</div>{hardware && <button type="button" className="button secondary" onClick={() => updateOption(setOptions,index,"values",[...option.values,{...blankOptionValue(),label:"New ring",value:`ring-${Date.now()}`,swatchHex:""}])}><Plus size={16} /> Add ring or clasp</button>}</fieldset>;
         })}</div> : options.length ? (
           <div className="admin-stack">
             {options.map((option, index) => (

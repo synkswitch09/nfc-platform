@@ -1,7 +1,7 @@
 import { AdminProductForm, type AdminProductInitial } from "@/components/admin-product-form";
 import { db } from "@/lib/db";
 import { requireAdminPageContext } from "@/lib/admin";
-import { KEYCHAIN_COLOURS, KEYCHAIN_FONTS } from "@/lib/keychain";
+import { KEYCHAIN_COLOURS, KEYCHAIN_FONTS, KEYRING_HARDWARE } from "@/lib/keychain";
 
 const setupLabels: Record<string, string> = {
   nfc: "NFC product",
@@ -45,6 +45,7 @@ export default async function NewProductPage({ searchParams }: { searchParams: P
       {name:"Letter finish",code:"letter-finish",type:"RADIO",required:true,maxLength:null,price:"0",helpText:"Raised: 3 mm base and 1 mm letters. Flush: letters sit in the top 1 mm of a 4 mm base.",values:[value("Raised letters","raised"),value("Flush letters","inlaid")]},
       {name:"Backing shape",code:"base-shape",type:"RADIO",required:true,maxLength:null,price:"0",helpText:"Choose a backing that follows the letters or a rounded rectangle.",values:[value("Follows the name","contour"),value("Rounded rectangle","rectangle")]},
       {name:"Finish",code:"keychain-attachment",type:"RADIO",required:true,maxLength:null,price:"0",helpText:"Choose a keyring loop or a plain tag without a loop.",values:[value("Keyring loop","keychain"),value("Plain tag","tag")]},
+      {name:"Keyring hardware",code:"keyring-hardware",type:"SELECT",required:true,maxLength:null,price:"0",helpText:"Choose hardware only when the keyring loop is selected.",values:[...Object.entries(KEYRING_HARDWARE).map(([key,label])=>value(label,key)),value("No hardware (tag)","none")]},
     ];
   }
   return <div><div className="admin-heading"><div><p className="admin-kicker">Catalog</p><h1>New product</h1><p>Choose a product setup first. The form will show the fields relevant to it.</p></div></div><form method="get" className="admin-panel product-setup-select"><label className="field">Type of product<select name="template" defaultValue={template} required><option value="" disabled>Select a product type</option>{allowed.map(key => <option key={key} value={key}>{setupLabels[key]}</option>)}</select></label><button className="button secondary">Continue</button></form>{template && <AdminProductForm key={template} initial={initial} categories={categories} packaging={packaging} storeSlug={store.slug} setupKind={template} />}</div>;
