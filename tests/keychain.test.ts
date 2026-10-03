@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { generateKeychain, type Triangle } from "../lib/keychain";
+import { generateKeychain, KEYCHAIN_FONTS, type Triangle } from "../lib/keychain";
+import { validateKeychainOptions } from "../lib/keychain-order";
 import { binaryStl, keychain3mf } from "../lib/keychain-files";
 import { inflateRawSync } from "node:zlib";
 
@@ -46,6 +47,19 @@ function covers(triangles: Triangle[], x: number, y: number, z: number) {
 }
 
 describe("made-to-order keychain",()=>{
+  it("generates printable geometry for every advertised font", () => {
+    for (const font of Object.keys(KEYCHAIN_FONTS) as Array<keyof typeof KEYCHAIN_FONTS>) {
+      const model = generateKeychain({ ...choices, name: "Name", font });
+      expect(model.base.length).toBeGreaterThan(0);
+      expect(model.letters.length).toBeGreaterThan(0);
+    }
+  });
+  it("records hardware consistently with a loop or a plain tag", () => {
+    const fields = { "keychain-name": "Name" };
+    const selected = { "keychain-font": "rounded", "keychain-size": "regular", "base-colour": "peach", "letter-colour": "white", "keychain-attachment": "keychain", "keyring-hardware": "silver-clasp" };
+    expect(validateKeychainOptions(fields, selected).attachment).toBe("keychain");
+    expect(() => validateKeychainOptions(fields, { ...selected, "keychain-attachment": "tag" })).toThrow(/hardware/);
+  });
   it("fits longer names by reducing glyph height while keeping a watertight two-part mesh",()=>{
     const short=generateKeychain({...choices,name:"Daniel"}),long=generateKeychain({...choices,name:"Christopher"});
     expect(long.letterHeightMm).toBeLessThan(short.letterHeightMm);
