@@ -10,6 +10,12 @@ describe("catalog personalisation", () => {
   it("normalises valid selections and calculates server-side price additions", () => {
     expect(normalisePersonalisation(options, { "pet-name": " Max ", colour: "ocean" })).toEqual({ personalisation: { "pet-name": "Max" }, selectedOptions: { colour: "ocean" }, priceDeltaCents: 150 });
   });
+  it("uses the variant total for mapped choices without charging their former option extras", () => {
+    const selected = normalisePersonalisation(options, { "pet-name": "Max", colour: "ocean" }, "REQUIRED", "PERSONALISED", { colour: "ocean" });
+    expect(selected.priceDeltaCents).toBe(0);
+    expect(selected.selectedOptions).toEqual({ colour: "ocean" });
+    expect(() => assertVariantSelection({ colour: "coral" }, selected.selectedOptions)).toThrow();
+  });
   it("rejects missing required and unknown options", () => {
     expect(() => normalisePersonalisation(options, { colour: "ocean" })).toThrow(CatalogValidationError);
     expect(() => normalisePersonalisation(options, { "pet-name": "Max", colour: "ocean", hidden: "value" })).toThrow("Unknown personalisation option");

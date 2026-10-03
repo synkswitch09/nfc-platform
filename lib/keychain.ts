@@ -217,6 +217,6 @@ export function generateKeychain(input: KeychainInput): KeychainModel {
   // so their top faces are coplanar at z=4 without overlapping material.
   const flushCap = new Uint8Array(backing.length);
   if (flush) for (let index=0;index<flushCap.length;index++) flushCap[index]=backing[index] && !lettering[index] ? 1 : 0;
-  const baseMesh=gridMesh(backing,w,h,originX,originY,pitch,0,3);
-  return { base: baseMesh, baseCap: flush ? gridMesh(flushCap,w,h,originX,originY,pitch,3,4) : [], letters: gridMesh(lettering,w,h,originX,originY,pitch,3,4), widthMm: Math.round(actualWidth*10)/10, heightMm: Math.round((top-bottom+1)*pitch*10)/10, centreX: originX+(left+rightPixel+1)*pitch/2, centreY: originY+(bottom+top+1)*pitch/2, letterHeightMm: Math.round(height*10)/10, input: {...input,name,baseShape:input.baseShape ?? "contour",attachment:input.attachment ?? "keychain",letterFinish:input.letterFinish ?? "raised"} };
+  const baseMesh=gridMesh(backing,w,h,originX,originY,pitch,0,flush?1.2:2.6);
+  return { base: baseMesh, baseCap: flush ? gridMesh(flushCap,w,h,originX,originY,pitch,1.2,2.6) : [], letters: gridMesh(lettering,w,h,originX,originY,pitch,flush?1.2:2.6,flush?2.6:4), widthMm: Math.round(actualWidth*10)/10, heightMm: Math.round((top-bottom+1)*pitch*10)/10, centreX: originX+(left+rightPixel+1)*pitch/2, centreY: originY+(bottom+top+1)*pitch/2, letterHeightMm: Math.round(height*10)/10, input: {...input,name,baseShape:input.baseShape ?? "contour",attachment:input.attachment ?? "keychain",letterFinish:input.letterFinish ?? "raised"} };
 }

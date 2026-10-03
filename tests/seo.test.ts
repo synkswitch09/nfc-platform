@@ -17,7 +17,7 @@ describe("store SEO", () => {
     const blue = variant("BLUE", 2000, 0, { colour: "blue" });
     const red = { ...variant("RED", 3000, 5, { colour: "red" }), reservedInventory: 5, backorderPolicy: "ALLOW" };
     const offers = productOffers([blue, red], options, "NONE", "AUD", "https://tapkin.example/products/tag");
-    expect(offers).toMatchObject([{ sku: "BLUE", price: "21.50", availability: "https://schema.org/OutOfStock" }, { sku: "RED", price: "31.00", availability: "https://schema.org/BackOrder" }]);
+    expect(offers).toMatchObject([{ sku: "BLUE", price: "20.00", availability: "https://schema.org/OutOfStock" }, { sku: "RED", price: "30.00", availability: "https://schema.org/BackOrder" }]);
     expect(variantOfferPrice(variant("NEW", 1000, 2, { colour: "unknown" }), options, "NONE")).toBeNull();
   });
 });
