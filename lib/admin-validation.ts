@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { isSafeImageSource } from "@/lib/image-source";
-import { KEYCHAIN_BASE_SHAPES, KEYCHAIN_COLOURS, KEYCHAIN_FONTS, KEYCHAIN_LETTER_FINISHES, KEYCHAIN_SIZES } from "@/lib/keychain";
+import { KEYCHAIN_BASE_SHAPES, KEYCHAIN_FONTS, KEYCHAIN_LETTER_FINISHES, KEYCHAIN_SIZES } from "@/lib/keychain";
 
 const optionalUrl = z.string().trim().url().refine(value => /^https?:\/\//i.test(value)).or(z.literal("")).optional();
 const optionalImageSource = z.string().trim().refine(isSafeImageSource, "Use an uploaded image or an HTTP(S) image URL").optional();
@@ -54,10 +54,16 @@ export const adminProductSchema = z.object({
       const option=value.options.find(item=>item.code===code);
       if(!option||option.type!==type||!option.required||!option.active)context.addIssue({code:"custom",message:`${code} must be an active required ${type} field`,path:["options"]});
       if(code==="keychain-name" && option?.maxLength !== 24)context.addIssue({code:"custom",message:"Name limit must be 24 characters",path:["options"]});
-      const allowed=code==="keychain-font"?KEYCHAIN_FONTS:code==="keychain-size"?KEYCHAIN_SIZES:code.endsWith("colour")?KEYCHAIN_COLOURS:code==="base-shape"?KEYCHAIN_BASE_SHAPES:code==="keychain-attachment"?{keychain:true,tag:true}:code==="letter-finish"?KEYCHAIN_LETTER_FINISHES:null;
+      const allowed=code==="keychain-font"?KEYCHAIN_FONTS:code==="keychain-size"?KEYCHAIN_SIZES:code==="base-shape"?KEYCHAIN_BASE_SHAPES:code==="keychain-attachment"?{keychain:true,tag:true}:code==="letter-finish"?KEYCHAIN_LETTER_FINISHES:null;
       if(allowed && option && (!option.values.some(item=>item.active)||option.values.some(item=>item.active && !(item.value in allowed))))context.addIssue({code:"custom",message:`${code} has unsupported choices`,path:["options"]});
       if(code==="keyring-hardware" && option && (!option.values.some(item=>item.active&&item.value==="none") || !option.values.some(item=>item.active&&item.value!=="none") || new Set(option.values.map(item=>item.value)).size!==option.values.length || option.values.some(item=>item.value==="none" && item.priceDeltaCents!==0)))context.addIssue({code:"custom",message:"Hardware needs a no-hardware tag choice and at least one distinct ring or clasp",path:["options"]});
-      if(code.endsWith("colour") && option?.values.some(item=>item.active && item.swatchHex?.toLowerCase()!==KEYCHAIN_COLOURS[item.value]?.toLowerCase()))context.addIssue({code:"custom",message:`${code} swatches must match the 3D palette`,path:["options"]});
+      if(code.endsWith("colour") && option && (!option.values.some(item=>item.active) || new Set(option.values.map(item=>item.value)).size!==option.values.length || option.values.some(item=>item.active && !item.swatchHex)))context.addIssue({code:"custom",message:`${code} needs active colours with distinct codes and hex swatches`,path:["options"]});
+    }
+    const palette = new Map<string,string>();
+    for (const option of value.options.filter(item=>item.code==="base-colour" || item.code==="letter-colour")) for (const choice of option.values) {
+      const hex=choice.swatchHex?.toLowerCase();
+      if(hex && palette.has(choice.value) && palette.get(choice.value)!==hex)context.addIssue({code:"custom",message:`${choice.value} must use the same hex in both colour selectors`,path:["options"]});
+      if(hex)palette.set(choice.value,hex);
     }
     if(value.status==="ACTIVE" && value.variants.some(item=>item.priceCents<=0))context.addIssue({code:"custom",message:"Set a price before publishing the keychain",path:["variants"]});
   }

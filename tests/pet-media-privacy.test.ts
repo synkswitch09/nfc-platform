@@ -1,6 +1,6 @@
 import { beforeEach, expect, it, vi } from "vitest";
-const m = vi.hoisted(() => ({ product: vi.fn(), category: vi.fn(), pet: vi.fn(), user: vi.fn(), read: vi.fn() }));
-vi.mock("@/lib/db", () => ({ db: { productImage: { findFirst: m.product }, categoryImage: { findFirst: m.category }, petProfile: { findFirst: m.pet } } }));
+const m = vi.hoisted(() => ({ product: vi.fn(), category: vi.fn(), pet: vi.fn(), model: vi.fn(), user: vi.fn(), read: vi.fn() }));
+vi.mock("@/lib/db", () => ({ db: { productImage: { findFirst: m.product }, categoryImage: { findFirst: m.category }, petProfile: { findFirst: m.pet }, productVariant: { findFirst: m.model } } }));
 vi.mock("@/lib/auth", () => ({ getCurrentUser: m.user }));
 vi.mock("@/lib/storefront", () => ({ getCurrentStorefront: async () => ({ id: "store" }) }));
 vi.mock("@/lib/uploads", () => ({ readStoredImage: m.read }));

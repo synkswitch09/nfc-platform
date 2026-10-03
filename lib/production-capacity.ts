@@ -26,9 +26,19 @@ export function canAcceptVariant(variant: { trackInventory: boolean; backorderPo
   return !(pool?.paused ?? false) && Boolean(productionForecast(usedMinutes, variant.productionMinutes, pool?.weeklyCapacityMinutes ?? 360, pool?.maxBusinessDays ?? 10));
 }
 
+export function projectQueue<T extends { minutes: number; promisedAt: Date }>(bookings: T[], weeklyMinutes: number, today = new Date()) {
+  let occupied = 0;
+  const daily = Math.max(1, weeklyMinutes / 5);
+  return bookings.map(booking => {
+    occupied += booking.minutes;
+    const recalculated = addBusinessDays(today, Math.max(1, Math.ceil(occupied / daily)));
+    return { ...booking, recalculated, atRisk: recalculated > booking.promisedAt };
+  });
+}
+
 export async function reserveProduction(tx: Prisma.TransactionClient, environment: DeploymentEnvironment, orderId: string, minutes: number) {
   if (!minutes) return null;
-  const pool = await tx.productionPool.upsert({ where: { environment }, update: { version: { increment: 1 } }, create: { environment, version: 1 } });
+  const pool = await tx.productionPool.upsert({ where: { environment }, update: { version: { increment: 1 }, reviewedAt: null }, create: { environment, version: 1 } });
   if (pool.paused) throw new ProductionCapacityError("Made-to-order purchases are temporarily paused. In-stock items remain available.");
   const occupied = await tx.productionBooking.aggregate({ where: { environment, releasedAt: null }, _sum: { minutes: true } });
   const promisedAt = productionForecast(occupied._sum.minutes ?? 0, minutes, pool.weeklyCapacityMinutes, pool.maxBusinessDays);

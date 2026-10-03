@@ -1,15 +1,16 @@
 "use client";
 
 import Image from "next/image";
-import { createElement, FormEvent, useEffect, useState } from "react";
+import { createElement, FormEvent, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { PackageCheck, Radio, RefreshCw, ShieldCheck, Truck } from "lucide-react";
 import { useCart } from "@/components/cart-provider";
+import { keychainPaletteFromOptions } from "@/lib/keychain-order";
 import { KeychainPreview } from "@/components/keychain-preview";
 import { generateKeychain, type KeychainAttachment, type KeychainBaseShape, type KeychainFont, type KeychainLetterFinish, type KeychainSize } from "@/lib/keychain";
 import { KeychainFontSample, KeyringSample } from "@/components/keychain-option-samples";
 
-type ProductImage = { id: string; url: string; altText: string; isPrimary: boolean; optionValueId: string | null };
+type ProductImage = { id: string; url: string; altText: string; isPrimary: boolean; optionValueId: string | null; variantId: string | null };
 type Variant = { id: string; name: string; canOrder: boolean; priceCents: number; inventory: number; reservedInventory: number; trackInventory: boolean; backorderPolicy: "DENY" | "ALLOW"; isDefault: boolean; optionSelection: Record<string, string>; imageId: string | null; modelUrl: string | null };
 type OptionValue = { id: string; label: string; value: string; priceDeltaCents: number; swatchHex: string | null; swatchHexSecondary: string | null; swatchImageUrl: string | null };
 type Option = { code: string; name: string; type: string; required: boolean; maxLength: number | null; priceDeltaCents: number; helpText: string | null; values: OptionValue[] };
@@ -33,7 +34,8 @@ export function ProductPurchase({ checkoutEnabled, previewOnly = false, productN
   const [view3d, setView3d] = useState(false);
   const isKeychain = storeSlug === "kosykin" && productSlug === "custom-name-keychain";
   const selectedSize = (selections["keychain-size"] ?? "regular") as KeychainSize;
-  const keychainInput = { name: customValues["keychain-name"] ?? "", font: (selections["keychain-font"] ?? "rounded") as KeychainFont, size: selectedSize, baseShape: (selections["base-shape"] ?? "contour") as KeychainBaseShape, attachment: (selections["keychain-attachment"] ?? "keychain") as KeychainAttachment, letterFinish: (selections["letter-finish"] ?? "raised") as KeychainLetterFinish, baseColour: selections["base-colour"] ?? "peach", letterColour: selections["letter-colour"] ?? "white" };
+  const keychainPalette = useMemo(() => keychainPaletteFromOptions(options), [options]);
+  const keychainInput = { palette: keychainPalette, name: customValues["keychain-name"] ?? "", font: (selections["keychain-font"] ?? "rounded") as KeychainFont, size: selectedSize, baseShape: (selections["base-shape"] ?? "contour") as KeychainBaseShape, attachment: (selections["keychain-attachment"] ?? "keychain") as KeychainAttachment, letterFinish: (selections["letter-finish"] ?? "raised") as KeychainLetterFinish, baseColour: selections["base-colour"] ?? "peach", letterColour: selections["letter-colour"] ?? "white" };
   let keychainError = "";
   if (isKeychain && customValues["keychain-name"]) { try { generateKeychain(keychainInput); } catch (cause) { keychainError = cause instanceof Error ? cause.message : "Invalid name"; } }
   const variant = variants.find(item => item.id === variantId) ?? defaultVariant;
@@ -41,10 +43,10 @@ export function ProductPurchase({ checkoutEnabled, previewOnly = false, productN
   const colourOption = selectionOptions.find(option => option.type === "COLOUR");
   const selectedColourValue = colourOption?.values.find(value => value.value === selections[colourOption.code]);
   const gallery = (() => {
-    const direct = variant?.imageId ? images.filter(image => image.id === variant.imageId) : [];
-    const colour = selectedColourValue ? images.filter(image => image.optionValueId === selectedColourValue.id) : [];
-    const generic = images.filter(image => !image.optionValueId);
-    const relevant = colour.length ? [...direct, ...colour, ...generic] : [...direct, ...images];
+    const direct = variant ? images.filter(image => image.variantId === variant.id || image.id === variant.imageId) : [];
+    const colour = selectedColourValue ? images.filter(image => !image.variantId && image.optionValueId === selectedColourValue.id) : [];
+    const generic = images.filter(image => !image.optionValueId && !image.variantId);
+    const relevant = direct.length || colour.length ? [...direct, ...colour, ...generic] : [...generic, ...images.filter(image => !image.variantId)];
     return [...new Map(relevant.map(image => [image.id, image])).values()];
   })();
   const activeImage = gallery.find(image => image.id === activeImageId) ?? gallery[0];

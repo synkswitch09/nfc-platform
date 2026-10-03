@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
 
   let checkout;
   try {
-    checkout = await createPendingOrder(parsed.data.items, { ...customer, userId: user?.id }, store, parsed.data.shippingQuoteToken);
+    checkout = await createPendingOrder(parsed.data.items, { ...customer, userId: user?.id }, store, parsed.data.shippingQuoteToken, parsed.data.promotionCode);
   } catch (error) {
     if (error instanceof CheckoutError) return jsonError(error.message, error.status);
     if (error instanceof InventoryConflict || (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2034")) return jsonError("Stock changed while checking out. Refresh your cart and try again.", 409);
@@ -51,6 +51,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    const coupon = checkout.order.discountCents > 0 ? await stripe.coupons.create({ id: `order-${checkout.order.payments[0].id}`, amount_off: checkout.order.discountCents, currency: store.currency.toLowerCase(), duration: "once", name: "Order promotion" }, { idempotencyKey: `coupon:${checkout.order.payments[0].id}` }) : null;
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
       customer_email: customer.email,
@@ -60,6 +61,7 @@ export async function POST(request: NextRequest) {
         ...checkout.lines.map(({ item, variant, unitPriceCents }) => ({ quantity: item.quantity, price_data: { currency: store.currency.toLowerCase(), unit_amount: unitPriceCents, product_data: { name: `${variant.product.name} — ${variant.name}`, metadata: { variantId: variant.id, storeId: store.id } } } })),
         ...(checkout.order.shippingCents ? [{ quantity: 1, price_data: { currency: store.currency.toLowerCase(), unit_amount: checkout.order.shippingCents, product_data: { name: checkout.order.shippingServiceName ?? "Shipping" } } }] : []),
       ],
+      ...(coupon ? { discounts: [{ coupon: coupon.id }] } : {}),
       success_url: `${origin}${successPath}`,
       cancel_url: `${origin}/checkout?cancelled=true`,
     }, { idempotencyKey: `checkout:${checkout.order.payments[0].id}` });

@@ -8,11 +8,12 @@ import { db } from "@/lib/db";
 import { hasStoreCapability, type Storefront } from "@/lib/storefront";
 import { manufacturingRequirements } from "@/lib/manufacturing";
 import { shippingCartHash, shippingDestinationHash } from "@/lib/shipping";
-import { notifyPaidOrder, queuePaidOrder } from "@/lib/order-notifications";
+import { notifyPaidOrder, queueOrderNotice, queuePaidOrder } from "@/lib/order-notifications";
 import type { ShippingDestination } from "@/lib/shipping";
 import { queueEtsyInventorySync } from "@/lib/etsy";
-import { isKeychainProduct, validateKeychainOptions } from "@/lib/keychain-order";
+import { isKeychainProduct, keychainPaletteFromOptions, validateKeychainOptions } from "@/lib/keychain-order";
 import { ProductionCapacityError, releaseProduction, reserveProduction } from "@/lib/production-capacity";
+import { calculatePromotion } from "@/lib/promotions";
 
 export type CheckoutItemInput = { variantId: string; quantity: number; personalisationChoice?: "BASIC" | "PERSONALISED"; personalisation?: Record<string, string> };
 export type CheckoutCustomerInput = {
@@ -26,7 +27,7 @@ export class CheckoutError extends Error {
   constructor(message: string, readonly status = 400) { super(message); }
 }
 
-export async function createPendingOrder(items: CheckoutItemInput[], customer: CheckoutCustomerInput, store: Storefront, shippingQuoteToken: string) {
+export async function createPendingOrder(items: CheckoutItemInput[], customer: CheckoutCustomerInput, store: Storefront, shippingQuoteToken: string, promotionCode?: string) {
   if (store.status !== StoreStatus.ACTIVE || !hasStoreCapability(store, StoreCapability.COMMERCE)) throw new CheckoutError("This store is not accepting orders", 409);
   const claimToken = customer.userId ? null : createOpaqueToken();
   return db.$transaction(async tx => {
@@ -46,7 +47,12 @@ export async function createPendingOrder(items: CheckoutItemInput[], customer: C
         personalisationChoice = resolvePersonalisationChoice(variant.product.personalisationMode, item.personalisationChoice);
         normalised = normalisePersonalisation(variant.product.options, item.personalisation, variant.product.personalisationMode, personalisationChoice);
         assertVariantSelection(variant.optionSelection, normalised.selectedOptions);
-        if (isKeychainProduct(store.slug, variant.product.slug)) validateKeychainOptions(normalised.personalisation, normalised.selectedOptions);
+        if (isKeychainProduct(store.slug, variant.product.slug)) {
+          const palette = keychainPaletteFromOptions(variant.product.options);
+          validateKeychainOptions(normalised.personalisation, normalised.selectedOptions, palette);
+          normalised.selectedOptions["base-colour-hex"] = palette[normalised.selectedOptions["base-colour"]];
+          normalised.selectedOptions["letter-colour-hex"] = palette[normalised.selectedOptions["letter-colour"]];
+        }
       }
       catch (error) { throw new CheckoutError(error instanceof Error ? error.message : "Invalid personalisation"); }
       const unitPriceCents = variant.priceCents + normalised.priceDeltaCents;
@@ -74,7 +80,22 @@ export async function createPendingOrder(items: CheckoutItemInput[], customer: C
     if (!quote || quote.cartHash !== shippingCartHash(items) || quote.destinationHash !== shippingDestinationHash(customer.shipping)) throw new CheckoutError("Your delivery quote expired or no longer matches this order", 409);
     const consumed = await tx.shippingQuote.updateMany({ where: { id: quote.id, status: "ACTIVE", expiresAt: { gt: new Date() } }, data: { status: "CONSUMED", consumedAt: new Date() } });
     if (consumed.count !== 1) throw new CheckoutError("Your delivery quote has already been used", 409);
-    const totals = calculateQuotedOrderTotals(lines.map(line => ({ unitPriceCents: line.unitPriceCents, quantity: line.item.quantity })), quote.amountCents);
+    const baseTotals = calculateQuotedOrderTotals(lines.map(line => ({ unitPriceCents: line.unitPriceCents, quantity: line.item.quantity })), quote.amountCents);
+    const now = new Date();
+    const activePromotions = await tx.promotion.findMany({ where: { storeId: store.id, active: true, OR: [{ startsAt: null }, { startsAt: { lte: now } }], AND: [{ OR: [{ endsAt: null }, { endsAt: { gt: now } }] }] } });
+    const code = promotionCode?.trim().toUpperCase();
+    const candidates = code ? activePromotions.filter(promotion => promotion.code === code) : activePromotions.filter(promotion => !promotion.code);
+    let promotion: typeof activePromotions[number] | undefined;
+    let discountCents = 0;
+    for (const candidate of candidates) {
+      if (candidate.allowedEmailHash && candidate.allowedEmailHash !== sha256(customer.email.trim().toLowerCase())) continue;
+      if (candidate.usageLimit !== null && await tx.order.count({ where: { promotionId: candidate.id, status: { in: ["PAYMENT_PENDING", "PAID", "PROCESSING", "READY_TO_SHIP", "SHIPPED", "DELIVERED", "COMPLETED"] } } }) >= candidate.usageLimit) continue;
+      const discount = calculatePromotion(candidate, lines.map(line => ({ productId: line.variant.productId, unitPriceCents: line.unitPriceCents, quantity: line.item.quantity, weightGrams: line.variant.weightGrams ?? line.variant.product.weightGrams ?? 0 })), quote.amountCents, customer.shipping.country);
+      if (discount > discountCents) { promotion = candidate; discountCents = discount; }
+    }
+    if (code && !promotion) throw new CheckoutError("The discount code does not apply to this order", 409);
+    const totals = { ...baseTotals, totalCents: baseTotals.totalCents - discountCents };
+    if (totals.totalCents < 50) throw new CheckoutError("The order total after discount must be at least A$0.50", 409);
     const order = await tx.order.create({
       data: {
         orderNumber: `${store.slug === "tapkin" ? "TK" : store.slug.slice(0, 4).toUpperCase()}-${randomUUID().replaceAll("-", "").slice(0, 10).toUpperCase()}`,
@@ -110,6 +131,8 @@ export async function createPendingOrder(items: CheckoutItemInput[], customer: C
         status: "PAYMENT_PENDING",
         currency: store.currency,
         ...totals,
+        discountCents,
+        promotionId: promotion?.id,
         items: { create: lines.map(({ item, variant, unitPriceCents, personalisationChoice, personalisation, selectedOptions }) => ({
           variantId: variant.id,
           quantity: item.quantity,
@@ -207,6 +230,16 @@ export async function settleCheckoutEvent(input: { eventId: string; eventType: s
     if (jobs.length) await tx.manufacturingJob.createMany({ data: jobs, skipDuplicates: true });
     await tx.webhookEvent.create({ data: { id: input.eventId, provider: "stripe", eventType: input.eventType } });
     await queuePaidOrder(tx, payment.orderId);
+    const rewardEnabled = (await tx.store.findUnique({ where: { id: payment.order.storeId }, select: { secondPurchaseRewardEnabled: true } }))?.secondPurchaseRewardEnabled;
+    const email = rewardEnabled ? (payment.order.userId ? (await tx.user.findUnique({ where: { id: payment.order.userId }, select: { email: true } }))?.email : payment.order.guestEmail) : null;
+    if (email) {
+      const previous = await tx.order.count({ where: { storeId: payment.order.storeId, status: { in: ["PAID", "PROCESSING", "READY_TO_SHIP", "SHIPPED", "DELIVERED", "COMPLETED"] }, OR: [{ guestEmail: { equals: email, mode: "insensitive" } }, { user: { email: { equals: email, mode: "insensitive" } } }] } });
+      if (previous === 1) {
+        const code = `NEXT10-${randomUUID().replaceAll("-", "").slice(0, 12).toUpperCase()}`;
+        await tx.promotion.create({ data: { storeId: payment.order.storeId, name: "A$10 second purchase", code, kind: "FIXED", amountCents: 1000, allowedEmailHash: sha256(email.trim().toLowerCase()), usageLimit: 1, startsAt: new Date(), endsAt: new Date(Date.now() + 90 * 86400000) } });
+        await queueOrderNotice(tx, payment.orderId, `next-purchase:${payment.orderId}`, "A$10 off your next purchase", `Thank you for your first order. Use code ${code} on your next ${payment.order.storeDisplayName} purchase within 90 days. This code is for your email address and cannot be combined with another promotion.`);
+      }
+    }
     return { duplicate: false };
   }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
   if (!result.duplicate) await notifyPaidOrder(input.orderId);

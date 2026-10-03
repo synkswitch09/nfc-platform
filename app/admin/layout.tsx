@@ -55,6 +55,8 @@ const groups = [
     label: "Sales",
     links: [
       { href: "/admin/orders", label: "Orders", icon: ClipboardList },
+      { href: "/admin/support", label: "Order requests", icon: FileClock },
+      { href: "/admin/promotions", label: "Promotions", icon: Tags },
       { href: "/admin/etsy", label: "Etsy", icon: Store },
       { href: "/admin/shipping", label: "Shipping", icon: Truck },
       { href: "/admin/customers", label: "Customers", icon: Users },

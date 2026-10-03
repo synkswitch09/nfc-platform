@@ -5,6 +5,7 @@ CREATE TABLE "ProductionPool" (
   "maxBusinessDays" INTEGER NOT NULL DEFAULT 10,
   "paused" BOOLEAN NOT NULL DEFAULT false,
   "version" INTEGER NOT NULL DEFAULT 0,
+  "reviewedAt" TIMESTAMP(3),
   "updatedAt" TIMESTAMP(3) NOT NULL,
   CONSTRAINT "ProductionPool_pkey" PRIMARY KEY ("environment")
 );
