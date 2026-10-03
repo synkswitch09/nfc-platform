@@ -247,7 +247,7 @@ export function ContentPageEditor({
           </label>
           <MediaUploadField
             uploadEndpoint={
-              initial.id ? `/api/admin/pages/${initial.id}/images` : undefined
+              initial.id ? `/api/admin/pages/${initial.id}/images` : "/api/admin/settings/images"
             }
             disabledMessage="Save the page first, then upload its images."
             label="Social sharing image"

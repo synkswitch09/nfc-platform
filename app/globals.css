@@ -3514,6 +3514,52 @@ body:has(.admin-shell) > footer {
 .category-image-field .field-hint {
   margin: 0;
 }
+.media-picker-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgb(0 0 0 / 60%);
+}
+.media-picker {
+  width: min(780px, 100%);
+  max-height: min(85vh, 800px);
+  overflow: auto;
+  padding: 20px;
+  border-radius: 16px;
+  background: var(--surface, #fff);
+  color: var(--text, #17221c);
+  box-shadow: 0 20px 60px rgb(0 0 0 / 25%);
+}
+.media-picker-heading, .media-picker-search {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.media-picker-search input { flex: 1; min-width: 0; }
+.media-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.media-picker-grid button {
+  min-width: 0;
+  padding: 7px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.media-picker-grid button:hover, .media-picker-grid button.selected { border-color: var(--brand); }
+.media-picker-grid img { width: 100%; height: 105px; object-fit: cover; border-radius: 6px; }
+.media-picker-grid span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .upload-success,
 .upload-error {
   font-size: 0.8rem;
