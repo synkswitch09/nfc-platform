@@ -1,6 +1,6 @@
 import type { ComponentProps } from "react";
 import { ProductPurchase } from "@/components/product-purchase";
-import { KEYCHAIN_COLOURS, KEYCHAIN_FONTS, KEYCHAIN_SIZES } from "@/lib/keychain";
+import { KEYCHAIN_COLOURS, KEYCHAIN_FONTS, KEYCHAIN_SIZES, KEYRING_HARDWARE } from "@/lib/keychain";
 
 type Option = ComponentProps<typeof ProductPurchase>["options"][number];
 const choice = (value: string, label: string, swatchHex: string | null = null) => ({ id: value, value, label, priceDeltaCents: 0, swatchHex, swatchHexSecondary: null, swatchImageUrl: null });
@@ -15,4 +15,6 @@ export const KEYCHAIN_PREVIEW_OPTIONS: Option[] = [
   { name: "Base colour", code: "base-colour", type: "COLOUR", required: true, maxLength: null, priceDeltaCents: 0, helpText: null, values: Object.entries(KEYCHAIN_COLOURS).sort(([a], [b]) => a === "peach" ? -1 : b === "peach" ? 1 : 0).map(([key, hex]) => choice(key, key[0].toUpperCase() + key.slice(1), hex)) },
   { name: "Letter colour", code: "letter-colour", type: "COLOUR", required: true, maxLength: null, priceDeltaCents: 0, helpText: "Choose a different colour from the base.", values: Object.entries(KEYCHAIN_COLOURS).map(([key, hex]) => choice(key, key[0].toUpperCase() + key.slice(1), hex)) },
   { name: "Letter finish", code: "letter-finish", type: "RADIO", required: true, maxLength: null, priceDeltaCents: 0, helpText: "Raised 3 + 1 mm or flush within the top 1 mm of a 4 mm base.", values: [choice("raised", "Raised letters"), choice("inlaid", "Flush letters")] },
+  { name: "Finish", code: "keychain-attachment", type: "RADIO", required: true, maxLength: null, priceDeltaCents: 0, helpText: null, values: [choice("keychain", "Keyring loop"), choice("tag", "Plain tag")] },
+  { name: "Keyring hardware", code: "keyring-hardware", type: "SELECT", required: true, maxLength: null, priceDeltaCents: 0, helpText: "Choose a ring or clasp for the loop.", values: [...Object.entries(KEYRING_HARDWARE).map(([key,label])=>choice(key,label)),choice("none","No hardware (tag)")] },
 ];
