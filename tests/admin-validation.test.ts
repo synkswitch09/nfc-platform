@@ -47,6 +47,8 @@ describe("admin validation", () => {
     const configured = { ...validProduct, personalisationMode: "NONE", options: [{ name: "Colour", code: "colour", type: "COLOUR", required: true, priceDeltaCents: 0, active: true, values: [{ label: "Ocean", value: "ocean", priceDeltaCents: 0, active: true, swatchHex: "#167d9a" }] }], variants: [{ ...validProduct.variants[0], optionSelection: { colour: "ocean" }, isDefault: true }] };
     expect(adminProductSchema.safeParse(configured).success).toBe(true);
     expect(adminProductSchema.safeParse({ ...configured, variants: [{ ...configured.variants[0], optionSelection: { colour: "missing" } }] }).success).toBe(false);
+    expect(adminProductSchema.safeParse({ ...configured, variants: [{ ...configured.variants[0], optionSelection: {} }] }).success).toBe(false);
+    expect(adminProductSchema.safeParse({ ...configured, variants: [configured.variants[0], { ...configured.variants[0], sku: "PET-002" }] }).success).toBe(false);
   });
   it("accepts a colour, style and size variant when all choices are configured", () => {
     const configured = {

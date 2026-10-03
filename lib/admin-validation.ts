@@ -66,6 +66,14 @@ export const adminProductSchema = z.object({
   if (new Set(value.options.map(option => option.code)).size !== value.options.length) context.addIssue({ code: "custom", message: "Personalisation codes must be unique", path: ["options"] });
   if (value.personalisationMode === "NONE" && value.options.some(option => !["SELECT", "RADIO", "COLOUR"].includes(option.type))) context.addIssue({ code: "custom", message: "Products with personalisation disabled may only use product-selection fields", path: ["personalisationMode"] });
   const selections = new Map(value.options.filter(option => ["SELECT", "RADIO", "COLOUR"].includes(option.type)).map(option => [option.code, new Set(option.values.filter(item => item.active).map(item => item.value))]));
+  if (value.slug !== "custom-name-keychain") {
+    const mappedChoices = value.options.filter(option => option.active && option.values.some(item => item.active) && (option.type === "COLOUR" || value.variants.length > 1 && ["SELECT", "RADIO"].includes(option.type)));
+    value.variants.forEach((variant, index) => mappedChoices.forEach(option => {
+      if (!variant.optionSelection[option.code]) context.addIssue({ code: "custom", message: `Select ${option.name} for this variant`, path: ["variants", index, "optionSelection"] });
+    }));
+    const keys = value.variants.map(variant => JSON.stringify(Object.entries(variant.optionSelection).sort(([a], [b]) => a.localeCompare(b))));
+    if (new Set(keys).size !== keys.length && mappedChoices.length) context.addIssue({ code: "custom", message: "Each variant needs a distinct choice combination", path: ["variants"] });
+  }
   value.variants.forEach((variant, variantIndex) => Object.entries(variant.optionSelection).forEach(([code, selected]) => {
     if (!selections.get(code)?.has(selected)) context.addIssue({ code: "custom", message: `Variant option ${code}=${selected} is not configured`, path: ["variants", variantIndex, "optionSelection"] });
   }));
