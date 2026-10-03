@@ -1314,6 +1314,16 @@ h3 {
 .keychain-admin-choices .keychain-choice-row .field { min-width: 115px; flex: 1; }
 .keychain-admin-choices .keychain-choice-row .check-field { min-width: 145px; }
 .keychain-admin-choices > .button { margin-top: 12px; }
+.product-form-nav { display: flex; flex-wrap: wrap; gap: 8px; }
+.product-form-nav a { padding: 9px 13px; border: 1px solid var(--line); border-radius: 999px; text-decoration: none; }
+.product-form-nav a:hover, .product-form-nav a:focus-visible { border-color: currentColor; }
+.product-form-advanced { min-width: 0; }
+.product-form-advanced > summary { cursor: pointer; padding: 16px; border: 1px solid var(--line); border-radius: 14px; font-weight: 600; }
+.product-form-advanced > summary small { display: block; font-weight: 400; margin-top: 4px; }
+.product-form-advanced > .admin-panel { margin-top: 16px; }
+.keychain-admin-choices { border: 1px solid var(--line); border-radius: 14px; padding: 16px; }
+.keychain-admin-choices legend { font-weight: 600; padding: 0 6px; }
+.keychain-admin-choices > div { display: flex; flex-wrap: wrap; gap: 12px 20px; }
 .hardware-grid { grid-template-columns: repeat(auto-fill, minmax(88px, 1fr)); }
 .keyring-sample, .keyring-custom-image { display: block; height: 42px; width: 42px; background-position: center; background-size: contain; background-repeat: no-repeat; }
 .keychain-preview-error { padding: 35px; min-height: 300px; display: grid; place-items: center; text-align: center; }
