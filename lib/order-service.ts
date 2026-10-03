@@ -72,7 +72,7 @@ export async function createPendingOrder(items: CheckoutItemInput[], customer: C
       const requested = requestedByVariant.get(variant.id) ?? 0;
       const ready = variant.trackInventory ? Math.max(0, availableInventory(variant)) : 0;
       const toMake = Math.max(0, requested - ready);
-      if (toMake && store.capabilities.includes(StoreCapability.PRINT_3D) && !variant.productionMinutes) throw new CheckoutError(`${variant.product.name} needs a production time before it can be ordered`, 409);
+      if (toMake && !variant.productionMinutes) throw new CheckoutError(`${variant.product.name} needs a production time before it can be ordered`, 409);
       return total + toMake * (variant.productionMinutes ?? 0);
     }, 0);
 

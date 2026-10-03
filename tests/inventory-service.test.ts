@@ -8,16 +8,21 @@ beforeEach(() => { vi.resetAllMocks(); models.productVariant.updateMany.mockReso
 
 describe("inventory mutations", () => {
   it("refuses stale absolute adjustments without writing inventory", async () => {
-    models.productVariant.findFirst.mockResolvedValue({ id: "v", productId: "p", inventory: 7, reservedInventory: 2 });
+    models.productVariant.findFirst.mockResolvedValue({ id: "v", productId: "p", inventory: 7, reservedInventory: 2, trackInventory: true });
     await expect(adjustStock(tx, { variantId: "v", storeId: "s", actorId: "a", quantity: 12, expectedInventory: 10, reason: "Count" })).rejects.toThrow("changed since");
     expect(models.productVariant.updateMany).not.toHaveBeenCalled();
   });
   it("checks reservations and records the real adjustment with its actor", async () => {
-    models.productVariant.findFirst.mockResolvedValue({ id: "v", productId: "p", inventory: 7, reservedInventory: 2 });
+    models.productVariant.findFirst.mockResolvedValue({ id: "v", productId: "p", inventory: 7, reservedInventory: 2, trackInventory: true });
     await expect(adjustStock(tx, { variantId: "v", storeId: "s", actorId: "a", quantity: 1, expectedInventory: 7, reason: "Count" })).rejects.toThrow("reserved units");
     await adjustStock(tx, { variantId: "v", storeId: "s", actorId: "a", quantity: 9, expectedInventory: 7, reason: "Count" });
     expect(models.productVariant.updateMany).toHaveBeenCalledWith({ where: { id: "v", inventory: 7, reservedInventory: 2 }, data: { inventory: 9 } });
     expect(models.inventoryMovement.create).toHaveBeenCalledWith({ data: { variantId: "v", actorId: "a", type: "ADJUSTMENT", quantity: 2, reason: "Count" } });
+  });
+  it("rejects inventory changes for made-to-order variants", async () => {
+    models.productVariant.findFirst.mockResolvedValue({ id: "v", productId: "p", inventory: 0, reservedInventory: 0, trackInventory: false });
+    await expect(adjustStock(tx, { variantId: "v", storeId: "s", actorId: "a", quantity: 2, expectedInventory: 0, reason: "Count" })).rejects.toThrow("Made-to-order");
+    expect(models.productVariant.updateMany).not.toHaveBeenCalled();
   });
   it("does not record a release when stock counters reject it", async () => {
     models.productVariant.updateMany.mockResolvedValue({ count: 0 });
