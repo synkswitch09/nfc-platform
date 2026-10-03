@@ -125,6 +125,8 @@ const blankVariant = (): VariantForm => ({
   heightMm: null,
   defaultPackagingId: "",
 });
+
+function madeToOrder(variant: VariantForm) { return !variant.trackInventory; }
 const blankOption = (): OptionForm => ({
   name: "",
   code: "",
@@ -314,6 +316,11 @@ export function AdminProductForm({
       indexable: form.get("indexable") === "on",
       variants: variants.map((variant) => ({
         ...variant,
+        trackInventory: !madeToOrder(variant),
+        productionMinutes: madeToOrder(variant) ? variant.productionMinutes : null,
+        inventory: madeToOrder(variant) ? 0 : variant.inventory,
+        lowStockThreshold: madeToOrder(variant) ? 0 : variant.lowStockThreshold,
+        backorderPolicy: "DENY" as const,
         priceCents: cents(variant.price),
         compareAtPriceCents: variant.compareAtPrice
           ? cents(variant.compareAtPrice)
@@ -432,7 +439,7 @@ export function AdminProductForm({
       <nav className="product-form-nav" aria-label="Product setup sections">
         <a href="#product-details">1. Details</a>
         {setupKind !== "standard" && <a href="#choices">2. Customer choices</a>}
-        <a href="#variants">{setupKind === "standard" ? "2" : "3"}. Price & inventory</a>
+        <a href="#variants">{setupKind === "standard" ? "2" : "3"}. Price & fulfilment</a>
         <a href="#shipping">{setupKind === "standard" ? "3" : "4"}. Shipping</a>
         <a href="#advanced-product-settings">Advanced</a>
       </nav>
@@ -756,8 +763,8 @@ export function AdminProductForm({
       <section className="admin-panel" id="variants">
         <div className="panel-heading">
           <div>
-            <h2>{isKeychain ? "Price and inventory" : "Variants and inventory"}</h2>
-            <p>{isKeychain ? "One made-to-order variant covers every selected name, font, size and colour. Keep inventory at zero until orders open." : "Each variant carries its own SKU, price, stock and shipping data."}</p>
+            <h2>{isKeychain ? "Price and fulfilment" : "Variants and fulfilment"}</h2>
+            <p>{isKeychain ? "One made-to-order variant covers every selected name, font, size and colour." : "Choose made to order or in stock for each variant. Prices and shipping details remain independent."}</p>
           </div>
           {!simpleVariant && <div className="actions">
             {(["colour", "shape", "size"] as const)
@@ -784,9 +791,9 @@ export function AdminProductForm({
         {simpleVariant ? <div className="field-grid three">
           <label className="field">SKU<input value={variants[0].sku} onChange={event => updateVariant(setVariants, 0, "sku", event.target.value.toUpperCase())} required /></label>
           <label className="field">Material<input value={variants[0].material} onChange={event => updateVariant(setVariants, 0, "material", event.target.value)} /></label>
-          <label className="field">Production minutes per item<input type="number" min="1" max="10080" value={variants[0].productionMinutes ?? ""} onChange={event => updateVariant(setVariants, 0, "productionMinutes", event.target.value ? Number(event.target.value) : null)} /> <small>Leave empty for ready stock; set a time for made-to-order items.</small></label>
+          <FulfilmentFields variant={variants[0]} onChange={patch => setVariants(current => current.map((item, i) => i === 0 ? { ...item, ...patch } : item))} />
           <label className="field">Base price AUD<input inputMode="decimal" value={variants[0].price} onChange={event => updateVariant(setVariants, 0, "price", event.target.value)} required /></label>
-          <label className="field">Initial stock<input type="number" min="0" value={variants[0].inventory} readOnly={Boolean(variants[0].id)} onChange={event => updateVariant(setVariants, 0, "inventory", Number(event.target.value))} />{variants[0].id && <small>Adjust stock in <a href="/admin/inventory">Catalog → Inventory</a>.</small>}</label>
+
         </div> : <div className="admin-stack">
           {variants.map((variant, index) => (
             <div className="variant-editor" key={variant.id ?? index}>
@@ -857,7 +864,7 @@ export function AdminProductForm({
                     }
                   />
                 </label>
-                <label className="field">Production minutes per item<input type="number" min="1" max="10080" value={variant.productionMinutes ?? ""} onChange={event => updateVariant(setVariants, index, "productionMinutes", event.target.value ? Number(event.target.value) : null)} /> <small>Shared X2D time if made to order.</small></label>
+                <FulfilmentFields variant={variant} onChange={patch => setVariants(current => current.map((item, i) => i === index ? { ...item, ...patch } : item))} />
                 <label className="field">
                   Price AUD
                   <input
@@ -903,58 +910,6 @@ export function AdminProductForm({
                       )
                     }
                   />
-                </label>
-                <label className="field">
-                  Stock
-                  <input
-                    type="number"
-                    min="0"
-                    value={variant.inventory}
-                    readOnly={Boolean(variant.id)}
-                    title={variant.id ? "Adjust existing stock in Catalog → Inventory" : "Initial stock"}
-                    onChange={(event) =>
-                      updateVariant(
-                        setVariants,
-                        index,
-                        "inventory",
-                        Number(event.target.value),
-                      )
-                    }
-                  />
-                  {variant.id && <small>Adjust stock in <a href="/admin/inventory">Catalog → Inventory</a>.</small>}
-                </label>
-                <label className="field">
-                  Low-stock alert
-                  <input
-                    type="number"
-                    min="0"
-                    value={variant.lowStockThreshold}
-                    onChange={(event) =>
-                      updateVariant(
-                        setVariants,
-                        index,
-                        "lowStockThreshold",
-                        Number(event.target.value),
-                      )
-                    }
-                  />
-                </label>
-                <label className="field">
-                  Backorders
-                  <select
-                    value={variant.backorderPolicy}
-                    onChange={(event) =>
-                      updateVariant(
-                        setVariants,
-                        index,
-                        "backorderPolicy",
-                        event.target.value as "DENY" | "ALLOW",
-                      )
-                    }
-                  >
-                    <option value="DENY">Do not allow</option>
-                    <option value="ALLOW">Allow</option>
-                  </select>
                 </label>
                 {variantIssue(index, "optionSelection") && <p className="form-error variant-form-error">{variantIssue(index, "optionSelection")}</p>}
                 <label className="field">
@@ -1011,21 +966,6 @@ export function AdminProductForm({
                     }
                   />
                   <span>Default variant</span>
-                </label>
-                <label className="check-field">
-                  <input
-                    type="checkbox"
-                    checked={variant.trackInventory}
-                    onChange={(event) =>
-                      updateVariant(
-                        setVariants,
-                        index,
-                        "trackInventory",
-                        event.target.checked,
-                      )
-                    }
-                  />
-                  <span>Track inventory</span>
                 </label>
                 <label className="check-field">
                   <input
@@ -1594,4 +1534,27 @@ function slugValue(value: string) {
 function optionalNumber(value: FormDataEntryValue | null) {
   const raw = String(value ?? "").trim();
   return raw ? Number(raw) : null;
+}
+
+function FulfilmentFields({ variant, onChange }: { variant: VariantForm; onChange: (patch: Partial<VariantForm>) => void }) {
+  const made = madeToOrder(variant);
+  return <>
+    <label className="field">Fulfilment method
+      <select value={made ? "made" : "stock"} onChange={event => onChange(event.target.value === "made" ? { trackInventory: false, productionMinutes: null, inventory: variant.id ? variant.inventory : 0, lowStockThreshold: 0, backorderPolicy: "DENY" } : { trackInventory: true, productionMinutes: null, backorderPolicy: "DENY" })}>
+        <option value="stock">In stock</option><option value="made">Made to order</option>
+      </select>
+    </label>
+    {made ? <label className="field">Production minutes per item
+      <input type="number" min="1" max="10080" required value={variant.productionMinutes ?? ""} onChange={event => onChange({ productionMinutes: event.target.value ? Number(event.target.value) : null })} />
+      <small>Reserves time in the shared production queue for every item ordered.</small>
+    </label> : <>
+      <label className="field">{variant.id ? "Stock" : "Initial stock"}
+        <input type="number" min="0" required value={variant.inventory} readOnly={Boolean(variant.id)} onChange={event => onChange({ inventory: Number(event.target.value) })} />
+        {variant.id && <small>Adjust stock in <a href="/admin/inventory">Catalog → Inventory</a>.</small>}
+      </label>
+      <label className="field">Low-stock alert
+        <input type="number" min="0" value={variant.lowStockThreshold} onChange={event => onChange({ lowStockThreshold: Number(event.target.value) })} />
+      </label>
+    </>}
+  </>;
 }

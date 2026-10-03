@@ -22,7 +22,7 @@ export function productionForecast(usedMinutes: number, requestedMinutes: number
 export function canAcceptVariant(variant: { trackInventory: boolean; backorderPolicy: string; inventory: number; reservedInventory: number; productionMinutes: number | null }, pool: { paused: boolean; weeklyCapacityMinutes: number; maxBusinessDays: number } | null, usedMinutes: number) {
   if (variant.trackInventory && variant.inventory > variant.reservedInventory) return true;
   if (variant.trackInventory && variant.backorderPolicy !== "ALLOW") return false;
-  if (!variant.productionMinutes) return !variant.trackInventory;
+  if (!variant.productionMinutes) return false;
   return !(pool?.paused ?? false) && Boolean(productionForecast(usedMinutes, variant.productionMinutes, pool?.weeklyCapacityMinutes ?? 360, pool?.maxBusinessDays ?? 10));
 }
 
