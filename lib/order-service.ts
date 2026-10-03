@@ -45,7 +45,7 @@ export async function createPendingOrder(items: CheckoutItemInput[], customer: C
       let personalisationChoice;
       try {
         personalisationChoice = resolvePersonalisationChoice(variant.product.personalisationMode, item.personalisationChoice);
-        normalised = normalisePersonalisation(variant.product.options, item.personalisation, variant.product.personalisationMode, personalisationChoice);
+        normalised = normalisePersonalisation(variant.product.options, item.personalisation, variant.product.personalisationMode, personalisationChoice, variant.optionSelection as Record<string, string>);
         assertVariantSelection(variant.optionSelection, normalised.selectedOptions);
         if (isKeychainProduct(store.slug, variant.product.slug)) {
           const palette = keychainPaletteFromOptions(variant.product.options);

@@ -55,7 +55,7 @@ export function KeychainPreview({ input }: { input: KeychainInput }) {
   return <div className="keychain-preview">
     {result.error?<div className="keychain-preview-error" role="status">{result.error}</div>:<>
       {webglError?<div className="keychain-preview-error">3D preview is unavailable on this device. Your selected details remain in the form.</div>:<canvas ref={canvas} aria-label={`3D preview of ${input.name || "your name"} keychain`} onPointerDown={event=>{pointer.current={x:event.clientX,y:event.clientY};event.currentTarget.setPointerCapture(event.pointerId)}} onPointerMove={event=>{if(!pointer.current)return;angles.current.y+=(event.clientX-pointer.current.x)*0.012;angles.current.x=Math.max(-1.4,Math.min(1.4,angles.current.x+(event.clientY-pointer.current.y)*0.012));pointer.current={x:event.clientX,y:event.clientY};drawRef.current()}} onPointerUp={()=>{pointer.current=null}} />}
-      <p>Drag to rotate · {result.model?.widthMm} × {result.model?.heightMm} × 4 mm · {input.letterFinish === "inlaid" ? "Flush letters" : "Raised letters"} {result.model?.letterHeightMm} mm high</p>
+      <p>Drag to rotate · {result.model?.widthMm} × {result.model?.heightMm} × {input.letterFinish === "inlaid" ? "2.6" : "4"} mm · {input.letterFinish === "inlaid" ? "Flush letters" : "Raised letters"} {result.model?.letterHeightMm} mm high</p>
     </>}
   </div>;
 }

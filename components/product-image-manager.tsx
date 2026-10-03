@@ -65,7 +65,7 @@ export function ProductImageManager({ productId, images, optionValues, variants 
     router.refresh();
   }
 
-  return <section className="admin-panel">
+  return <section className="admin-panel" id="product-images">
     <div className="panel-heading"><div><h2>Product images</h2><p>Assign an image to a colour choice or variant so the storefront gallery follows the customer selection.</p></div></div>
     {images.length > 0 && <div className="admin-image-grid">{images.map((image, index) => <article key={image.id}>
       <Image src={image.url} alt={image.altText} width={320} height={320} unoptimized />
@@ -79,7 +79,7 @@ export function ProductImageManager({ productId, images, optionValues, variants 
       <label className="field">Alternative text<input name="altText" minLength={3} maxLength={160} placeholder="Describe the product for screen readers" required /></label>
       <label className="field">Colour choice<select name="optionValueId"><option value="">All colours</option>{optionValues.map(value => <option key={value.id} value={value.id}>{value.label}</option>)}</select></label>
       <label className="field">Variant image<select name="variantId"><option value="">No direct variant</option>{variants.map(variant => <option key={variant.id} value={variant.id}>{variant.label}</option>)}</select></label>
-      <button className="button secondary" disabled={pending || images.length >= 10}><Upload size={16} /> {pending ? "Uploading…" : "Upload image"}</button>
+      <button className="button secondary" disabled={pending || images.length >= 100}><Upload size={16} /> {pending ? "Uploading…" : "Upload image"}</button>
     </form>
     {message && <div className="form-error">{message}</div>}
   </section>;

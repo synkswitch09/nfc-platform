@@ -25,7 +25,7 @@ export function variantOfferPrice(variant: VariantOffer, options: PriceOption[],
     if (["SELECT", "RADIO", "COLOUR"].includes(option.type)) {
       const matching = typeof selected[option.code] === "string" ? option.values.find(item => item.active && item.value === selected[option.code]) : null;
       if (selected[option.code] && !matching) return null;
-      if (matching) surcharge += option.priceDeltaCents + matching.priceDeltaCents;
+      if (matching) continue; // This selection is already included in the variant's total price.
       else if (option.required) {
         const values = option.values.filter(item => item.active);
         if (!values.length) return null;

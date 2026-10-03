@@ -54,6 +54,7 @@ export function ProductPurchase({ checkoutEnabled, previewOnly = false, productN
   const selectionMatchesVariant = !hasMappedVariants || Boolean(variant && Object.entries(variant.optionSelection).every(([code, selected]) => selections[code] === selected));
   const soldOut = !variant || !selectionMatchesVariant || (!variant.canOrder);
   const optionPriceCents = options.reduce((sum, option) => {
+    if (variant && option.code in variant.optionSelection) return sum;
     const value = ["SELECT", "RADIO", "COLOUR"].includes(option.type) ? selections[option.code] : choice === "PERSONALISED" ? (option.type === "IMAGE" ? "TO_BE_CONFIRMED" : customValues[option.code]) : "";
     if (!value || value === "false") return sum;
     return sum + option.priceDeltaCents + (option.values.find(item => item.value === value)?.priceDeltaCents ?? 0);
@@ -105,8 +106,8 @@ export function ProductPurchase({ checkoutEnabled, previewOnly = false, productN
       <h1>{productName}</h1>
       <p className="lead">{description}</p>
       <form className="purchase-panel" onSubmit={submit}>
-        {variants.length > 1 && <label className="field">Style<select value={variant?.id ?? ""} onChange={event => chooseVariant(event.target.value)}>{variants.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>}
-        {selectionOptions.filter(option => option.code !== "keyring-hardware" || selections["keychain-attachment"] === "keychain").map(option => <SelectionField key={option.code} option={option} value={selections[option.code] ?? ""} onChange={value => chooseSelection(option, value)} />)}
+        {variants.length > 1 && !hasMappedVariants && <label className="field">Variant<select value={variant?.id ?? ""} onChange={event => chooseVariant(event.target.value)}>{variants.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>}
+        {selectionOptions.filter(option => option.code !== "keyring-hardware" || selections["keychain-attachment"] === "keychain").map(option => <SelectionField key={option.code} option={isKeychain && option.code === "letter-finish" ? { ...option, helpText: "Raised: 2.6 mm base + 1.4 mm letters (4 mm total). Flush: 2.6 mm total." } : option} value={selections[option.code] ?? ""} onChange={value => chooseSelection(option, value)} />)}
         {personalisationMode === "OPTIONAL" && <fieldset className="purchase-choice"><legend>Choose your finish</legend><label><input type="radio" name="personalisationChoice" checked={choice === "BASIC"} onChange={() => { setChoice("BASIC"); setCustomValues({}); }} /><span><strong>Basic</strong><small>Standard product without custom printed details</small></span></label><label><input type="radio" name="personalisationChoice" checked={choice === "PERSONALISED"} onChange={() => setChoice("PERSONALISED")} /><span><strong>Personalised</strong><small>Add the custom details configured below</small></span></label></fieldset>}
         {choice === "PERSONALISED" && customOptions.map(option => <CustomField key={option.code} option={option} value={customValues[option.code] ?? ""} onChange={value => setCustomValues(current => ({ ...current, [option.code]: value }))} />)}
         {keychainError && <p className="form-error" role="status">{keychainError}</p>}
