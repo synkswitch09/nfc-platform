@@ -256,8 +256,8 @@ export function AdminProductForm({
     initial.seoDescription,
   );
   const isKeychain = storeSlug === "kosykin" && initial.slug === "custom-name-keychain";
-  const guidedColours = isKeychain || setupKind === "colour" || setupKind === "two-colour";
-  const simpleVariant = !["nfc", "variants"].includes(setupKind) && variants.length === 1;
+  const guidedColours = isKeychain;
+  const simpleVariant = (setupKind === "standard" || isKeychain) && variants.length === 1;
   const selectionOptions = options.filter((option) =>
     ["SELECT", "RADIO", "COLOUR"].includes(option.type),
   );

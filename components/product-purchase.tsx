@@ -21,7 +21,9 @@ export function ProductPurchase({ checkoutEnabled, previewOnly = false, productN
   const selectionOptions = options.filter(option => ["SELECT", "RADIO", "COLOUR"].includes(option.type));
   const customOptions = options.filter(option => !["SELECT", "RADIO", "COLOUR"].includes(option.type));
   const initialSelections = Object.fromEntries(selectionOptions.map(option => [option.code, defaultVariant?.optionSelection[option.code] ?? option.values[0]?.value ?? ""]));
-  const [variantId, setVariantId] = useState(defaultVariant?.id ?? "");
+  const initialColourOption = selectionOptions.find(option => option.type === "COLOUR" && option.values.some(value => value.value === initialColour));
+  const initialVariant = variants.find(candidate => initialColourOption && candidate.optionSelection[initialColourOption.code] === initialColour) ?? defaultVariant;
+  const [variantId, setVariantId] = useState(initialVariant?.id ?? "");
   const [selections, setSelections] = useState<Record<string, string>>(() => ({ ...initialSelections, ...(selectionOptions.some(option => option.type === "COLOUR" && option.values.some(value => value.value === initialColour)) ? { [selectionOptions.find(option => option.type === "COLOUR")!.code]: initialColour } : {}) }));
   const [customValues, setCustomValues] = useState<Record<string, string>>(() => storeSlug === "kosykin" && productSlug === "custom-name-keychain" ? { "keychain-name": "Name" } : {} as Record<string, string>);
   const [choice, setChoice] = useState<Choice>(personalisationMode === "REQUIRED" ? "PERSONALISED" : "BASIC");
