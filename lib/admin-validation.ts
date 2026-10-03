@@ -46,9 +46,9 @@ export const adminProductSchema = z.object({
   options: z.array(optionSchema).max(20),
 }).superRefine((value, context) => {
   if (value.slug === "custom-name-keychain") {
-    const required = { "keychain-name": "SHORT_TEXT", "keychain-font": "SELECT", "keychain-size": "SELECT", "base-colour": "COLOUR", "letter-colour": "COLOUR", "base-shape": "RADIO", "keychain-attachment": "RADIO", "letter-finish": "RADIO" } as const;
+    const required = { "keychain-name": "SHORT_TEXT", "keychain-font": "SELECT", "keychain-size": "SELECT", "base-colour": "COLOUR", "letter-colour": "COLOUR", "base-shape": "RADIO", "keychain-attachment": "RADIO", "letter-finish": "RADIO", "keyring-hardware": "SELECT" } as const;
     if (value.personalisationMode !== "REQUIRED") context.addIssue({code:"custom",message:"The keychain requires personalisation",path:["personalisationMode"]});
-    if (value.options.length !== Object.keys(required).length || value.options.some(option => !(option.code in required))) context.addIssue({code:"custom",message:"The keychain supports only name, font, size, two colours, backing shape, attachment and lettering finish",path:["options"]});
+    if (value.options.length !== Object.keys(required).length || value.options.some(option => !(option.code in required))) context.addIssue({code:"custom",message:"The keychain supports only name, font, size, two colours, backing shape, attachment, lettering finish and hardware",path:["options"]});
     if (value.variants.length !== 1) context.addIssue({code:"custom",message:"The keychain uses one made-to-order variant",path:["variants"]});
     for (const [code,type] of Object.entries(required)) {
       const option=value.options.find(item=>item.code===code);
@@ -56,6 +56,7 @@ export const adminProductSchema = z.object({
       if(code==="keychain-name" && option?.maxLength !== 24)context.addIssue({code:"custom",message:"Name limit must be 24 characters",path:["options"]});
       const allowed=code==="keychain-font"?KEYCHAIN_FONTS:code==="keychain-size"?KEYCHAIN_SIZES:code.endsWith("colour")?KEYCHAIN_COLOURS:code==="base-shape"?KEYCHAIN_BASE_SHAPES:code==="keychain-attachment"?{keychain:true,tag:true}:code==="letter-finish"?KEYCHAIN_LETTER_FINISHES:null;
       if(allowed && option && (!option.values.some(item=>item.active)||option.values.some(item=>item.active && !(item.value in allowed))))context.addIssue({code:"custom",message:`${code} has unsupported choices`,path:["options"]});
+      if(code==="keyring-hardware" && option && (!option.values.some(item=>item.active&&item.value==="none") || !option.values.some(item=>item.active&&item.value!=="none") || new Set(option.values.map(item=>item.value)).size!==option.values.length || option.values.some(item=>item.value==="none" && item.priceDeltaCents!==0)))context.addIssue({code:"custom",message:"Hardware needs a no-hardware tag choice and at least one distinct ring or clasp",path:["options"]});
       if(code.endsWith("colour") && option?.values.some(item=>item.active && item.swatchHex?.toLowerCase()!==KEYCHAIN_COLOURS[item.value]?.toLowerCase()))context.addIssue({code:"custom",message:`${code} swatches must match the 3D palette`,path:["options"]});
     }
     if(value.status==="ACTIVE" && value.variants.some(item=>item.priceCents<=0))context.addIssue({code:"custom",message:"Set a price before publishing the keychain",path:["variants"]});

@@ -18,6 +18,8 @@ export function keychainInputFromOptions(personalisation: unknown, selectedOptio
 
 export function validateKeychainOptions(personalisation: unknown, selectedOptions: unknown) {
   const input=keychainInputFromOptions(personalisation,selectedOptions);
+  const choices=selectedOptions as Record<string, string>;
+  if (choices["keyring-hardware"] && ((input.attachment === "tag") !== (choices["keyring-hardware"] === "none"))) throw new Error("Choose hardware for the keyring loop or no hardware for a plain tag.");
   generateKeychain(input);
   return input;
 }

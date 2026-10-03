@@ -82,11 +82,13 @@ describe("admin validation", () => {
         option("Backing shape", "base-shape", "RADIO", ["contour", "rectangle"]),
         option("Finish", "keychain-attachment", "RADIO", ["keychain", "tag"]),
         option("Letter finish", "letter-finish", "RADIO", ["raised", "inlaid"]),
+        option("Keyring hardware", "keyring-hardware", "SELECT", ["split-ring", "silver-clasp", "none"]),
       ],
     };
     expect(adminProductSchema.safeParse(configured).success).toBe(true);
     expect(adminProductSchema.safeParse({ ...configured, options: configured.options.map(item => item.code === "base-shape" ? option("Backing shape", "base-shape", "RADIO", ["star"]) : item) }).success).toBe(false);
     expect(adminProductSchema.safeParse({ ...configured, options: configured.options.map(item => item.code === "letter-finish" ? option("Letter finish", "letter-finish", "RADIO", ["engraved"]) : item) }).success).toBe(false);
+    expect(adminProductSchema.safeParse({ ...configured, options: configured.options.map(item => item.code === "keyring-hardware" ? option("Keyring hardware", "keyring-hardware", "SELECT", ["none"]) : item) }).success).toBe(false);
   });
   it("turns technical validation paths into actionable product field messages", () => {
     const invalid = adminProductSchema.safeParse({ ...validProduct, description: "short", variants: [{ ...validProduct.variants[0], sku: "x" }] });

@@ -7,6 +7,7 @@ import { PackageCheck, Radio, RefreshCw, ShieldCheck, Truck } from "lucide-react
 import { useCart } from "@/components/cart-provider";
 import { KeychainPreview } from "@/components/keychain-preview";
 import { generateKeychain, type KeychainAttachment, type KeychainBaseShape, type KeychainFont, type KeychainLetterFinish, type KeychainSize } from "@/lib/keychain";
+import { KeychainFontSample, KeyringSample } from "@/components/keychain-option-samples";
 
 type ProductImage = { id: string; url: string; altText: string; isPrimary: boolean; optionValueId: string | null };
 type Variant = { id: string; name: string; priceCents: number; inventory: number; reservedInventory: number; trackInventory: boolean; backorderPolicy: "DENY" | "ALLOW"; isDefault: boolean; optionSelection: Record<string, string>; imageId: string | null };
@@ -54,6 +55,7 @@ export function ProductPurchase({ checkoutEnabled, previewOnly = false, productN
 
   function chooseSelection(option: Option, value: string) {
     const next = { ...selections, [option.code]: value };
+    if (option.code === "keychain-attachment") next["keyring-hardware"] = value === "tag" ? "none" : (selections["keyring-hardware"] === "none" ? options.find(item => item.code === "keyring-hardware")?.values.find(item => item.value !== "none")?.value ?? "" : selections["keyring-hardware"]);
     setSelections(next);
     const matching = variants.find(candidate => {
       const entries = Object.entries(candidate.optionSelection);
@@ -83,7 +85,7 @@ export function ProductPurchase({ checkoutEnabled, previewOnly = false, productN
     router.push("/cart");
   }
 
-  return <div className={`product-layout${isKeychain ? " keychain-product-layout" : ""}`}>
+  return <div className="product-layout">
     <div className="product-gallery">
       {isKeychain && choice === "PERSONALISED" ? <KeychainPreview input={keychainInput} /> : activeImage ? <Image src={activeImage.url} alt={activeImage.altText} width={900} height={900} priority unoptimized /> : <div className="product-placeholder"><Radio size={64} /><span>{storeName}</span><strong>{productName}</strong><small>Made to order in Adelaide</small></div>}
       {!isKeychain && gallery.length > 1 && <div className="product-thumbs">{gallery.map(image => <button type="button" key={image.id} className={image.id === activeImage?.id ? "active" : ""} onClick={() => setActiveImageId(image.id)} aria-label={`View ${image.altText}`}><Image src={image.url} alt="" width={160} height={160} unoptimized /></button>)}</div>}
@@ -94,7 +96,7 @@ export function ProductPurchase({ checkoutEnabled, previewOnly = false, productN
       <p className="lead">{description}</p>
       <form className="purchase-panel" onSubmit={submit}>
         {variants.length > 1 && <label className="field">Style<select value={variant?.id ?? ""} onChange={event => chooseVariant(event.target.value)}>{variants.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>}
-        {selectionOptions.map(option => <SelectionField key={option.code} option={option} value={selections[option.code] ?? ""} onChange={value => chooseSelection(option, value)} />)}
+        {selectionOptions.filter(option => option.code !== "keyring-hardware" || selections["keychain-attachment"] === "keychain").map(option => <SelectionField key={option.code} option={option} value={selections[option.code] ?? ""} onChange={value => chooseSelection(option, value)} />)}
         {personalisationMode === "OPTIONAL" && <fieldset className="purchase-choice"><legend>Choose your finish</legend><label><input type="radio" name="personalisationChoice" checked={choice === "BASIC"} onChange={() => { setChoice("BASIC"); setCustomValues({}); }} /><span><strong>Basic</strong><small>Standard product without custom printed details</small></span></label><label><input type="radio" name="personalisationChoice" checked={choice === "PERSONALISED"} onChange={() => setChoice("PERSONALISED")} /><span><strong>Personalised</strong><small>Add the custom details configured below</small></span></label></fieldset>}
         {choice === "PERSONALISED" && customOptions.map(option => <CustomField key={option.code} option={option} value={customValues[option.code] ?? ""} onChange={value => setCustomValues(current => ({ ...current, [option.code]: value }))} />)}
         {keychainError && <p className="form-error" role="status">{keychainError}</p>}
@@ -109,6 +111,7 @@ export function ProductPurchase({ checkoutEnabled, previewOnly = false, productN
 }
 
 function SelectionField({ option, value, onChange }: { option: Option; value: string; onChange: (value: string) => void }) {
+  if (option.code === "keychain-font" || option.code === "keyring-hardware") return <fieldset className="keychain-option-field"><legend>{option.name}</legend><div className={`keychain-option-grid ${option.code === "keyring-hardware" ? "hardware-grid" : ""}`}>{option.values.filter(item => option.code !== "keyring-hardware" || item.value !== "none").map(item => <button type="button" key={item.id} className={`keychain-option-card${value === item.value ? " active" : ""}`} aria-pressed={value === item.value} onClick={() => onChange(item.value)}>{option.code === "keychain-font" ? <KeychainFontSample font={item.value} /> : <KeyringSample value={item.value} imageUrl={item.swatchImageUrl} />}<span>{item.label}</span>{item.priceDeltaCents > 0 && <small>+${(item.priceDeltaCents / 100).toFixed(2)}</small>}</button>)}</div>{option.helpText && <small>{option.helpText}</small>}</fieldset>;
   if (option.type === "COLOUR") return <fieldset className="colour-options"><legend>{option.name}</legend><div>{option.values.map(item => <button type="button" key={item.id} className={value === item.value ? "active" : ""} aria-pressed={value === item.value} onClick={() => onChange(item.value)}><span className="colour-swatch" style={swatchStyle(item)} /><span>{item.label}</span>{item.priceDeltaCents > 0 && <small>+${(item.priceDeltaCents / 100).toFixed(2)}</small>}</button>)}</div>{option.helpText && <small>{option.helpText}</small>}</fieldset>;
   if (option.type === "RADIO") return <fieldset className="selection-radios"><legend>{option.name}</legend>{option.values.map(item => <label key={item.id}><input type="radio" name={option.code} value={item.value} checked={value === item.value} onChange={() => onChange(item.value)} /><span>{item.label}</span></label>)}</fieldset>;
   return <label className="field">{option.name}<select value={value} required={option.required} onChange={event => onChange(event.target.value)}><option value="" disabled>Select {option.name.toLowerCase()}</option>{option.values.map(item => <option key={item.id} value={item.value}>{item.label}{item.priceDeltaCents ? ` (+$${(item.priceDeltaCents / 100).toFixed(2)})` : ""}</option>)}</select>{option.helpText && <small>{option.helpText}</small>}</label>;

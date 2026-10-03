@@ -1,6 +1,6 @@
 import fontData from "./keychain-fonts.json";
 
-export type KeychainFont = keyof typeof fontData;
+export type KeychainFont = keyof typeof fontData | "roundedItalic" | "classicItalic" | "compact";
 export type KeychainSize = "regular" | "medium" | "large";
 export type KeychainBaseShape = "contour" | "rectangle";
 export type KeychainAttachment = "keychain" | "tag";
@@ -9,11 +9,32 @@ export type KeychainInput = { name: string; font: KeychainFont; size: KeychainSi
 export type Triangle = [number, number, number, number, number, number, number, number, number];
 export type KeychainModel = { base: Triangle[]; baseCap: Triangle[]; letters: Triangle[]; widthMm: number; heightMm: number; centreX: number; centreY: number; letterHeightMm: number; input: KeychainInput };
 
-export const KEYCHAIN_FONTS: Record<KeychainFont, string> = { rounded: "Rounded bold", classic: "Classic serif", mono: "Mono bold" };
+export const KEYCHAIN_FONTS: Record<KeychainFont, string> = { rounded: "Rounded bold", roundedItalic: "Rounded italic", classic: "Classic serif", classicItalic: "Classic italic", mono: "Mono bold", compact: "Compact bold" };
 export const KEYCHAIN_SIZES = { regular: { height: 10, minimum: 8, maxLength: 90 }, medium: { height: 15, minimum: 10, maxLength: 110 }, large: { height: 20, minimum: 12, maxLength: 130 } } as const;
 export const KEYCHAIN_BASE_SHAPES: Record<KeychainBaseShape, string> = { contour: "Follows the name", rectangle: "Rounded rectangle" };
 export const KEYCHAIN_LETTER_FINISHES: Record<KeychainLetterFinish, string> = { raised: "Raised letters", inlaid: "Flush letters" };
+export const KEYRING_HARDWARE = { "split-ring": "Silver split ring", "silver-clasp": "Silver clasp", "rose-gold-clasp": "Rose gold clasp", "gold-clasp": "Gold clasp" } as const;
 export const KEYCHAIN_COLOURS: Record<string, string> = { white: "#F7F5EF", black: "#28282B", peach: "#F5AA82", lavender: "#BCA7D9", mint: "#A5CDBC", sky: "#A6CBE2", yellow: "#F0CE72", pink: "#E9ADBF" };
+
+type Outlines = { unitsPerEm: number; glyphs: Record<string, { advance: number; paths: number[][][] }> };
+const outlineCache = new Map<KeychainFont, Outlines>();
+export function keychainFontOutlines(font: KeychainFont): Outlines {
+  const cached = outlineCache.get(font);
+  if (cached) return cached;
+  const source = (font === "roundedItalic" || font === "compact" ? "rounded" : font === "classicItalic" ? "classic" : font) as keyof typeof fontData;
+  const original = fontData[source] as Outlines;
+  const shear = font === "roundedItalic" ? .22 : font === "classicItalic" ? .18 : 0;
+  const width = font === "compact" ? .8 : 1;
+  const transformed: Outlines = shear || width !== 1 ? {
+    unitsPerEm: original.unitsPerEm,
+    glyphs: Object.fromEntries(Object.entries(original.glyphs).map(([char, glyph]) => [char, {
+      advance: glyph.advance * width,
+      paths: glyph.paths.map(path => path.map(([x, y]) => [(x + shear * y) * width, y])),
+    }])),
+  } : original;
+  outlineCache.set(font, transformed);
+  return transformed;
+}
 
 function contains(x: number, y: number, paths: number[][][]) {
   let inside = false;
@@ -95,7 +116,7 @@ export function generateKeychain(input: KeychainInput): KeychainModel {
   if (input.letterFinish !== undefined && !(input.letterFinish in KEYCHAIN_LETTER_FINISHES)) throw new Error("Choose raised or flush letters.");
   if (!(input.baseColour in KEYCHAIN_COLOURS) || !(input.letterColour in KEYCHAIN_COLOURS) || input.baseColour === input.letterColour) throw new Error("Choose two different available colours.");
   const config = KEYCHAIN_SIZES[input.size];
-  const font = fontData[input.font] as { unitsPerEm: number; glyphs: Record<string,{advance:number;paths:number[][][]}> };
+  const font = keychainFontOutlines(input.font);
   const cap = Math.max(...font.glyphs.H.paths.flat().map(point => point[1]));
   const positioned: { offset: number; paths: number[][][]; minX: number; maxX: number; minY: number; maxY: number }[] = [];
   let right = 0, pendingSpace = 0;
