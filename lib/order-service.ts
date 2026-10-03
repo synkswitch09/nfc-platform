@@ -12,6 +12,7 @@ import { notifyPaidOrder, queuePaidOrder } from "@/lib/order-notifications";
 import type { ShippingDestination } from "@/lib/shipping";
 import { queueEtsyInventorySync } from "@/lib/etsy";
 import { isKeychainProduct, validateKeychainOptions } from "@/lib/keychain-order";
+import { ProductionCapacityError, releaseProduction, reserveProduction } from "@/lib/production-capacity";
 
 export type CheckoutItemInput = { variantId: string; quantity: number; personalisationChoice?: "BASIC" | "PERSONALISED"; personalisation?: Record<string, string> };
 export type CheckoutCustomerInput = {
@@ -61,6 +62,13 @@ export async function createPendingOrder(items: CheckoutItemInput[], customer: C
         throw new CheckoutError(`${variant.product.name} does not have enough stock`, 409);
       }
     }
+    const productionMinutes = variants.reduce((total, variant) => {
+      const requested = requestedByVariant.get(variant.id) ?? 0;
+      const ready = variant.trackInventory ? Math.max(0, availableInventory(variant)) : 0;
+      const toMake = Math.max(0, requested - ready);
+      if (toMake && store.capabilities.includes(StoreCapability.PRINT_3D) && !variant.productionMinutes) throw new CheckoutError(`${variant.product.name} needs a production time before it can be ordered`, 409);
+      return total + toMake * (variant.productionMinutes ?? 0);
+    }, 0);
 
     const quote = await tx.shippingQuote.findFirst({ where: { tokenHash: sha256(shippingQuoteToken), storeId: store.id, status: "ACTIVE", expiresAt: { gt: new Date() } } });
     if (!quote || quote.cartHash !== shippingCartHash(items) || quote.destinationHash !== shippingDestinationHash(customer.shipping)) throw new CheckoutError("Your delivery quote expired or no longer matches this order", 409);
@@ -121,11 +129,14 @@ export async function createPendingOrder(items: CheckoutItemInput[], customer: C
       },
       include: { payments: true },
     });
+    if (productionMinutes) try { await reserveProduction(tx, store.environment, order.id, productionMinutes); }
+    catch (error) { if (error instanceof ProductionCapacityError) throw new CheckoutError(error.message, 409); throw error; }
 
     for (const variant of variants) {
       const quantity = requestedByVariant.get(variant.id) ?? 0;
-      if (!variant.trackInventory || variant.backorderPolicy === "ALLOW") continue;
-      await changeReservation(tx, { variantId: variant.id, orderId: order.id, quantity, expectedReserved: variant.reservedInventory });
+      if (!variant.trackInventory) continue;
+      const held = variant.backorderPolicy === "ALLOW" ? Math.min(quantity, Math.max(0, availableInventory(variant))) : quantity;
+      if (held) await changeReservation(tx, { variantId: variant.id, orderId: order.id, quantity: held, expectedReserved: variant.reservedInventory });
     }
     for (const productId of new Set(variants.map(variant => variant.productId))) await queueEtsyInventorySync(tx, store.id, productId);
 
@@ -145,6 +156,7 @@ export async function cancelPendingOrder(orderId: string, reason: string, actorI
     if (!order || order.status !== "PAYMENT_PENDING") return false;
     const claimed = await tx.order.updateMany({ where: { id: orderId, status: "PAYMENT_PENDING" }, data: { status: "CANCELLED" } });
     if (claimed.count !== 1) return false;
+    await releaseProduction(tx, orderId);
     const reservations = await orderReservations(tx, orderId);
     for (const [variantId, quantity] of reservations) {
       if (quantity < 0) throw new CheckoutError("Reservation ledger requires review", 409);
@@ -190,7 +202,7 @@ export async function settleCheckoutEvent(input: { eventId: string; eventType: s
     await tx.orderStatusHistory.create({ data: { orderId: payment.orderId, fromStatus: "PAYMENT_PENDING", toStatus: "PAID" } });
     const jobs = payment.order.items.flatMap(item => {
       const requirements = manufacturingRequirements(payment.order.store.capabilities, item.productType);
-      return requirements ? [{ storeId: payment.order.storeId, orderItemId: item.id, productVariantId: item.variantId, quantity: item.quantity, material: item.variant.material, colour: item.variant.colour, requiresNfc: requirements.requiresNfc }] : [];
+      return requirements ? [{ storeId: payment.order.storeId, orderItemId: item.id, productVariantId: item.variantId, quantity: item.quantity, material: item.variant.material, colour: item.variant.colour, requiresNfc: requirements.requiresNfc, estimatedMinutes: item.variant.productionMinutes ? item.variant.productionMinutes * item.quantity : null }] : [];
     });
     if (jobs.length) await tx.manufacturingJob.createMany({ data: jobs, skipDuplicates: true });
     await tx.webhookEvent.create({ data: { id: input.eventId, provider: "stripe", eventType: input.eventType } });

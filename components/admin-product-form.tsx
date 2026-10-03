@@ -31,6 +31,7 @@ type VariantForm = {
   colour: string;
   size: string;
   material: string;
+  productionMinutes: number | null;
   price: string;
   compareAtPrice: string;
   cost: string;
@@ -107,6 +108,7 @@ const blankVariant = (): VariantForm => ({
   colour: "",
   size: "",
   material: "PETG",
+  productionMinutes: null,
   price: "24.95",
   compareAtPrice: "",
   cost: "",
@@ -781,6 +783,7 @@ export function AdminProductForm({
         {simpleVariant ? <div className="field-grid three">
           <label className="field">SKU<input value={variants[0].sku} onChange={event => updateVariant(setVariants, 0, "sku", event.target.value.toUpperCase())} required /></label>
           <label className="field">Material<input value={variants[0].material} onChange={event => updateVariant(setVariants, 0, "material", event.target.value)} /></label>
+          <label className="field">Production minutes per item<input type="number" min="1" max="10080" value={variants[0].productionMinutes ?? ""} onChange={event => updateVariant(setVariants, 0, "productionMinutes", event.target.value ? Number(event.target.value) : null)} /> <small>Leave empty for ready stock; set a time for made-to-order items.</small></label>
           <label className="field">Base price AUD<input inputMode="decimal" value={variants[0].price} onChange={event => updateVariant(setVariants, 0, "price", event.target.value)} required /></label>
           <label className="field">Initial stock<input type="number" min="0" value={variants[0].inventory} readOnly={Boolean(variants[0].id)} onChange={event => updateVariant(setVariants, 0, "inventory", Number(event.target.value))} />{variants[0].id && <small>Adjust stock in <a href="/admin/inventory">Catalog → Inventory</a>.</small>}</label>
         </div> : <div className="admin-stack">
@@ -853,6 +856,7 @@ export function AdminProductForm({
                     }
                   />
                 </label>
+                <label className="field">Production minutes per item<input type="number" min="1" max="10080" value={variant.productionMinutes ?? ""} onChange={event => updateVariant(setVariants, index, "productionMinutes", event.target.value ? Number(event.target.value) : null)} /> <small>Shared X2D time if made to order.</small></label>
                 <label className="field">
                   Price AUD
                   <input

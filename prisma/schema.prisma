@@ -796,6 +796,7 @@ model ProductVariant {
   colour              String?
   size                String?
   material            String?
+  productionMinutes   Int?
   priceCents          Int
   compareAtPriceCents Int?
   costCents           Int?
@@ -915,6 +916,7 @@ model Order {
   inventoryMovements         InventoryMovement[]
   shippingQuote              ShippingQuote?        @relation(fields: [shippingQuoteId], references: [id], onDelete: SetNull)
   shipments                  Shipment[]
+  productionBooking          ProductionBooking?
   marketplaceOrder           MarketplaceOrder?
 
   @@index([storeId, userId, createdAt])
@@ -1031,6 +1033,29 @@ model ManufacturingJob {
   @@index([storeId, status, priority, createdAt])
   @@index([productVariantId, status])
   @@index([assignedToId, status])
+}
+
+model ProductionPool {
+  environment           DeploymentEnvironment @id
+  weeklyCapacityMinutes Int                   @default(360)
+  maxBusinessDays       Int                   @default(10)
+  paused                Boolean               @default(false)
+  version               Int                   @default(0)
+  updatedAt             DateTime              @updatedAt
+  bookings              ProductionBooking[]
+}
+
+model ProductionBooking {
+  orderId       String                @id @db.Uuid
+  environment   DeploymentEnvironment
+  minutes       Int
+  promisedAt    DateTime
+  releasedAt    DateTime?
+  createdAt     DateTime              @default(now())
+  order         Order                 @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  pool          ProductionPool        @relation(fields: [environment], references: [environment], onDelete: Restrict)
+
+  @@index([environment, releasedAt, createdAt])
 }
 
 model ShippingOrigin {

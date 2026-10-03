@@ -128,6 +128,7 @@ export default async function AdminLayout({
         ? {
             ...group,
             links: [
+              { href: "/admin/production", label: "Shared X2D capacity", icon: Factory },
               { href: "/admin/stores", label: "Stores", icon: Building2 },
               ...group.links,
               { href: "/admin/team", label: "Team access", icon: ShieldCheck },

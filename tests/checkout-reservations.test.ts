@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => {
   const model = () => ({ findUnique: vi.fn(), create: vi.fn(), update: vi.fn(), updateMany: vi.fn(), groupBy: vi.fn(), createMany: vi.fn() });
-  return { tx: { order: model(), payment: model(), productVariant: model(), inventoryMovement: model(), orderStatusHistory: model(), auditLog: model(), webhookEvent: model(), manufacturingJob: model() }, transaction: vi.fn(), notify: vi.fn() };
+  return { tx: { order: model(), payment: model(), productVariant: model(), productionBooking: model(), inventoryMovement: model(), orderStatusHistory: model(), auditLog: model(), webhookEvent: model(), manufacturingJob: model() }, transaction: vi.fn(), notify: vi.fn() };
 });
 vi.mock("@/lib/db", () => ({ db: { $transaction: mocks.transaction } }));
 vi.mock("@/lib/etsy", () => ({ queueEtsyInventorySync: vi.fn() }));

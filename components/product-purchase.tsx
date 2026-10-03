@@ -10,7 +10,7 @@ import { generateKeychain, type KeychainAttachment, type KeychainBaseShape, type
 import { KeychainFontSample, KeyringSample } from "@/components/keychain-option-samples";
 
 type ProductImage = { id: string; url: string; altText: string; isPrimary: boolean; optionValueId: string | null };
-type Variant = { id: string; name: string; priceCents: number; inventory: number; reservedInventory: number; trackInventory: boolean; backorderPolicy: "DENY" | "ALLOW"; isDefault: boolean; optionSelection: Record<string, string>; imageId: string | null };
+type Variant = { id: string; name: string; canOrder: boolean; priceCents: number; inventory: number; reservedInventory: number; trackInventory: boolean; backorderPolicy: "DENY" | "ALLOW"; isDefault: boolean; optionSelection: Record<string, string>; imageId: string | null };
 type OptionValue = { id: string; label: string; value: string; priceDeltaCents: number; swatchHex: string | null; swatchHexSecondary: string | null; swatchImageUrl: string | null };
 type Option = { code: string; name: string; type: string; required: boolean; maxLength: number | null; priceDeltaCents: number; helpText: string | null; values: OptionValue[] };
 type Choice = "BASIC" | "PERSONALISED";
@@ -48,7 +48,7 @@ export function ProductPurchase({ checkoutEnabled, previewOnly = false, productN
   const activeImage = gallery.find(image => image.id === activeImageId) ?? gallery[0];
   const hasMappedVariants = variants.some(item => Object.keys(item.optionSelection).length > 0);
   const selectionMatchesVariant = !hasMappedVariants || Boolean(variant && Object.entries(variant.optionSelection).every(([code, selected]) => selections[code] === selected));
-  const soldOut = !variant || !selectionMatchesVariant || (variant.trackInventory && variant.backorderPolicy === "DENY" && variant.inventory - variant.reservedInventory <= 0);
+  const soldOut = !variant || !selectionMatchesVariant || (!variant.canOrder);
   const optionPriceCents = options.reduce((sum, option) => {
     const value = ["SELECT", "RADIO", "COLOUR"].includes(option.type) ? selections[option.code] : choice === "PERSONALISED" ? (option.type === "IMAGE" ? "TO_BE_CONFIRMED" : customValues[option.code]) : "";
     if (!value || value === "false") return sum;
