@@ -79,7 +79,7 @@ export function ProductImageManager({ productId, images, optionValues, variants 
       <label className="field">Alternative text<input name="altText" minLength={3} maxLength={160} placeholder="Describe the product for screen readers" required /></label>
       <label className="field">Colour choice<select name="optionValueId"><option value="">All colours</option>{optionValues.map(value => <option key={value.id} value={value.id}>{value.label}</option>)}</select></label>
       <label className="field">Variant image<select name="variantId"><option value="">No direct variant</option>{variants.map(variant => <option key={variant.id} value={variant.id}>{variant.label}</option>)}</select></label>
-      <button className="button secondary" disabled={pending || images.length >= 10}><Upload size={16} /> {pending ? "Uploading…" : "Upload image"}</button>
+      <button className="button secondary" disabled={pending || images.length >= 100}><Upload size={16} /> {pending ? "Uploading…" : "Upload image"}</button>
     </form>
     {message && <div className="form-error">{message}</div>}
   </section>;
