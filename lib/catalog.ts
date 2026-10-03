@@ -22,7 +22,7 @@ export function resolvePersonalisationChoice(mode: PersonalisationMode, requeste
   return resolved;
 }
 
-export function normalisePersonalisation(options: CheckoutOption[], input: Record<string, string> | undefined, mode: PersonalisationMode = "REQUIRED", requestedChoice?: PersonalisationChoice) {
+export function normalisePersonalisation(options: CheckoutOption[], input: Record<string, string> | undefined, mode: PersonalisationMode = "REQUIRED", requestedChoice?: PersonalisationChoice, variantSelection: Record<string, string> = {}) {
   const submitted = input ?? {};
   const choice = resolvePersonalisationChoice(mode, requestedChoice);
   const activeOptions = options.filter(option => option.active && (selectionTypes.has(option.type) || choice === "PERSONALISED"));
@@ -42,7 +42,7 @@ export function normalisePersonalisation(options: CheckoutOption[], input: Recor
     if (selectionTypes.has(option.type)) {
       const selected = option.values.find(candidate => candidate.active && candidate.value === value);
       if (!selected) throw new CatalogValidationError(`${option.code} has an invalid value`);
-      priceDeltaCents += selected.priceDeltaCents;
+      if (!(option.code in variantSelection)) priceDeltaCents += selected.priceDeltaCents;
       selectedOptions[option.code] = value;
     } else if (option.type === "CHECKBOX") {
       if (!["true", "false"].includes(value)) throw new CatalogValidationError(`${option.code} has an invalid value`);
@@ -51,7 +51,7 @@ export function normalisePersonalisation(options: CheckoutOption[], input: Recor
     }
 
     if (!selectionTypes.has(option.type)) personalisation[option.code] = value;
-    priceDeltaCents += option.priceDeltaCents;
+    if (!(option.code in variantSelection)) priceDeltaCents += option.priceDeltaCents;
   }
 
   return { personalisation, selectedOptions, priceDeltaCents };

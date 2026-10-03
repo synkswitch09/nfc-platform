@@ -158,32 +158,7 @@ const productChoicePresets: Record<
     maxLength: null,
     price: "0",
     helpText: "Choose the colour for this tag.",
-    values: [
-      {
-        ...blankOptionValue(),
-        label: "Black",
-        value: "black",
-        swatchHex: "#171717",
-      },
-      {
-        ...blankOptionValue(),
-        label: "White",
-        value: "white",
-        swatchHex: "#f8f8f6",
-      },
-      {
-        ...blankOptionValue(),
-        label: "Mint",
-        value: "mint",
-        swatchHex: "#9fd8c3",
-      },
-      {
-        ...blankOptionValue(),
-        label: "Peach",
-        value: "peach",
-        swatchHex: "#f4c7a5",
-      },
-    ],
+    values: [],
   },
   shape: {
     name: "Style / shape",
@@ -193,11 +168,7 @@ const productChoicePresets: Record<
     maxLength: null,
     price: "0",
     helpText: "Choose the shape of the tag.",
-    values: ["Round", "Bone", "Heart"].map((label) => ({
-      ...blankOptionValue(),
-      label,
-      value: slugValue(label),
-    })),
+    values: [],
   },
   size: {
     name: "Size",
@@ -207,11 +178,7 @@ const productChoicePresets: Record<
     maxLength: null,
     price: "0",
     helpText: "Choose the size that suits the pet.",
-    values: ["Small", "Medium", "Large"].map((label) => ({
-      ...blankOptionValue(),
-      label,
-      value: slugValue(label),
-    })),
+    values: [],
   },
 };
 const cents = (value: string) => Math.round(Number(value || 0) * 100);
@@ -243,7 +210,7 @@ export function AdminProductForm({
     const missing: OptionForm[] = [
       { name: "Backing shape", code: "base-shape", type: "RADIO" as const, required: true, maxLength: null, price: "0", helpText: "Choose a backing that follows the letters or a rounded rectangle.", values: [value("Follows the name", "contour"), value("Rounded rectangle", "rectangle")] },
       { name: "Finish", code: "keychain-attachment", type: "RADIO" as const, required: true, maxLength: null, price: "0", helpText: "Choose a keyring loop or a plain tag without a loop.", values: [value("Keyring loop", "keychain"), value("Plain tag", "tag")] },
-      { name: "Letter finish", code: "letter-finish", type: "RADIO" as const, required: true, maxLength: null, price: "0", helpText: "Raised: 3 mm base and 1 mm letters. Flush: letters sit in the top 1 mm of a 4 mm base.", values: [value("Raised letters", "raised"), value("Flush letters", "inlaid")] },
+      { name: "Letter finish", code: "letter-finish", type: "RADIO" as const, required: true, maxLength: null, price: "0", helpText: "Raised: 2.6 mm base and 1.4 mm letters (4 mm total). Flush: letters sit inside a 2.6 mm tag.", values: [value("Raised letters", "raised"), value("Flush letters", "inlaid")] },
       { name: "Keyring hardware", code: "keyring-hardware", type: "SELECT" as const, required: true, maxLength: null, price: "0", helpText: "Available when the shopper selects a keyring loop.", values: [...Object.entries(KEYRING_HARDWARE).map(([key,label])=>value(label,key)),value("No hardware (tag)","none")] },
     ].filter((choice) => !initial.options.some((option) => option.code === choice.code));
     const withNewFonts = initial.options.map(option => option.code === "keychain-font" ? { ...option, values: [...option.values, ...Object.entries(KEYCHAIN_FONTS).filter(([key]) => !option.values.some(item => item.value === key)).map(([key,label]) => value(label,key))] } : option);
@@ -265,8 +232,13 @@ export function AdminProductForm({
   const selectionOptions = options.filter((option) =>
     ["SELECT", "RADIO", "COLOUR"].includes(option.type),
   );
-  const choiceByCode = (code: string) =>
-    selectionOptions.find((option) => option.code === code);
+  const variantChoices = isKeychain ? [] : selectionOptions;
+  const colourChoices = options.filter(option => option.type === "COLOUR");
+  const palette = colourChoices[0]?.values ?? [];
+  const updatePalette = (values: OptionValueForm[]) => setOptions(current => current.map(option => option.type !== "COLOUR" ? option : {
+    ...option,
+    values: values.map((value, index) => ({ ...value, id: option.values.find(old => old.value === value.value)?.id ?? option.values[index]?.id, price: "0", swatchHexSecondary: "", swatchImageUrl: "" })),
+  }));
   const issueFor = (path: string) =>
     validationIssues.find((issue) => issue.path === path)?.message;
   const variantIssue = (index: number, field?: string) =>
@@ -326,15 +298,15 @@ export function AdminProductForm({
           ? cents(variant.compareAtPrice)
           : null,
         costCents: variant.cost ? cents(variant.cost) : null,
-        optionSelection: parseSelection(variant.optionSelection),
+        optionSelection: Object.fromEntries(Object.entries(parseSelection(variant.optionSelection)).filter(([code]) => isKeychain || variantChoices.some(option => option.code === code))),
         defaultPackagingId: variant.defaultPackagingId || null,
       })),
       options: options.map((option) => ({
         ...option,
-        priceDeltaCents: cents(option.price),
+        priceDeltaCents: !isKeychain && ["SELECT", "RADIO", "COLOUR"].includes(option.type) ? 0 : cents(option.price),
         values: option.values.map((value) => ({
           ...value,
-          priceDeltaCents: cents(value.price),
+          priceDeltaCents: !isKeychain && ["SELECT", "RADIO", "COLOUR"].includes(option.type) ? 0 : cents(value.price),
           swatchHex: value.swatchHex || null,
           swatchHexSecondary: value.swatchHexSecondary || null,
           swatchImageUrl: value.swatchImageUrl || "",
@@ -565,11 +537,12 @@ export function AdminProductForm({
       {setupKind === "standard" ? <input type="hidden" name="personalisationMode" value="NONE" /> : <section className="admin-panel" id="choices">
         <div className="panel-heading">
           <div>
-            <h2>{isKeychain ? "Keychain choices" : guidedColours ? "Available colours" : "Product choices & personalisation"}</h2>
-            <p>{isKeychain ? "Choose which fonts, sizes and colours shoppers may select. The name field is always required." : guidedColours ? "Enable only the colours you can make. The shopper chooses from these swatches." : "Configure customer choices and personalised fields. Variants carry prices and stock separately."}</p>
+            <h2>{isKeychain ? "Keychain choices" : "Product attributes"}</h2>
+            <p>{isKeychain ? "Choose which fonts, sizes and colours shoppers may select. The name field is always required." : "Add only the attributes this product uses. Then assign their values, price and photos to each variant."}</p>
           </div>
           {!guidedColours && <div className="actions">
-            {(["colour", "shape", "size"] as const).map((choice) => (
+            {colourChoices.length === 0 && setupKind !== "standard" && <button className="button secondary" type="button" onClick={() => setOptions(current => [...current, { ...productChoicePresets.colour }])}><Plus size={16} /> Add colours</button>}
+            {(["shape", "size"] as const).filter(choice => !options.some(option => option.code === choice)).map((choice) => (
               <button
                 className="button secondary"
                 type="button"
@@ -586,7 +559,9 @@ export function AdminProductForm({
                 {choice === "shape" ? "style / shape" : choice}
               </button>
             ))}
-            <button
+            {setupKind === "two-colour" && <button className="button secondary" type="button" onClick={() => setOptions(current => [...current, { ...productChoicePresets.colour, name: `Colour role ${colourChoices.length + 1}`, code: `colour-role-${colourChoices.length + 1}`, values: palette.map(value => ({ ...value, id: undefined })) }])}><Plus size={16} /> Add colour role</button>}
+            {setupKind === "variants" && <button className="button secondary" type="button" onClick={() => setOptions(current => { const n = current.filter(option => option.code.startsWith("property-")).length + 1; return [...current, { ...blankOption(), name: `Property ${n}`, code: `property-${n}`, type: "SELECT", required: true, maxLength: null }]; })}><Plus size={16} /> Add property</button>}
+            {setupKind === "nfc" && <button
               className="button secondary"
               type="button"
               onClick={() =>
@@ -594,10 +569,10 @@ export function AdminProductForm({
               }
             >
               <Plus size={16} /> Add custom field
-            </button>
+            </button>}
           </div>}
         </div>
-        {guidedColours ? <input type="hidden" name="personalisationMode" value="REQUIRED" /> : <label className="field">
+        {guidedColours ? <input type="hidden" name="personalisationMode" value="REQUIRED" /> : setupKind !== "nfc" ? <input type="hidden" name="personalisationMode" value="NONE" /> : <label className="field">
           Personalisation purchase mode
           <select
             name="personalisationMode"
@@ -618,7 +593,8 @@ export function AdminProductForm({
           return <fieldset className="keychain-admin-choices" key={option.code}><legend>{option.name}</legend><div>{option.values.map((value, valueIndex) => hardware && value.value === "none" ? null : <div key={value.id ?? `${option.code}-${valueIndex}`} className="keychain-choice-row"><label className="check-field"><input type="checkbox" checked={value.active} onChange={event => changeValue(valueIndex, { active: event.target.checked })} />{value.swatchHex && <span className="colour-swatch" style={{ background: value.swatchHex }} />}<span>{value.label}</span></label>{option.code === "keychain-font" && <KeychainFontSample font={value.value} />}{hardware && <><KeyringSample value={value.value} imageUrl={value.swatchImageUrl || null} /><label className="field">Name<input value={value.label} onChange={event => changeValue(valueIndex, { label: event.target.value })} /></label><label className="field">Code<input value={value.value} onChange={event => changeValue(valueIndex, { value: event.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "") })} /></label><MediaUploadField label={`${value.label} image`} value={value.swatchImageUrl} onChange={url => changeValue(valueIndex, { swatchImageUrl: url })} /><button type="button" className="icon-button" aria-label={`Remove ${value.label}`} onClick={() => updateOption(setOptions,index,"values",option.values.filter((_,i)=>i!==valueIndex))}><Trash2 size={16} /></button></>}{colour && <><label className="field">Colour name<input value={value.label} onChange={event => changeValue(valueIndex, { label: event.target.value })} /></label><label className="field">Colour code<input value={value.value} onChange={event => changeValue(valueIndex, { value: event.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "") })} /></label><label className="field">Print colour<input type="color" value={value.swatchHex || "#000000"} onChange={event => changeValue(valueIndex, { swatchHex: event.target.value })} /></label><button type="button" className="icon-button" aria-label={`Remove ${value.label}`} onClick={() => updateOption(setOptions,index,"values",option.values.filter((_,i)=>i!==valueIndex))}><Trash2 size={16} /></button></>}{(option.code === "keychain-size" || hardware) && <label className="field">Extra AUD<input inputMode="decimal" value={value.price} onChange={event => changeValue(valueIndex, { price: event.target.value })} /></label>}</div>)}</div>{hardware && <button type="button" className="button secondary" onClick={() => updateOption(setOptions,index,"values",[...option.values,{...blankOptionValue(),label:"New ring",value:`ring-${Date.now()}`,swatchHex:""}])}><Plus size={16} /> Add ring or clasp</button>}{colour && <button type="button" className="button secondary" onClick={() => updateOption(setOptions,index,"values",[...option.values,{...blankOptionValue(),label:"New colour",value:`colour-${Date.now()}`,swatchHex:"#ffffff"}])}><Plus size={16} /> Add colour</button>}</fieldset>;
         })}</div> : options.length ? (
           <div className="admin-stack">
-            {options.map((option, index) => (
+            {colourChoices.length > 0 && <fieldset className="variant-editor"><legend>Available print colours</legend><p>Add each colour once. Assign it to a role in every variant; variant photos are uploaded after saving.</p><OptionValuesEditor values={palette} colour onChange={updatePalette} /></fieldset>}
+            {options.map((option, index) => option.type === "COLOUR" ? <div className="variant-editor" key={option.id ?? index}><div className="variant-title"><strong>{colourChoices.length === 1 ? "Colour selection" : `Colour role ${colourChoices.indexOf(option) + 1}`}</strong>{colourChoices.length > 1 && <button type="button" className="icon-button" aria-label={`Remove ${option.name}`} onClick={() => setOptions(current => current.filter((_, itemIndex) => itemIndex !== index))}><Trash2 size={17} /></button>}</div><label className="field">{colourChoices.length === 1 ? "Label shown to customers" : "What part uses this colour?"}<input value={option.name} onChange={event => updateOption(setOptions, index, "name", event.target.value)} required /></label></div> : (
               <div className="variant-editor" key={option.id ?? index}>
                 <div className="variant-title">
                   <strong>Field {index + 1}</strong>
@@ -667,7 +643,7 @@ export function AdminProductForm({
                       required
                     />
                   </label>
-                  <label className="field">
+                  {setupKind === "nfc" && <label className="field">
                     Input type
                     <select
                       value={option.type}
@@ -692,8 +668,8 @@ export function AdminProductForm({
                         <option key={type}>{type}</option>
                       ))}
                     </select>
-                  </label>
-                  <label className="field">
+                  </label>}
+                  {!selectionOptions.includes(option) && <label className="field">
                     Max length
                     <input
                       type="number"
@@ -710,8 +686,8 @@ export function AdminProductForm({
                         )
                       }
                     />
-                  </label>
-                  <label className="field">
+                  </label>}
+                  {!selectionOptions.includes(option) && <label className="field">
                     Additional price AUD
                     <input
                       value={option.price}
@@ -724,9 +700,9 @@ export function AdminProductForm({
                         )
                       }
                     />
-                  </label>
+                  </label>}
                 </div>
-                <label className="check-field">
+                {!selectionOptions.includes(option) && <label className="check-field">
                   <input
                     type="checkbox"
                     checked={option.required}
@@ -740,11 +716,11 @@ export function AdminProductForm({
                     }
                   />
                   <span>Required</span>
-                </label>
+                </label>}
                 {["SELECT", "RADIO", "COLOUR"].includes(option.type) && (
                   <OptionValuesEditor
                     values={option.values}
-                    colour={option.type === "COLOUR"}
+                    colour={false}
                     onChange={(values) =>
                       updateOption(setOptions, index, "values", values)
                     }
@@ -767,13 +743,6 @@ export function AdminProductForm({
             <p>{isKeychain ? "One made-to-order variant covers every selected name, font, size and colour." : "Choose made to order or in stock for each variant. Prices and shipping details remain independent."}</p>
           </div>
           {!simpleVariant && <div className="actions">
-            {(["colour", "shape", "size"] as const)
-              .filter((choice) => !options.some((option) => option.code === choice))
-              .map((choice) => (
-                <button className="button secondary" type="button" key={choice} onClick={() => setOptions((current) => [...current, productChoicePresets[choice]])}>
-                  <Plus size={16} /> Add {choice === "shape" ? "style" : choice}
-                </button>
-              ))}
             <button
               className="button secondary"
               type="button"
@@ -846,10 +815,7 @@ export function AdminProductForm({
                   />
                   {variantIssue(index, "name") && <small className="form-error">{variantIssue(index, "name")}</small>}
                 </label>
-                {!isKeychain && <><VariantChoiceField fallbackName="Colour" option={options.find((option) => option.type === "COLOUR")} value={selectionValue(variant.optionSelection, options.find((option) => option.type === "COLOUR")?.code ?? "colour")} onChange={(value, label) => updateVariantChoice(setVariants, index, options.find((option) => option.type === "COLOUR")?.code ?? "colour", value, label)} />
-                <VariantChoiceField fallbackName="Size" option={choiceByCode("size")} value={selectionValue(variant.optionSelection, "size")} onChange={(value, label) => updateVariantChoice(setVariants, index, "size", value, label)} />
-                <VariantChoiceField fallbackName="Style / shape" option={choiceByCode("shape")} value={selectionValue(variant.optionSelection, "shape")} onChange={(value) => updateVariantChoice(setVariants, index, "shape", value)} />
-                {selectionOptions.filter((option) => option !== options.find((item) => item.type === "COLOUR") && !["size", "shape"].includes(option.code)).map((option) => <VariantChoiceField key={option.code} option={option} value={selectionValue(variant.optionSelection, option.code)} onChange={(value, label) => updateVariantChoice(setVariants, index, option.code, value, label)} />)}</>}
+                {variantChoices.map(option => <VariantChoiceField key={option.code} option={option} value={selectionValue(variant.optionSelection, option.code)} onChange={(value, label) => updateVariantChoice(setVariants, index, option.code, value, label)} />)}
                 <label className="field">
                   Material
                   <input
@@ -951,6 +917,7 @@ export function AdminProductForm({
                 </label>
               </div>
               <div className="check-row">
+                {initial.id && <a href="#product-images">Manage photos for this variant ↓</a>}
                 <label className="check-field">
                   <input
                     type="radio"
@@ -1406,18 +1373,10 @@ function OptionValuesEditor({
               }
             />
           </label>
-          <label className="field">
-            Price + AUD
-            <input
-              inputMode="decimal"
-              value={value.price}
-              onChange={(event) => update(index, "price", event.target.value)}
-            />
-          </label>
           {colour && (
             <>
               <label className="field colour-field">
-                Primary colour
+                Print colour
                 <input
                   type="color"
                   value={value.swatchHex || "#000000"}
@@ -1426,17 +1385,6 @@ function OptionValuesEditor({
                   }
                 />
               </label>
-              <label className="field colour-field">
-                Second colour
-                <input
-                  type="color"
-                  value={value.swatchHexSecondary || "#ffffff"}
-                  onChange={(event) =>
-                    update(index, "swatchHexSecondary", event.target.value)
-                  }
-                />
-              </label>
-              <MediaUploadField label="Swatch image" value={value.swatchImageUrl} onChange={(url) => update(index, "swatchImageUrl", url)} />
             </>
           )}
           <button
@@ -1500,18 +1448,13 @@ function updateVariantChoice(
 
 function VariantChoiceField({
   option,
-  fallbackName,
   value,
   onChange,
 }: {
-  option: OptionForm | undefined;
-  fallbackName?: string;
+  option: OptionForm;
   value: string;
   onChange: (value: string, label: string) => void;
 }) {
-  if (!option) {
-    return <div className="field variant-choice-missing"><strong>{fallbackName ?? "Product choice"} not configured</strong><small>Add it above, then set its values in Product choices.</small></div>;
-  }
   const activeValues = option.values.filter((item) => item.active);
   if (option.type === "COLOUR") {
     return <fieldset className="field variant-colour-picker"><legend>{option.name}</legend><div className="variant-colour-options">{activeValues.map((item) => <button type="button" key={item.id ?? item.value} className={value === item.value ? "active" : ""} aria-pressed={value === item.value} onClick={() => onChange(item.value, item.label)}><span className="colour-swatch" style={adminSwatchStyle(item)} /><span>{item.label}</span></button>)}</div>{activeValues.length === 0 && <small>Add at least one colour value below.</small>}</fieldset>;
@@ -1523,13 +1466,6 @@ function adminSwatchStyle(value: OptionValueForm) {
   if (value.swatchImageUrl) return { backgroundImage: `url(${value.swatchImageUrl})` };
   if (value.swatchHexSecondary) return { background: `linear-gradient(135deg, ${value.swatchHex || "#cccccc"} 50%, ${value.swatchHexSecondary} 50%)` };
   return { background: value.swatchHex || "#cccccc" };
-}
-function slugValue(value: string) {
-  return value
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "");
 }
 function optionalNumber(value: FormDataEntryValue | null) {
   const raw = String(value ?? "").trim();

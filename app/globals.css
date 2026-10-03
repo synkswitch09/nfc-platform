@@ -3669,10 +3669,13 @@ body:has(.admin-shell) > footer {
 }
 .option-value-row {
   display: grid;
-  grid-template-columns: 1fr 1fr 0.7fr repeat(3, 0.8fr) auto;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(100px, 0.5fr) auto;
   gap: 10px;
   align-items: end;
 }
+.option-value-row > * { min-width: 0; }
+.variant-editor { min-width: 0; max-width: 100%; }
+.variant-colour-options { flex-wrap: wrap; max-width: 100%; }
 .colour-field > span {
   display: grid;
   grid-template-columns: 52px 1fr;

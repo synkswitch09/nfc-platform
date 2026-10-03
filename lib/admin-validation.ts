@@ -78,12 +78,20 @@ export const adminProductSchema = z.object({
   if (value.personalisationMode === "NONE" && value.options.some(option => !["SELECT", "RADIO", "COLOUR"].includes(option.type))) context.addIssue({ code: "custom", message: "Products with personalisation disabled may only use product-selection fields", path: ["personalisationMode"] });
   const selections = new Map(value.options.filter(option => ["SELECT", "RADIO", "COLOUR"].includes(option.type)).map(option => [option.code, new Set(option.values.filter(item => item.active).map(item => item.value))]));
   if (value.slug !== "custom-name-keychain") {
-    const mappedChoices = value.options.filter(option => option.active && option.values.some(item => item.active) && (option.type === "COLOUR" || value.variants.length > 1 && ["SELECT", "RADIO"].includes(option.type)));
+    const mappedChoices = value.options.filter(option => option.active && ["COLOUR", "SELECT", "RADIO"].includes(option.type));
+    mappedChoices.forEach((option, index) => {
+      if (!option.values.some(item => item.active)) context.addIssue({ code: "custom", message: `Add at least one choice for ${option.name}`, path: ["options", index, "values"] });
+    });
     value.variants.forEach((variant, index) => mappedChoices.forEach(option => {
       if (!variant.optionSelection[option.code]) context.addIssue({ code: "custom", message: `Select ${option.name} for this variant`, path: ["variants", index, "optionSelection"] });
     }));
     const keys = value.variants.map(variant => JSON.stringify(Object.entries(variant.optionSelection).sort(([a], [b]) => a.localeCompare(b))));
     if (new Set(keys).size !== keys.length && mappedChoices.length) context.addIssue({ code: "custom", message: "Each variant needs a distinct choice combination", path: ["variants"] });
+    const colourRoles = mappedChoices.filter(option => option.type === "COLOUR");
+    if (colourRoles.length > 1) {
+      const palette = JSON.stringify(colourRoles[0].values.map(item => [item.value, item.label, item.swatchHex, item.active]).sort());
+      if (colourRoles.some(role => JSON.stringify(role.values.map(item => [item.value, item.label, item.swatchHex, item.active]).sort()) !== palette)) context.addIssue({ code: "custom", message: "All colour roles must use the same product palette", path: ["options"] });
+    }
   }
   value.variants.forEach((variant, variantIndex) => Object.entries(variant.optionSelection).forEach(([code, selected]) => {
     if (!selections.get(code)?.has(selected)) context.addIssue({ code: "custom", message: `Variant option ${code}=${selected} is not configured`, path: ["variants", variantIndex, "optionSelection"] });

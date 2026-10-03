@@ -54,6 +54,7 @@ export function ProductPurchase({ checkoutEnabled, previewOnly = false, productN
   const selectionMatchesVariant = !hasMappedVariants || Boolean(variant && Object.entries(variant.optionSelection).every(([code, selected]) => selections[code] === selected));
   const soldOut = !variant || !selectionMatchesVariant || (!variant.canOrder);
   const optionPriceCents = options.reduce((sum, option) => {
+    if (variant && option.code in variant.optionSelection) return sum;
     const value = ["SELECT", "RADIO", "COLOUR"].includes(option.type) ? selections[option.code] : choice === "PERSONALISED" ? (option.type === "IMAGE" ? "TO_BE_CONFIRMED" : customValues[option.code]) : "";
     if (!value || value === "false") return sum;
     return sum + option.priceDeltaCents + (option.values.find(item => item.value === value)?.priceDeltaCents ?? 0);

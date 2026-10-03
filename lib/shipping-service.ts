@@ -35,7 +35,7 @@ export async function createShippingQuotes(items: ShippingCartInput[], destinati
     const variant = byId.get(item.variantId)!;
     let normalised;
     try {
-      normalised = normalisePersonalisation(variant.product.options, item.personalisation, variant.product.personalisationMode, item.personalisationChoice);
+      normalised = normalisePersonalisation(variant.product.options, item.personalisation, variant.product.personalisationMode, item.personalisationChoice, variant.optionSelection as Record<string, string>);
       assertVariantSelection(variant.optionSelection, normalised.selectedOptions);
       if (isKeychainProduct(store.slug, variant.product.slug)) validateKeychainOptions(normalised.personalisation, normalised.selectedOptions, keychainPaletteFromOptions(variant.product.options));
     }

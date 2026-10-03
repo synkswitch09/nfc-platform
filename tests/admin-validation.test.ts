@@ -72,6 +72,7 @@ describe("admin validation", () => {
       variants: [{ ...validProduct.variants[0], optionSelection: { colour: "mint", shape: "bone", size: "medium" }, isDefault: true }],
     };
     expect(adminProductSchema.safeParse(configured).success).toBe(true);
+    expect(adminProductSchema.safeParse({ ...configured, variants: [{ ...configured.variants[0], optionSelection: { colour: "mint" } }] }).success).toBe(false);
   });
   it("accepts the keychain backing and finish choices while rejecting unsupported values", () => {
     const option = (name: string, code: string, type: string, values: string[], maxLength: number | null = null) => ({

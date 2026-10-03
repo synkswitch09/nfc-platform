@@ -65,7 +65,7 @@ export function ProductImageManager({ productId, images, optionValues, variants 
     router.refresh();
   }
 
-  return <section className="admin-panel">
+  return <section className="admin-panel" id="product-images">
     <div className="panel-heading"><div><h2>Product images</h2><p>Assign an image to a colour choice or variant so the storefront gallery follows the customer selection.</p></div></div>
     {images.length > 0 && <div className="admin-image-grid">{images.map((image, index) => <article key={image.id}>
       <Image src={image.url} alt={image.altText} width={320} height={320} unoptimized />
