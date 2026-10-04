@@ -34,8 +34,6 @@ type VariantForm = {
   material: string;
   productionMinutes: number | null;
   price: string;
-  compareAtPrice: string;
-  cost: string;
   inventory: number;
   trackInventory: boolean;
   lowStockThreshold: number;
@@ -43,11 +41,6 @@ type VariantForm = {
   active: boolean;
   isDefault: boolean;
   optionSelection: string;
-  weightGrams: number | null;
-  lengthMm: number | null;
-  widthMm: number | null;
-  heightMm: number | null;
-  defaultPackagingId: string;
 };
 type OptionForm = {
   id?: string;
@@ -112,8 +105,6 @@ const blankVariant = (): VariantForm => ({
   material: "PETG",
   productionMinutes: null,
   price: "24.95",
-  compareAtPrice: "",
-  cost: "",
   inventory: 0,
   trackInventory: true,
   lowStockThreshold: 5,
@@ -121,11 +112,6 @@ const blankVariant = (): VariantForm => ({
   active: true,
   isDefault: true,
   optionSelection: "",
-  weightGrams: null,
-  lengthMm: null,
-  widthMm: null,
-  heightMm: null,
-  defaultPackagingId: "",
 });
 
 function madeToOrder(variant: VariantForm) { return !variant.trackInventory; }
@@ -301,12 +287,7 @@ export function AdminProductForm({
         lowStockThreshold: madeToOrder(variant) ? 0 : variant.lowStockThreshold,
         backorderPolicy: "DENY" as const,
         priceCents: cents(variant.price),
-        compareAtPriceCents: variant.compareAtPrice
-          ? cents(variant.compareAtPrice)
-          : null,
-        costCents: variant.cost ? cents(variant.cost) : null,
         optionSelection: Object.fromEntries(Object.entries(parseSelection(variant.optionSelection)).filter(([code]) => isKeychain || variantChoices.some(option => option.code === code))),
-        defaultPackagingId: variant.defaultPackagingId || null,
       })),
       options: options.map((option) => ({
         ...option,
@@ -855,74 +836,7 @@ export function AdminProductForm({
                     required
                   />
                 </label>
-                <label className="field">
-                  Compare-at AUD
-                  <input
-                    inputMode="decimal"
-                    value={variant.compareAtPrice}
-                    onChange={(event) =>
-                      updateVariant(
-                        setVariants,
-                        index,
-                        "compareAtPrice",
-                        event.target.value,
-                      )
-                    }
-                  />
-                </label>
-                <label className="field">
-                  Internal cost AUD
-                  <input
-                    inputMode="decimal"
-                    value={variant.cost}
-                    onChange={(event) =>
-                      updateVariant(
-                        setVariants,
-                        index,
-                        "cost",
-                        event.target.value,
-                      )
-                    }
-                  />
-                </label>
                 {variantIssue(index, "optionSelection") && <p className="form-error variant-form-error">{variantIssue(index, "optionSelection")}</p>}
-                <label className="field">
-                  Weight override (g)
-                  <input
-                    type="number"
-                    min="1"
-                    value={variant.weightGrams ?? ""}
-                    onChange={(event) =>
-                      updateVariant(
-                        setVariants,
-                        index,
-                        "weightGrams",
-                        event.target.value ? Number(event.target.value) : null,
-                      )
-                    }
-                  />
-                </label>
-                <label className="field">
-                  Packaging override
-                  <select
-                    value={variant.defaultPackagingId}
-                    onChange={(event) =>
-                      updateVariant(
-                        setVariants,
-                        index,
-                        "defaultPackagingId",
-                        event.target.value,
-                      )
-                    }
-                  >
-                    <option value="">Product default</option>
-                    {packaging.map((item) => (
-                      <option value={item.id} key={item.id}>
-                        {item.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
               </div>
               <div className="check-row">
                 <label className="check-field">
@@ -1049,76 +963,8 @@ export function AdminProductForm({
           <span>Ship each unit separately</span>
         </label>
       </section>
-      <details className="product-form-advanced" id="advanced-product-settings" open={validationIssues.some(issue => ["variant-dimensions", "customs", "search"].includes(issue.section))}>
-        <summary>Advanced settings <small>Variant dimensions, international customs and search metadata</small></summary>
-      <section className="admin-panel" id="variant-dimensions">
-        <div className="panel-heading">
-          <div>
-            <h2>Variant dimensions</h2>
-            <p>
-              Optional millimetre overrides take precedence over the product
-              shipping profile.
-            </p>
-          </div>
-        </div>
-        <div className="admin-stack">
-          {variants.map((variant, index) => (
-            <div
-              className="field-grid three"
-              key={`shipping-${variant.id ?? index}`}
-            >
-              <label className="field">
-                {variant.name} length (mm)
-                <input
-                  type="number"
-                  min="1"
-                  value={variant.lengthMm ?? ""}
-                  onChange={(event) =>
-                    updateVariant(
-                      setVariants,
-                      index,
-                      "lengthMm",
-                      event.target.value ? Number(event.target.value) : null,
-                    )
-                  }
-                />
-              </label>
-              <label className="field">
-                Width (mm)
-                <input
-                  type="number"
-                  min="1"
-                  value={variant.widthMm ?? ""}
-                  onChange={(event) =>
-                    updateVariant(
-                      setVariants,
-                      index,
-                      "widthMm",
-                      event.target.value ? Number(event.target.value) : null,
-                    )
-                  }
-                />
-              </label>
-              <label className="field">
-                Height (mm)
-                <input
-                  type="number"
-                  min="1"
-                  value={variant.heightMm ?? ""}
-                  onChange={(event) =>
-                    updateVariant(
-                      setVariants,
-                      index,
-                      "heightMm",
-                      event.target.value ? Number(event.target.value) : null,
-                    )
-                  }
-                />
-              </label>
-            </div>
-          ))}
-        </div>
-      </section>
+      <details className="product-form-advanced" id="advanced-product-settings" open={validationIssues.some(issue => ["customs", "search"].includes(issue.section))}>
+        <summary>Advanced settings <small>International customs and search metadata</small></summary>
       <section className="admin-panel" id="customs">
         <div className="panel-heading">
           <div>
