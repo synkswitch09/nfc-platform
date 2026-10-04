@@ -65,7 +65,7 @@ export function PackagingEditor({ item }: { item?: Package }) {
     if (saved && !item) target.reset();
   }
   async function remove() {
-    if (!item || !window.confirm(`Delete ${item.name}? Products using this package must be changed first.`)) return;
+    if (!item || !window.confirm(item.code === "SMALL-PARCEL" ? `Delete ${item.name}? Its Standard delivery rate will remain available as a general fallback.` : `Delete ${item.name}? Products using this package must be changed first.`)) return;
     await send(`/api/admin/shipping/packaging/${item.id}`, "DELETE");
   }
   return <form className="shipping-settings-form" onSubmit={save}><div className="field-grid two">
