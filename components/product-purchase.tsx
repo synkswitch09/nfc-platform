@@ -11,12 +11,13 @@ import { generateKeychain, type KeychainAttachment, type KeychainBaseShape, type
 import { KeychainFontSample, KeyringSample } from "@/components/keychain-option-samples";
 
 type ProductImage = { id: string; url: string; altText: string; isPrimary: boolean; optionValueId: string | null; variantId: string | null };
+type ProductVideo = { id: string; url: string; caption: string; variantId: string };
 type Variant = { id: string; name: string; canOrder: boolean; priceCents: number; inventory: number; reservedInventory: number; trackInventory: boolean; backorderPolicy: "DENY" | "ALLOW"; isDefault: boolean; optionSelection: Record<string, string>; imageId: string | null; modelUrl: string | null };
 type OptionValue = { id: string; label: string; value: string; priceDeltaCents: number; swatchHex: string | null; swatchHexSecondary: string | null; swatchImageUrl: string | null };
 type Option = { code: string; name: string; type: string; required: boolean; maxLength: number | null; priceDeltaCents: number; helpText: string | null; values: OptionValue[] };
 type Choice = "BASIC" | "PERSONALISED";
 
-export function ProductPurchase({ checkoutEnabled, previewOnly = false, productName, productSlug, storeSlug, description, categoryName, storeName, currency, connected, personalisationMode, variants, options, images, initialColour = "" }: { checkoutEnabled: boolean; previewOnly?: boolean; productName: string; productSlug: string; storeSlug: string; description: string; categoryName: string | null; storeName: string; currency: string; connected: boolean; personalisationMode: "NONE" | "OPTIONAL" | "REQUIRED"; variants: Variant[]; options: Option[]; images: ProductImage[]; initialColour?: string }) {
+export function ProductPurchase({ checkoutEnabled, previewOnly = false, productName, productSlug, storeSlug, description, categoryName, storeName, currency, connected, personalisationMode, variants, options, images, videos = [], initialColour = "" }: { checkoutEnabled: boolean; previewOnly?: boolean; productName: string; productSlug: string; storeSlug: string; description: string; categoryName: string | null; storeName: string; currency: string; connected: boolean; personalisationMode: "NONE" | "OPTIONAL" | "REQUIRED"; variants: Variant[]; options: Option[]; images: ProductImage[]; videos?: ProductVideo[]; initialColour?: string }) {
   const cart = useCart();
   const defaultVariant = variants.find(item => item.isDefault) ?? variants[0];
   const selectionOptions = options.filter(option => ["SELECT", "RADIO", "COLOUR"].includes(option.type));
@@ -50,6 +51,8 @@ export function ProductPurchase({ checkoutEnabled, previewOnly = false, productN
     return [...new Map(relevant.map(image => [image.id, image])).values()];
   })();
   const activeImage = gallery.find(image => image.id === activeImageId) ?? gallery[0];
+  const variantVideos = videos.filter(video => video.variantId === variant?.id);
+  const activeVideo = variantVideos.find(video => video.id === activeImageId);
   const hasMappedVariants = variants.some(item => Object.keys(item.optionSelection).length > 0);
   const selectionMatchesVariant = !hasMappedVariants || Boolean(variant && Object.entries(variant.optionSelection).every(([code, selected]) => selections[code] === selected));
   const soldOut = !variant || !selectionMatchesVariant || (!variant.canOrder);
@@ -96,10 +99,9 @@ export function ProductPurchase({ checkoutEnabled, previewOnly = false, productN
 
   return <div className="product-layout">
     <div className="product-gallery">
-      {!isKeychain && view3d && variant?.modelUrl ? createElement("model-viewer", { src: variant.modelUrl, "camera-controls": true, "interaction-prompt": "auto", alt: `Rotate ${productName} in 3D`, className: "product-model-viewer" }) : isKeychain && choice === "PERSONALISED" ? <KeychainPreview input={keychainInput} /> : activeImage ? <Image src={activeImage.url} alt={activeImage.altText} width={900} height={900} priority unoptimized /> : <div className="product-placeholder"><Radio size={64} /><span>{storeName}</span><strong>{productName}</strong><small>Made to order in Adelaide</small></div>}
+      {!isKeychain && view3d && variant?.modelUrl ? createElement("model-viewer", { src: variant.modelUrl, "camera-controls": true, "interaction-prompt": "auto", alt: `Rotate ${productName} in 3D`, className: "product-model-viewer" }) : activeVideo ? <video key={activeVideo.id} className="product-gallery-video" src={activeVideo.url} controls playsInline preload="metadata" aria-label={activeVideo.caption} /> : isKeychain && choice === "PERSONALISED" && !activeImageId ? <KeychainPreview input={keychainInput} /> : activeImage ? <Image src={activeImage.url} alt={activeImage.altText} width={900} height={900} priority unoptimized /> : <div className="product-placeholder"><Radio size={64} /><span>{storeName}</span><strong>{productName}</strong><small>Made to order in Adelaide</small></div>}
       <div className="gallery-price" aria-live="polite">{previewOnly ? "Pricing coming soon" : variant ? new Intl.NumberFormat("en-AU", { style: "currency", currency }).format((variant.priceCents + optionPriceCents) / 100) : "Unavailable"}</div>
-      {!isKeychain && variant?.modelUrl && <button type="button" className="button secondary product-3d-button" onClick={() => setView3d(value => !value)}>{view3d ? "View photos" : "View in 3D"}</button>}
-      {!isKeychain && gallery.length > 1 && <div className="product-thumbs">{gallery.map(image => <button type="button" key={image.id} className={image.id === activeImage?.id ? "active" : ""} onClick={() => { setActiveImageId(image.id); setView3d(false); }} aria-label={`View ${image.altText}`}><Image src={image.url} alt="" width={160} height={160} unoptimized /></button>)}</div>}
+      {(gallery.length > 1 || variantVideos.length > 0 || Boolean(variant?.modelUrl) || isKeychain && gallery.length > 0) && <div className="product-thumbs">{isKeychain && <button type="button" className={!activeImageId ? "active" : ""} onClick={() => { setActiveImageId(""); setView3d(false); }} aria-label="View personalised 3D preview"><span className="product-media-thumb">3D<small>Preview</small></span></button>}{gallery.map(image => <button type="button" key={image.id} className={!view3d && !activeVideo && image.id === activeImageId ? "active" : ""} onClick={() => { setActiveImageId(image.id); setView3d(false); }} aria-label={`View ${image.altText}`}><Image src={image.url} alt="" width={160} height={160} unoptimized /></button>)}{variantVideos.map(video => <button type="button" key={video.id} className={activeVideo?.id === video.id && !view3d ? "active" : ""} onClick={() => { setActiveImageId(video.id); setView3d(false); }} aria-label={`Play ${video.caption}`}><span className="product-media-thumb">▶<small>Video</small></span></button>)}{variant?.modelUrl && <button type="button" className={view3d ? "active" : ""} onClick={() => { setView3d(true); setActiveImageId(""); }} aria-label="View product in 3D"><span className="product-media-thumb">3D<small>Rotate</small></span></button>}</div>}
     </div>
     <div className="product-copy">
       <p className="eyebrow">{categoryName ?? (connected ? "Smart NFC product" : "Made-to-order product")}</p>

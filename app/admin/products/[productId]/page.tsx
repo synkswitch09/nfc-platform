@@ -1,7 +1,6 @@
 import { notFound } from "next/navigation";
 import { AdminProductForm, type AdminProductInitial } from "@/components/admin-product-form";
 import { ProductImageManager } from "@/components/product-image-manager";
-import { ProductModelManager } from "@/components/product-model-manager";
 import { db } from "@/lib/db";
 import { requireAdminPageContext } from "@/lib/admin";
 
@@ -9,7 +8,7 @@ export default async function EditProductPage({ params }: { params: Promise<{ pr
   const { productId } = await params;
   const { user, store } = await requireAdminPageContext();
   const [product, categories, packaging] = await Promise.all([
-    db.product.findFirst({ where: { id: productId, storeId: store.id }, include: { images: { include: { variants: { select: { id: true } } }, orderBy: { sortOrder: "asc" } }, variants: { orderBy: { createdAt: "asc" } }, options: { include: { values: { orderBy: { sortOrder: "asc" } } }, orderBy: { sortOrder: "asc" } } } }),
+    db.product.findFirst({ where: { id: productId, storeId: store.id }, include: { images: { include: { variants: { select: { id: true } } }, orderBy: { sortOrder: "asc" } }, videos: { orderBy: { sortOrder: "asc" } }, variants: { orderBy: { createdAt: "asc" } }, options: { include: { values: { orderBy: { sortOrder: "asc" } } }, orderBy: { sortOrder: "asc" } } } }),
     db.productCategory.findMany({ where: { storeId: store.id }, select: { id: true, name: true }, orderBy: [{ sortOrder: "asc" }, { name: "asc" }] }),
     db.packaging.findMany({ where: { storeId: store.id, active: true }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
   ]);
@@ -22,5 +21,10 @@ export default async function EditProductPage({ params }: { params: Promise<{ pr
   const imageOptions = product.options.filter(option => option.type === "COLOUR").flatMap(option => option.values.map(value => ({ id: value.id, label: `${option.name}: ${value.label}` })));
   const colours = product.options.filter(option => option.type === "COLOUR").length;
   const setupKind = product.slug === "custom-name-keychain" && store.slug === "kosykin" ? "keychain" : store.slug === "tapkin" && !["ACCESSORY", "CUSTOM"].includes(product.type) ? "nfc" : colours > 1 ? "two-colour" : colours === 1 ? "colour" : product.variants.length > 1 || product.options.length ? "variants" : "standard";
-  return <div><div className="admin-heading"><div><p className="admin-kicker">Catalog</p><h1>Edit product</h1><p>{product.name} · updated {product.updatedAt.toLocaleDateString("en-AU")}</p></div></div>{setupKind !== "keychain" && <ProductModelManager productId={product.id} variants={product.variants.map(variant => ({ id: variant.id, name: variant.name, sku: variant.sku, modelStorageKey: variant.modelStorageKey }))} />}<AdminProductForm initial={initial} categories={categories} packaging={packaging} storeSlug={store.slug} setupKind={setupKind} canDelete={user?.role === "ADMIN"} /><ProductImageManager productId={product.id} images={product.images.map(image => ({ ...image, variantId: image.variantId ?? image.variants[0]?.id ?? null }))} optionValues={imageOptions} variants={product.variants.map(variant => ({ id: variant.id, label: variant.name }))} /></div>;
+  const variantMedia = Object.fromEntries(product.variants.map(variant => [variant.id, {
+    images: product.images.filter(image => (image.variantId ?? image.variants[0]?.id) === variant.id).map(image => ({ id: image.id, url: image.url, altText: image.altText, sortOrder: image.sortOrder, isPrimary: image.isPrimary, optionValueId: image.optionValueId, variantId: variant.id })),
+    videos: product.videos.filter(video => video.variantId === variant.id).map(video => ({ id: video.id, url: `/api/media/${video.storageKey}`, caption: video.caption })),
+    modelStorageKey: variant.modelStorageKey,
+  }]));
+  return <div><div className="admin-heading"><div><p className="admin-kicker">Catalog</p><h1>Edit product</h1><p>{product.name} · updated {product.updatedAt.toLocaleDateString("en-AU")}</p></div></div><AdminProductForm initial={initial} categories={categories} packaging={packaging} storeSlug={store.slug} setupKind={setupKind} variantMedia={variantMedia} canDelete={user?.role === "ADMIN"} /><ProductImageManager productId={product.id} images={product.images.filter(image => !image.variantId && !image.variants.length).map(image => ({ ...image, variantId: null }))} optionValues={imageOptions} variants={[]} /></div>;
 }

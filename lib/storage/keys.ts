@@ -1,8 +1,8 @@
 import type { AppEnvironment } from "@/lib/config";
 
-const objectKeyPattern = /^(?:(development|staging|production)-(?:([a-z0-9]+(?:-[a-z0-9]+)*)-)?)?([0-9a-f-]{36})\.(png|jpg|webp|pdf|glb)$/;
+const objectKeyPattern = /^(?:(development|staging|production)-(?:([a-z0-9]+(?:-[a-z0-9]+)*)-)?)?([0-9a-f-]{36})\.(png|jpg|webp|pdf|glb|mp4)$/;
 
-export function createStorageKey(environment: AppEnvironment, storeSlug: string, id: string, extension: "png" | "jpg" | "webp" | "glb") {
+export function createStorageKey(environment: AppEnvironment, storeSlug: string, id: string, extension: "png" | "jpg" | "webp" | "glb" | "mp4") {
   if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(storeSlug)) throw new Error("INVALID_STORE_SLUG");
   if (!/^[0-9a-f-]{36}$/.test(id)) throw new Error("INVALID_STORAGE_ID");
   return `${environment}-${storeSlug}-${id}.${extension}`;

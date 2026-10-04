@@ -6,6 +6,7 @@ import { Archive, Copy, EyeOff, Plus, Trash2 } from "lucide-react";
 import { KEYCHAIN_FONTS, KEYRING_HARDWARE } from "@/lib/keychain";
 import { KeychainFontSample, KeyringSample } from "@/components/keychain-option-samples";
 import { MediaUploadField } from "@/components/media-upload-field";
+import { VariantMediaEditor, type VariantMedia } from "@/components/variant-media-editor";
 
 type ProductValidationIssue = {
   path: string;
@@ -189,6 +190,7 @@ export function AdminProductForm({
   packaging,
   storeSlug,
   setupKind,
+  variantMedia = {},
   canDelete = false,
 }: {
   initial: AdminProductInitial;
@@ -196,6 +198,7 @@ export function AdminProductForm({
   packaging: Array<{ id: string; name: string }>;
   storeSlug: string;
   setupKind: string;
+  variantMedia?: Record<string, VariantMedia>;
   canDelete?: boolean;
 }) {
   const router = useRouter();
@@ -340,6 +343,7 @@ export function AdminProductForm({
     }
     setMessage("Product saved");
     if (!initial.id) router.replace(`/admin/products/${result.product.id}`);
+    else if (variants.some(variant => !variant.id)) window.location.reload();
     else router.refresh();
   }
   async function changeStatus(status: "HIDDEN" | "ARCHIVED") {
@@ -757,13 +761,13 @@ export function AdminProductForm({
             </button>
           </div>}
         </div>
-        {simpleVariant ? <div className="field-grid three">
+        {simpleVariant ? <><div className="field-grid three">
           <label className="field">SKU<input value={variants[0].sku} onChange={event => updateVariant(setVariants, 0, "sku", event.target.value.toUpperCase())} required /></label>
           <label className="field">Material<input value={variants[0].material} onChange={event => updateVariant(setVariants, 0, "material", event.target.value)} /></label>
           <FulfilmentFields variant={variants[0]} onChange={patch => setVariants(current => current.map((item, i) => i === 0 ? { ...item, ...patch } : item))} />
           <label className="field">Base price AUD<input inputMode="decimal" value={variants[0].price} onChange={event => updateVariant(setVariants, 0, "price", event.target.value)} required /></label>
 
-        </div> : <div className="admin-stack">
+        </div><VariantMediaEditor productId={initial.id} variantId={variants[0].id} media={variants[0].id ? variantMedia[variants[0].id] : undefined} generated3d={isKeychain} /></> : <div className="admin-stack">
           {variants.map((variant, index) => (
             <div className="variant-editor" key={variant.id ?? index}>
               <div className="variant-title">
@@ -917,7 +921,6 @@ export function AdminProductForm({
                 </label>
               </div>
               <div className="check-row">
-                {initial.id && <a href="#product-images">Manage photos for this variant ↓</a>}
                 <label className="check-field">
                   <input
                     type="radio"
@@ -950,6 +953,7 @@ export function AdminProductForm({
                   <span>Enabled</span>
                 </label>
               </div>
+              <VariantMediaEditor productId={initial.id} variantId={variant.id} media={variant.id ? variantMedia[variant.id] : undefined} generated3d={isKeychain} />
             </div>
           ))}
         </div>}

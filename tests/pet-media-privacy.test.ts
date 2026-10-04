@@ -1,6 +1,6 @@
 import { beforeEach, expect, it, vi } from "vitest";
-const m = vi.hoisted(() => ({ product: vi.fn(), category: vi.fn(), pet: vi.fn(), model: vi.fn(), user: vi.fn(), read: vi.fn() }));
-vi.mock("@/lib/db", () => ({ db: { productImage: { findFirst: m.product }, categoryImage: { findFirst: m.category }, petProfile: { findFirst: m.pet }, productVariant: { findFirst: m.model } } }));
+const m = vi.hoisted(() => ({ product: vi.fn(), category: vi.fn(), pet: vi.fn(), model: vi.fn(), video: vi.fn(), user: vi.fn(), read: vi.fn() }));
+vi.mock("@/lib/db", () => ({ db: { productImage: { findFirst: m.product }, categoryImage: { findFirst: m.category }, petProfile: { findFirst: m.pet }, productVariant: { findFirst: m.model }, productVideo: { findFirst: m.video } } }));
 vi.mock("@/lib/auth", () => ({ getCurrentUser: m.user }));
 vi.mock("@/lib/storefront", () => ({ getCurrentStorefront: async () => ({ id: "store" }) }));
 vi.mock("@/lib/uploads", () => ({ readStoredImage: m.read }));
@@ -47,6 +47,17 @@ it("keeps commercial images public", async () => {
   expect(response.status).toBe(200);
   expect(response.headers.get("cache-control")).toContain("public");
   expect(m.user).not.toHaveBeenCalled();
+});
+it("serves only storefront-owned variant video with byte ranges for playback", async () => {
+  const videoKey = "staging-kosykin-11111111-1111-1111-1111-111111111111.mp4";
+  m.video.mockResolvedValue({ id: "video" });
+  m.read.mockResolvedValue(new Uint8Array([0, 1, 2, 3, 4]));
+  const response = await GET(new Request(`https://test.example/api/media/${videoKey}`, { headers: { range: "bytes=1-3" } }), { params: Promise.resolve({ storageKey: videoKey }) });
+  expect(m.video.mock.calls[0][0].where.product.storeId).toBe("store");
+  expect(response.status).toBe(206);
+  expect(response.headers.get("content-range")).toBe("bytes 1-3/5");
+  expect(response.headers.get("content-type")).toBe("video/mp4");
+  expect([...new Uint8Array(await response.arrayBuffer())]).toEqual([1, 2, 3]);
 });
 it("does not let a commercial reference bypass a pet restriction", async () => {
   m.product.mockResolvedValue({ mimeType: "image/png" });
