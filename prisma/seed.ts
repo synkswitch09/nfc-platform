@@ -13,32 +13,27 @@ async function seedShipping(storeId: string, flatRateCents: number, freeOverCent
     { code: "UNIT-BOX-15X12X9", name: "Single product box · 15 × 12 × 9 cm", lengthMm: 150, widthMm: 120, heightMm: 90 },
     { code: "OUTER-BOX-30X25X25", name: "Outer shipping box · 30 × 25 × 25 cm", lengthMm: 300, widthMm: 250, heightMm: 250 },
     { code: "MAILER-25X15", name: "Shipping bag · 25 × 15 cm", lengthMm: 250, widthMm: 150, heightMm: 0 },
-  ]) await db.packaging.upsert({ where: { storeId_code: { storeId, code: preset.code } }, update: { name: preset.name, lengthMm: preset.lengthMm, widthMm: preset.widthMm, heightMm: preset.heightMm }, create: { storeId, ...preset, emptyWeightGrams: 0, active: true } });
+  ]) await db.packaging.upsert({ where: { storeId_code: { storeId, code: preset.code } }, update: {}, create: { storeId, ...preset, emptyWeightGrams: 0, active: true } });
   await db.shippingOrigin.upsert({
     where: { storeId_name: { storeId, name: "Primary dispatch" } },
-    update: { active: true, isDefault: true },
+    update: {},
     create: { storeId, name: "Primary dispatch", senderName: "Dispatch team", company: "Store operations", line1: "Configure before live fulfilment", suburb: "Adelaide", state: "SA", postcode: "5000", country: "AU", active: true, isDefault: true },
-  });
-  const parcel = await db.packaging.upsert({
-    where: { storeId_code: { storeId, code: "SMALL-PARCEL" } },
-    update: { active: true, lengthMm: 220, widthMm: 160, heightMm: 60, emptyWeightGrams: 80 },
-    create: { storeId, code: "SMALL-PARCEL", name: "Small recyclable parcel", lengthMm: 220, widthMm: 160, heightMm: 60, emptyWeightGrams: 80, maxWeightGrams: 5000, active: true },
   });
   const zone = await db.shippingZone.upsert({
     where: { storeId_name: { storeId, name: "Australia" } },
-    update: { countries: ["AU"], states: [], postcodeRules: [], active: true },
+    update: {},
     create: { storeId, name: "Australia", countries: ["AU"], states: [], postcodeRules: [], priority: 0, active: true },
   });
   const provider = await db.shippingProvider.upsert({
     where: { storeId_key: { storeId, key: development ? "mock-auspost" : "manual" } },
-    update: { active: true, supportsRates: true, supportsLabels: development },
+    update: {},
     create: { storeId, key: development ? "mock-auspost" : "manual", name: development ? "Mock Australia Post" : "Manual fallback", kind: development ? "MOCK" : "MANUAL", active: true, supportsRates: true, supportsLabels: development },
   });
-  await db.shippingRate.upsert({
-    where: { storeId_zoneId_serviceCode_packagingId: { storeId, zoneId: zone.id, serviceCode: "STANDARD", packagingId: parcel.id } },
-    update: { providerId: provider.id, amountCents: flatRateCents, freeOverCents, active: true },
-    create: { storeId, zoneId: zone.id, providerId: provider.id, packagingId: parcel.id, serviceCode: "STANDARD", serviceName: "Standard parcel delivery", amountCents: flatRateCents, freeOverCents, estimatedDaysMin: 2, estimatedDaysMax: 6, active: true },
-  });
+  // Create defaults only once. Admin changes to origin, packages and rates
+  // must survive later seed runs and deletions of obsolete presets.
+  if (!await db.shippingRate.findFirst({ where: { storeId, zoneId: zone.id, serviceCode: "STANDARD" } })) {
+    await db.shippingRate.create({ data: { storeId, zoneId: zone.id, providerId: provider.id, packagingId: null, serviceCode: "STANDARD", serviceName: "Standard parcel delivery", amountCents: flatRateCents, freeOverCents, estimatedDaysMin: 2, estimatedDaysMax: 6, active: true } });
+  }
 }
 
 type LandingSeed = { slug: string; name: string; heroEyebrow?: string; heroHeadline?: string; heroDescription?: string; heroImageUrl?: string; heroImageAlt?: string; ctaLabel?: string; benefits?: Array<{ icon: string; title: string; description: string }>; useCases?: Array<{ icon: string; title: string; description: string }>; howItWorks?: Array<{ title: string; description: string; imageUrl?: string }>; contentSections?: Array<{ layout: string; eyebrow?: string; heading: string; copy: string; bulletPoints?: string[]; imageUrl?: string; ctaLabel?: string; ctaHref?: string }>; faq?: Array<{ question: string; answer: string }>; finalCtaEyebrow?: string; finalCtaHeadline?: string; finalCtaDescription?: string; finalCtaLabel?: string };
