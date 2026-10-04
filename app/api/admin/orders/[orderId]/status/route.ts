@@ -19,10 +19,12 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const parsed = schema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return jsonError(parsed.error.issues[0]?.message ?? "Invalid order update");
   const { orderId } = await params;
-  const order = await db.order.findFirst({ where: { id: orderId, storeId: store.id }, select: { status: true, payments: { select: { status: true } } } });
+  const order = await db.order.findFirst({ where: { id: orderId, storeId: store.id }, select: { status: true, payments: { select: { status: true } }, shipments: { select: { idempotencyKey: true, bookedAt: true, trackingNumber: true, serviceName: true } } } });
   if (!order) return jsonError("Order not found", 404);
   if (order.payments.some(payment => payment.status === "REFUNDED")) return jsonError("This order is refunded. Review fulfilment before proceeding.", 409);
   if (!canTransitionOrder(order.status, parsed.data.status)) return jsonError(`Cannot change ${order.status} to ${parsed.data.status}`, 409);
+  const shippitParcels = order.shipments.filter(shipment => shipment.idempotencyKey.startsWith("shippit:"));
+  if (parsed.data.status === "SHIPPED" && shippitParcels.length && shippitParcels.some(shipment => !shipment.bookedAt || !shipment.trackingNumber)) return jsonError("Book all Shippit parcels before marking the order shipped", 409);
   if (parsed.data.overridePreparation && (parsed.data.status !== "READY_TO_SHIP" || !canManageStore(context) || (parsed.data.note?.length ?? 0) < 10)) return jsonError("Manager override requires a reason of at least 10 characters", 403);
   if (parsed.data.status === "CANCELLED" && order.status === "PAYMENT_PENDING") {
     try { await cancelStripeCheckout(orderId, store.id, user.id); }
@@ -37,13 +39,13 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         if (issues.length && !parsed.data.overridePreparation) throw new Error(`PREPARATION:${issues.join("; ")}`);
         if (issues.length) await tx.auditLog.create({ data: { actorId: user.id, storeId: store.id, action: "ORDER_PREPARATION_OVERRIDE", entityType: "Order", entityId: orderId, metadata: { reason: parsed.data.note, issues } } });
       }
-      const updated = await tx.order.updateMany({ where: { id: orderId, storeId: store.id, status: order.status }, data: { status: parsed.data.status, ...(parsed.data.status === "SHIPPED" ? { shippingCarrier: parsed.data.carrier, trackingNumber: parsed.data.trackingNumber, shippedAt: changedAt } : {}) } });
+      const updated = await tx.order.updateMany({ where: { id: orderId, storeId: store.id, status: order.status }, data: { status: parsed.data.status, ...(parsed.data.status === "SHIPPED" ? { shippingCarrier: shippitParcels.length ? shippitParcels[0].serviceName : parsed.data.carrier, trackingNumber: shippitParcels.length ? shippitParcels[0].trackingNumber : parsed.data.trackingNumber, shippedAt: changedAt } : {}) } });
       if (!updated.count) return false;
       if (parsed.data.status === "SHIPPED") {
         await releaseProduction(tx, orderId);
         await tx.shipment.updateMany({
           where: { orderId, storeId: store.id, status: "LABEL_READY" },
-          data: { status: "IN_TRANSIT", trackingNumber: parsed.data.trackingNumber, shippedAt: changedAt },
+          data: { status: "IN_TRANSIT", shippedAt: changedAt },
         });
       } else if (parsed.data.status === "DELIVERED") {
         await tx.shipment.updateMany({
@@ -53,7 +55,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       }
       const history = await tx.orderStatusHistory.create({ data: { orderId, fromStatus: order.status, toStatus: parsed.data.status, actorId: user.id, note: parsed.data.note || null } });
       await tx.auditLog.create({ data: { actorId: user.id, storeId: store.id, action: "ORDER_STATUS_CHANGED", entityType: "Order", entityId: orderId, metadata: { from: order.status, to: parsed.data.status } } });
-      if (parsed.data.status === "SHIPPED") await queueOrderNotice(tx, orderId, `status:${history.id}`, "Your order has shipped", `Your order has shipped. Carrier: ${parsed.data.carrier}. Tracking: ${parsed.data.trackingNumber}.`);
+      if (parsed.data.status === "SHIPPED") await queueOrderNotice(tx, orderId, `status:${history.id}`, "Your order has shipped", shippitParcels.length ? `Your order has shipped. Parcels: ${shippitParcels.map(item => `${item.serviceName}: ${item.trackingNumber}`).join("; ")}.` : `Your order has shipped. Carrier: ${parsed.data.carrier}. Tracking: ${parsed.data.trackingNumber}.`);
       return true;
     }, { isolationLevel: "Serializable" }).catch(error => error instanceof Error && error.message.startsWith("PREPARATION:") ? error.message : false);
     if (typeof changed === "string") return jsonError(changed.slice("PREPARATION:".length), 409);
