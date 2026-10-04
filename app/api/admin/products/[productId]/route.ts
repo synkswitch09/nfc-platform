@@ -107,7 +107,7 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
   const context = await getAdminApiContext(); if (!context || context.user.role !== "ADMIN") return jsonError("Administrator access required", 403);
   const { user, store } = context;
   const { productId } = await params;
-  const product = await db.product.findFirst({ where: { id: productId, storeId: store.id }, include: { images: { select: { storageKey: true } }, variants: { select: { id: true, _count: { select: { orderItems: true, inventoryMovements: true, manufacturingJobs: true } } } }, _count: { select: { tags: true, batches: true } } } });
+  const product = await db.product.findFirst({ where: { id: productId, storeId: store.id }, include: { images: { select: { storageKey: true } }, videos: { select: { storageKey: true } }, variants: { select: { id: true, modelStorageKey: true, _count: { select: { orderItems: true, inventoryMovements: true, manufacturingJobs: true } } } }, _count: { select: { tags: true, batches: true } } } });
   if (!product) return jsonError("Product not found", 404);
   const history = { orderItems: product.variants.reduce((sum, variant) => sum + variant._count.orderItems, 0), inventoryMovements: product.variants.reduce((sum, variant) => sum + variant._count.inventoryMovements, 0), manufacturingJobs: product.variants.reduce((sum, variant) => sum + variant._count.manufacturingJobs, 0), tags: product._count.tags, batches: product._count.batches };
   if (!canHardDeleteProduct(history)) return jsonError("This product has historical data and cannot be permanently deleted. Archive it instead.", 409);
@@ -118,6 +118,6 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     await tx.product.delete({ where: { id: productId } });
     await tx.auditLog.create({ data: { actorId: user.id, storeId: store.id, action: "PRODUCT_DELETED", entityType: "Product", entityId: productId, metadata: { name: product.name } } });
   });
-  await Promise.all(product.images.map(image => deleteStoredImage(image.storageKey)));
+  await Promise.all([...product.images.map(image => image.storageKey), ...product.videos.map(video => video.storageKey), ...product.variants.flatMap(variant => variant.modelStorageKey ? [variant.modelStorageKey] : [])].map(deleteStoredImage));
   return NextResponse.json({ ok: true });
 }
