@@ -35,6 +35,7 @@ export const adminProductSchema = z.object({
   heightMm: dimension,
   defaultPackagingId: z.string().uuid().nullable().optional(),
   shipsSeparately: z.boolean().default(false),
+  shippingPackageType: z.enum(["BOX", "MAILER"]).default("BOX"),
   specialHandling: z.string().trim().max(500).nullable().optional(),
   countryOfOrigin: z.string().trim().toUpperCase().regex(/^[A-Z]{2}$/).nullable().optional(),
   customsDescription: z.string().trim().max(200).nullable().optional(),

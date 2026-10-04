@@ -8,6 +8,12 @@ const TAPKIN_STORE_ID = "00000000-0000-4000-8000-000000000001";
 const HOME_DEMO_STORE_ID = "00000000-0000-4000-8000-000000000002";
 
 async function seedShipping(storeId: string, flatRateCents: number, freeOverCents: number, development: boolean) {
+  for (const preset of [
+    { code: "UNIT-BOX-27X16X12", name: "Single product box · 27 × 16 × 12 cm", lengthMm: 270, widthMm: 160, heightMm: 120 },
+    { code: "UNIT-BOX-15X12X9", name: "Single product box · 15 × 12 × 9 cm", lengthMm: 150, widthMm: 120, heightMm: 90 },
+    { code: "OUTER-BOX-30X25X25", name: "Outer shipping box · 30 × 25 × 25 cm", lengthMm: 300, widthMm: 250, heightMm: 250 },
+    { code: "MAILER-25X15", name: "Shipping bag · 25 × 15 cm", lengthMm: 250, widthMm: 150, heightMm: 0 },
+  ]) await db.packaging.upsert({ where: { storeId_code: { storeId, code: preset.code } }, update: { name: preset.name, lengthMm: preset.lengthMm, widthMm: preset.widthMm, heightMm: preset.heightMm }, create: { storeId, ...preset, emptyWeightGrams: 0, active: true } });
   await db.shippingOrigin.upsert({
     where: { storeId_name: { storeId, name: "Primary dispatch" } },
     update: { active: true, isDefault: true },

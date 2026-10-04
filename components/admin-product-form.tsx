@@ -87,6 +87,7 @@ export type AdminProductInitial = {
   heightMm: number | null;
   defaultPackagingId: string;
   shipsSeparately: boolean;
+  shippingPackageType: "BOX" | "MAILER";
   specialHandling: string;
   countryOfOrigin: string;
   customsDescription: string;
@@ -195,7 +196,7 @@ export function AdminProductForm({
 }: {
   initial: AdminProductInitial;
   categories: Array<{ id: string; name: string }>;
-  packaging: Array<{ id: string; name: string }>;
+  packaging: Array<{ id: string; name: string; code: string; lengthMm: number; widthMm: number; heightMm: number }>;
   storeSlug: string;
   setupKind: string;
   variantMedia?: Record<string, VariantMedia>;
@@ -225,6 +226,8 @@ export function AdminProductForm({
   const [namePreview, setNamePreview] = useState(initial.name);
   const [slugPreview, setSlugPreview] = useState(initial.slug);
   const [ogImageUrl, setOgImageUrl] = useState(initial.ogImageUrl);
+  const [shippingPackageType, setShippingPackageType] = useState(initial.shippingPackageType);
+  const [selectedPackagingId, setSelectedPackagingId] = useState(initial.defaultPackagingId);
   const [seoTitlePreview, setSeoTitlePreview] = useState(initial.seoTitle);
   const [seoDescriptionPreview, setSeoDescriptionPreview] = useState(
     initial.seoDescription,
@@ -275,6 +278,7 @@ export function AdminProductForm({
       heightMm: optionalNumber(form.get("heightMm")),
       defaultPackagingId: form.get("defaultPackagingId") || null,
       shipsSeparately: form.get("shipsSeparately") === "on",
+      shippingPackageType: form.get("shippingPackageType"),
       specialHandling: form.get("specialHandling") || null,
       countryOfOrigin: form.get("countryOfOrigin") || null,
       customsDescription: form.get("customsDescription") || null,
@@ -969,6 +973,12 @@ export function AdminProductForm({
           </div>
         </div>
         <div className="field-grid three">
+          <label className="field">Shipping package
+            <select name="shippingPackageType" value={shippingPackageType} onChange={event => { setShippingPackageType(event.target.value as "BOX" | "MAILER"); setSelectedPackagingId(""); }}>
+              <option value="BOX">Box</option>
+              <option value="MAILER">Shipping bag / mailer</option>
+            </select>
+          </label>
           <label className="field">
             Weight (g)
             <input
@@ -979,7 +989,7 @@ export function AdminProductForm({
             />
           </label>
           <label className="field">
-            Length (mm)
+            Length (mm) {selectedPackagingId && <small>Size preset overrides this value</small>}
             <input
               name="lengthMm"
               type="number"
@@ -1006,18 +1016,20 @@ export function AdminProductForm({
             />
           </label>
           <label className="field">
-            Default packaging
+            Shipping size preset
             <select
               name="defaultPackagingId"
-              defaultValue={initial.defaultPackagingId}
+              value={selectedPackagingId}
+              onChange={event => setSelectedPackagingId(event.target.value)}
             >
-              <option value="">Store default</option>
-              {packaging.map((item) => (
+              <option value="">Custom dimensions entered above</option>
+              {packaging.filter(item => shippingPackageType === "BOX" ? item.code.startsWith("UNIT-BOX-") : item.code.startsWith("MAILER-")).map((item) => (
                 <option value={item.id} key={item.id}>
                   {item.name}
                 </option>
               ))}
             </select>
+            {packaging.find(item => item.id === selectedPackagingId) && <small>Selected dimensions: {packaging.find(item => item.id === selectedPackagingId)!.lengthMm} × {packaging.find(item => item.id === selectedPackagingId)!.widthMm} × {packaging.find(item => item.id === selectedPackagingId)!.heightMm} mm.</small>}
           </label>
         </div>
         <label className="field">

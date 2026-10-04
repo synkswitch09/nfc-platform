@@ -27,6 +27,9 @@ export type PhysicalLine = {
   widthMm: number;
   heightMm: number;
   shipsSeparately: boolean;
+  packageType?: "BOX" | "MAILER";
+  itemLengthMm?: number;
+  itemWidthMm?: number;
 };
 
 export type PackedParcel = {
@@ -105,4 +108,58 @@ export function packPhysicalLines(lines: PhysicalLine[], packaging: { emptyWeigh
 
 export function totalParcelWeight(parcels: PackedParcel[]) {
   return parcels.reduce((sum, parcel) => sum + parcel.weightGrams * parcel.quantity, 0);
+}
+
+// Product shipping dimensions describe the already-packed individual item.
+// Only orders with multiple units need an outer carton. Use an orthogonal
+// orientation and a 5 mm clearance per axis; mixed sizes remain separate.
+export function packCheckoutParcels(lines: PhysicalLine[], outer: { lengthMm: number; widthMm: number; heightMm: number; emptyWeightGrams: number; maxWeightGrams: number | null } | null, mailer: { lengthMm: number; widthMm: number; emptyWeightGrams: number; maxWeightGrams: number | null } | null = null): PackedParcel[] {
+  const totalUnits = lines.reduce((sum, line) => sum + line.quantity, 0);
+  if (totalUnits === 1) {
+    const line = lines[0];
+    return [{ quantity: 1, weightGrams: line.weightGrams, lengthMm: line.lengthMm, widthMm: line.widthMm, heightMm: line.heightMm }];
+  }
+  const parcels: PackedParcel[] = [];
+  for (const line of lines) {
+    if (line.quantity < 1) continue;
+    if (line.packageType === "MAILER") {
+      if (!mailer || line.shipsSeparately) {
+        parcels.push({ quantity: line.quantity, weightGrams: line.weightGrams, lengthMm: line.lengthMm, widthMm: line.widthMm, heightMm: line.heightMm });
+        continue;
+      }
+      const itemLengthMm = line.itemLengthMm ?? line.lengthMm;
+      const itemWidthMm = line.itemWidthMm ?? line.widthMm;
+      const capacity = Math.max(
+        Math.floor((mailer.lengthMm - 5) / itemLengthMm) * Math.floor((mailer.widthMm - 5) / itemWidthMm),
+        Math.floor((mailer.lengthMm - 5) / itemWidthMm) * Math.floor((mailer.widthMm - 5) / itemLengthMm),
+      );
+      const weightCapacity = mailer.maxWeightGrams === null ? Infinity : Math.floor((mailer.maxWeightGrams - mailer.emptyWeightGrams) / line.weightGrams);
+      const perBag = Math.max(1, Math.min(capacity, weightCapacity));
+      const full = Math.floor(line.quantity / perBag);
+      if (full) parcels.push({ quantity: full, weightGrams: mailer.emptyWeightGrams + perBag * line.weightGrams, lengthMm: mailer.lengthMm, widthMm: mailer.widthMm, heightMm: line.heightMm });
+      const remainder = line.quantity % perBag;
+      if (remainder) parcels.push({ quantity: 1, weightGrams: mailer.emptyWeightGrams + remainder * line.weightGrams, lengthMm: mailer.lengthMm, widthMm: mailer.widthMm, heightMm: line.heightMm });
+      continue;
+    }
+    if (line.shipsSeparately || !outer) {
+      parcels.push({ quantity: line.quantity, weightGrams: line.weightGrams, lengthMm: line.lengthMm, widthMm: line.widthMm, heightMm: line.heightMm });
+      continue;
+    }
+    const [a, b, c] = [line.lengthMm, line.widthMm, line.heightMm];
+    const orientations = [[a,b,c],[a,c,b],[b,a,c],[b,c,a],[c,a,b],[c,b,a]];
+    const usable = [outer.lengthMm - 5, outer.widthMm - 5, outer.heightMm - 5];
+    const geometricCapacity = Math.max(...orientations.map(([x,y,z]) => Math.floor(usable[0]/x) * Math.floor(usable[1]/y) * Math.floor(usable[2]/z)));
+    const weightCapacity = outer.maxWeightGrams === null ? Infinity : Math.floor((outer.maxWeightGrams - outer.emptyWeightGrams) / line.weightGrams);
+    const perCarton = Math.min(geometricCapacity, weightCapacity);
+    if (perCarton < 2) {
+      parcels.push({ quantity: line.quantity, weightGrams: line.weightGrams, lengthMm: a, widthMm: b, heightMm: c });
+      continue;
+    }
+    const full = Math.floor(line.quantity / perCarton);
+    if (full) parcels.push({ quantity: full, weightGrams: outer.emptyWeightGrams + perCarton * line.weightGrams, lengthMm: outer.lengthMm, widthMm: outer.widthMm, heightMm: outer.heightMm });
+    const remainder = line.quantity % perCarton;
+    if (remainder === 1) parcels.push({ quantity: 1, weightGrams: line.weightGrams, lengthMm: a, widthMm: b, heightMm: c });
+    else if (remainder > 1) parcels.push({ quantity: 1, weightGrams: outer.emptyWeightGrams + remainder * line.weightGrams, lengthMm: outer.lengthMm, widthMm: outer.widthMm, heightMm: outer.heightMm });
+  }
+  return parcels;
 }
