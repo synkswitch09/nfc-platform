@@ -358,6 +358,9 @@ model Store {
   capabilities         StoreCapability[]    @default([])
   paymentProfileKey    String?
   secondPurchaseRewardEnabled Boolean @default(true)
+  secondPurchaseRewardAmountCents Int @default(1000)
+  secondPurchaseRewardValidityDays Int @default(90)
+  secondPurchaseRewardMinimumCents Int @default(0)
   createdAt            DateTime             @default(now())
   updatedAt            DateTime             @updatedAt
   domains              StoreDomain[]
