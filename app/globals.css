@@ -5180,5 +5180,24 @@ body[data-store="tapkin"] .footer-links {
 .cart-added > div { display:flex; flex-wrap:wrap; gap:8px; margin-top:10px; }
 @media(max-width:700px) { .product-layout .product-gallery .gallery-price { display:none; } .purchase-panel .purchase-button { position:sticky; bottom:0; z-index:5; } }
 .product-model-viewer { display:block; width:100%; height:min(510px,65vw,calc(100dvh - 110px)); border-radius:18px; background:var(--paper); }
+.product-gallery-video { display:block; width:100%; max-height:520px; aspect-ratio:1; object-fit:contain; border-radius:18px; background:#111; }
+.product-media-thumb { width:100%; aspect-ratio:1; min-height:70px; display:grid; align-content:center; justify-items:center; gap:4px; border-radius:14px; background:var(--paper); font-size:1.3rem; font-weight:700; }
+.product-media-thumb small { font-size:.7rem; font-weight:500; }
+.variant-media { min-width:0; border-top:1px solid var(--line); padding-top:16px; display:grid; gap:12px; }
+.variant-media h3 { margin:0; font-size:1rem; }
+.variant-media-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,245px),1fr)); gap:14px; }
+.variant-media-group { min-width:0; padding:14px; border:1px solid var(--line); border-radius:12px; display:grid; align-content:start; gap:10px; }
+.variant-media-group .field { min-width:0; }
+.variant-media-group input[type="file"] { width:100%; max-width:100%; }
+.variant-media-group .button { justify-self:start; }
+.variant-media-photos { display:grid; grid-template-columns:repeat(auto-fill,minmax(105px,1fr)); gap:8px; }
+.variant-media-photo { min-width:0; border:1px solid var(--line); border-radius:10px; padding:6px; display:grid; gap:5px; }
+.variant-media-photo img { width:100%; aspect-ratio:1; object-fit:cover; border-radius:7px; }
+.variant-media-photo input { min-width:0; width:100%; }
+.variant-media-photo > div { display:flex; justify-content:space-between; }
+.variant-video-row { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:6px; }
+.variant-video-row video { grid-column:1 / -1; width:100%; max-height:160px; background:#111; border-radius:8px; }
+.variant-video-row span { min-width:0; overflow-wrap:anywhere; }
+.variant-model-actions { display:flex; flex-wrap:wrap; align-items:center; gap:10px; }
 .product-3d-button { margin:10px 0; }
 @media(max-width:700px) { .product-model-viewer { height:clamp(150px,28dvh,240px); } }
