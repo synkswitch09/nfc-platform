@@ -3703,6 +3703,20 @@ body:has(.admin-shell) > footer {
   padding: 12px;
   background: white;
 }
+.shipping-provider-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px 20px;
+  padding: 14px 0;
+}
+.shipping-provider-row > div { display: grid; gap: 4px; min-width: 0; }
+.shipping-provider-row small { display: block; color: var(--muted); }
+.shipping-provider-row .upload-error { flex-basis: 100%; }
+.shipping-editor-list { display: grid; gap: 10px; margin-top: 14px; }
+.shipping-settings-form { display: grid; gap: 14px; margin-top: 14px; }
+.shipping-add-package { margin-top: 12px; }
 .admin-subpanel > summary {
   cursor: pointer;
   font-weight: 800;

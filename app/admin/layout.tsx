@@ -63,15 +63,20 @@ const groups = [
     ],
   },
   {
-    label: "NFC",
+    label: "Production",
     links: [
-      { href: "/admin/tags", label: "Tags", icon: Tags },
       {
         href: "/admin/manufacturing",
         label: "Production queue",
         icon: Factory,
         capability: StoreCapability.PRINT_3D,
       },
+    ],
+  },
+  {
+    label: "NFC",
+    links: [
+      { href: "/admin/tags", label: "Tags", icon: Tags },
       {
         href: "/admin/manufacturing/batches",
         label: "NFC production batches",
@@ -112,9 +117,8 @@ export default async function AdminLayout({
   const visibleGroups = groups
     .filter(
       (group) =>
-        group.label !== "NFC" ||
-        hasStoreCapability(store, StoreCapability.NFC) ||
-        hasStoreCapability(store, StoreCapability.PRINT_3D),
+        (group.label !== "NFC" || hasStoreCapability(store, StoreCapability.NFC)) &&
+        (group.label !== "Production" || hasStoreCapability(store, StoreCapability.PRINT_3D)),
     )
     .map((group) => ({
       ...group,
