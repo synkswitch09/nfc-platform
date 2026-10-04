@@ -230,14 +230,17 @@ export async function settleCheckoutEvent(input: { eventId: string; eventType: s
     if (jobs.length) await tx.manufacturingJob.createMany({ data: jobs, skipDuplicates: true });
     await tx.webhookEvent.create({ data: { id: input.eventId, provider: "stripe", eventType: input.eventType } });
     await queuePaidOrder(tx, payment.orderId);
-    const rewardEnabled = (await tx.store.findUnique({ where: { id: payment.order.storeId }, select: { secondPurchaseRewardEnabled: true } }))?.secondPurchaseRewardEnabled;
-    const email = rewardEnabled ? (payment.order.userId ? (await tx.user.findUnique({ where: { id: payment.order.userId }, select: { email: true } }))?.email : payment.order.guestEmail) : null;
-    if (email) {
+    const reward = await tx.store.findUnique({ where: { id: payment.order.storeId }, select: { secondPurchaseRewardEnabled: true, secondPurchaseRewardAmountCents: true, secondPurchaseRewardValidityDays: true, secondPurchaseRewardMinimumCents: true } });
+    const email = reward?.secondPurchaseRewardEnabled ? (payment.order.userId ? (await tx.user.findUnique({ where: { id: payment.order.userId }, select: { email: true } }))?.email : payment.order.guestEmail) : null;
+    if (email && reward?.secondPurchaseRewardEnabled) {
       const previous = await tx.order.count({ where: { storeId: payment.order.storeId, status: { in: ["PAID", "PROCESSING", "READY_TO_SHIP", "SHIPPED", "DELIVERED", "COMPLETED"] }, OR: [{ guestEmail: { equals: email, mode: "insensitive" } }, { user: { email: { equals: email, mode: "insensitive" } } }] } });
       if (previous === 1) {
-        const code = `NEXT10-${randomUUID().replaceAll("-", "").slice(0, 12).toUpperCase()}`;
-        await tx.promotion.create({ data: { storeId: payment.order.storeId, name: "A$10 second purchase", code, kind: "FIXED", amountCents: 1000, allowedEmailHash: sha256(email.trim().toLowerCase()), usageLimit: 1, startsAt: new Date(), endsAt: new Date(Date.now() + 90 * 86400000) } });
-        await queueOrderNotice(tx, payment.orderId, `next-purchase:${payment.orderId}`, "A$10 off your next purchase", `Thank you for your first order. Use code ${code} on your next ${payment.order.storeDisplayName} purchase within 90 days. This code is for your email address and cannot be combined with another promotion.`);
+        const code = `WELCOME-${randomUUID().replaceAll("-", "").slice(0, 12).toUpperCase()}`;
+        const amount = `A$${(reward.secondPurchaseRewardAmountCents / 100).toFixed(2)}`;
+        const minimum = reward.secondPurchaseRewardMinimumCents ? ` on orders of at least A$${(reward.secondPurchaseRewardMinimumCents / 100).toFixed(2)}` : "";
+        const now = new Date();
+        await tx.promotion.create({ data: { storeId: payment.order.storeId, name: `${amount} second purchase`, code, kind: "FIXED", amountCents: reward.secondPurchaseRewardAmountCents, minimumSubtotalCents: reward.secondPurchaseRewardMinimumCents, allowedEmailHash: sha256(email.trim().toLowerCase()), usageLimit: 1, startsAt: now, endsAt: new Date(now.getTime() + reward.secondPurchaseRewardValidityDays * 86400000) } });
+        await queueOrderNotice(tx, payment.orderId, `next-purchase:${payment.orderId}`, `${amount} off your next purchase`, `Thank you for your first order. Use code ${code} on your next ${payment.order.storeDisplayName} purchase within ${reward.secondPurchaseRewardValidityDays} days${minimum}. This code is for your email address and cannot be combined with another promotion.`);
       }
     }
     return { duplicate: false };
