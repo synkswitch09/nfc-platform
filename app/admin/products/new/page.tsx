@@ -17,10 +17,10 @@ export default async function NewProductPage({ searchParams }: { searchParams: P
   const requested = (await searchParams).template ?? "";
   const allowed = store.slug === "kosykin" ? ["standard", "colour", "two-colour", "keychain", "variants"] : ["nfc", "standard", "colour", "two-colour", "variants"];
   const template = allowed.includes(requested) ? requested : "";
-  const initial: AdminProductInitial = { name: "", slug: "", description: "", fullDescription: "", categoryId: "", type: "ACCESSORY", status: "DRAFT", featured: false, shopVisible: false, brand: store.displayName, gstInclusive: true, personalisationMode: "NONE", weightGrams: null, lengthMm: null, widthMm: null, heightMm: null, defaultPackagingId: "", shipsSeparately: false, specialHandling: "", countryOfOrigin: "", customsDescription: "", hsCode: "", customsValue: "", dutiesHandling: "UNDETERMINED", restrictedItem: false, seoTitle: "", seoDescription: "", ogImageUrl: "", canonicalUrl: "", indexable: false, variants: [], options: [] };
+  const initial: AdminProductInitial = { name: "", slug: "", description: "", fullDescription: "", categoryId: "", type: "ACCESSORY", status: "DRAFT", featured: false, shopVisible: false, brand: store.displayName, gstInclusive: true, personalisationMode: "NONE", weightGrams: null, lengthMm: null, widthMm: null, heightMm: null, defaultPackagingId: "", shipsSeparately: false, shippingPackageType: "BOX", specialHandling: "", countryOfOrigin: "", customsDescription: "", hsCode: "", customsValue: "", dutiesHandling: "UNDETERMINED", restrictedItem: false, seoTitle: "", seoDescription: "", ogImageUrl: "", canonicalUrl: "", indexable: false, variants: [], options: [] };
   const [categories, packaging] = await Promise.all([
     db.productCategory.findMany({ where: { storeId: store.id, status: { not: "ARCHIVED" } }, select: { id: true, name: true }, orderBy: [{ sortOrder: "asc" }, { name: "asc" }] }),
-    db.packaging.findMany({ where: { storeId: store.id, active: true }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
+    db.packaging.findMany({ where: { storeId: store.id, active: true }, select: { id: true, name: true, code: true, lengthMm: true, widthMm: true, heightMm: true }, orderBy: { name: "asc" } }),
   ]);
   if (template === "colour" || template === "two-colour") {
     const colourOption = (name: string, code: string) => ({ name, code, type: "COLOUR" as const, required: true, maxLength: null, price: "0", helpText: "Add the colours available for this product and upload photos for each colour.", values: [] });
@@ -33,6 +33,7 @@ export default async function NewProductPage({ searchParams }: { searchParams: P
     initial.fullDescription="Choose a name, a typeface, a size and two colours. Choose a backing that follows the name or a rounded rectangle, then finish as a plain tag or a keyring. Made to order in Adelaide.";
     initial.type="CUSTOM";initial.personalisationMode="REQUIRED";initial.weightGrams=25;initial.lengthMm=130;initial.widthMm=30;initial.heightMm=4;
     initial.categoryId=categories.find(c=>/3d|print|keychain/i.test(c.name))?.id??categories[0]?.id??"";
+    initial.shippingPackageType="MAILER";
     initial.variants=[{sku:"KOS-NAME-3D",name:"Made to order",colour:"",size:"",material:"PLA",productionMinutes:45,price:"0",compareAtPrice:"",cost:"",inventory:0,trackInventory:false,lowStockThreshold:0,backorderPolicy:"DENY",active:true,isDefault:true,optionSelection:"",weightGrams:25,lengthMm:130,widthMm:30,heightMm:4,defaultPackagingId:""}];
     initial.options=[
       {name:"Name",code:"keychain-name",type:"SHORT_TEXT",required:true,maxLength:24,price:"0",helpText:"The shape and length adjust to your name.",values:[]},
