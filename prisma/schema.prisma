@@ -1254,6 +1254,9 @@ model Shipment {
   originId           String?           @db.Uuid
   providerId         String?           @db.Uuid
   providerShipmentId String?
+  parcel             Json?
+  externalRequestAt  DateTime?
+  bookedAt           DateTime?
   status             ShipmentStatus    @default(DRAFT)
   serviceCode        String
   serviceName        String
