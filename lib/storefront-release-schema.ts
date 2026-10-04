@@ -145,6 +145,7 @@ export const releaseProductFields = z.object({
   widthMm: integer.nullable().optional(),
   heightMm: integer.nullable().optional(),
   shipsSeparately: z.boolean().optional(),
+  shippingPackageType: z.enum(["BOX", "MAILER"]).optional(),
   specialHandling: text.nullable().optional(),
   countryOfOrigin: text.nullable().optional(),
   customsDescription: text.nullable().optional(),

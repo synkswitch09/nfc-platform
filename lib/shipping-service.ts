@@ -2,10 +2,12 @@ import type { Prisma } from "@prisma/client";
 import { assertVariantSelection, availableInventory, normalisePersonalisation } from "@/lib/catalog";
 import { createOpaqueToken, sha256 } from "@/lib/crypto";
 import { db } from "@/lib/db";
-import { packPhysicalLines, shippingCartHash, shippingDestinationHash, type ShippingCartInput, type ShippingDestination, zoneMatches } from "@/lib/shipping";
+import { packCheckoutParcels, shippingCartHash, shippingDestinationHash, type ShippingCartInput, type ShippingDestination, zoneMatches } from "@/lib/shipping";
 import { shippingProviderAdapter, type ConfiguredRate, type ProviderRate } from "@/lib/shipping-providers";
 import type { Storefront } from "@/lib/storefront";
 import { isKeychainProduct, keychainPaletteFromOptions, validateKeychainOptions } from "@/lib/keychain-order";
+import { currentAppEnvironment } from "@/lib/config";
+import { quoteShippitParcels } from "@/lib/shippit-quotes";
 
 const QUOTE_TTL_MS = 15 * 60 * 1000;
 
@@ -44,11 +46,12 @@ export async function createShippingQuotes(items: ShippingCartInput[], destinati
     subtotalCents += (variant.priceCents + normalised.priceDeltaCents) * item.quantity;
     return {
       quantity: item.quantity,
-      weightGrams: variant.weightGrams ?? variant.product.weightGrams ?? 100,
-      lengthMm: variant.lengthMm ?? variant.product.lengthMm ?? 100,
-      widthMm: variant.widthMm ?? variant.product.widthMm ?? 100,
-      heightMm: variant.heightMm ?? variant.product.heightMm ?? 30,
+      weightGrams: variant.weightGrams ?? variant.product.weightGrams,
+      lengthMm: variant.lengthMm ?? variant.product.lengthMm,
+      widthMm: variant.widthMm ?? variant.product.widthMm,
+      heightMm: variant.heightMm ?? variant.product.heightMm,
       shipsSeparately: variant.product.shipsSeparately,
+      packageType: variant.product.shippingPackageType,
       package: variant.defaultPackaging ?? variant.product.defaultPackaging,
     };
   });
@@ -58,28 +61,29 @@ export async function createShippingQuotes(items: ShippingCartInput[], destinati
   if (!storeDefaultPackaging || !origin) throw new ShippingError("Shipping is not configured for this store", 503);
   const zone = zones.find(candidate => zoneMatches(destination, candidate));
   if (!zone) throw new ShippingError("We do not currently ship to this address", 409);
-  const packageGroups = new Map<string, { package: typeof storeDefaultPackaging; lines: typeof physicalLines }>();
-  for (const line of physicalLines) {
-    const selected = line.package ?? storeDefaultPackaging;
-    const group = packageGroups.get(selected.id) ?? { package: selected, lines: [] };
-    group.lines.push(line);
-    packageGroups.set(selected.id, group);
-  }
-  const packedGroups = [...packageGroups.values()].map(group => ({
-    package: group.package,
-    parcels: packPhysicalLines(group.lines, group.package),
-  }));
-  if (packedGroups.some(group => group.package.maxWeightGrams !== null && group.parcels.some(parcel => parcel.weightGrams > group.package.maxWeightGrams!))) {
-    throw new ShippingError("The order exceeds the configured packaging limit", 409);
-  }
-  const parcels = packedGroups.flatMap(group => group.parcels);
-  const packagingIds = [...packageGroups.keys()];
+  const allMeasured = physicalLines.every(line => Boolean(line.weightGrams && line.heightMm && (line.packageType === "BOX" || (line.lengthMm && line.widthMm))));
+  const outer = packaging.find(item => item.code === "OUTER-BOX-30X25X25") ?? null;
+  const mailer = packaging.find(item => item.code === "MAILER-25X15") ?? null;
+  const resolved = physicalLines.map(line => {
+    const selected = line.package ?? (line.packageType === "MAILER" ? mailer : null);
+    const weightGrams = line.weightGrams ?? 100;
+    const lengthMm = line.packageType === "MAILER" ? selected?.lengthMm : selected?.lengthMm ?? line.lengthMm ?? 100;
+    const widthMm = line.packageType === "MAILER" ? selected?.widthMm : selected?.widthMm ?? line.widthMm ?? 100;
+    const heightMm = line.packageType === "MAILER" ? line.heightMm ?? 30 : selected?.heightMm ?? line.heightMm ?? 30;
+    if (!weightGrams || !lengthMm || !widthMm || !heightMm || weightGrams <= 0 || lengthMm <= 0 || widthMm <= 0 || heightMm <= 0) throw new ShippingError("Shipping weight and package dimensions must be configured for every product", 409);
+    if (line.packageType === "MAILER" && (!selected || (line.lengthMm && line.widthMm && !((line.lengthMm <= selected.lengthMm && line.widthMm <= selected.widthMm) || (line.widthMm <= selected.lengthMm && line.lengthMm <= selected.widthMm))))) throw new ShippingError("The product does not fit its selected shipping bag", 409);
+    return { quantity: line.quantity, weightGrams, lengthMm, widthMm, heightMm, itemLengthMm: line.lengthMm ?? undefined, itemWidthMm: line.widthMm ?? undefined, packageType: line.packageType, shipsSeparately: line.shipsSeparately, selected };
+  });
+  if (resolved.length > 1 && resolved.some(line => line.packageType === "BOX") && !outer) throw new ShippingError("The outer shipping box is not configured", 503);
+  const parcels = packCheckoutParcels(resolved, outer, mailer);
+  if (parcels.some(parcel => !Number.isFinite(parcel.weightGrams) || parcel.weightGrams <= 0)) throw new ShippingError("Invalid shipping parcel", 409);
+  const packagingIds = [...new Set(resolved.map(line => line.selected?.id).filter((id): id is string => Boolean(id)))];
   const rates = await db.shippingRate.findMany({
     where: {
       storeId: store.id,
       zoneId: zone.id,
       active: true,
-      ...(packagingIds.length === 1 ? { OR: [{ packagingId: null }, { packagingId: packagingIds[0] }] } : { packagingId: null }),
+      ...(packagingIds.length === 1 ? { OR: [{ packagingId: null }, { packagingId: packagingIds[0] }, { packaging: { code: "SMALL-PARCEL" } }] } : { OR: [{ packagingId: null }, { packaging: { code: "SMALL-PARCEL" } }] }),
       AND: [{ OR: [{ providerId: null }, { provider: { active: true, supportsRates: true } }] }],
     },
     include: { provider: true },
@@ -92,7 +96,14 @@ export async function createShippingQuotes(items: ShippingCartInput[], destinati
   }
 
   const offered: ProviderRate[] = [];
+  const environment = currentAppEnvironment();
+  const shippitSecret = environment === "production" ? process.env.SHIPPIT_PRODUCTION_API_SECRET : environment === "staging" ? process.env.SHIPPIT_STAGING_API_SECRET : undefined;
+  if (shippitSecret && allMeasured) {
+    try { offered.push(...await quoteShippitParcels(destination, parcels)); }
+    catch { /* Retain configured manual rates if Shippit is unavailable. */ }
+  }
   for (const [providerKey, configured] of groups) {
+    if (providerKey === "manual" && offered.length) continue;
     const provider = configured[0]?.provider;
     const kind = provider?.kind ?? "MANUAL";
     try {
@@ -119,7 +130,7 @@ export async function createShippingQuotes(items: ShippingCartInput[], destinati
   const destinationHash = shippingDestinationHash(destination);
   const expiresAt = new Date(Date.now() + QUOTE_TTL_MS);
   const originSnapshot = originSnapshotOf(origin);
-  const packagingSnapshot = { packages: [...packageGroups.values()].map(group => ({ id: group.package.id, code: group.package.code, name: group.package.name, lengthMm: group.package.lengthMm, widthMm: group.package.widthMm, heightMm: group.package.heightMm, emptyWeightGrams: group.package.emptyWeightGrams })), parcels };
+  const packagingSnapshot = { packages: [...new Map(resolved.filter(line => line.selected).map(line => [line.selected!.id, line.selected!])).values(), ...(outer ? [outer] : [])].map(item => ({ id: item.id, code: item.code, name: item.name, lengthMm: item.lengthMm, widthMm: item.widthMm, heightMm: item.heightMm, emptyWeightGrams: item.emptyWeightGrams })), parcels };
 
   return Promise.all(offered.map(async rate => {
     const token = createOpaqueToken();

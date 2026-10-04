@@ -139,6 +139,11 @@ enum ShippingProviderKind {
   AUSTRALIA_POST
 }
 
+enum ShippingPackageType {
+  BOX
+  MAILER
+}
+
 enum ShippingQuoteStatus {
   ACTIVE
   CONSUMED
@@ -539,6 +544,7 @@ model Product {
   widthMm             Int?
   heightMm            Int?
   defaultPackagingId  String?               @db.Uuid
+  shippingPackageType ShippingPackageType   @default(BOX)
   shipsSeparately     Boolean               @default(false)
   specialHandling     String?
   countryOfOrigin     String?
