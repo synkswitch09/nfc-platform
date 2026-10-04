@@ -21,7 +21,6 @@ export async function createShippingQuotes(items: ShippingCartInput[], destinati
     db.productVariant.findMany({
       where: { id: { in: ids }, active: true, product: { storeId: store.id, status: "ACTIVE", shopVisible: true, category: { storeId: store.id, status: "PUBLISHED" } } },
       include: {
-        defaultPackaging: true,
         product: { include: { defaultPackaging: true, options: { where: { active: true }, include: { values: true } } } },
       },
     }),
@@ -46,13 +45,13 @@ export async function createShippingQuotes(items: ShippingCartInput[], destinati
     subtotalCents += (variant.priceCents + normalised.priceDeltaCents) * item.quantity;
     return {
       quantity: item.quantity,
-      weightGrams: variant.weightGrams ?? variant.product.weightGrams,
-      lengthMm: variant.lengthMm ?? variant.product.lengthMm,
-      widthMm: variant.widthMm ?? variant.product.widthMm,
-      heightMm: variant.heightMm ?? variant.product.heightMm,
+      weightGrams: variant.product.weightGrams,
+      lengthMm: variant.product.lengthMm,
+      widthMm: variant.product.widthMm,
+      heightMm: variant.product.heightMm,
       shipsSeparately: variant.product.shipsSeparately,
       packageType: variant.product.shippingPackageType,
-      package: variant.defaultPackaging ?? variant.product.defaultPackaging,
+      package: variant.product.defaultPackaging,
     };
   });
 
