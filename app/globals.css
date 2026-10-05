@@ -5326,6 +5326,9 @@ body[data-store="kosykin"] .site-header .nav-account {
 .kosy-header-socials a, .kosy-header-socials span { display: grid; place-items: center; width: 28px; height: 32px; color: inherit; }
 .kosy-header-socials img { width: 20px; height: 20px; object-fit: contain; }
 .kosy-facebook-glyph { font: 800 23px/1 Arial, sans-serif; }
+body[data-store="kosykin"]:not(:has(.kosy-home-hero)) .site-header .nav-centre a,
+body[data-store="kosykin"]:not(:has(.kosy-home-hero)) .site-header .kosy-header-socials { color: var(--header-text, #24334b); }
+body[data-store="kosykin"]:not(:has(.kosy-home-hero)) .kosy-header-socials img { filter: brightness(0) saturate(100%) invert(18%); }
 @media (min-width: 801px) {
   body[data-store="kosykin"] .site-header { padding-inline: 82px; }
   body[data-store="kosykin"] .site-header .brand {
