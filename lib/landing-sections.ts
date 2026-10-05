@@ -152,7 +152,7 @@ const radius = z
   .enum(["SMALL", "MEDIUM", "LARGE", "EXTRA_LARGE"])
   .default("LARGE");
 const layoutVariant = z
-  .enum(["DEFAULT", "PASTEL_EDITORIAL"])
+  .enum(["DEFAULT", "PASTEL_EDITORIAL", "KOSYKIN_WAVY", "KOSYKIN_CIRCLES"])
   .default("DEFAULT");
 const sectionWidth = z
   .enum(["FULL", "WIDE", "STANDARD", "NARROW"])
@@ -255,6 +255,7 @@ const baseCopy = {
 };
 const narrativeSchema = z.object({
   ...baseCopy,
+  sideLabel: z.string().trim().max(60).default(""),
   layout: z
     .enum(["IMAGE_LEFT", "IMAGE_RIGHT", "TEXT_ONLY", "CENTRED"])
     .default("IMAGE_RIGHT"),

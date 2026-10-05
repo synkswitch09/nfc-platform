@@ -26,6 +26,7 @@ import {
 } from "@/lib/landing-sections";
 import { fontFamilies, fontWeights, type TypographyOverride } from "@/lib/typography";
 import { petsLandingTemplate } from "@/lib/pets-landing-template";
+import { kosykinHomeTemplate } from "@/lib/kosykin-home-template";
 
 const itemTypes = new Set<LandingSectionType>([
   "FEATURE_BADGES",
@@ -122,6 +123,7 @@ const blankItem = (): SectionItem => ({
 export function LandingSectionEditor({
   categoryId,
   categorySlug,
+  kosykinHome = false,
   initial,
   endpoint,
   mediaUploadEndpoint,
@@ -130,6 +132,7 @@ export function LandingSectionEditor({
 }: {
   categoryId?: string;
   categorySlug?: string;
+  kosykinHome?: boolean;
   initial: LandingSectionDraft[];
   endpoint?: string;
   mediaUploadEndpoint?: string;
@@ -252,6 +255,19 @@ export function LandingSectionEditor({
             </button>
           </div>
         )
+      )}
+      {!structureLocked && kosykinHome && (
+        <div className="landing-template-choice">
+          <div>
+            <strong>Kosykin home design</strong>
+            <p>Load the two completed Zeplin regions. Edit the wording, images, trust messages and collection cards here before publishing.</p>
+          </div>
+          <button className="button secondary" type="button" disabled={pending} onClick={() => {
+            if (sections.length && !window.confirm("Replace this Home's current sections with the Kosykin design? Save sections to publish.")) return;
+            setSections(kosykinHomeTemplate());
+            setMessage("Kosykin design loaded. Review and save sections to publish.");
+          }}>Use Kosykin design</button>
+        </div>
       )}
       {!structureLocked && (
         <div className="landing-builder-add">
@@ -690,6 +706,8 @@ function SectionStyle({
           >
             <option value="DEFAULT">Standard</option>
             <option value="PASTEL_EDITORIAL">Editorial photo and cards</option>
+            {section.type === "HERO" && <option value="KOSYKIN_WAVY">Kosykin · Wavy hero</option>}
+            {section.type === "FEATURE_BADGES" && <option value="KOSYKIN_CIRCLES">Kosykin · Circular collections</option>}
           </select>
         </label>
         <label className="field">
@@ -919,6 +937,11 @@ function NarrativeFields({
       <details className="admin-subpanel" open>
         <summary>Images and media layout</summary>
         <div className="field-grid">
+        {section.type === "HERO" && section.content.layoutVariant === "KOSYKIN_WAVY" && (
+          <label className="field">Side title (e.g. Collection)
+            <input maxLength={60} value={string(section.content.sideLabel)} onChange={(event) => onChange({ sideLabel: event.target.value })} />
+          </label>
+        )}
         <label className="field">
           Layout
           <select

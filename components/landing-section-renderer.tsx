@@ -2,6 +2,7 @@ import type { CSSProperties, ReactNode } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import {
+  ArrowRight,
   Check,
   PackageCheck,
   Palette,
@@ -10,6 +11,7 @@ import {
   Radio,
 } from "lucide-react";
 import { CategoryIcon } from "@/components/category-icon";
+import { KosykinHeroVisual } from "@/components/kosykin-hero-visual";
 import { parseLandingContent } from "@/lib/landing-sections";
 import { typographyVariables, type TypographyOverride } from "@/lib/typography";
 import type { PublicCategory } from "@/lib/category-query";
@@ -183,6 +185,33 @@ export function ModularPageRenderer({
           if (section.type === "HERO") {
             const features = ordered<Feature>(value.features);
             const textBlocks = ordered<TextBlock>(value.textBlocks);
+            if (value.layoutVariant === "KOSYKIN_WAVY") return (
+              <section key={renderSectionKey(section, sectionIndex)} className="kosy-home-hero" {...presentation}>
+                <div className="kosy-hero-panel">
+                  <div className="kosy-hero-title">
+                    <h1 aria-label={`${common.eyebrow} ${common.headline} ${text(value.sideLabel)}`}>
+                      <span className="kosy-hero-prefix" aria-hidden="true">{common.eyebrow}</span>
+                      <span className="kosy-hero-word" aria-hidden="true">{common.headline}</span>
+                      <span className="kosy-hero-side" aria-hidden="true">{text(value.sideLabel)}</span>
+                    </h1>
+                  </div>
+                  {common.imageUrl && <KosykinHeroVisual src={common.imageUrl} alt={common.imageAlt || `${name} product`} />}
+                  <div className="kosy-hero-bottom">
+                    <p>{common.copy || fallbackCopy}</p>
+                    {value.ctaVisible !== false && text(value.ctaLabel) && <Link className="kosy-hero-cta" href={text(value.ctaHref) || shopHref} style={buttonStyle(value, "cta")}>
+                      {text(value.ctaLabel)} <span aria-hidden="true"><ArrowRight size={19} /></span>
+                    </Link>}
+                  </div>
+                  <a className="kosy-hero-down" href="#kosy-collections" aria-label="Explore collections">⌄</a>
+                </div>
+                {features.length > 0 && <div className="kosy-trust-row">
+                  {features.map((feature, index) => <div key={collectionKey("trust", feature, index)}>
+                    <span className="kosy-trust-icon"><CategoryIcon name={feature.icon} size={28} /></span>
+                    <span><strong>{feature.label}</strong><small>{feature.supportingText}</small></span>
+                  </div>)}
+                </div>}
+              </section>
+            );
             return (
               <section
                 key={renderSectionKey(section, sectionIndex)}
@@ -364,6 +393,20 @@ export function ModularPageRenderer({
             ].includes(section.type)
           ) {
             const items = ordered<Item>(value.items);
+            if (section.type === "FEATURE_BADGES" && value.layoutVariant === "KOSYKIN_CIRCLES") return (
+              <section key={renderSectionKey(section, sectionIndex)} className="kosy-collections" {...presentation} id={text(value.anchorId) || "kosy-collections"}>
+                <Heading eyebrow={common.eyebrow} headline={common.headline} copy={common.copy} />
+                <div className="kosy-collection-grid">
+                  {items.map((item, index) => <Link key={collectionKey("kosy-category", item, index)} href={kosyCollectionHref(item, categories, shopHref)} className="kosy-collection-card">
+                    <span className="kosy-collection-orb" style={{ backgroundColor: colour(item.iconBackgroundColour) || "#dce5e9" }}>
+                      {item.imageUrl ? <Image src={item.imageUrl} alt="" width={190} height={190} unoptimized /> : <CategoryIcon name={item.icon} size={64} />}
+                    </span>
+                    <strong>{item.title}</strong>
+                    {item.description && <span>{item.description}</span>}
+                  </Link>)}
+                </div>
+              </section>
+            );
             const className =
               section.type === "STEPS"
                 ? "modular-steps"
@@ -846,6 +889,12 @@ function PagePlaceholder({
 
 function breadcrumbKey(item: { label: string; href?: string }, index: number) {
   return `breadcrumb:${item.href || item.label}:${index}`;
+}
+
+function kosyCollectionHref(item: Item, categories: RenderCategory[], shopHref: string) {
+  if (item.ctaHref && item.ctaHref !== "/shop") return item.ctaHref;
+  const category = categories.find((candidate) => candidate.name.toLocaleLowerCase() === item.title?.toLocaleLowerCase());
+  return category ? `/shop?category=${encodeURIComponent(category.slug)}` : shopHref;
 }
 
 function renderSectionKey(section: RenderSection, index: number) {

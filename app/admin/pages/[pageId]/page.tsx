@@ -175,6 +175,7 @@ export default async function EditContentPage({
         />
       ) : (
         <LandingSectionEditor
+          kosykinHome={page.kind === "HOME" && store.slug === "kosykin"}
           initial={page.sections.map((section) => ({
             id: section.id,
             type: section.type,
