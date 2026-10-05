@@ -190,7 +190,7 @@ export function ModularPageRenderer({
               <section key={renderSectionKey(section, sectionIndex)} className="kosy-home-hero" {...presentation}>
                 <div className="kosy-hero-panel">
                   <div className="kosy-hero-title">
-                    <h1 className="sr-only">{common.eyebrow} {common.headline} {text(value.sideLabel)}</h1>
+                    <h1 className="sr-only" aria-label={`${common.eyebrow} ${common.headline} ${text(value.sideLabel)}`}>{common.eyebrow} {common.headline} {text(value.sideLabel)}</h1>
                   </div>
                   <KosykinHeroVisual src={text(value.artworkUrl) || "/images/kosykin/wavy-hero.webp"} alt="" />
                   <div className="kosy-hero-bottom">
