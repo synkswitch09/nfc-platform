@@ -5375,6 +5375,7 @@ body[data-store="kosykin"]:not(:has(.kosy-home-hero)) .kosy-header-socials img {
 
 /* The Wavy home artwork follows the proportions of the Zeplin canvas. */
 body[data-store="kosykin"] .site-header {
+  width: calc(100% - 100px);
   max-width: 1340px;
   min-height: 92px;
   margin-top: 46px;
@@ -5477,6 +5478,7 @@ body[data-store="kosykin"] .modular-landing > .kosy-home-hero { max-width: 1440p
 @media (max-width: 800px) {
   body[data-store="kosykin"] .site-header,
   body[data-store="kosykin"]:has(.kosy-home-hero) .site-header {
+    width: calc(100% - 24px);
     min-height: 76px;
     margin-top: 16px;
     margin-bottom: 0;
