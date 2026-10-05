@@ -154,7 +154,15 @@ export default async function RootLayout({
         className={inter.variable}
         data-store={store.slug}
         data-theme-style={store.theme.fontStyle}
-        style={storeThemeStyle(store.theme)}
+        style={{
+          ...storeThemeStyle(store.theme),
+          ...(store.slug === "kosykin" ? {
+            "--store-accent": "#f9d6d5",
+            "--store-accent-secondary": "#243247",
+            "--store-background": "#ffffff",
+            "--store-foreground": "#243247",
+          } : {}),
+        }}
       >
         <CartProvider storageKey={`commerce-cart:${store.id}:v1`}>
           <SiteHeader
@@ -181,7 +189,6 @@ export default async function RootLayout({
             storeName={settings.storeName}
             storeLogoUrl={store.logoUrl}
             socialLinks={settings.socialLinks}
-            showSocials={store.slug !== "kosykin"}
             pages={pageNavigation.filter((page) => page.showInFooter).map((page) => ({ name: page.footerLabel || page.name, slug: page.slug, order: page.navigationOrder }))}
             nfcEnabled={nfcEnabled}
             copy={copy}
