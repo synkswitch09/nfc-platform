@@ -398,7 +398,7 @@ export function ModularPageRenderer({
               <section key={renderSectionKey(section, sectionIndex)} className="kosy-collections" {...presentation} id={text(value.anchorId) || "kosy-collections"}>
                 <Heading eyebrow={common.eyebrow} headline={common.headline} copy={common.copy} />
                 <div className="kosy-collection-grid">
-                  {items.map((item, index) => <Link key={collectionKey("kosy-category", item, index)} href={kosyCollectionHref(item, categories, shopHref)} className="kosy-collection-card">
+                  {items.filter((item) => !item.categorySlug || categories.some((category) => category.slug === item.categorySlug)).map((item, index) => <Link key={collectionKey("kosy-category", item, index)} href={kosyCollectionHref(item, categories, shopHref)} className="kosy-collection-card">
                     <span className="kosy-collection-orb" style={{ backgroundColor: colour(item.iconBackgroundColour) || "#dce5e9" }}>
                       {item.imageUrl ? <Image src={item.imageUrl} alt="" width={190} height={190} unoptimized /> : <CategoryIcon name={item.icon} size={64} />}
                     </span>
