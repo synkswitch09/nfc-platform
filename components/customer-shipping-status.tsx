@@ -1,0 +1,4 @@
+export function CustomerShippingStatus({ parcels }: { parcels: { trackingNumber: string | null; trackingUrl: string | null; trackingState: string | null; status: string }[] }) {
+  if (!parcels.length) return null;
+  return <div className="card"><h2>Delivery tracking</h2>{parcels.map((parcel, index) => <p key={`${parcel.trackingNumber ?? "pending"}-${index}`}><strong>Package {index + 1}</strong> · {parcel.trackingState ? parcel.trackingState.replaceAll("_", " ") : parcel.status === "DELIVERED" ? "Delivered" : parcel.status === "IN_TRANSIT" ? "In transit" : "Preparing for dispatch"}{parcel.trackingNumber && <> · {parcel.trackingUrl?.startsWith("https://") ? <a href={parcel.trackingUrl} rel="noopener noreferrer" target="_blank">Track {parcel.trackingNumber}</a> : `Tracking ${parcel.trackingNumber}`}</>}</p>)}</div>;
+}

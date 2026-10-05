@@ -1268,6 +1268,8 @@ model Shipment {
   serviceName        String
   trackingNumber     String?
   trackingUrl        String?
+  trackingState      String?
+  trackingEventAt    DateTime?
   labelStorageKey    String?
   labelMimeType      String?
   labelCreatedAt     DateTime?
