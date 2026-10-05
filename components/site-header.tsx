@@ -261,7 +261,6 @@ export function SiteHeader({
             {(["instagram", "facebook"] as const).map((platform) => {
               const destination = kosykinSocials.links[platform];
               const icon = kosykinSocials.icons[platform];
-              if (!destination && !icon) return null;
               const contents = icon ? <Image src={icon} alt="" width={20} height={20} unoptimized /> : platform === "instagram" ? <Camera size={20} aria-hidden="true" /> : <b className="kosy-facebook-glyph" aria-hidden="true">f</b>;
               return destination ? <a key={platform} href={destination} target="_blank" rel="noopener noreferrer" aria-label={platform}>{contents}</a> : <span key={platform} aria-hidden="true">{contents}</span>;
             })}
