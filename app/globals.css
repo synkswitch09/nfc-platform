@@ -5452,11 +5452,12 @@ body[data-store="kosykin"]:has(.kosy-home-hero) .site-header .nav-account {
 body[data-store="kosykin"] .site-header .kosy-header-socials {
   position: absolute;
   z-index: 3;
-  right: 35px;
-  bottom: 7px;
+  left: 35px;
+  right: auto;
+  bottom: 26px;
   gap: 14px;
 }
-body[data-store="kosykin"]:has(.kosy-home-hero) .site-header .kosy-header-socials { top: 608px; bottom: auto; }
+body[data-store="kosykin"]:has(.kosy-home-hero) .site-header .kosy-header-socials { top: 608px; left: auto; right: 35px; bottom: auto; }
 .kosy-header-socials a,
 .kosy-header-socials span { width: 40px; height: 40px; border-radius: 50%; background: #778498; color: white; }
 .kosy-header-socials img { filter: none !important; }
@@ -5504,7 +5505,7 @@ body[data-store="kosykin"] .modular-landing > .kosy-home-hero { max-width: 1440p
   body[data-store="kosykin"] .site-header nav.is-open { background: #233147; color: white; border-color: #3b5072; }
   body[data-store="kosykin"] .site-header nav.is-open .nav-centre a { color: white; }
   body[data-store="kosykin"] .site-header .kosy-header-socials,
-  body[data-store="kosykin"]:has(.kosy-home-hero) .site-header .kosy-header-socials { top: auto; right: 85px; bottom: 18px; }
+  body[data-store="kosykin"]:has(.kosy-home-hero) .site-header .kosy-header-socials { top: auto; left: auto; right: 85px; bottom: 18px; }
   .kosy-header-socials a, .kosy-header-socials span { width: 30px; height: 30px; }
   body[data-store="kosykin"] .modular-landing > .kosy-home-hero { padding-inline: 12px; }
   .kosy-hero-panel { min-height: 650px; border-radius: 0 0 22px 22px; }
