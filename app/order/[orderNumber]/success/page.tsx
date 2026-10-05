@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { CheckCircle2 } from "lucide-react";
 import { ClearCartOnSuccess } from "@/components/clear-cart-on-success";
 import { OrderSupportForm } from "@/components/order-support-form";
+import { CustomerShippingStatus } from "@/components/customer-shipping-status";
 import { CommerceAnalyticsEvent } from "@/components/commerce-analytics";
 import { getCurrentUser } from "@/lib/auth";
 import { sha256 } from "@/lib/crypto";
@@ -17,7 +18,7 @@ export default async function OrderSuccessPage({ params, searchParams }: { param
   const tokenHash = query.token ? sha256(query.token) : undefined;
   const order = await db.order.findFirst({
     where: { storeId: store.id, orderNumber, OR: [user ? { userId: user.id } : { id: "00000000-0000-0000-0000-000000000000" }, tokenHash ? { claimTokenHash: tokenHash, claimExpiresAt: { gt: new Date() } } : { id: "00000000-0000-0000-0000-000000000000" }] },
-    include: { items: true, productionBooking: true },
+    include: { items: true, productionBooking: true, shipments: { where: { idempotencyKey: { startsWith: "shippit:" } }, orderBy: { createdAt: "asc" } } },
   });
   if (!order) notFound();
   const money = new Intl.NumberFormat("en-AU", { style: "currency", currency: order.currency });
@@ -31,6 +32,7 @@ export default async function OrderSuccessPage({ params, searchParams }: { param
     {order.productionBooking && !order.productionBooking.releasedAt && <p className="notice">Estimated dispatch: {order.productionBooking.promisedAt.toLocaleDateString("en-AU")}</p>}
     <div className="card receipt"><div><span>Order</span><strong>{order.orderNumber}</strong></div><div><span>Status</span><strong>{customerStatus}</strong></div>{order.items.map(item => <div key={item.id}><span>{item.productName} · {item.variantName} × {item.quantity}</span><strong>{money.format(item.unitPriceCents * item.quantity / 100)}</strong></div>)}{order.discountCents > 0 && <div><span>Discount</span><strong>-{money.format(order.discountCents / 100)}</strong></div>}<div className="receipt-total"><span>Total</span><strong>{money.format(order.totalCents / 100)}</strong></div></div>
     {!order.userId && claimUrl && <div className="post-purchase"><p className="eyebrow">Next step</p><h2>Create an account to manage your {store.displayName} purchase</h2><p>Your purchase is complete. A free account keeps this order and its available product controls in one place.</p><div className="actions"><Link className="button" href={registerUrl}>Create account with email</Link><a className="button secondary" href={`/api/auth/oauth/google/start${socialNext}`}>Continue with Google</a><a className="button secondary" href={`/api/auth/oauth/apple/start${socialNext}`}>Continue with Apple</a><Link className="button secondary" href={claimUrl}>I already have an account</Link></div><p className="fine-print">The order is linked only after the signed-in email matches the verified checkout email and this private claim token.</p></div>}
+    <CustomerShippingStatus parcels={order.shipments} />
     {paid && <OrderSupportForm orderId={order.id} claimToken={query.token} />}
     {order.userId && <Link className="button" href="/dashboard">View my products</Link>}
   </section>;
