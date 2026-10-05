@@ -3,6 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import {
   ArrowRight,
+  Camera,
   Check,
   PackageCheck,
   Palette,
@@ -13,6 +14,7 @@ import {
 import { CategoryIcon } from "@/components/category-icon";
 import { KosykinHeroVisual } from "@/components/kosykin-hero-visual";
 import { parseLandingContent } from "@/lib/landing-sections";
+import type { FooterConfig } from "@/lib/site-chrome";
 import { typographyVariables, type TypographyOverride } from "@/lib/typography";
 import type { PublicCategory } from "@/lib/category-query";
 import type { LandingSectionType, Prisma } from "@prisma/client";
@@ -98,6 +100,7 @@ type ModularPageProps = {
   products: RenderProduct[];
   categories: RenderCategory[];
   store: { displayName: string; currency: string; nfcEnabled: boolean };
+  kosykinSocials?: { links: Record<string, string>; icons: FooterConfig["socialIcons"] };
   shopHref?: string;
   theme?: string;
   fallbackHeadline?: string;
@@ -140,6 +143,7 @@ export function ModularPageRenderer({
   products,
   categories,
   store,
+  kosykinSocials,
   shopHref = "/shop",
   theme = "coral",
   fallbackHeadline = name,
@@ -200,6 +204,14 @@ export function ModularPageRenderer({
                     </Link>}
                   </div>
                   <a className="kosy-hero-down" href="#kosy-collections" aria-label="Explore collections"><ArrowRight size={27} aria-hidden="true" /></a>
+                  {kosykinSocials && <div className="kosy-hero-socials" aria-label="Social media">
+                    {(["instagram", "facebook"] as const).map((platform) => {
+                      const destination = kosykinSocials.links[platform];
+                      const icon = kosykinSocials.icons[platform];
+                      const contents = icon ? <Image src={icon} alt="" width={20} height={20} unoptimized /> : platform === "instagram" ? <Camera size={20} aria-hidden="true" /> : <b className="kosy-facebook-glyph" aria-hidden="true">f</b>;
+                      return destination ? <a key={platform} href={destination} target="_blank" rel="noopener noreferrer" aria-label={platform}>{contents}</a> : <span key={platform} aria-hidden="true">{contents}</span>;
+                    })}
+                  </div>}
                 </div>
                 {features.length > 0 && <div className="kosy-trust-row">
                   {features.map((feature, index) => <div key={collectionKey("trust", feature, index)}>

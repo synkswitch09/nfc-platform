@@ -5322,13 +5322,7 @@ body[data-store="kosykin"] .site-header .nav-account {
   color: var(--header-account-text, inherit);
   white-space: nowrap;
 }
-.kosy-header-socials { display: flex; align-items: center; gap: 12px; }
-.kosy-header-socials a, .kosy-header-socials span { display: grid; place-items: center; width: 28px; height: 32px; color: inherit; }
-.kosy-header-socials img { width: 20px; height: 20px; object-fit: contain; }
 .kosy-facebook-glyph { font: 800 23px/1 Arial, sans-serif; }
-body[data-store="kosykin"]:not(:has(.kosy-home-hero)) .site-header .nav-centre a,
-body[data-store="kosykin"]:not(:has(.kosy-home-hero)) .site-header .kosy-header-socials { color: var(--header-text, #24334b); }
-body[data-store="kosykin"]:not(:has(.kosy-home-hero)) .kosy-header-socials img { filter: brightness(0) saturate(100%) invert(18%); }
 @media (min-width: 801px) {
   body[data-store="kosykin"] .site-header { padding-inline: 82px; }
   body[data-store="kosykin"] .site-header .brand {
@@ -5358,7 +5352,6 @@ body[data-store="kosykin"]:not(:has(.kosy-home-hero)) .kosy-header-socials img {
 .kosy-hero-down svg { transform: rotate(90deg); stroke-width: 2.4; }
 @media (max-width: 800px) {
   body[data-store="kosykin"] .site-header nav { color: #24334b; }
-  .kosy-header-socials { padding: 8px 10px; }
   .kosy-hero-title { top: 13%; left: 7%; width: 85%; }
   .kosy-hero-word { font-size: clamp(4.2rem, 15vw, 8rem); }
   .kosy-hero-side { font-size: clamp(1.4rem, 4vw, 2.4rem); }
@@ -5410,7 +5403,7 @@ body[data-store="kosykin"] .site-header .brand {
   color: #233147;
 }
 body[data-store="kosykin"] .site-header .kosy-brand-logo { width: 225px; max-width: 100%; height: auto; }
-body[data-store="kosykin"] .site-header nav { justify-content: flex-end; gap: 12px; margin-left: auto; }
+body[data-store="kosykin"] .site-header nav { justify-content: space-between; gap: 12px; width: 100%; margin-left: 0; }
 body[data-store="kosykin"] .site-header .nav-centre,
 body[data-store="kosykin"] .site-header .nav-actions { gap: 12px; }
 body[data-store="kosykin"] .site-header .nav-centre a,
@@ -5449,19 +5442,9 @@ body[data-store="kosykin"]:has(.kosy-home-hero) .site-header .nav-account {
 }
 .kosy-nav-cart .cart-link svg { width: 20px; height: 20px; }
 .kosy-nav-cart .cart-link span { position: absolute; right: 1px; top: 0; font-size: 10px; }
-body[data-store="kosykin"] .site-header .kosy-header-socials {
-  position: absolute;
-  z-index: 3;
-  left: 35px;
-  right: auto;
-  bottom: 26px;
-  gap: 14px;
-}
-body[data-store="kosykin"]:has(.kosy-home-hero) .site-header .kosy-header-socials { top: 608px; left: auto; right: 35px; bottom: auto; }
-.kosy-header-socials a,
-.kosy-header-socials span { width: 40px; height: 40px; border-radius: 50%; background: #778498; color: white; }
-.kosy-header-socials img { filter: none !important; }
-body[data-store="kosykin"] .site-header .kosy-header-socials { color: white; }
+.kosy-hero-socials { position: absolute; z-index: 4; right: 35px; bottom: 30px; display: flex; gap: 14px; }
+.kosy-hero-socials a, .kosy-hero-socials span { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; background: #778498; color: white; }
+.kosy-hero-socials img { width: 20px; height: 20px; object-fit: contain; }
 body[data-store="kosykin"] .modular-landing > .kosy-home-hero { max-width: 1440px; padding: 0 50px; }
 .kosy-hero-panel { min-height: 688px; background: linear-gradient(160deg, #233147 37%, #3b5072 100%); }
 .kosy-hero-title { position: absolute; width: 1px; height: 1px; overflow: hidden; }
@@ -5481,7 +5464,7 @@ body[data-store="kosykin"] .modular-landing > .kosy-home-hero { max-width: 1440p
   body[data-store="kosykin"] .site-header .nav-actions { gap: 12px; }
   body[data-store="kosykin"] .site-header .brand { width: 290px; }
 }
-@media (max-width: 800px) {
+@media (max-width: 950px) {
   body[data-store="kosykin"] .site-header,
   body[data-store="kosykin"]:has(.kosy-home-hero) .site-header {
     width: calc(100% - 24px);
@@ -5492,24 +5475,42 @@ body[data-store="kosykin"] .modular-landing > .kosy-home-hero { max-width: 1440p
     border-radius: 22px 22px 0 0;
   }
   body[data-store="kosykin"] .site-header .brand {
-    position: static;
-    width: 190px;
-    height: auto;
-    padding: 0;
-    transform: none;
-    border-radius: 0;
-    background: transparent;
+    position: absolute;
+    left: 50%;
+    top: -16px;
+    width: min(290px, 50vw);
+    height: 72px;
+    padding: 5px 14px 8px;
+    transform: translateX(-50%);
+    border-radius: 0 0 35px 35px;
+    background: #fff;
   }
-  body[data-store="kosykin"] .site-header .kosy-brand-logo { width: 155px; }
-  body[data-store="kosykin"] .site-header .mobile-nav-toggle { color: #233147; }
-  body[data-store="kosykin"] .site-header nav.is-open { background: #233147; color: white; border-color: #3b5072; }
+  body[data-store="kosykin"] .site-header .kosy-brand-logo { width: min(190px, 100%); }
+  body[data-store="kosykin"] .site-header .mobile-nav-toggle { display: grid; margin-left: auto; color: #233147; }
+  body[data-store="kosykin"] .site-header nav { display: none; }
+  body[data-store="kosykin"] .site-header nav.is-open {
+    display: grid;
+    position: absolute;
+    z-index: 20;
+    left: 16px;
+    right: 16px;
+    top: calc(100% - 4px);
+    width: auto;
+    padding: 18px;
+    border: 1px solid #3b5072;
+    border-radius: 18px;
+    background: #233147;
+    color: white;
+    box-shadow: var(--shadow);
+  }
+  body[data-store="kosykin"] .site-header nav.is-open .nav-centre,
+  body[data-store="kosykin"] .site-header nav.is-open .nav-actions { display: grid; justify-items: start; }
   body[data-store="kosykin"] .site-header nav.is-open .nav-centre a { color: white; }
-  body[data-store="kosykin"] .site-header .kosy-header-socials,
-  body[data-store="kosykin"]:has(.kosy-home-hero) .site-header .kosy-header-socials { top: auto; left: auto; right: 85px; bottom: 18px; }
-  .kosy-header-socials a, .kosy-header-socials span { width: 30px; height: 30px; }
   body[data-store="kosykin"] .modular-landing > .kosy-home-hero { padding-inline: 12px; }
   .kosy-hero-panel { min-height: 650px; border-radius: 0 0 22px 22px; }
   .kosy-hero-visual { inset: 7% 1% 37%; }
   .kosy-hero-bottom { width: 82%; bottom: 11%; }
   .kosy-hero-bottom p { font-size: 1rem; }
+  .kosy-hero-socials { right: 20px; bottom: 22px; gap: 8px; }
+  .kosy-hero-socials a, .kosy-hero-socials span { width: 32px; height: 32px; }
 }

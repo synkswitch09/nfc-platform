@@ -2,13 +2,13 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { Camera, Menu, Radio, Shapes, X } from "lucide-react";
+import { Menu, Radio, Shapes, X } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useState, type CSSProperties, type ReactNode } from "react";
 import { CartLink } from "@/components/cart-link";
 import { LanguageSelector } from "@/components/language-selector";
 import { localizedPath, type SystemCopy } from "@/lib/i18n";
-import { isNavigationActive, type FooterConfig, type HeaderConfig } from "@/lib/site-chrome";
+import { isNavigationActive, type HeaderConfig } from "@/lib/site-chrome";
 import { typographyStyle } from "@/lib/typography";
 
 type CategoryLink = { name: string; slug: string };
@@ -28,7 +28,7 @@ export function SiteHeader({
   config,
   storeName,
   storeLogoUrl,
-  kosykinSocials,
+  kosykinLayout = false,
   categories,
   pages,
   commerce,
@@ -42,7 +42,7 @@ export function SiteHeader({
   config: HeaderConfig;
   storeName: string;
   storeLogoUrl: string | null;
-  kosykinSocials?: { links: Record<string, string>; icons: FooterConfig["socialIcons"] };
+  kosykinLayout?: boolean;
   categories: CategoryLink[];
   pages: PageLink[];
   commerce: boolean;
@@ -250,7 +250,7 @@ export function SiteHeader({
         }}
       >
         <div className="nav-centre">
-          {navItems.filter((item) => !kosykinSocials || item.id !== "cart").map((item) => (
+          {navItems.filter((item) => !kosykinLayout || item.id !== "cart").map((item) => (
             <span className="nav-item" key={item.id}>
               {item.content}
             </span>
@@ -267,7 +267,7 @@ export function SiteHeader({
           )}
           {commerce && (
             <>
-              {kosykinSocials && config.showCart && <span className="kosy-nav-cart" onClick={close}><CartLink label={copy.cart} itemsLabel={copy.items} href={href("/cart")} /></span>}
+              {kosykinLayout && config.showCart && <span className="kosy-nav-cart" onClick={close}><CartLink label={copy.cart} itemsLabel={copy.items} href={href("/cart")} /></span>}
               <Link
                 className="nav-shop"
                 href={href(config.shopHref)}
@@ -303,14 +303,6 @@ export function SiteHeader({
           )}
         </div>
       </nav>
-      {kosykinSocials && <div className="kosy-header-socials" aria-label="Social media">
-        {(["instagram", "facebook"] as const).map((platform) => {
-          const destination = kosykinSocials.links[platform];
-          const icon = kosykinSocials.icons[platform];
-          const contents = icon ? <Image src={icon} alt="" width={20} height={20} unoptimized /> : platform === "instagram" ? <Camera size={20} aria-hidden="true" /> : <b className="kosy-facebook-glyph" aria-hidden="true">f</b>;
-          return destination ? <a key={platform} href={destination} target="_blank" rel="noopener noreferrer" aria-label={platform}>{contents}</a> : <span key={platform} aria-hidden="true">{contents}</span>;
-        })}
-      </div>}
     </header>
   );
 }

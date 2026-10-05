@@ -161,7 +161,7 @@ export default async function RootLayout({
             config={store.slug === "kosykin" ? { ...settings.headerConfig, showCategories: false, customLinks: [] } : settings.headerConfig}
             storeName={settings.storeName}
             storeLogoUrl={store.logoUrl}
-            kosykinSocials={store.slug === "kosykin" ? { links: settings.socialLinks, icons: settings.footerConfig.socialIcons } : undefined}
+            kosykinLayout={store.slug === "kosykin"}
             categories={categories}
             pages={store.slug === "kosykin" ? [] : pageNavigation.filter((page) => page.showInHeader).map((page) => ({ name: page.headerLabel || page.name, slug: page.slug, order: page.navigationOrder }))}
             commerce={commerce}
