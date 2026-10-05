@@ -5327,7 +5327,7 @@ body[data-store="kosykin"] .site-header .nav-account {
 .kosy-header-socials img { width: 20px; height: 20px; object-fit: contain; }
 .kosy-facebook-glyph { font: 800 23px/1 Arial, sans-serif; }
 @media (min-width: 801px) {
-  body[data-store="kosykin"] .site-header { padding-inline: 60px; }
+  body[data-store="kosykin"] .site-header { padding-inline: 82px; }
   body[data-store="kosykin"] .site-header .brand {
     position: absolute; left: 50%; top: 0; transform: translateX(-50%);
     min-height: 70px; padding: 8px 28px 13px; border-radius: 0 0 32px 32px;
