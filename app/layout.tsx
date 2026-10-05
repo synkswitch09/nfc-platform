@@ -181,6 +181,7 @@ export default async function RootLayout({
             storeName={settings.storeName}
             storeLogoUrl={store.logoUrl}
             socialLinks={settings.socialLinks}
+            showSocials={store.slug !== "kosykin"}
             pages={pageNavigation.filter((page) => page.showInFooter).map((page) => ({ name: page.footerLabel || page.name, slug: page.slug, order: page.navigationOrder }))}
             nfcEnabled={nfcEnabled}
             copy={copy}

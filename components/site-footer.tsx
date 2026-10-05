@@ -29,6 +29,7 @@ export function SiteFooter({
   storeName,
   storeLogoUrl,
   socialLinks,
+  showSocials = true,
   pages,
   nfcEnabled,
   copy,
@@ -39,6 +40,7 @@ export function SiteFooter({
   storeName: string;
   storeLogoUrl: string | null;
   socialLinks: Record<string, string>;
+  showSocials?: boolean;
   pages: PageLink[];
   nfcEnabled: boolean;
   copy: SystemCopy;
@@ -120,7 +122,7 @@ export function SiteFooter({
         {copyright}
       </p>
       <div className="footer-end">
-        {socials.length > 0 && (
+        {showSocials && socials.length > 0 && (
           <div className="footer-socials">
             {socials.map((platform) => {
               const Icon = socialIcons[platform];
