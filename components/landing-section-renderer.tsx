@@ -190,13 +190,9 @@ export function ModularPageRenderer({
               <section key={renderSectionKey(section, sectionIndex)} className="kosy-home-hero" {...presentation}>
                 <div className="kosy-hero-panel">
                   <div className="kosy-hero-title">
-                    <h1 aria-label={`${common.eyebrow} ${common.headline} ${text(value.sideLabel)}`}>
-                      <span className="kosy-hero-prefix" aria-hidden="true">{common.eyebrow}</span>
-                      <span className="kosy-hero-word" aria-hidden="true">{common.headline}</span>
-                      <span className="kosy-hero-side" aria-hidden="true">{text(value.sideLabel)}</span>
-                    </h1>
+                    <h1 className="sr-only">{common.eyebrow} {common.headline} {text(value.sideLabel)}</h1>
                   </div>
-                  {common.imageUrl && <KosykinHeroVisual src={common.imageUrl} alt={common.imageAlt || `${name} product`} />}
+                  <KosykinHeroVisual src={text(value.artworkUrl) || "/images/kosykin/wavy-hero.webp"} alt="" />
                   <div className="kosy-hero-bottom">
                     <p>{common.copy || fallbackCopy}</p>
                     {value.ctaVisible !== false && text(value.ctaLabel) && <Link className="kosy-hero-cta" href={text(value.ctaHref) || shopHref} style={buttonStyle(value, "cta")}>

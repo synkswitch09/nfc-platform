@@ -256,6 +256,7 @@ const baseCopy = {
 const narrativeSchema = z.object({
   ...baseCopy,
   sideLabel: z.string().trim().max(60).default(""),
+  artworkUrl: imageUrl,
   layout: z
     .enum(["IMAGE_LEFT", "IMAGE_RIGHT", "TEXT_ONLY", "CENTRED"])
     .default("IMAGE_RIGHT"),

@@ -943,9 +943,14 @@ function NarrativeFields({
         <summary>Images and media layout</summary>
         <div className="field-grid">
         {section.type === "HERO" && section.content.layoutVariant === "KOSYKIN_WAVY" && (
-          <label className="field">Side title (e.g. Collection)
-            <input maxLength={60} value={string(section.content.sideLabel)} onChange={(event) => onChange({ sideLabel: event.target.value })} />
-          </label>
+          <>
+            <label className="field">Side title (e.g. Collection)
+              <input maxLength={60} value={string(section.content.sideLabel)} onChange={(event) => onChange({ sideLabel: event.target.value })} />
+            </label>
+            <CategoryImageUploadField categoryId={categoryId} uploadEndpoint={mediaUploadEndpoint}
+              label="Complete hero artwork (headline and product)" value={string(section.content.artworkUrl)}
+              onChange={(artworkUrl) => onChange({ artworkUrl })} />
+          </>
         )}
         <label className="field">
           Layout

@@ -218,7 +218,7 @@ export function SiteHeader({
             unoptimized
           />
         ) : storeName.toLowerCase() === "kosykin" ? (
-          <span className="kosy-brand-wordmark">{storeName}</span>
+          <Image className="kosy-brand-logo" src="/images/kosykin/logo.png" alt={storeName} width={225} height={58} priority />
         ) : (
           <>
             <span className="brand-mark">
@@ -250,21 +250,13 @@ export function SiteHeader({
         }}
       >
         <div className="nav-centre">
-          {navItems.map((item) => (
+          {navItems.filter((item) => !kosykinSocials || item.id !== "cart").map((item) => (
             <span className="nav-item" key={item.id}>
               {item.content}
             </span>
           ))}
         </div>
         <div className="nav-actions">
-          {kosykinSocials && <div className="kosy-header-socials" aria-label="Social media">
-            {(["instagram", "facebook"] as const).map((platform) => {
-              const destination = kosykinSocials.links[platform];
-              const icon = kosykinSocials.icons[platform];
-              const contents = icon ? <Image src={icon} alt="" width={20} height={20} unoptimized /> : platform === "instagram" ? <Camera size={20} aria-hidden="true" /> : <b className="kosy-facebook-glyph" aria-hidden="true">f</b>;
-              return destination ? <a key={platform} href={destination} target="_blank" rel="noopener noreferrer" aria-label={platform}>{contents}</a> : <span key={platform} aria-hidden="true">{contents}</span>;
-            })}
-          </div>}
           {config.showLanguage && locales.length > 1 && (
             <LanguageSelector
               locale={locale}
@@ -275,6 +267,7 @@ export function SiteHeader({
           )}
           {commerce && (
             <>
+              {kosykinSocials && config.showCart && <span className="kosy-nav-cart" onClick={close}><CartLink label={copy.cart} itemsLabel={copy.items} href={href("/cart")} /></span>}
               <Link
                 className="nav-shop"
                 href={href(config.shopHref)}
@@ -310,6 +303,14 @@ export function SiteHeader({
           )}
         </div>
       </nav>
+      {kosykinSocials && <div className="kosy-header-socials" aria-label="Social media">
+        {(["instagram", "facebook"] as const).map((platform) => {
+          const destination = kosykinSocials.links[platform];
+          const icon = kosykinSocials.icons[platform];
+          const contents = icon ? <Image src={icon} alt="" width={20} height={20} unoptimized /> : platform === "instagram" ? <Camera size={20} aria-hidden="true" /> : <b className="kosy-facebook-glyph" aria-hidden="true">f</b>;
+          return destination ? <a key={platform} href={destination} target="_blank" rel="noopener noreferrer" aria-label={platform}>{contents}</a> : <span key={platform} aria-hidden="true">{contents}</span>;
+        })}
+      </div>}
     </header>
   );
 }
