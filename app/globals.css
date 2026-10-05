@@ -5305,3 +5305,67 @@ body[data-store="tapkin"] .footer-links {
 @media (prefers-reduced-motion: reduce) {
   .kosy-hero-object, .kosy-collection-orb, .kosy-collection-orb img { transition: none; transform: none !important; }
 }
+/* Kosykin's shared identity follows the visitor throughout the storefront. */
+body[data-store="kosykin"] .site-header {
+  position: relative;
+  z-index: 10;
+  color: var(--header-text, #24334b);
+  background: var(--header-background, #fff);
+}
+body[data-store="kosykin"] .site-header .brand-mark { display: none; }
+.kosy-brand-wordmark { font-size: clamp(1.45rem, 2.3vw, 2rem); font-weight: 900; letter-spacing: -.065em; text-transform: lowercase; }
+body[data-store="kosykin"] .site-header .nav-account {
+  border: 1px solid var(--header-account-border, currentColor);
+  border-radius: 999px;
+  padding: 11px 18px;
+  background: var(--header-account-background, transparent);
+  color: var(--header-account-text, inherit);
+  white-space: nowrap;
+}
+.kosy-header-socials { display: flex; align-items: center; gap: 12px; }
+.kosy-header-socials a, .kosy-header-socials span { display: grid; place-items: center; width: 28px; height: 32px; color: inherit; }
+.kosy-header-socials img { width: 20px; height: 20px; object-fit: contain; }
+.kosy-facebook-glyph { font: 800 23px/1 Arial, sans-serif; }
+@media (min-width: 801px) {
+  body[data-store="kosykin"] .site-header { padding-inline: 60px; }
+  body[data-store="kosykin"] .site-header .brand {
+    position: absolute; left: 50%; top: 0; transform: translateX(-50%);
+    min-height: 70px; padding: 8px 28px 13px; border-radius: 0 0 32px 32px;
+    background: #fff; color: #24334b;
+  }
+  body[data-store="kosykin"] .site-header nav { justify-content: space-between; }
+  body[data-store="kosykin"] .site-header .nav-centre { gap: 16px; }
+  body[data-store="kosykin"] .site-header .nav-actions { gap: 12px; }
+  body[data-store="kosykin"]:has(.kosy-home-hero) .site-header { background: transparent; color: #fcf6eb; }
+  body[data-store="kosykin"]:has(.kosy-home-hero) .site-header .nav-account { color: #fcf6eb; }
+}
+/* Keep the headline and the product in separate regions at every breakpoint. */
+.kosy-hero-title { inset: 26% auto auto 6%; width: 54%; z-index: 3; }
+.modular-landing .kosy-hero-title h1 { display: block; }
+.kosy-hero-prefix { position: static; display: block; margin-bottom: .1em; }
+.kosy-hero-word { display: block; font-size: clamp(5rem, 10vw, 9.4rem); line-height: .86; }
+.kosy-hero-side { position: static; display: block; width: auto; max-width: 13ch; margin-top: .22em; font-size: clamp(1.8rem, 3.4vw, 3.3rem); overflow-wrap: normal; }
+.kosy-hero-visual { inset: 10% 2% 14% 58%; z-index: 2; }
+.kosy-hero-float { width: 100%; height: 100%; animation: kosy-float 5s ease-in-out infinite; }
+@keyframes kosy-float { 0%, 100% { transform: translateY(0) rotate(-1deg); } 50% { transform: translateY(-14px) rotate(1deg); } }
+.kosy-hero-bottom { bottom: 12%; width: min(390px, 47%); }
+.kosy-hero-cta { transition: background-color .2s ease, color .2s ease; }
+.kosy-hero-cta:hover { transform: none; box-shadow: none; background: #f2e9dc; }
+.kosy-hero-down { bottom: 0; height: 49px; align-items: start; padding-top: 8px; }
+.kosy-hero-down svg { transform: rotate(90deg); stroke-width: 2.4; }
+@media (max-width: 800px) {
+  body[data-store="kosykin"] .site-header nav { color: #24334b; }
+  .kosy-header-socials { padding: 8px 10px; }
+  .kosy-hero-title { top: 13%; left: 7%; width: 85%; }
+  .kosy-hero-word { font-size: clamp(4.2rem, 15vw, 8rem); }
+  .kosy-hero-side { font-size: clamp(1.4rem, 4vw, 2.4rem); }
+  .kosy-hero-visual { inset: 30% 3% 19% 38%; }
+  .kosy-hero-bottom { bottom: 9%; width: 60%; }
+}
+@media (max-width: 540px) {
+  .kosy-hero-title { top: 15%; }
+  .kosy-hero-word { font-size: clamp(3.8rem, 16vw, 5.8rem); }
+  .kosy-hero-visual { inset: 31% 1% 25% 27%; }
+  .kosy-hero-bottom { width: 84%; bottom: 8%; }
+}
+@media (prefers-reduced-motion: reduce) { .kosy-hero-float { animation: none; } }

@@ -2,7 +2,7 @@ import type { LandingSectionDraft } from "@/lib/landing-sections";
 
 /** The two completed regions in the Kosykin Zeplin home; all copy and media remain CMS fields. */
 export function kosykinHomeTemplate(): LandingSectionDraft[] {
-  const category = (title: string, description: string, background: string, order: number) => ({
+  const category = (title: string, slug: string, description: string, background: string, order: number) => ({
     id: crypto.randomUUID(),
     icon: "sparkles",
     title,
@@ -11,6 +11,7 @@ export function kosykinHomeTemplate(): LandingSectionDraft[] {
     imageAlt: title,
     ctaLabel: "Explore",
     ctaHref: "/shop",
+    categorySlug: slug,
     iconBackgroundColour: background,
     visible: true,
     order,
@@ -48,11 +49,11 @@ export function kosykinHomeTemplate(): LandingSectionDraft[] {
         layoutVariant: "KOSYKIN_CIRCLES",
         headline: "Good taste. Everyday purpose. A little more you.",
         items: [
-          category("Stands & Holders", "Give your tech a happy home", "#eace70", 0),
-          category("Planters & Vases", "A little style for your leafy friends", "#e6b49d", 1),
-          category("Home & Lighting", "Bright ideas for cosy corners", "#b9afcf", 2),
-          category("Personalised Pieces", "Made with your personal twist", "#d4a6a9", 3),
-          category("Seasonal Specials", "A Kosy touch for every occasion", "#a9c2cc", 4),
+          category("Stands & Holders", "stands-holders", "Give your tech a happy home", "#eace70", 0),
+          category("Planters & Vases", "planters-vases", "A little style for your leafy friends", "#e6b49d", 1),
+          category("Home & Lighting", "home-lighting", "Bright ideas for cosy corners", "#b9afcf", 2),
+          category("Personalised Pieces", "personalised-pieces", "Made with your personal twist", "#d4a6a9", 3),
+          category("Seasonal Specials", "seasonal-specials", "A Kosy touch for every occasion", "#a9c2cc", 4),
         ],
       },
     },

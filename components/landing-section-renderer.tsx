@@ -27,6 +27,7 @@ type Item = {
   imageAlt?: string;
   ctaLabel?: string;
   ctaHref?: string;
+  categorySlug?: string;
   ctaBackground?: string;
   ctaTextColour?: string;
   ctaBorderColour?: string;
@@ -202,7 +203,7 @@ export function ModularPageRenderer({
                       {text(value.ctaLabel)} <span aria-hidden="true"><ArrowRight size={19} /></span>
                     </Link>}
                   </div>
-                  <a className="kosy-hero-down" href="#kosy-collections" aria-label="Explore collections">⌄</a>
+                  <a className="kosy-hero-down" href="#kosy-collections" aria-label="Explore collections"><ArrowRight size={27} aria-hidden="true" /></a>
                 </div>
                 {features.length > 0 && <div className="kosy-trust-row">
                   {features.map((feature, index) => <div key={collectionKey("trust", feature, index)}>
@@ -892,6 +893,7 @@ function breadcrumbKey(item: { label: string; href?: string }, index: number) {
 }
 
 function kosyCollectionHref(item: Item, categories: RenderCategory[], shopHref: string) {
+  if (item.categorySlug) return `/shop?category=${encodeURIComponent(item.categorySlug)}`;
   if (item.ctaHref && item.ctaHref !== "/shop") return item.ctaHref;
   const category = categories.find((candidate) => candidate.name.toLocaleLowerCase() === item.title?.toLocaleLowerCase());
   return category ? `/shop?category=${encodeURIComponent(category.slug)}` : shopHref;

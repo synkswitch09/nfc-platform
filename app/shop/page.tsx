@@ -31,7 +31,7 @@ export default async function ShopPage({ searchParams }: { searchParams: Promise
   const [pool, booked] = await Promise.all([db.productionPool.findUnique({ where: { environment: store.environment } }), db.productionBooking.aggregate({ where: { environment: store.environment, releasedAt: null }, _sum: { minutes: true } })]);
   const available = (variant: { trackInventory: boolean; backorderPolicy: string; inventory: number; reservedInventory: number; productionMinutes: number | null }) => canAcceptVariant(variant, pool, booked._sum.minutes ?? 0);
   const products = await db.product.findMany({
-    where: { storeId: store.id, status: "ACTIVE", shopVisible: true, category: { storeId: store.id, status: "PUBLISHED" }, ...(selected.length ? { categoryId: { in: selected.map(category => category.id) } } : {}) },
+    where: { storeId: store.id, status: "ACTIVE", shopVisible: true, category: { storeId: store.id, status: "PUBLISHED" }, ...(categoriesFrom(query).length ? { categoryId: { in: selected.map(category => category.id) } } : {}) },
     include: { category: true, images: { orderBy: [{ isPrimary: "desc" }, { sortOrder: "asc" }] }, variants: { where: { active: true }, orderBy: { priceCents: "asc" } }, options: { where: { type: "COLOUR" }, include: { values: { where: { active: true }, orderBy: { sortOrder: "asc" } } }, take: 1 } },
     orderBy: [{ featured: "desc" }, { createdAt: "desc" }],
   });

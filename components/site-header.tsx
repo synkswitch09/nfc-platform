@@ -2,13 +2,13 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { Menu, Radio, Shapes, X } from "lucide-react";
+import { Camera, Menu, Radio, Shapes, X } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useState, type CSSProperties, type ReactNode } from "react";
 import { CartLink } from "@/components/cart-link";
 import { LanguageSelector } from "@/components/language-selector";
 import { localizedPath, type SystemCopy } from "@/lib/i18n";
-import { isNavigationActive, type HeaderConfig } from "@/lib/site-chrome";
+import { isNavigationActive, type FooterConfig, type HeaderConfig } from "@/lib/site-chrome";
 import { typographyStyle } from "@/lib/typography";
 
 type CategoryLink = { name: string; slug: string };
@@ -28,6 +28,7 @@ export function SiteHeader({
   config,
   storeName,
   storeLogoUrl,
+  kosykinSocials,
   categories,
   pages,
   commerce,
@@ -41,6 +42,7 @@ export function SiteHeader({
   config: HeaderConfig;
   storeName: string;
   storeLogoUrl: string | null;
+  kosykinSocials?: { links: Record<string, string>; icons: FooterConfig["socialIcons"] };
   categories: CategoryLink[];
   pages: PageLink[];
   commerce: boolean;
@@ -215,6 +217,8 @@ export function SiteHeader({
             priority
             unoptimized
           />
+        ) : storeName.toLowerCase() === "kosykin" ? (
+          <span className="kosy-brand-wordmark">{storeName}</span>
         ) : (
           <>
             <span className="brand-mark">
@@ -253,6 +257,15 @@ export function SiteHeader({
           ))}
         </div>
         <div className="nav-actions">
+          {kosykinSocials && <div className="kosy-header-socials" aria-label="Social media">
+            {(["instagram", "facebook"] as const).map((platform) => {
+              const destination = kosykinSocials.links[platform];
+              const icon = kosykinSocials.icons[platform];
+              if (!destination && !icon) return null;
+              const contents = icon ? <Image src={icon} alt="" width={20} height={20} unoptimized /> : platform === "instagram" ? <Camera size={20} aria-hidden="true" /> : <b className="kosy-facebook-glyph" aria-hidden="true">f</b>;
+              return destination ? <a key={platform} href={destination} target="_blank" rel="noopener noreferrer" aria-label={platform}>{contents}</a> : <span key={platform} aria-hidden="true">{contents}</span>;
+            })}
+          </div>}
           {config.showLanguage && locales.length > 1 && (
             <LanguageSelector
               locale={locale}

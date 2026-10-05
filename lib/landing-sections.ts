@@ -277,6 +277,7 @@ const itemSchema = z.object({
   imageAlt: z.string().trim().max(180).default(""),
   ctaLabel: z.string().trim().max(60).default(""),
   ctaHref: safeLink,
+  categorySlug: z.string().trim().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/).or(z.literal("")).default(""),
   ctaBackground: colour,
   ctaTextColour: colour,
   ctaBorderColour: colour,

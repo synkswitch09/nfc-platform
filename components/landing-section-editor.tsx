@@ -63,6 +63,7 @@ type SectionItem = {
   imageAlt?: string;
   ctaLabel?: string;
   ctaHref?: string;
+  categorySlug?: string;
   ctaBackground?: string;
   ctaTextColour?: string;
   ctaBorderColour?: string;
@@ -108,6 +109,7 @@ const blankItem = (): SectionItem => ({
   imageAlt: "",
   ctaLabel: "",
   ctaHref: "",
+  categorySlug: "",
   ctaBackground: "",
   ctaTextColour: "",
   ctaBorderColour: "",
@@ -124,6 +126,7 @@ export function LandingSectionEditor({
   categoryId,
   categorySlug,
   kosykinHome = false,
+  collectionCategories = [],
   initial,
   endpoint,
   mediaUploadEndpoint,
@@ -133,6 +136,7 @@ export function LandingSectionEditor({
   categoryId?: string;
   categorySlug?: string;
   kosykinHome?: boolean;
+  collectionCategories?: Array<{ name: string; slug: string }>;
   initial: LandingSectionDraft[];
   endpoint?: string;
   mediaUploadEndpoint?: string;
@@ -490,6 +494,7 @@ export function LandingSectionEditor({
             )}
             {itemTypes.has(section.type) && (
               <ItemsEditor
+                collectionCategories={kosykinHome && section.type === "FEATURE_BADGES" && section.content.layoutVariant === "KOSYKIN_CIRCLES" ? collectionCategories : undefined}
                 categoryId={categoryId}
                 mediaUploadEndpoint={mediaUploadEndpoint}
                 sectionType={section.type}
@@ -1299,12 +1304,14 @@ function CtaFields({
 }
 
 function ItemsEditor({
+  collectionCategories,
   categoryId,
   mediaUploadEndpoint,
   sectionType,
   items,
   onChange,
 }: {
+  collectionCategories?: Array<{ name: string; slug: string }>;
   categoryId?: string;
   mediaUploadEndpoint?: string;
   sectionType: LandingSectionType;
@@ -1328,6 +1335,13 @@ function ItemsEditor({
     >
       {items.map((item, index) => (
         <div className="variant-editor" key={item.id}>
+          {collectionCategories && <label className="field">Shop category
+            <select value={item.categorySlug ?? ""} onChange={(event) => update(index, { categorySlug: event.target.value })}>
+              <option value="">Choose category</option>
+              {collectionCategories.map((category) => <option key={category.slug} value={category.slug}>{category.name}</option>)}
+            </select>
+            <small>Visitors see this category selected in Shop. Hidden categories will not appear in Shop.</small>
+          </label>}
           <label className="field">
             Icon
             <input

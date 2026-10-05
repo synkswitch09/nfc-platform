@@ -19,9 +19,9 @@ export function KosykinHeroVisual({ src, alt }: { src: string; alt: string }) {
   }
   return (
     <div className="kosy-hero-visual" onPointerMove={move} onPointerLeave={reset}>
-      <div ref={visual} className="kosy-hero-object" style={{ "--tilt-x": "0deg", "--tilt-y": "0deg" } as CSSProperties}>
+      <div className="kosy-hero-float"><div ref={visual} className="kosy-hero-object" style={{ "--tilt-x": "0deg", "--tilt-y": "0deg" } as CSSProperties}>
         <Image src={src} alt={alt} fill priority sizes="(max-width: 720px) 88vw, 48vw" unoptimized />
-      </div>
+      </div></div>
     </div>
   );
 }
