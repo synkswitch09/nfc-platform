@@ -50,7 +50,8 @@ export function FormValidationFeedback() {
         help.id = input.dataset.validationId;
         help.dataset.validationFor = input.dataset.validationId;
         help.className = "form-error field-validation-message";
-        field.append(help);
+        if (field instanceof HTMLLabelElement) field.append(help);
+        else input.insertAdjacentElement("afterend", help);
       }
       help.textContent = message;
       field.classList.add("field-invalid");
@@ -62,7 +63,7 @@ export function FormValidationFeedback() {
     function describe(input: HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement) {
       const label = fieldFor(input)?.querySelector("span.field-label")?.textContent?.trim()
         || input.closest("label")?.childNodes[0]?.textContent?.trim()
-        || input.getAttribute("aria-label") || input.name || "This field";
+        || input.getAttribute("aria-label") || input.getAttribute("placeholder") || input.name || "This field";
       const name = label.replace(/\s*\(optional\).*/i, "").trim();
       if (input.validity.valueMissing) return input instanceof HTMLSelectElement
         ? `Select ${name.toLowerCase()} to continue.`
