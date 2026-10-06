@@ -5,7 +5,7 @@ export type KeychainSize = "regular" | "medium" | "large";
 export type KeychainBaseShape = "contour" | "rectangle";
 export type KeychainAttachment = "keychain" | "tag";
 export type KeychainLetterFinish = "raised" | "inlaid";
-export type KeychainInput = { name: string; font: KeychainFont; size: KeychainSize; baseShape?: KeychainBaseShape; attachment?: KeychainAttachment; letterFinish?: KeychainLetterFinish; baseColour: string; letterColour: string };
+export type KeychainInput = { name: string; font: KeychainFont; size: KeychainSize; baseShape?: KeychainBaseShape; attachment?: KeychainAttachment; letterFinish?: KeychainLetterFinish; baseColour: string; letterColour: string; palette?: Record<string, string> };
 export type Triangle = [number, number, number, number, number, number, number, number, number];
 export type KeychainModel = { base: Triangle[]; baseCap: Triangle[]; letters: Triangle[]; widthMm: number; heightMm: number; centreX: number; centreY: number; letterHeightMm: number; input: KeychainInput };
 
@@ -114,7 +114,7 @@ export function generateKeychain(input: KeychainInput): KeychainModel {
   if (input.baseShape !== undefined && !(input.baseShape in KEYCHAIN_BASE_SHAPES)) throw new Error("Choose an available backing shape.");
   if (input.attachment !== undefined && !["keychain", "tag"].includes(input.attachment)) throw new Error("Choose a tag or keyring.");
   if (input.letterFinish !== undefined && !(input.letterFinish in KEYCHAIN_LETTER_FINISHES)) throw new Error("Choose raised or flush letters.");
-  if (!(input.baseColour in KEYCHAIN_COLOURS) || !(input.letterColour in KEYCHAIN_COLOURS) || input.baseColour === input.letterColour) throw new Error("Choose two different available colours.");
+  if (!/^#[0-9a-fA-F]{6}$/.test((input.palette ?? KEYCHAIN_COLOURS)[input.baseColour] ?? "") || !/^#[0-9a-fA-F]{6}$/.test((input.palette ?? KEYCHAIN_COLOURS)[input.letterColour] ?? "") || input.baseColour === input.letterColour) throw new Error("Choose two different available colours.");
   const config = KEYCHAIN_SIZES[input.size];
   const font = keychainFontOutlines(input.font);
   const cap = Math.max(...font.glyphs.H.paths.flat().map(point => point[1]));
@@ -217,6 +217,6 @@ export function generateKeychain(input: KeychainInput): KeychainModel {
   // so their top faces are coplanar at z=4 without overlapping material.
   const flushCap = new Uint8Array(backing.length);
   if (flush) for (let index=0;index<flushCap.length;index++) flushCap[index]=backing[index] && !lettering[index] ? 1 : 0;
-  const baseMesh=gridMesh(backing,w,h,originX,originY,pitch,0,3);
-  return { base: baseMesh, baseCap: flush ? gridMesh(flushCap,w,h,originX,originY,pitch,3,4) : [], letters: gridMesh(lettering,w,h,originX,originY,pitch,3,4), widthMm: Math.round(actualWidth*10)/10, heightMm: Math.round((top-bottom+1)*pitch*10)/10, centreX: originX+(left+rightPixel+1)*pitch/2, centreY: originY+(bottom+top+1)*pitch/2, letterHeightMm: Math.round(height*10)/10, input: {...input,name,baseShape:input.baseShape ?? "contour",attachment:input.attachment ?? "keychain",letterFinish:input.letterFinish ?? "raised"} };
+  const baseMesh=gridMesh(backing,w,h,originX,originY,pitch,0,flush?1.2:2.6);
+  return { base: baseMesh, baseCap: flush ? gridMesh(flushCap,w,h,originX,originY,pitch,1.2,2.6) : [], letters: gridMesh(lettering,w,h,originX,originY,pitch,flush?1.2:2.6,flush?2.6:4), widthMm: Math.round(actualWidth*10)/10, heightMm: Math.round((top-bottom+1)*pitch*10)/10, centreX: originX+(left+rightPixel+1)*pitch/2, centreY: originY+(bottom+top+1)*pitch/2, letterHeightMm: Math.round(height*10)/10, input: {...input,name,baseShape:input.baseShape ?? "contour",attachment:input.attachment ?? "keychain",letterFinish:input.letterFinish ?? "raised"} };
 }

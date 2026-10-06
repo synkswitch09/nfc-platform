@@ -26,6 +26,7 @@ import {
 } from "@/lib/landing-sections";
 import { fontFamilies, fontWeights, type TypographyOverride } from "@/lib/typography";
 import { petsLandingTemplate } from "@/lib/pets-landing-template";
+import { kosykinHomeTemplate } from "@/lib/kosykin-home-template";
 
 const itemTypes = new Set<LandingSectionType>([
   "FEATURE_BADGES",
@@ -62,6 +63,7 @@ type SectionItem = {
   imageAlt?: string;
   ctaLabel?: string;
   ctaHref?: string;
+  categorySlug?: string;
   ctaBackground?: string;
   ctaTextColour?: string;
   ctaBorderColour?: string;
@@ -107,6 +109,7 @@ const blankItem = (): SectionItem => ({
   imageAlt: "",
   ctaLabel: "",
   ctaHref: "",
+  categorySlug: "",
   ctaBackground: "",
   ctaTextColour: "",
   ctaBorderColour: "",
@@ -122,6 +125,8 @@ const blankItem = (): SectionItem => ({
 export function LandingSectionEditor({
   categoryId,
   categorySlug,
+  kosykinHome = false,
+  collectionCategories = [],
   initial,
   endpoint,
   mediaUploadEndpoint,
@@ -130,6 +135,8 @@ export function LandingSectionEditor({
 }: {
   categoryId?: string;
   categorySlug?: string;
+  kosykinHome?: boolean;
+  collectionCategories?: Array<{ name: string; slug: string }>;
   initial: LandingSectionDraft[];
   endpoint?: string;
   mediaUploadEndpoint?: string;
@@ -252,6 +259,19 @@ export function LandingSectionEditor({
             </button>
           </div>
         )
+      )}
+      {!structureLocked && kosykinHome && (
+        <div className="landing-template-choice">
+          <div>
+            <strong>Kosykin home design</strong>
+            <p>Load the two completed Zeplin regions. Edit the wording, images, trust messages and collection cards here before publishing.</p>
+          </div>
+          <button className="button secondary" type="button" disabled={pending} onClick={() => {
+            if (sections.length && !window.confirm("Replace this Home's current sections with the Kosykin design? Save sections to publish.")) return;
+            setSections(kosykinHomeTemplate());
+            setMessage("Kosykin design loaded. Review and save sections to publish.");
+          }}>Use Kosykin design</button>
+        </div>
       )}
       {!structureLocked && (
         <div className="landing-builder-add">
@@ -474,6 +494,7 @@ export function LandingSectionEditor({
             )}
             {itemTypes.has(section.type) && (
               <ItemsEditor
+                collectionCategories={kosykinHome && section.type === "FEATURE_BADGES" && section.content.layoutVariant === "KOSYKIN_CIRCLES" ? collectionCategories : undefined}
                 categoryId={categoryId}
                 mediaUploadEndpoint={mediaUploadEndpoint}
                 sectionType={section.type}
@@ -690,6 +711,8 @@ function SectionStyle({
           >
             <option value="DEFAULT">Standard</option>
             <option value="PASTEL_EDITORIAL">Editorial photo and cards</option>
+            {section.type === "HERO" && <option value="KOSYKIN_WAVY">Kosykin · Wavy hero</option>}
+            {section.type === "FEATURE_BADGES" && <option value="KOSYKIN_CIRCLES">Kosykin · Circular collections</option>}
           </select>
         </label>
         <label className="field">
@@ -919,6 +942,16 @@ function NarrativeFields({
       <details className="admin-subpanel" open>
         <summary>Images and media layout</summary>
         <div className="field-grid">
+        {section.type === "HERO" && section.content.layoutVariant === "KOSYKIN_WAVY" && (
+          <>
+            <label className="field">Side title (e.g. Collection)
+              <input maxLength={60} value={string(section.content.sideLabel)} onChange={(event) => onChange({ sideLabel: event.target.value })} />
+            </label>
+            <CategoryImageUploadField categoryId={categoryId} uploadEndpoint={mediaUploadEndpoint}
+              label="Complete hero artwork (headline and product)" value={string(section.content.artworkUrl)}
+              onChange={(artworkUrl) => onChange({ artworkUrl })} />
+          </>
+        )}
         <label className="field">
           Layout
           <select
@@ -1276,12 +1309,14 @@ function CtaFields({
 }
 
 function ItemsEditor({
+  collectionCategories,
   categoryId,
   mediaUploadEndpoint,
   sectionType,
   items,
   onChange,
 }: {
+  collectionCategories?: Array<{ name: string; slug: string }>;
   categoryId?: string;
   mediaUploadEndpoint?: string;
   sectionType: LandingSectionType;
@@ -1305,6 +1340,13 @@ function ItemsEditor({
     >
       {items.map((item, index) => (
         <div className="variant-editor" key={item.id}>
+          {collectionCategories && <label className="field">Shop category
+            <select value={item.categorySlug ?? ""} onChange={(event) => update(index, { categorySlug: event.target.value })}>
+              <option value="">Choose category</option>
+              {collectionCategories.map((category) => <option key={category.slug} value={category.slug}>{category.name}</option>)}
+            </select>
+            <small>Visitors see this category selected in Shop. Hidden categories will not appear in Shop.</small>
+          </label>}
           <label className="field">
             Icon
             <input

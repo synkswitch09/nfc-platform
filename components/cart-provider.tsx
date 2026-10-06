@@ -21,6 +21,7 @@ type CartContextValue = {
   setQuantity: (key: string, quantity: number) => void;
   remove: (key: string) => void;
   clear: () => void;
+  removePurchased: (purchased: { key: string; quantity: number }[]) => void;
 };
 
 const CartContext = createContext<CartContextValue | null>(null);
@@ -57,6 +58,12 @@ export function CartProvider({ children, storageKey }: { children: React.ReactNo
     setQuantity: (key, quantity) => setLines(current => current.map(line => line.key === key ? { ...line, quantity: Math.max(1, Math.min(10, quantity)) } : line)),
     remove: key => setLines(current => current.filter(line => line.key !== key)),
     clear: () => setLines([]),
+    removePurchased: purchased => setLines(current => current.flatMap(line => {
+      const bought = purchased.find(item => item.key === line.key);
+      if (!bought) return [line];
+      const remaining = line.quantity - bought.quantity;
+      return remaining > 0 ? [{ ...line, quantity: remaining }] : [];
+    })),
   }), [lines, ready]);
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;

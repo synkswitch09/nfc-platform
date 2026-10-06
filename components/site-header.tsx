@@ -28,6 +28,7 @@ export function SiteHeader({
   config,
   storeName,
   storeLogoUrl,
+  kosykinLayout = false,
   categories,
   pages,
   commerce,
@@ -41,6 +42,7 @@ export function SiteHeader({
   config: HeaderConfig;
   storeName: string;
   storeLogoUrl: string | null;
+  kosykinLayout?: boolean;
   categories: CategoryLink[];
   pages: PageLink[];
   commerce: boolean;
@@ -215,6 +217,8 @@ export function SiteHeader({
             priority
             unoptimized
           />
+        ) : storeName.toLowerCase() === "kosykin" ? (
+          <Image className="kosy-brand-logo" src="/images/kosykin/logo.png" alt={storeName} width={225} height={58} priority />
         ) : (
           <>
             <span className="brand-mark">
@@ -246,7 +250,7 @@ export function SiteHeader({
         }}
       >
         <div className="nav-centre">
-          {navItems.map((item) => (
+          {navItems.filter((item) => !kosykinLayout || item.id !== "cart").map((item) => (
             <span className="nav-item" key={item.id}>
               {item.content}
             </span>
@@ -263,6 +267,7 @@ export function SiteHeader({
           )}
           {commerce && (
             <>
+              {kosykinLayout && config.showCart && <span className="kosy-nav-cart" onClick={close}><CartLink label={copy.cart} itemsLabel={copy.items} href={href("/cart")} iconOnly /></span>}
               <Link
                 className="nav-shop"
                 href={href(config.shopHref)}

@@ -3669,10 +3669,13 @@ body:has(.admin-shell) > footer {
 }
 .option-value-row {
   display: grid;
-  grid-template-columns: 1fr 1fr 0.7fr repeat(3, 0.8fr) auto;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(100px, 0.5fr) auto;
   gap: 10px;
   align-items: end;
 }
+.option-value-row > * { min-width: 0; }
+.variant-editor { min-width: 0; max-width: 100%; }
+.variant-colour-options { flex-wrap: wrap; max-width: 100%; }
 .colour-field > span {
   display: grid;
   grid-template-columns: 52px 1fr;
@@ -3700,6 +3703,20 @@ body:has(.admin-shell) > footer {
   padding: 12px;
   background: white;
 }
+.shipping-provider-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px 20px;
+  padding: 14px 0;
+}
+.shipping-provider-row > div { display: grid; gap: 4px; min-width: 0; }
+.shipping-provider-row small { display: block; color: var(--muted); }
+.shipping-provider-row .upload-error { flex-basis: 100%; }
+.shipping-editor-list { display: grid; gap: 10px; margin-top: 14px; }
+.shipping-settings-form { display: grid; gap: 14px; margin-top: 14px; }
+.shipping-add-package { margin-top: 12px; }
 .admin-subpanel > summary {
   cursor: pointer;
   font-weight: 800;
@@ -5156,4 +5173,434 @@ body[data-store="tapkin"] .footer-links {
   body[data-store="tapkin"] .footer-end { order: 2; justify-items: start; gap: 18px; }
   body[data-store="tapkin"] .footer-links { flex-wrap: wrap; }
   body[data-store="tapkin"] .footer-copyright { order: 3; }
+}
+
+.shop-filters { display:flex; flex-wrap:wrap; gap:16px; align-items:end; margin:24px 0; padding:18px; border:1px solid var(--line); border-radius:16px; }
+.shop-filters fieldset { border:0; padding:0; min-width:100%; }
+.shop-filters legend { font-weight:700; margin-bottom:8px; }
+.shop-filter-categories { display:flex; flex-wrap:wrap; gap:12px 20px; }
+.shop-filter-categories label { display:flex; align-items:center; gap:6px; }
+.shop-filters > label { display:grid; gap:5px; }
+.shop-filters input[type=number] { width:110px; }
+.shop-filters input, .shop-filters select { min-height:38px; }
+.shop-card-image { position:relative; display:block; }
+.shop-card-image .shop-card-second { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; opacity:0; transition:opacity .2s ease; }
+.shop-card-image:hover .shop-card-second { opacity:1; }
+.shop-card-availability { font-size:.86rem; color:var(--muted); }
+.shop-card-swatches { display:flex; align-items:center; gap:8px; margin:10px 0; }
+.shop-card-swatches a { width:22px; height:22px; border-radius:50%; border:2px solid white; box-shadow:0 0 0 1px var(--line); }
+.gallery-price { font-size:1.4rem; font-weight:700; padding:12px 0; }
+.cart-added { padding:16px; border:1px solid var(--line); border-radius:14px; margin-top:14px; background:var(--paper); }
+.cart-added > div { display:flex; flex-wrap:wrap; gap:8px; margin-top:10px; }
+@media(max-width:700px) { .product-layout .product-gallery .gallery-price { display:none; } .purchase-panel .purchase-button { position:sticky; bottom:0; z-index:5; } }
+.product-model-viewer { display:block; width:100%; height:min(510px,65vw,calc(100dvh - 110px)); border-radius:18px; background:var(--paper); }
+.product-gallery-video { display:block; width:100%; max-height:520px; aspect-ratio:1; object-fit:contain; border-radius:18px; background:#111; }
+.product-media-thumb { width:100%; aspect-ratio:1; min-height:70px; display:grid; align-content:center; justify-items:center; gap:4px; border-radius:14px; background:var(--paper); font-size:1.3rem; font-weight:700; }
+.product-media-thumb small { font-size:.7rem; font-weight:500; }
+.variant-media { min-width:0; border-top:1px solid var(--line); padding-top:16px; display:grid; gap:12px; }
+.variant-media h3 { margin:0; font-size:1rem; }
+.variant-media-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,245px),1fr)); gap:14px; }
+.variant-media-group { min-width:0; padding:14px; border:1px solid var(--line); border-radius:12px; display:grid; align-content:start; gap:10px; }
+.variant-media-group .field { min-width:0; }
+.variant-media-group input[type="file"] { width:100%; max-width:100%; }
+.variant-media-group .button { justify-self:start; }
+.variant-media-photos { display:grid; grid-template-columns:repeat(auto-fill,minmax(105px,1fr)); gap:8px; }
+.variant-media-photo { min-width:0; border:1px solid var(--line); border-radius:10px; padding:6px; display:grid; gap:5px; }
+.variant-media-photo img { width:100%; aspect-ratio:1; object-fit:cover; border-radius:7px; }
+.variant-media-photo input { min-width:0; width:100%; }
+.variant-media-photo > div { display:flex; justify-content:space-between; }
+.variant-video-row { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:6px; }
+.variant-video-row video { grid-column:1 / -1; width:100%; max-height:160px; background:#111; border-radius:8px; }
+.variant-video-row span { min-width:0; overflow-wrap:anywhere; }
+.variant-model-actions { display:flex; flex-wrap:wrap; align-items:center; gap:10px; }
+.product-3d-button { margin:10px 0; }
+@media(max-width:700px) { .product-model-viewer { height:clamp(150px,28dvh,240px); } }
+/* Kosykin's two editable Home regions. Depth is progressive enhancement. */
+.modular-landing > .kosy-home-hero,
+.modular-landing > .kosy-collections { max-width: 1280px; }
+.kosy-home-hero { padding: 0 18px; }
+.kosy-hero-panel {
+  position: relative;
+  min-height: 610px;
+  border-radius: 32px;
+  overflow: hidden;
+  isolation: isolate;
+  color: #fcf6eb;
+  background: linear-gradient(155deg, #213047 40%, #3b5275 100%);
+}
+.kosy-hero-title { position: absolute; inset: 18% 5% auto; z-index: 1; pointer-events: none; }
+.modular-landing .kosy-hero-title h1 {
+  position: relative; display: flex; align-items: center; margin: 0;
+  color: var(--section-headline, #fcf6eb);
+  font-weight: 900; letter-spacing: -.075em; line-height: .9;
+}
+.kosy-hero-prefix { position: absolute; top: -2.2rem; left: 0; font-size: clamp(2rem, 4vw, 3.6rem); letter-spacing: -.04em; }
+.kosy-hero-word { font-size: clamp(7rem, 19vw, 16rem); }
+.kosy-hero-side { position: absolute; right: 0; top: 10%; width: 2.9em; font-size: clamp(1.4rem, 3.3vw, 3.1rem); line-height: 1.05; letter-spacing: -.03em; overflow-wrap: anywhere; }
+.kosy-hero-visual { position: absolute; inset: 3% 17% 9% 33%; z-index: 2; perspective: 1000px; }
+.kosy-hero-object { position: relative; width: 100%; height: 100%; transform: rotateX(var(--tilt-x)) rotateY(var(--tilt-y)); transition: transform .22s ease-out; filter: drop-shadow(0 28px 22px rgb(8 18 35 / 24%)); }
+.kosy-hero-object img { object-fit: contain; }
+.kosy-hero-bottom { position: absolute; z-index: 3; left: 6%; bottom: 10%; width: min(365px, 40%); }
+.kosy-hero-bottom p { margin: 0 0 22px; font-size: 1rem; line-height: 1.4; }
+.kosy-hero-cta { display: inline-flex; gap: 22px; align-items: center; min-height: 46px; padding: 5px 5px 5px 22px; background: #fff; color: #24334b; border-radius: 99px; font-weight: 800; text-decoration: none; transition: transform .2s ease, box-shadow .2s ease; }
+.kosy-hero-cta span { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 50%; background: #24334b; color: #fff; }
+.kosy-hero-cta:hover { transform: translateY(-3px); box-shadow: 0 10px 22px #18253a88; }
+.kosy-hero-cta:focus-visible { outline: 3px solid #fff; outline-offset: 4px; }
+.kosy-hero-down { position: absolute; z-index: 4; left: 50%; bottom: -21px; display: grid; place-items: start center; width: 90px; height: 45px; transform: translateX(-50%); border-radius: 50% 50% 0 0; background: #fff; color: #24334b; font-size: 2rem; text-decoration: none; }
+.kosy-trust-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 28px; padding: 90px 38px 46px; color: #24334b; }
+.kosy-trust-row > div { display: flex; align-items: center; gap: 14px; }
+.kosy-trust-icon { display: grid; place-items: center; width: 42px; flex: 0 0 42px; }
+.kosy-trust-row strong, .kosy-trust-row small { display: block; line-height: 1.25; }
+.kosy-trust-row small { margin-top: 4px; font-size: .82rem; }
+.kosy-collections { padding: 12px 18px 85px; text-align: center; color: #24334b; }
+.kosy-collections .section-head { margin: 0 auto 58px; }
+.kosy-collections .section-head h2 { max-width: none; color: var(--section-headline, #24334b); font-size: clamp(1.6rem, 3vw, 2.6rem); font-weight: 900; }
+.kosy-collection-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 28px; }
+.kosy-collection-card { display: flex; flex-direction: column; align-items: center; gap: 8px; color: inherit; text-decoration: none; }
+.kosy-collection-orb { display: grid; place-items: center; width: min(100%, 186px); aspect-ratio: 1; margin-bottom: 12px; border-radius: 50%; transform-style: preserve-3d; transition: transform .32s ease, box-shadow .32s ease; }
+.kosy-collection-orb img { width: 74%; height: 74%; object-fit: contain; transform: translateZ(28px); transition: transform .32s ease; }
+.kosy-collection-card:hover .kosy-collection-orb, .kosy-collection-card:focus-visible .kosy-collection-orb { transform: perspective(700px) rotateX(9deg) rotateY(-12deg) translateY(-6px); box-shadow: 12px 18px 22px #24334b30; }
+.kosy-collection-card:hover img, .kosy-collection-card:focus-visible img { transform: translateZ(42px) scale(1.08); }
+.kosy-collection-card:focus-visible { outline: 3px solid #24334b; outline-offset: 5px; border-radius: 10px; }
+.kosy-collection-card strong { font-size: .95rem; font-weight: 800; }
+.kosy-collection-card > span:last-child { max-width: 170px; font-size: .83rem; line-height: 1.3; }
+@media (max-width: 800px) {
+  .kosy-hero-panel { min-height: 690px; }
+  .kosy-hero-title { top: 12%; left: 7%; right: 7%; }
+  .kosy-hero-word { font-size: clamp(5rem, 19vw, 9rem); }
+  .kosy-hero-side { top: 95%; right: 3%; font-size: clamp(1.2rem, 4vw, 2rem); width: 4.5em; overflow-wrap: normal; }
+  .kosy-hero-visual { inset: 18% 3% 23% 12%; }
+  .kosy-hero-bottom { width: 78%; left: 7%; bottom: 8%; }
+  .kosy-trust-row { padding: 55px 20px 32px; gap: 14px; }
+  .kosy-collection-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 28px 16px; }
+}
+@media (max-width: 540px) {
+  .kosy-home-hero { padding: 0 12px; }
+  .kosy-hero-panel { min-height: 620px; border-radius: 22px; }
+  .kosy-hero-prefix { top: -1.5rem; font-size: 1.7rem; }
+  .kosy-hero-side { top: 110%; right: 0; }
+  .kosy-hero-visual { inset: 18% 0 27% 2%; }
+  .kosy-hero-bottom { bottom: 9%; width: 86%; }
+  .kosy-hero-bottom p { font-size: .9rem; }
+  .kosy-trust-row { grid-template-columns: 1fr; padding: 45px 22px 30px; }
+  .kosy-collection-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .kosy-collections .section-head { margin-bottom: 35px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .kosy-hero-object, .kosy-collection-orb, .kosy-collection-orb img { transition: none; transform: none !important; }
+}
+/* Kosykin's shared identity follows the visitor throughout the storefront. */
+body[data-store="kosykin"] .site-header {
+  position: relative;
+  z-index: 10;
+  color: var(--header-text, #24334b);
+  background: var(--header-background, #fff);
+}
+body[data-store="kosykin"] .site-header .brand-mark { display: none; }
+.kosy-brand-wordmark { font-size: clamp(1.45rem, 2.3vw, 2rem); font-weight: 900; letter-spacing: -.065em; text-transform: lowercase; }
+body[data-store="kosykin"] .site-header .nav-account {
+  border: 1px solid var(--header-account-border, currentColor);
+  border-radius: 999px;
+  padding: 11px 18px;
+  background: var(--header-account-background, transparent);
+  color: var(--header-account-text, inherit);
+  white-space: nowrap;
+}
+.kosy-facebook-glyph { font: 800 23px/1 Arial, sans-serif; }
+@media (min-width: 801px) {
+  body[data-store="kosykin"] .site-header { padding-inline: 82px; }
+  body[data-store="kosykin"] .site-header .brand {
+    position: absolute; left: 50%; top: 0; transform: translateX(-50%);
+    min-height: 70px; padding: 8px 28px 13px; border-radius: 0 0 32px 32px;
+    background: #fff; color: #24334b;
+  }
+  body[data-store="kosykin"] .site-header nav { justify-content: space-between; }
+  body[data-store="kosykin"] .site-header .nav-centre { gap: 16px; }
+  body[data-store="kosykin"] .site-header .nav-actions { gap: 12px; }
+}
+/* Keep the headline and the product in separate regions at every breakpoint. */
+.kosy-hero-title { inset: 26% auto auto 6%; width: 54%; z-index: 3; }
+.modular-landing .kosy-hero-title h1 { display: block; }
+.kosy-hero-prefix { position: static; display: block; margin-bottom: .1em; }
+.kosy-hero-word { display: block; font-size: clamp(5rem, 10vw, 9.4rem); line-height: .86; }
+.kosy-hero-side { position: static; display: block; width: auto; max-width: 13ch; margin-top: .22em; font-size: clamp(1.8rem, 3.4vw, 3.3rem); overflow-wrap: normal; }
+.kosy-hero-visual { inset: 10% 2% 14% 58%; z-index: 2; }
+.kosy-hero-float { width: 100%; height: 100%; animation: kosy-float 5s ease-in-out infinite; }
+@keyframes kosy-float { 0%, 100% { transform: translateY(0) rotate(-1deg); } 50% { transform: translateY(-14px) rotate(1deg); } }
+.kosy-hero-bottom { bottom: 12%; width: min(390px, 47%); }
+.kosy-hero-cta { transition: background-color .2s ease, color .2s ease; }
+.kosy-hero-cta:hover { transform: none; box-shadow: none; background: #f2e9dc; }
+.kosy-hero-down { bottom: 0; height: 49px; align-items: start; padding-top: 8px; }
+.kosy-hero-down svg { transform: rotate(90deg); stroke-width: 2.4; }
+@media (max-width: 800px) {
+  body[data-store="kosykin"] .site-header nav { color: #24334b; }
+  .kosy-hero-title { top: 13%; left: 7%; width: 85%; }
+  .kosy-hero-word { font-size: clamp(4.2rem, 15vw, 8rem); }
+  .kosy-hero-side { font-size: clamp(1.4rem, 4vw, 2.4rem); }
+  .kosy-hero-visual { inset: 30% 3% 19% 38%; }
+  .kosy-hero-bottom { bottom: 9%; width: 60%; }
+}
+@media (max-width: 540px) {
+  .kosy-hero-title { top: 15%; }
+  .kosy-hero-word { font-size: clamp(3.8rem, 16vw, 5.8rem); }
+  .kosy-hero-visual { inset: 31% 1% 25% 27%; }
+  .kosy-hero-bottom { width: 84%; bottom: 8%; }
+}
+@media (prefers-reduced-motion: reduce) { .kosy-hero-float { animation: none; } }
+
+/* The Wavy home artwork follows the proportions of the Zeplin canvas. */
+body[data-store="kosykin"] .category-landing:has(.kosy-home-hero) {
+  width: 100%;
+  max-width: 1440px;
+  padding: 0 0 90px;
+}
+body[data-store="kosykin"] .site-header {
+  width: calc(100% - 100px);
+  max-width: 1340px;
+  min-height: 92px;
+  margin-top: 46px;
+  padding-inline: 46px;
+  border-radius: 28px 28px 0 0;
+  background: #233147;
+  color: #fbf6ed;
+}
+body[data-store="kosykin"]:has(.kosy-home-hero) .site-header {
+  margin-bottom: -92px;
+  background: #233147;
+}
+body[data-store="kosykin"] .site-header .brand {
+  position: absolute;
+  z-index: 2;
+  left: 50%;
+  top: -46px;
+  display: grid;
+  place-items: center;
+  width: min(360px, 30vw);
+  height: 86px;
+  min-height: 0;
+  padding: 0 26px 8px;
+  transform: translateX(-50%);
+  border-radius: 0 0 48px 48px;
+  background: #fff;
+  color: #233147;
+}
+body[data-store="kosykin"] .site-header .kosy-brand-logo { width: 225px; max-width: 100%; height: auto; }
+body[data-store="kosykin"] .site-header nav { justify-content: space-between; gap: 12px; width: 100%; margin-left: 0; }
+body[data-store="kosykin"] .site-header .nav-centre,
+body[data-store="kosykin"] .site-header .nav-actions { gap: 12px; }
+body[data-store="kosykin"] .site-header .nav-centre a,
+body[data-store="kosykin"]:has(.kosy-home-hero) .site-header .nav-centre a { color: #fbf6ed; opacity: 1; }
+body[data-store="kosykin"] .site-header .nav-centre a.active::after { display: none; }
+body[data-store="kosykin"] .site-header .nav-shop,
+body[data-store="kosykin"]:has(.kosy-home-hero) .site-header .nav-shop {
+  min-width: 110px;
+  min-height: 40px;
+  padding: 7px 22px;
+  border: 0;
+  border-radius: 99px;
+  background: #fff;
+  color: #233147;
+}
+body[data-store="kosykin"] .site-header .nav-account,
+body[data-store="kosykin"]:has(.kosy-home-hero) .site-header .nav-account {
+  min-width: 0;
+  padding: 8px 7px;
+  border-color: #fbf6ed91;
+  background: transparent;
+  color: #fbf6ed;
+  font-size: .72rem;
+}
+.kosy-nav-cart .cart-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: white;
+  color: #233147;
+  line-height: 1;
+}
+.kosy-nav-cart .cart-link svg { display: block; flex: none; width: 20px; height: 20px; }
+.kosy-nav-cart .cart-link span:not(.sr-only) { position: absolute; right: -4px; top: -4px; font-size: 10px; }
+.kosy-hero-socials { position: absolute; z-index: 4; right: 35px; bottom: 30px; display: flex; gap: 14px; }
+.kosy-hero-socials a, .kosy-hero-socials span { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; background: #778498; color: white; }
+.kosy-hero-socials img { width: 20px; height: 20px; object-fit: contain; }
+body[data-store="kosykin"] .modular-landing > .kosy-home-hero { max-width: 1440px; padding: 0 50px; }
+.kosy-hero-panel { min-height: 688px; background: linear-gradient(160deg, #233147 37%, #3b5072 100%); }
+.kosy-hero-title { position: absolute; width: 1px; height: 1px; overflow: hidden; }
+.kosy-hero-visual { z-index: 2; inset: 19.5% 6.2% 12% 6.2%; }
+.kosy-hero-object { filter: none; }
+.kosy-hero-object img { object-fit: contain; }
+.kosy-hero-float { animation: none; }
+.kosy-hero-bottom { left: 6.2%; bottom: 10.5%; width: min(410px, 43%); }
+.kosy-hero-bottom p { font-size: 1.18rem; line-height: 1.24; margin-bottom: 28px; }
+.kosy-hero-cta { min-height: 50px; padding-left: 32px; gap: 22px; }
+.kosy-hero-down { width: 100px; height: 43px; bottom: 0; padding-top: 8px; }
+.kosy-hero-down svg { transform: rotate(90deg); }
+
+@media (max-width: 1050px) {
+  body[data-store="kosykin"] .site-header { padding-inline: 24px; }
+  body[data-store="kosykin"] .site-header .nav-centre,
+  body[data-store="kosykin"] .site-header .nav-actions { gap: 12px; }
+  body[data-store="kosykin"] .site-header .brand { width: 290px; }
+}
+@media (max-width: 950px) {
+  body[data-store="kosykin"] .site-header,
+  body[data-store="kosykin"]:has(.kosy-home-hero) .site-header {
+    width: calc(100% - 24px);
+    min-height: 76px;
+    margin-top: 16px;
+    margin-bottom: 0;
+    padding-inline: 20px;
+    border-radius: 22px 22px 0 0;
+  }
+  body[data-store="kosykin"] .site-header .brand {
+    position: absolute;
+    left: 50%;
+    top: -16px;
+    width: min(290px, 50vw);
+    height: 72px;
+    padding: 5px 14px 8px;
+    transform: translateX(-50%);
+    border-radius: 0 0 35px 35px;
+    background: #fff;
+  }
+  body[data-store="kosykin"] .site-header .kosy-brand-logo { width: min(190px, 100%); }
+  body[data-store="kosykin"] .site-header .mobile-nav-toggle { display: grid; margin-left: auto; color: #233147; }
+  body[data-store="kosykin"] .site-header nav { display: none; }
+  body[data-store="kosykin"] .site-header nav.is-open {
+    display: grid;
+    position: absolute;
+    z-index: 20;
+    left: 16px;
+    right: 16px;
+    top: calc(100% - 4px);
+    width: auto;
+    padding: 18px;
+    border: 1px solid #3b5072;
+    border-radius: 18px;
+    background: #233147;
+    color: white;
+    box-shadow: var(--shadow);
+  }
+  body[data-store="kosykin"] .site-header nav.is-open .nav-centre,
+  body[data-store="kosykin"] .site-header nav.is-open .nav-actions { display: grid; justify-items: start; }
+  body[data-store="kosykin"] .site-header nav.is-open .nav-centre a { color: white; }
+  body[data-store="kosykin"] .modular-landing > .kosy-home-hero { padding-inline: 12px; }
+  .kosy-hero-panel { min-height: 650px; border-radius: 0 0 22px 22px; }
+  .kosy-hero-visual { inset: 7% 1% 37%; }
+  .kosy-hero-bottom { width: 82%; bottom: 11%; }
+  .kosy-hero-bottom p { font-size: 1rem; }
+  .kosy-hero-socials { right: 20px; bottom: 22px; gap: 8px; }
+  .kosy-hero-socials a, .kosy-hero-socials span { width: 32px; height: 32px; }
+}
+
+/* Kosykin's brand palette applies to the shared shopping flow. Section colours
+   configured in the CMS can still override individual content blocks. */
+body[data-store="kosykin"] {
+  --kosy-navy: #243247;
+  --kosy-cream: #f9f3e9;
+  --kosy-blush: #f9d6d5;
+  --kosy-gold: #e3bf5d;
+  --ink: var(--kosy-navy);
+  --paper: #ffffff;
+  --surface: #ffffff;
+  --brand: var(--kosy-navy);
+  --brand-dark: #3b5070;
+  --lime: var(--kosy-blush);
+  --muted: #5e6b7c;
+  --line: #dce2e9;
+  --shadow: 0 18px 55px rgb(36 50 71 / 10%);
+  accent-color: var(--kosy-navy);
+}
+body[data-store="kosykin"] .storefront-main :where(input, select, textarea):focus-visible,
+body[data-store="kosykin"] .storefront-main :where(a, button):focus-visible {
+  outline: 3px solid var(--kosy-gold);
+  outline-offset: 2px;
+}
+body[data-store="kosykin"] .storefront-main .eyebrow {
+  border-color: #eeddd8;
+  background: var(--kosy-cream);
+  color: var(--kosy-navy);
+}
+body[data-store="kosykin"] .shop-filters {
+  border-color: var(--line);
+  background: #fdfaf6;
+}
+body[data-store="kosykin"] .storefront-main .card,
+body[data-store="kosykin"] .storefront-main :where(.faq-section details, .product-detail) {
+  border-color: var(--line);
+}
+body[data-store="kosykin"] .storefront-main .button:not(.secondary):hover {
+  background: #3b5070;
+  border-color: #3b5070;
+}
+body[data-store="kosykin"] .storefront-main .button.lime {
+  background: var(--kosy-blush);
+  color: var(--kosy-navy);
+  border-color: var(--kosy-blush);
+}
+body[data-store="kosykin"] .site-footer {
+  border-color: var(--line);
+  background: #fdfaf6;
+  color: var(--kosy-navy);
+}
+body[data-store="kosykin"] .site-footer .footer-socials :is(a, .footer-social-preview) {
+  background: #778498;
+  border-radius: 50%;
+  color: white;
+}
+body[data-store="kosykin"] .site-footer .footer-socials a:hover {
+  background: var(--kosy-navy);
+  color: white;
+}
+
+html:has(body[data-store="kosykin"]) {
+  scrollbar-gutter: stable;
+}
+body[data-store="kosykin"] .site-header .nav-centre a.active {
+  font-weight: inherit;
+  text-decoration: underline;
+  text-decoration-color: var(--kosy-gold);
+  text-underline-offset: 8px;
+}
+
+/* Keep the shared chrome and each landing section on the same canvas. */
+body[data-store="kosykin"] .modular-landing > section,
+body[data-store="kosykin"] .site-footer {
+  width: calc(100% - 100px);
+  max-width: 1340px;
+  margin-inline: auto;
+}
+body[data-store="kosykin"] .modular-landing > .kosy-home-hero {
+  padding-inline: 0;
+}
+body[data-store="kosykin"] .kosy-nav-cart .cart-link {
+  color: #233147;
+}
+body[data-store="kosykin"] .storefront-main > .section {
+  width: calc(100% - 100px);
+  max-width: 1340px;
+  padding-inline: 0;
+}
+body[data-store="kosykin"] .storefront-main > .auth-shell {
+  width: calc(100% - 100px);
+  max-width: 1340px;
+  min-height: 0;
+  margin-inline: auto;
+  padding: 64px 0 80px;
+  place-items: start center;
+}
+@media (max-width: 950px) {
+  body[data-store="kosykin"] .modular-landing > section,
+  body[data-store="kosykin"] .site-footer,
+  body[data-store="kosykin"] .storefront-main > .section,
+  body[data-store="kosykin"] .storefront-main > .auth-shell {
+    width: calc(100% - 24px);
+  }
+  body[data-store="kosykin"] .storefront-main > .auth-shell {
+    padding-block: 40px 64px;
+  }
 }

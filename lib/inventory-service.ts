@@ -23,8 +23,8 @@ export async function orderReservations(tx: Prisma.TransactionClient, orderId: s
 
 export async function consumeStock(tx: Prisma.TransactionClient, input: { variantId: string; orderId: string; quantity: number; held: number; inventory: number; reservedInventory: number; backorder: boolean; reason?: string }) {
   const { variantId, orderId, quantity, held, inventory, reservedInventory, backorder } = input;
-  if (held < 0 || held > reservedInventory || (held && held !== quantity)) throw new InventoryConflict("Order reservation does not match its quantity");
-  const consumed = held ? quantity : backorder ? Math.min(quantity, Math.max(0, inventory - reservedInventory)) : quantity;
+  if (held < 0 || held > reservedInventory || held > quantity || (!backorder && held && held !== quantity)) throw new InventoryConflict("Order reservation does not match its quantity");
+  const consumed = held + (backorder ? Math.min(quantity - held, Math.max(0, inventory - reservedInventory)) : quantity - held);
   if (consumed || held) {
     const changed = await tx.productVariant.updateMany({
       where: { id: variantId, reservedInventory, inventory: { gte: reservedInventory + consumed - held } },
@@ -38,6 +38,7 @@ export async function consumeStock(tx: Prisma.TransactionClient, input: { varian
 export async function adjustStock(tx: Prisma.TransactionClient, input: { variantId: string; storeId: string; actorId: string; quantity: number; expectedInventory: number; reason: string }) {
   const variant = await tx.productVariant.findFirst({ where: { id: input.variantId, product: { storeId: input.storeId } } });
   if (!variant) return null;
+  if (!variant.trackInventory) throw new InventoryConflict("Made-to-order items use production capacity, not stock");
   if (variant.inventory !== input.expectedInventory) throw new InventoryConflict("Stock changed since this page was loaded. Refresh before adjusting it.");
   if (input.quantity < variant.reservedInventory) throw new InventoryConflict("Stock cannot be lower than reserved units");
   const changed = await tx.productVariant.updateMany({ where: { id: variant.id, inventory: input.expectedInventory, reservedInventory: variant.reservedInventory }, data: { inventory: input.quantity } });

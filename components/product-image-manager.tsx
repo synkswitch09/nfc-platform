@@ -65,21 +65,21 @@ export function ProductImageManager({ productId, images, optionValues, variants 
     router.refresh();
   }
 
-  return <section className="admin-panel">
-    <div className="panel-heading"><div><h2>Product images</h2><p>Assign an image to a colour choice or variant so the storefront gallery follows the customer selection.</p></div></div>
+  return <section className="admin-panel" id="product-images">
+    <div className="panel-heading"><div><h2>Shared product photos</h2><p>These photos appear across variants. Add photos specific to a colour or size inside that variant above.</p></div></div>
     {images.length > 0 && <div className="admin-image-grid">{images.map((image, index) => <article key={image.id}>
       <Image src={image.url} alt={image.altText} width={320} height={320} unoptimized />
       <input defaultValue={image.altText} aria-label="Alternative text" onBlur={event => event.target.value !== image.altText && update(image, { altText: event.target.value })} />
       <label className="field compact">Colour choice<select value={image.optionValueId ?? ""} onChange={event => update(image, { optionValueId: event.target.value || null })}><option value="">All colours</option>{optionValues.map(value => <option key={value.id} value={value.id}>{value.label}</option>)}</select></label>
-      <label className="field compact">Variant image<select value={image.variantId ?? ""} onChange={event => update(image, { variantId: event.target.value || null })}><option value="">No direct variant</option>{variants.map(variant => <option key={variant.id} value={variant.id}>{variant.label}</option>)}</select></label>
+      {variants.length > 0 && <label className="field compact">Variant image<select value={image.variantId ?? ""} onChange={event => update(image, { variantId: event.target.value || null })}><option value="">No direct variant</option>{variants.map(variant => <option key={variant.id} value={variant.id}>{variant.label}</option>)}</select></label>}
       <div><button type="button" className={`text-button ${image.isPrimary ? "selected" : ""}`} onClick={() => update(image, { isPrimary: true })}><Star size={15} /> {image.isPrimary ? "Primary" : "Make primary"}</button><span className="image-order"><button type="button" className="icon-button neutral" disabled={index === 0} onClick={() => reorder(index, -1)} aria-label="Move image earlier"><ChevronUp size={16} /></button><button type="button" className="icon-button neutral" disabled={index === images.length - 1} onClick={() => reorder(index, 1)} aria-label="Move image later"><ChevronDown size={16} /></button><button type="button" className="icon-button" onClick={() => remove(image)} aria-label="Delete image"><Trash2 size={16} /></button></span></div>
     </article>)}</div>}
     <form className="image-upload" onSubmit={upload}>
       <label className="field">Image<input name="file" type="file" accept="image/png,image/jpeg,image/webp" required /></label>
       <label className="field">Alternative text<input name="altText" minLength={3} maxLength={160} placeholder="Describe the product for screen readers" required /></label>
       <label className="field">Colour choice<select name="optionValueId"><option value="">All colours</option>{optionValues.map(value => <option key={value.id} value={value.id}>{value.label}</option>)}</select></label>
-      <label className="field">Variant image<select name="variantId"><option value="">No direct variant</option>{variants.map(variant => <option key={variant.id} value={variant.id}>{variant.label}</option>)}</select></label>
-      <button className="button secondary" disabled={pending || images.length >= 10}><Upload size={16} /> {pending ? "Uploading…" : "Upload image"}</button>
+      {variants.length > 0 && <label className="field">Variant image<select name="variantId"><option value="">No direct variant</option>{variants.map(variant => <option key={variant.id} value={variant.id}>{variant.label}</option>)}</select></label>}
+      <button className="button secondary" disabled={pending || images.length >= 100}><Upload size={16} /> {pending ? "Uploading…" : "Upload image"}</button>
     </form>
     {message && <div className="form-error">{message}</div>}
   </section>;

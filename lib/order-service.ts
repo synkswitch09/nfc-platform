@@ -8,10 +8,12 @@ import { db } from "@/lib/db";
 import { hasStoreCapability, type Storefront } from "@/lib/storefront";
 import { manufacturingRequirements } from "@/lib/manufacturing";
 import { shippingCartHash, shippingDestinationHash } from "@/lib/shipping";
-import { notifyPaidOrder, queuePaidOrder } from "@/lib/order-notifications";
+import { notifyPaidOrder, queueOrderNotice, queuePaidOrder } from "@/lib/order-notifications";
 import type { ShippingDestination } from "@/lib/shipping";
 import { queueEtsyInventorySync } from "@/lib/etsy";
-import { isKeychainProduct, validateKeychainOptions } from "@/lib/keychain-order";
+import { isKeychainProduct, keychainPaletteFromOptions, validateKeychainOptions } from "@/lib/keychain-order";
+import { ProductionCapacityError, releaseProduction, reserveProduction } from "@/lib/production-capacity";
+import { calculatePromotion } from "@/lib/promotions";
 
 export type CheckoutItemInput = { variantId: string; quantity: number; personalisationChoice?: "BASIC" | "PERSONALISED"; personalisation?: Record<string, string> };
 export type CheckoutCustomerInput = {
@@ -25,7 +27,7 @@ export class CheckoutError extends Error {
   constructor(message: string, readonly status = 400) { super(message); }
 }
 
-export async function createPendingOrder(items: CheckoutItemInput[], customer: CheckoutCustomerInput, store: Storefront, shippingQuoteToken: string) {
+export async function createPendingOrder(items: CheckoutItemInput[], customer: CheckoutCustomerInput, store: Storefront, shippingQuoteToken: string, promotionCode?: string) {
   if (store.status !== StoreStatus.ACTIVE || !hasStoreCapability(store, StoreCapability.COMMERCE)) throw new CheckoutError("This store is not accepting orders", 409);
   const claimToken = customer.userId ? null : createOpaqueToken();
   return db.$transaction(async tx => {
@@ -43,9 +45,14 @@ export async function createPendingOrder(items: CheckoutItemInput[], customer: C
       let personalisationChoice;
       try {
         personalisationChoice = resolvePersonalisationChoice(variant.product.personalisationMode, item.personalisationChoice);
-        normalised = normalisePersonalisation(variant.product.options, item.personalisation, variant.product.personalisationMode, personalisationChoice);
+        normalised = normalisePersonalisation(variant.product.options, item.personalisation, variant.product.personalisationMode, personalisationChoice, variant.optionSelection as Record<string, string>);
         assertVariantSelection(variant.optionSelection, normalised.selectedOptions);
-        if (isKeychainProduct(store.slug, variant.product.slug)) validateKeychainOptions(normalised.personalisation, normalised.selectedOptions);
+        if (isKeychainProduct(store.slug, variant.product.slug)) {
+          const palette = keychainPaletteFromOptions(variant.product.options);
+          validateKeychainOptions(normalised.personalisation, normalised.selectedOptions, palette);
+          normalised.selectedOptions["base-colour-hex"] = palette[normalised.selectedOptions["base-colour"]];
+          normalised.selectedOptions["letter-colour-hex"] = palette[normalised.selectedOptions["letter-colour"]];
+        }
       }
       catch (error) { throw new CheckoutError(error instanceof Error ? error.message : "Invalid personalisation"); }
       const unitPriceCents = variant.priceCents + normalised.priceDeltaCents;
@@ -61,12 +68,34 @@ export async function createPendingOrder(items: CheckoutItemInput[], customer: C
         throw new CheckoutError(`${variant.product.name} does not have enough stock`, 409);
       }
     }
+    const productionMinutes = variants.reduce((total, variant) => {
+      const requested = requestedByVariant.get(variant.id) ?? 0;
+      const ready = variant.trackInventory ? Math.max(0, availableInventory(variant)) : 0;
+      const toMake = Math.max(0, requested - ready);
+      if (toMake && !variant.productionMinutes) throw new CheckoutError(`${variant.product.name} needs a production time before it can be ordered`, 409);
+      return total + toMake * (variant.productionMinutes ?? 0);
+    }, 0);
 
     const quote = await tx.shippingQuote.findFirst({ where: { tokenHash: sha256(shippingQuoteToken), storeId: store.id, status: "ACTIVE", expiresAt: { gt: new Date() } } });
     if (!quote || quote.cartHash !== shippingCartHash(items) || quote.destinationHash !== shippingDestinationHash(customer.shipping)) throw new CheckoutError("Your delivery quote expired or no longer matches this order", 409);
     const consumed = await tx.shippingQuote.updateMany({ where: { id: quote.id, status: "ACTIVE", expiresAt: { gt: new Date() } }, data: { status: "CONSUMED", consumedAt: new Date() } });
     if (consumed.count !== 1) throw new CheckoutError("Your delivery quote has already been used", 409);
-    const totals = calculateQuotedOrderTotals(lines.map(line => ({ unitPriceCents: line.unitPriceCents, quantity: line.item.quantity })), quote.amountCents);
+    const baseTotals = calculateQuotedOrderTotals(lines.map(line => ({ unitPriceCents: line.unitPriceCents, quantity: line.item.quantity })), quote.amountCents);
+    const now = new Date();
+    const activePromotions = await tx.promotion.findMany({ where: { storeId: store.id, active: true, OR: [{ startsAt: null }, { startsAt: { lte: now } }], AND: [{ OR: [{ endsAt: null }, { endsAt: { gt: now } }] }] } });
+    const code = promotionCode?.trim().toUpperCase();
+    const candidates = code ? activePromotions.filter(promotion => promotion.code === code) : activePromotions.filter(promotion => !promotion.code);
+    let promotion: typeof activePromotions[number] | undefined;
+    let discountCents = 0;
+    for (const candidate of candidates) {
+      if (candidate.allowedEmailHash && candidate.allowedEmailHash !== sha256(customer.email.trim().toLowerCase())) continue;
+      if (candidate.usageLimit !== null && await tx.order.count({ where: { promotionId: candidate.id, status: { in: ["PAYMENT_PENDING", "PAID", "PROCESSING", "READY_TO_SHIP", "SHIPPED", "DELIVERED", "COMPLETED"] } } }) >= candidate.usageLimit) continue;
+      const discount = calculatePromotion(candidate, lines.map(line => ({ productId: line.variant.productId, unitPriceCents: line.unitPriceCents, quantity: line.item.quantity, weightGrams: line.variant.product.weightGrams ?? 0 })), quote.amountCents, customer.shipping.country);
+      if (discount > discountCents) { promotion = candidate; discountCents = discount; }
+    }
+    if (code && !promotion) throw new CheckoutError("The discount code does not apply to this order", 409);
+    const totals = { ...baseTotals, totalCents: baseTotals.totalCents - discountCents };
+    if (totals.totalCents < 50) throw new CheckoutError("The order total after discount must be at least A$0.50", 409);
     const order = await tx.order.create({
       data: {
         orderNumber: `${store.slug === "tapkin" ? "TK" : store.slug.slice(0, 4).toUpperCase()}-${randomUUID().replaceAll("-", "").slice(0, 10).toUpperCase()}`,
@@ -102,6 +131,8 @@ export async function createPendingOrder(items: CheckoutItemInput[], customer: C
         status: "PAYMENT_PENDING",
         currency: store.currency,
         ...totals,
+        discountCents,
+        promotionId: promotion?.id,
         items: { create: lines.map(({ item, variant, unitPriceCents, personalisationChoice, personalisation, selectedOptions }) => ({
           variantId: variant.id,
           quantity: item.quantity,
@@ -114,18 +145,21 @@ export async function createPendingOrder(items: CheckoutItemInput[], customer: C
           personalisationMode: variant.product.personalisationMode,
           personalisationChoice,
           selectedOptions,
-          shippingSnapshot: { production: { requiresManufacturing: store.capabilities.includes("PRINT_3D"), requiresNfc: store.capabilities.includes("NFC") && variant.product.type !== "ACCESSORY" }, inventoryPolicy: { trackInventory: variant.trackInventory, backorderPolicy: variant.backorderPolicy }, weightGrams: variant.weightGrams ?? variant.product.weightGrams, lengthMm: variant.lengthMm ?? variant.product.lengthMm, widthMm: variant.widthMm ?? variant.product.widthMm, heightMm: variant.heightMm ?? variant.product.heightMm, shipsSeparately: variant.product.shipsSeparately, specialHandling: variant.product.specialHandling, customs: { countryOfOrigin: variant.product.countryOfOrigin, description: variant.product.customsDescription, hsCode: variant.product.hsCode, valueCents: variant.product.customsValueCents, dutiesHandling: variant.product.dutiesHandling, restrictedItem: variant.product.restrictedItem } },
+          shippingSnapshot: { production: { requiresManufacturing: store.capabilities.includes("PRINT_3D"), requiresNfc: store.capabilities.includes("NFC") && variant.product.type !== "ACCESSORY" }, inventoryPolicy: { trackInventory: variant.trackInventory, backorderPolicy: variant.backorderPolicy }, shippingPackageType: variant.product.shippingPackageType, weightGrams: variant.product.weightGrams, lengthMm: variant.product.lengthMm, widthMm: variant.product.widthMm, heightMm: variant.product.heightMm, shipsSeparately: variant.product.shipsSeparately, specialHandling: variant.product.specialHandling, customs: { countryOfOrigin: variant.product.countryOfOrigin, description: variant.product.customsDescription, hsCode: variant.product.hsCode, valueCents: variant.product.customsValueCents, dutiesHandling: variant.product.dutiesHandling, restrictedItem: variant.product.restrictedItem } },
         })) },
         payments: { create: { amountCents: totals.totalCents, currency: store.currency } },
         statusHistory: { create: { toStatus: "PAYMENT_PENDING" } },
       },
       include: { payments: true },
     });
+    if (productionMinutes) try { await reserveProduction(tx, store.environment, order.id, productionMinutes); }
+    catch (error) { if (error instanceof ProductionCapacityError) throw new CheckoutError(error.message, 409); throw error; }
 
     for (const variant of variants) {
       const quantity = requestedByVariant.get(variant.id) ?? 0;
-      if (!variant.trackInventory || variant.backorderPolicy === "ALLOW") continue;
-      await changeReservation(tx, { variantId: variant.id, orderId: order.id, quantity, expectedReserved: variant.reservedInventory });
+      if (!variant.trackInventory) continue;
+      const held = variant.backorderPolicy === "ALLOW" ? Math.min(quantity, Math.max(0, availableInventory(variant))) : quantity;
+      if (held) await changeReservation(tx, { variantId: variant.id, orderId: order.id, quantity: held, expectedReserved: variant.reservedInventory });
     }
     for (const productId of new Set(variants.map(variant => variant.productId))) await queueEtsyInventorySync(tx, store.id, productId);
 
@@ -145,6 +179,7 @@ export async function cancelPendingOrder(orderId: string, reason: string, actorI
     if (!order || order.status !== "PAYMENT_PENDING") return false;
     const claimed = await tx.order.updateMany({ where: { id: orderId, status: "PAYMENT_PENDING" }, data: { status: "CANCELLED" } });
     if (claimed.count !== 1) return false;
+    await releaseProduction(tx, orderId);
     const reservations = await orderReservations(tx, orderId);
     for (const [variantId, quantity] of reservations) {
       if (quantity < 0) throw new CheckoutError("Reservation ledger requires review", 409);
@@ -190,11 +225,24 @@ export async function settleCheckoutEvent(input: { eventId: string; eventType: s
     await tx.orderStatusHistory.create({ data: { orderId: payment.orderId, fromStatus: "PAYMENT_PENDING", toStatus: "PAID" } });
     const jobs = payment.order.items.flatMap(item => {
       const requirements = manufacturingRequirements(payment.order.store.capabilities, item.productType);
-      return requirements ? [{ storeId: payment.order.storeId, orderItemId: item.id, productVariantId: item.variantId, quantity: item.quantity, material: item.variant.material, colour: item.variant.colour, requiresNfc: requirements.requiresNfc }] : [];
+      return requirements ? [{ storeId: payment.order.storeId, orderItemId: item.id, productVariantId: item.variantId, quantity: item.quantity, material: item.variant.material, colour: item.variant.colour, requiresNfc: requirements.requiresNfc, estimatedMinutes: item.variant.productionMinutes ? item.variant.productionMinutes * item.quantity : null }] : [];
     });
     if (jobs.length) await tx.manufacturingJob.createMany({ data: jobs, skipDuplicates: true });
     await tx.webhookEvent.create({ data: { id: input.eventId, provider: "stripe", eventType: input.eventType } });
     await queuePaidOrder(tx, payment.orderId);
+    const reward = await tx.store.findUnique({ where: { id: payment.order.storeId }, select: { secondPurchaseRewardEnabled: true, secondPurchaseRewardAmountCents: true, secondPurchaseRewardValidityDays: true, secondPurchaseRewardMinimumCents: true } });
+    const email = reward?.secondPurchaseRewardEnabled ? (payment.order.userId ? (await tx.user.findUnique({ where: { id: payment.order.userId }, select: { email: true } }))?.email : payment.order.guestEmail) : null;
+    if (email && reward?.secondPurchaseRewardEnabled) {
+      const previous = await tx.order.count({ where: { storeId: payment.order.storeId, status: { in: ["PAID", "PROCESSING", "READY_TO_SHIP", "SHIPPED", "DELIVERED", "COMPLETED"] }, OR: [{ guestEmail: { equals: email, mode: "insensitive" } }, { user: { email: { equals: email, mode: "insensitive" } } }] } });
+      if (previous === 1) {
+        const code = `WELCOME-${randomUUID().replaceAll("-", "").slice(0, 12).toUpperCase()}`;
+        const amount = `A$${(reward.secondPurchaseRewardAmountCents / 100).toFixed(2)}`;
+        const minimum = reward.secondPurchaseRewardMinimumCents ? ` on orders of at least A$${(reward.secondPurchaseRewardMinimumCents / 100).toFixed(2)}` : "";
+        const now = new Date();
+        await tx.promotion.create({ data: { storeId: payment.order.storeId, name: `${amount} second purchase`, code, kind: "FIXED", amountCents: reward.secondPurchaseRewardAmountCents, minimumSubtotalCents: reward.secondPurchaseRewardMinimumCents, allowedEmailHash: sha256(email.trim().toLowerCase()), usageLimit: 1, startsAt: now, endsAt: new Date(now.getTime() + reward.secondPurchaseRewardValidityDays * 86400000) } });
+        await queueOrderNotice(tx, payment.orderId, `next-purchase:${payment.orderId}`, `${amount} off your next purchase`, `Thank you for your first order. Use code ${code} on your next ${payment.order.storeDisplayName} purchase within ${reward.secondPurchaseRewardValidityDays} days${minimum}. This code is for your email address and cannot be combined with another promotion.`);
+      }
+    }
     return { duplicate: false };
   }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
   if (!result.duplicate) await notifyPaidOrder(input.orderId);

@@ -152,7 +152,7 @@ const radius = z
   .enum(["SMALL", "MEDIUM", "LARGE", "EXTRA_LARGE"])
   .default("LARGE");
 const layoutVariant = z
-  .enum(["DEFAULT", "PASTEL_EDITORIAL"])
+  .enum(["DEFAULT", "PASTEL_EDITORIAL", "KOSYKIN_WAVY", "KOSYKIN_CIRCLES"])
   .default("DEFAULT");
 const sectionWidth = z
   .enum(["FULL", "WIDE", "STANDARD", "NARROW"])
@@ -255,6 +255,8 @@ const baseCopy = {
 };
 const narrativeSchema = z.object({
   ...baseCopy,
+  sideLabel: z.string().trim().max(60).default(""),
+  artworkUrl: imageUrl,
   layout: z
     .enum(["IMAGE_LEFT", "IMAGE_RIGHT", "TEXT_ONLY", "CENTRED"])
     .default("IMAGE_RIGHT"),
@@ -276,6 +278,7 @@ const itemSchema = z.object({
   imageAlt: z.string().trim().max(180).default(""),
   ctaLabel: z.string().trim().max(60).default(""),
   ctaHref: safeLink,
+  categorySlug: z.string().trim().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/).or(z.literal("")).default(""),
   ctaBackground: colour,
   ctaTextColour: colour,
   ctaBorderColour: colour,

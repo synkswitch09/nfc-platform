@@ -60,6 +60,26 @@ describe("made-to-order keychain",()=>{
     expect(validateKeychainOptions(fields, selected).attachment).toBe("keychain");
     expect(() => validateKeychainOptions(fields, { ...selected, "keychain-attachment": "tag" })).toThrow(/hardware/);
   });
+  it("preserves merchant colours in the paid-order snapshot and printable 3MF", () => {
+    const input = validateKeychainOptions({ "keychain-name": "Name" }, {
+      "keychain-font": "rounded", "keychain-size": "regular", "base-colour": "teal", "letter-colour": "cream",
+      "base-colour-hex": "#007F80", "letter-colour-hex": "#FFEEDD", "keychain-attachment": "tag", "keyring-hardware": "none",
+    });
+    expect(input.palette).toEqual({ teal: "#007F80", cream: "#FFEEDD" });
+    const mf = keychain3mf(input);
+    let offset = 0, settings = "";
+    while (mf.readUInt32LE(offset) === 0x04034b50) {
+      const nameLength = mf.readUInt16LE(offset + 26), length = mf.readUInt32LE(offset + 18), start = offset + 30 + nameLength;
+      const name = mf.subarray(offset + 30, start).toString("utf8");
+      if (name === "Metadata/project_settings.config") {
+        const bytes = mf.subarray(start, start + length);
+        settings = (mf.readUInt16LE(offset + 8) === 8 ? inflateRawSync(bytes) : bytes).toString("utf8");
+      }
+      offset = start + length;
+    }
+    expect(JSON.parse(settings).filament_colour.slice(0, 2)).toEqual(["#007F80", "#FFEEDD"]);
+    expect(() => validateKeychainOptions({ "keychain-name": "Name" }, { "keychain-font": "rounded", "keychain-size": "regular", "base-colour": "teal", "letter-colour": "cream", "base-colour-hex": "invalid", "letter-colour-hex": "#FFEEDD", "keychain-attachment": "tag", "keyring-hardware": "none" })).toThrow();
+  });
   it("fits longer names by reducing glyph height while keeping a watertight two-part mesh",()=>{
     const short=generateKeychain({...choices,name:"Daniel"}),long=generateKeychain({...choices,name:"Christopher"});
     expect(long.letterHeightMm).toBeLessThan(short.letterHeightMm);
@@ -68,7 +88,7 @@ describe("made-to-order keychain",()=>{
     expect(watertight(long.letters)).toBe(true);
     expect(signedVolume(long.base)).toBeGreaterThan(0);
     expect(signedVolume(long.letters)).toBeGreaterThan(0);
-    expect(long.base.reduce((height, t) => Math.max(height, t[2], t[5], t[8]), 0)).toBe(3);
+    expect(long.base.reduce((height, t) => Math.max(height, t[2], t[5], t[8]), 0)).toBe(2.6);
     expect(long.letters.reduce((height, t) => Math.max(height, t[2], t[5], t[8]), 0)).toBe(4);
     expect(long.base.some(t => t[2] !== t[5] && t[0] !== t[3] && t[1] !== t[4])).toBe(true);
   });
@@ -127,9 +147,9 @@ describe("made-to-order keychain",()=>{
   it("fills counters and gaps under all names while keeping the keyring hole open",()=>{
     const daniel=generateKeychain({...choices,name:"Daniel",attachment:"tag"});
     const yuliany=generateKeychain({...choices,name:"Yuliany",attachment:"tag"});
-    expect(covers(daniel.base,3.5,5,3)).toBe(true); // Inside D
+    expect(covers(daniel.base,3.5,5,2.6)).toBe(true); // Inside D
     expect(covers(daniel.letters,3.5,5,4)).toBe(false);
-    expect(covers(yuliany.base,2.5,4,3)).toBe(true); // Between Y and u
+    expect(covers(yuliany.base,2.5,4,2.6)).toBe(true); // Between Y and u
     for(const font of ["rounded","classic","mono"] as const){
       const model=generateKeychain({...choices,name:"Amelia",font,attachment:"tag"});
       expect(components(model.base)).toBe(1);
@@ -139,15 +159,15 @@ describe("made-to-order keychain",()=>{
   it("makes the flush finish coplanar and keeps the base colour around the glyphs",()=>{
     for(const baseShape of ["contour","rectangle"] as const){
       const model=generateKeychain({...choices,name:"Daniel",letterFinish:"inlaid",baseShape});
-      expect(model.base.reduce((z,t)=>Math.max(z,t[2],t[5],t[8]),0)).toBe(3);
-      expect(model.baseCap.reduce((z,t)=>Math.max(z,t[2],t[5],t[8]),0)).toBe(4);
-      expect(model.letters.reduce((z,t)=>Math.max(z,t[2],t[5],t[8]),0)).toBe(4);
-      expect(model.letters.reduce((z,t)=>Math.min(z,t[2],t[5],t[8]),Infinity)).toBe(3);
+      expect(model.base.reduce((z,t)=>Math.max(z,t[2],t[5],t[8]),0)).toBe(1.2);
+      expect(model.baseCap.reduce((z,t)=>Math.max(z,t[2],t[5],t[8]),0)).toBe(2.6);
+      expect(model.letters.reduce((z,t)=>Math.max(z,t[2],t[5],t[8]),0)).toBe(2.6);
+      expect(model.letters.reduce((z,t)=>Math.min(z,t[2],t[5],t[8]),Infinity)).toBe(1.2);
       expect(watertight(model.base)).toBe(true);
       expect(watertight(model.baseCap)).toBe(true);
-      expect(covers(model.baseCap,3.5,5,4)).toBe(true); // Counter inside D is base colour.
-      expect(covers(model.letters,3.5,5,4)).toBe(false);
-      expect(covers(model.baseCap,2,5,4)).toBe(false); // Glyph is letter colour.
+      expect(covers(model.baseCap,3.5,5,2.6)).toBe(true); // Counter inside D is base colour.
+      expect(covers(model.letters,3.5,5,2.6)).toBe(false);
+      expect(covers(model.baseCap,2,5,2.6)).toBe(false); // Glyph is letter colour.
       expect(()=>generateKeychain({...choices,name:"Daniel",letterFinish:"unknown" as "raised"})).toThrow(/raised or flush/);
     }
     const mf=keychain3mf({...choices,name:"Daniel",letterFinish:"inlaid"});

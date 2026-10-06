@@ -55,21 +55,28 @@ const groups = [
     label: "Sales",
     links: [
       { href: "/admin/orders", label: "Orders", icon: ClipboardList },
+      { href: "/admin/support", label: "Order requests", icon: FileClock },
+      { href: "/admin/promotions", label: "Promotions", icon: Tags },
       { href: "/admin/etsy", label: "Etsy", icon: Store },
       { href: "/admin/shipping", label: "Shipping", icon: Truck },
       { href: "/admin/customers", label: "Customers", icon: Users },
     ],
   },
   {
-    label: "NFC",
+    label: "Production",
     links: [
-      { href: "/admin/tags", label: "Tags", icon: Tags },
       {
         href: "/admin/manufacturing",
         label: "Production queue",
         icon: Factory,
         capability: StoreCapability.PRINT_3D,
       },
+    ],
+  },
+  {
+    label: "NFC",
+    links: [
+      { href: "/admin/tags", label: "Tags", icon: Tags },
       {
         href: "/admin/manufacturing/batches",
         label: "NFC production batches",
@@ -110,9 +117,8 @@ export default async function AdminLayout({
   const visibleGroups = groups
     .filter(
       (group) =>
-        group.label !== "NFC" ||
-        hasStoreCapability(store, StoreCapability.NFC) ||
-        hasStoreCapability(store, StoreCapability.PRINT_3D),
+        (group.label !== "NFC" || hasStoreCapability(store, StoreCapability.NFC)) &&
+        (group.label !== "Production" || hasStoreCapability(store, StoreCapability.PRINT_3D)),
     )
     .map((group) => ({
       ...group,
@@ -128,6 +134,7 @@ export default async function AdminLayout({
         ? {
             ...group,
             links: [
+              { href: "/admin/production", label: "Shared X2D capacity", icon: Factory },
               { href: "/admin/stores", label: "Stores", icon: Building2 },
               ...group.links,
               { href: "/admin/team", label: "Team access", icon: ShieldCheck },

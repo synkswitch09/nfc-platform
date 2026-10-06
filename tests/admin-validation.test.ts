@@ -9,6 +9,16 @@ const validProduct = {
 };
 
 describe("admin validation", () => {
+  it("keeps stock and made-to-order production as exclusive fulfilment modes", () => {
+    const stocked = validProduct.variants[0];
+    expect(adminProductSchema.safeParse(validProduct).success).toBe(true);
+    const made = { ...stocked, trackInventory: false, inventory: 0, lowStockThreshold: 0, productionMinutes: 45 };
+    expect(adminProductSchema.safeParse({ ...validProduct, variants: [made] }).success).toBe(true);
+    expect(adminProductSchema.safeParse({ ...validProduct, variants: [{ ...made, productionMinutes: null }] }).success).toBe(false);
+    expect(adminProductSchema.safeParse({ ...validProduct, variants: [{ ...made, inventory: 3 }] }).success).toBe(false);
+    expect(adminProductSchema.safeParse({ ...validProduct, variants: [{ ...stocked, productionMinutes: 45 }] }).success).toBe(false);
+    expect(adminProductSchema.safeParse({ ...validProduct, variants: [{ ...stocked, backorderPolicy: "ALLOW" }] }).success).toBe(false);
+  });
   it("normalises product slugs and SKUs", () => {
     const result = adminProductSchema.parse({ ...validProduct, slug: "pet-tag", variants: [{ ...validProduct.variants[0], sku: "pet-001" }] });
     expect(result.variants[0].sku).toBe("PET-001");
@@ -47,6 +57,8 @@ describe("admin validation", () => {
     const configured = { ...validProduct, personalisationMode: "NONE", options: [{ name: "Colour", code: "colour", type: "COLOUR", required: true, priceDeltaCents: 0, active: true, values: [{ label: "Ocean", value: "ocean", priceDeltaCents: 0, active: true, swatchHex: "#167d9a" }] }], variants: [{ ...validProduct.variants[0], optionSelection: { colour: "ocean" }, isDefault: true }] };
     expect(adminProductSchema.safeParse(configured).success).toBe(true);
     expect(adminProductSchema.safeParse({ ...configured, variants: [{ ...configured.variants[0], optionSelection: { colour: "missing" } }] }).success).toBe(false);
+    expect(adminProductSchema.safeParse({ ...configured, variants: [{ ...configured.variants[0], optionSelection: {} }] }).success).toBe(false);
+    expect(adminProductSchema.safeParse({ ...configured, variants: [configured.variants[0], { ...configured.variants[0], sku: "PET-002" }] }).success).toBe(false);
   });
   it("accepts a colour, style and size variant when all choices are configured", () => {
     const configured = {
@@ -60,6 +72,7 @@ describe("admin validation", () => {
       variants: [{ ...validProduct.variants[0], optionSelection: { colour: "mint", shape: "bone", size: "medium" }, isDefault: true }],
     };
     expect(adminProductSchema.safeParse(configured).success).toBe(true);
+    expect(adminProductSchema.safeParse({ ...configured, variants: [{ ...configured.variants[0], optionSelection: { colour: "mint" } }] }).success).toBe(false);
   });
   it("accepts the keychain backing and finish choices while rejecting unsupported values", () => {
     const option = (name: string, code: string, type: string, values: string[], maxLength: number | null = null) => ({

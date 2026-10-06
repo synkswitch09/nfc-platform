@@ -157,6 +157,7 @@ export default async function Home() {
             currency: store.currency,
             nfcEnabled,
           }}
+          kosykinSocials={store.slug === "kosykin" ? { links: settings.socialLinks, icons: settings.footerConfig.socialIcons } : undefined}
           theme={localizedHome.visualTheme.toLowerCase()}
           fallbackHeadline={settings.homepage.heroHeadline}
           fallbackCopy={settings.homepage.heroDescription}

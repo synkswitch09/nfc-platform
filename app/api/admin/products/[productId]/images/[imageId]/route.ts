@@ -17,10 +17,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   if (parsed.data.variantId && !await db.productVariant.findFirst({ where: { id: parsed.data.variantId, productId, product: { storeId: store.id } }, select: { id: true } })) return jsonError("Variant does not belong to this product", 409);
   await db.$transaction(async tx => {
     if (parsed.data.isPrimary) await tx.productImage.updateMany({ where: { productId, id: { not: imageId } }, data: { isPrimary: false } });
-    const { variantId, ...imageData } = parsed.data;
-    await tx.productImage.update({ where: { id: imageId }, data: imageData });
-    await tx.productVariant.updateMany({ where: { productId, imageId }, data: { imageId: null } });
-    if (variantId) await tx.productVariant.updateMany({ where: { id: variantId, productId }, data: { imageId } });
+    await tx.productImage.update({ where: { id: imageId }, data: parsed.data });
     await tx.auditLog.create({ data: { actorId: user.id, storeId: store.id, action: "PRODUCT_IMAGE_UPDATED", entityType: "ProductImage", entityId: imageId, metadata: { productId } } });
   });
   return NextResponse.json({ ok: true });

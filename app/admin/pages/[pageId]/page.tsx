@@ -38,6 +38,7 @@ export default async function EditContentPage({
   });
   if (!page) notFound();
   const isFaqPage = page.slug === "faq";
+  const collectionCategories = page.kind === "HOME" && store.slug === "kosykin" ? await db.productCategory.findMany({ where: { storeId: store.id }, select: { name: true, slug: true }, orderBy: [{ sortOrder: "asc" }, { name: "asc" }] }) : [];
   const fromStorefront =
     (await searchParams).from === "storefront" || page.kind === "HOME";
   const initial: ContentPageEditorInitial = {
@@ -175,6 +176,8 @@ export default async function EditContentPage({
         />
       ) : (
         <LandingSectionEditor
+          kosykinHome={page.kind === "HOME" && store.slug === "kosykin"}
+          collectionCategories={collectionCategories}
           initial={page.sections.map((section) => ({
             id: section.id,
             type: section.type,

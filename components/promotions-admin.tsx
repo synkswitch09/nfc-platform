@@ -1,0 +1,40 @@
+"use client";
+import { FormEvent, useState } from "react";
+import { useRouter } from "next/navigation";
+
+type FirstPurchaseReward = { enabled: boolean; amountCents: number; validityDays: number; minimumSubtotalCents: number };
+type PromotionRow = { id: string; name: string; code: string | null; kind: string; active: boolean; productName: string | null; orders: number; endsAt: string | null };
+export function PromotionsAdmin({ promotions, products, reward }: { promotions: PromotionRow[]; reward: FirstPurchaseReward; products: { id: string; name: string }[] }) {
+  const [error, setError] = useState(""); const [busy, setBusy] = useState(false); const router = useRouter();
+  async function create(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault(); setBusy(true); setError("");
+    const form = new FormData(event.currentTarget);
+    const decimal = (key: string) => String(form.get(key) ?? "").trim() ? Math.round(Number(form.get(key)) * 100) : null;
+    const integer = (key: string) => String(form.get(key) ?? "").trim() ? Number(form.get(key)) : null;
+    const response = await fetch("/api/admin/promotions", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ name: form.get("name"), code: String(form.get("code") ?? "").trim().toUpperCase() || null, kind: form.get("kind"), percent: integer("percent"), amountCents: decimal("amount"), productId: form.get("productId") || null, minimumSubtotalCents: decimal("minimum") ?? 0, maxShippingDiscountCents: decimal("shippingCap"), maxShippingWeightGrams: integer("maxWeight"), usageLimit: integer("limit"), startsAt: form.get("startsAt") ? new Date(String(form.get("startsAt"))).toISOString() : null, endsAt: form.get("endsAt") ? new Date(String(form.get("endsAt"))).toISOString() : null, active: true }) });
+    const body = await response.json().catch(() => ({})); setBusy(false);
+    if (!response.ok) return setError(body.error ?? "Could not create promotion");
+    event.currentTarget.reset(); router.refresh();
+  }
+  async function mutate(id: string, method: "PATCH" | "DELETE", active?: boolean) {
+    setError(""); const response = await fetch(`/api/admin/promotions/${id}`, { method, headers: { "content-type": "application/json" }, ...(method === "PATCH" ? { body: JSON.stringify({ active }) } : {}) });
+    const body = await response.json().catch(() => ({})); if (!response.ok) return setError(body.error ?? "Could not update promotion"); router.refresh();
+  }
+  async function saveReward(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault(); setBusy(true); setError("");
+    const form = new FormData(event.currentTarget);
+    const response = await fetch("/api/admin/promotions/reward", { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ enabled: form.get("enabled") === "on", amountCents: Math.round(Number(form.get("amount")) * 100), validityDays: Number(form.get("days")), minimumSubtotalCents: Math.round(Number(form.get("minimumReward")) * 100) }) });
+    const body = await response.json().catch(() => ({})); setBusy(false);
+    if (!response.ok) return setError(body.error ?? "Could not update the first-purchase campaign");
+    router.refresh();
+  }
+  return <><section className="admin-panel"><h2>First purchase → next order reward</h2><p>After the first paid order, email the buyer a unique, single-use code for their next purchase in this store. Guest orders count too. Changing these settings affects new codes only.</p>
+    <form onSubmit={saveReward} className="field-grid three">
+      <label className="check-field"><input type="checkbox" name="enabled" defaultChecked={reward.enabled} /><span>Campaign active</span></label>
+      <label className="field">Reward AUD<input name="amount" type="number" min="1" max="1000" step="0.01" required defaultValue={(reward.amountCents / 100).toFixed(2)} /></label>
+      <label className="field">Valid for (days)<input name="days" type="number" min="1" max="365" required defaultValue={reward.validityDays} /></label>
+      <label className="field">Minimum next purchase AUD<input name="minimumReward" type="number" min="0" max="100000" step="0.01" required defaultValue={(reward.minimumSubtotalCents / 100).toFixed(2)} /></label>
+      <button type="submit" className="button" disabled={busy}>{busy ? "Saving…" : "Save welcome campaign"}</button>
+    </form>
+  </section><section className="admin-panel"><h2>New campaign or code</h2><p>Leave code empty for an automatic offer. Only one promotion applies per order, and each brand has its own promotions.</p><form onSubmit={create} className="field-grid three"><label className="field">Name<input name="name" required minLength={3} maxLength={100} /></label><label className="field">Code (optional)<input name="code" pattern="[A-Za-z0-9_-]{3,32}" maxLength={32} /></label><label className="field">Type<select name="kind"><option value="PERCENT">Percent off</option><option value="FIXED">Fixed amount off</option><option value="FREE_SHIPPING">Shipping discount</option></select></label><label className="field">Percent<input name="percent" type="number" min="1" max="90" /></label><label className="field">Fixed AUD<input name="amount" type="number" min="0" step="0.01" /></label><label className="field">Applies to<select name="productId"><option value="">Entire store</option>{products.map(product => <option key={product.id} value={product.id}>{product.name}</option>)}</select></label><label className="field">Minimum order AUD<input name="minimum" type="number" min="0" step="0.01" defaultValue="0" /></label><label className="field">Shipping discount cap AUD<input name="shippingCap" type="number" min="0" step="0.01" /></label><label className="field">Max shipping weight (g)<input name="maxWeight" type="number" min="1" /></label><label className="field">Start<input name="startsAt" type="datetime-local" /></label><label className="field">End<input name="endsAt" type="datetime-local" /></label><label className="field">Use limit<input name="limit" type="number" min="1" /></label><button className="button" disabled={busy}>{busy ? "Saving…" : "Create promotion"}</button></form>{error && <p className="form-error" role="alert">{error}</p>}</section><section className="admin-panel"><h2>Campaigns</h2><div className="compact-list">{promotions.map(promotion => <div key={promotion.id}><span><strong>{promotion.name}</strong><small>{promotion.code ?? "Automatic"} · {promotion.kind.replaceAll("_", " ")} · {promotion.productName ?? "Entire store"} · {promotion.orders} orders</small></span><span><button type="button" className="text-button" onClick={() => void mutate(promotion.id, "PATCH", !promotion.active)}>{promotion.active ? "Pause" : "Activate"}</button>{!promotion.orders && <button type="button" className="text-button" onClick={() => void mutate(promotion.id, "DELETE")}>Delete</button>}</span></div>)}</div>{!promotions.length && <p>No campaigns yet.</p>}</section></>;
+}
