@@ -5459,15 +5459,14 @@ body[data-store="kosykin"] .modular-landing > .kosy-home-hero { max-width: 1440p
 .kosy-hero-bottom p { font-size: 1.18rem; line-height: 1.24; margin-bottom: 28px; }
 .kosy-hero-cta { min-height: 50px; padding-left: 32px; gap: 22px; }
 .kosy-hero-down {
-  width: 182px;
-  height: 45px;
-  bottom: 0;
-  padding-top: 17px;
+  width: 224px;
+  height: 60px;
+  bottom: -5px;
+  padding-top: 22px;
   border-radius: 0;
   background: url("/images/kosykin/hero-arrow-cutout.svg") center / 100% 100% no-repeat;
 }
-.kosy-hero-down::after { content: ""; position: absolute; bottom: 0; left: 50%; width: 120px; height: 2px; transform: translateX(-50%); background: #fff; }
-.kosy-hero-down svg { width: 20px; height: 20px; transform: rotate(90deg); }
+.kosy-hero-down svg { width: 24px; height: 24px; transform: rotate(90deg); }
 
 @media (max-width: 1050px) {
   body[data-store="kosykin"] .site-header { padding-inline: 24px; }
