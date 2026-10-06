@@ -187,7 +187,7 @@ export default async function RootLayout({
           <SiteFooter
             config={settings.footerConfig}
             storeName={settings.storeName}
-            storeLogoUrl={store.logoUrl}
+            storeLogoUrl={store.logoUrl || (store.slug === "kosykin" ? "/images/kosykin/logo.png" : null)}
             socialLinks={settings.socialLinks}
             pages={pageNavigation.filter((page) => page.showInFooter).map((page) => ({ name: page.footerLabel || page.name, slug: page.slug, order: page.navigationOrder }))}
             nfcEnabled={nfcEnabled}
