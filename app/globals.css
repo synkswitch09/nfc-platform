@@ -5375,7 +5375,7 @@ body[data-store="kosykin"] .site-header .brand {
   top: -46px;
   display: grid;
   place-items: center;
-  width: min(360px, 30vw);
+  width: min(500px, 38vw);
   height: 86px;
   min-height: 0;
   padding: 0 26px 8px;
@@ -5451,7 +5451,7 @@ body[data-store="kosykin"] .modular-landing > .kosy-home-hero { max-width: 1440p
   body[data-store="kosykin"] .site-header { padding-inline: 24px; }
   body[data-store="kosykin"] .site-header .nav-centre,
   body[data-store="kosykin"] .site-header .nav-actions { gap: 12px; }
-  body[data-store="kosykin"] .site-header .brand { width: 290px; }
+  body[data-store="kosykin"] .site-header .brand { width: min(400px, 40vw); }
 }
 @media (max-width: 950px) {
   body[data-store="kosykin"] .site-header,
@@ -5467,14 +5467,14 @@ body[data-store="kosykin"] .modular-landing > .kosy-home-hero { max-width: 1440p
     position: absolute;
     left: 50%;
     top: -16px;
-    width: min(290px, 50vw);
+    width: min(320px, 80vw);
     height: 72px;
     padding: 5px 14px 8px;
     transform: translateX(-50%);
     border-radius: 0;
     background: url("/images/kosykin/header-cutout.svg") center / 100% 100% no-repeat;
   }
-  body[data-store="kosykin"] .site-header .kosy-brand-logo { width: min(190px, 100%); }
+  body[data-store="kosykin"] .site-header .kosy-brand-logo { width: min(170px, 100%); }
   body[data-store="kosykin"] .site-header .mobile-nav-toggle { display: grid; margin-left: auto; color: #233147; }
   body[data-store="kosykin"] .site-header nav { display: none; }
   body[data-store="kosykin"] .site-header nav.is-open {
