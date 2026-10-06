@@ -5557,6 +5557,16 @@ body[data-store="kosykin"] .site-footer .footer-socials a:hover {
   color: white;
 }
 
+html:has(body[data-store="kosykin"]) {
+  scrollbar-gutter: stable;
+}
+body[data-store="kosykin"] .site-header .nav-centre a.active {
+  font-weight: inherit;
+  text-decoration: underline;
+  text-decoration-color: var(--kosy-gold);
+  text-underline-offset: 8px;
+}
+
 /* Keep the shared chrome and each landing section on the same canvas. */
 body[data-store="kosykin"] .modular-landing > section,
 body[data-store="kosykin"] .site-footer {
