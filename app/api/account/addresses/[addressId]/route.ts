@@ -7,7 +7,7 @@ import { assertSameOrigin, jsonError } from "@/lib/http";
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ addressId: string }> }) {
   if (!assertSameOrigin(request)) return jsonError("Invalid request origin", 403);
   const user = await getCurrentUser(); if (!user) return jsonError("Unauthorised", 401);
-  const parsed = addressSchema.safeParse(await request.json().catch(() => null)); if (!parsed.success) return jsonError(parsed.error.issues[0]?.message ?? "Invalid address");
+  const parsed = addressSchema.safeParse(await request.json().catch(() => null)); if (!parsed.success) return NextResponse.json({ error: "Check the highlighted address fields and try again.", issues: parsed.error.issues.map(issue => ({ path: issue.path.join("."), message: issue.message })) }, { status: 400 });
   const { addressId } = await params; const updated = await db.address.updateMany({ where: { id: addressId, userId: user.id }, data: addressDatabaseFields(parsed.data) });
   if (!updated.count) return jsonError("Address not found", 404); return NextResponse.json({ ok: true });
 }

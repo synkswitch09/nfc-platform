@@ -6,6 +6,7 @@ import { LockKeyhole, PackageCheck } from "lucide-react";
 import { useCart } from "@/components/cart-provider";
 import { CountryAddressFields, type CountryAddressValue } from "@/components/country-address-fields";
 import { CommerceAnalyticsEvent } from "@/components/commerce-analytics";
+import { showFormIssues } from "@/components/form-validation-feedback";
 
 type CheckoutAddress = CountryAddressValue & { recipient: string };
 
@@ -15,6 +16,7 @@ export function CheckoutForm({ account, store, countries }: { account: { name: s
   const cart = useCart();
   const money = new Intl.NumberFormat("en-AU", { style: "currency", currency: store.currency });
   const [error, setError] = useState("");
+  const [deliveryError, setDeliveryError] = useState("");
   const [pending, setPending] = useState(false);
   const [quotePending, setQuotePending] = useState(false);
   const [quotes, setQuotes] = useState<ShippingQuote[]>([]);
@@ -31,23 +33,31 @@ export function CheckoutForm({ account, store, countries }: { account: { name: s
   }
 
   async function calculateDelivery(form: HTMLFormElement) {
-    setError(""); setQuotePending(true); setQuotes([]); setSelectedQuoteToken("");
+    setError(""); setDeliveryError("");
+    if (!form.reportValidity()) return;
+    setQuotePending(true); setQuotes([]); setSelectedQuoteToken("");
     const data = new FormData(form);
-    const response = await fetch("/api/shipping/quotes", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ items: cart.lines.map(line => ({ variantId: line.variantId, quantity: line.quantity, personalisationChoice: line.personalisationChoice, personalisation: line.personalisation })), destination: addressFrom(data) }) });
-    const result = await response.json().catch(() => ({}));
-    setQuotePending(false);
-    if (!response.ok) { setError(result.error ?? "Delivery rates are unavailable"); return; }
-    const nextQuotes = Array.isArray(result.quotes) ? result.quotes as ShippingQuote[] : [];
-    setQuotes(nextQuotes);
-    setSelectedQuoteToken(nextQuotes[0]?.token ?? "");
+    try {
+      const response = await fetch("/api/shipping/quotes", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ items: cart.lines.map(line => ({ variantId: line.variantId, quantity: line.quantity, personalisationChoice: line.personalisationChoice, personalisation: line.personalisation })), destination: addressFrom(data) }) });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) { showFormIssues(form, result.issues); setDeliveryError(result.error ?? "We couldn't calculate delivery. Check the address and try again."); return; }
+      const nextQuotes = Array.isArray(result.quotes) ? result.quotes as ShippingQuote[] : [];
+      setQuotes(nextQuotes);
+      setSelectedQuoteToken(nextQuotes[0]?.token ?? "");
+      if (!nextQuotes.length) setDeliveryError("No delivery service is available for this address. Check the address or contact us.");
+    } catch {
+      setDeliveryError("We couldn't connect to delivery services. Please try again in a moment.");
+    } finally { setQuotePending(false); }
   }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); setError("");
-    if (!selectedQuoteToken) { setError("Calculate and select a delivery service before payment."); return; }
+    if (!selectedQuoteToken) { setDeliveryError("Calculate delivery for this address and choose a service before continuing."); document.querySelector(".checkout-section .country-address-fields")?.scrollIntoView({ block: "center", behavior: "smooth" }); return; }
     setPending(true);
-    const data = new FormData(event.currentTarget);
-    const response = await fetch("/api/checkout", {
+    const form = event.currentTarget;
+    const data = new FormData(form);
+    try {
+      const response = await fetch("/api/checkout", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
@@ -60,10 +70,13 @@ export function CheckoutForm({ account, store, countries }: { account: { name: s
         },
       }),
     });
-    const result = await response.json().catch(() => ({}));
-    if (!response.ok) { setPending(false); setError(result.error ?? "Checkout is unavailable"); return; }
-    sessionStorage.setItem("commerce-checkout-cart", JSON.stringify({ orderId: result.orderId, lines: cart.lines.map(line => ({ key: line.key, quantity: line.quantity })) }));
-    window.location.assign(result.url);
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) { showFormIssues(form, result.issues); setError(result.error ?? "We couldn't start checkout. Please try again."); return; }
+      sessionStorage.setItem("commerce-checkout-cart", JSON.stringify({ orderId: result.orderId, lines: cart.lines.map(line => ({ key: line.key, quantity: line.quantity })) }));
+      window.location.assign(result.url);
+    } catch {
+      setError("We couldn't connect to checkout. Please try again in a moment.");
+    } finally { setPending(false); }
   }
 
   return <form className="checkout-layout" onSubmit={submit}>
@@ -71,8 +84,8 @@ export function CheckoutForm({ account, store, countries }: { account: { name: s
     <div className="checkout-fields">
       {!account && <div className="guest-banner"><strong>Continue as guest</strong><span>No account is required to buy. {store.nfcEnabled ? "Create one after payment to manage connected products." : "You can create one later to manage this order."}</span></div>}
       {account && <div className="guest-banner"><strong>Signed in as {account.name}</strong><span>Your order will appear in your account after payment.</span></div>}
-      <section className="checkout-section"><h2>Contact</h2><div className="field-grid"><label className="field">Full name<input name="name" autoComplete="name" defaultValue={account?.address?.recipient ?? account?.name} required /></label><label className="field">Email<input name="email" type="email" autoComplete="email" defaultValue={account?.email} required /></label></div></section>
-      <section className="checkout-section" onChange={() => { setQuotes([]); setSelectedQuoteToken(""); }}><h2>Delivery address</h2>{account?.address && <p className="notice">Your first saved address has been filled in. You can edit it for this order.</p>}<CountryAddressFields initial={account?.address} countries={countries} /><button className="button secondary" type="button" disabled={quotePending} onClick={event => calculateDelivery(event.currentTarget.form!)}>{quotePending ? "Calculating…" : "Calculate delivery"}</button>{quotes.length > 0 && <fieldset className="shipping-options"><legend>Delivery service</legend>{quotes.map(quote => <label key={quote.token}><input type="radio" name="shippingQuote" value={quote.token} checked={selectedQuoteToken === quote.token} onChange={() => setSelectedQuoteToken(quote.token)} /><span><strong>{quote.serviceName}</strong><small>{quote.estimatedDaysMin ? `${quote.estimatedDaysMin}${quote.estimatedDaysMax && quote.estimatedDaysMax !== quote.estimatedDaysMin ? `–${quote.estimatedDaysMax}` : ""} business days` : "Delivery estimate shown after dispatch"}</small></span><b>{quote.amountCents ? money.format(quote.amountCents / 100) : "Free"}</b></label>)}</fieldset>}</section>
+      <section className="checkout-section"><h2>Contact</h2><div className="field-grid"><label className="field">Full name<input name="name" autoComplete="name" defaultValue={account?.address?.recipient ?? account?.name} minLength={2} required /></label><label className="field">Email<input name="email" type="email" autoComplete="email" defaultValue={account?.email} required /></label></div></section>
+      <section className="checkout-section" onChange={event => { if ((event.target as HTMLInputElement).name === "shippingQuote") return; setQuotes([]); setSelectedQuoteToken(""); setDeliveryError(""); }}><h2>Delivery address</h2>{account?.address && <p className="notice">Your first saved address has been filled in. You can edit it for this order.</p>}<CountryAddressFields initial={account?.address} countries={countries} /><button className="button secondary" type="button" disabled={quotePending} onClick={event => calculateDelivery(event.currentTarget.form!)}>{quotePending ? "Calculating…" : "Calculate delivery"}</button>{deliveryError && <p className="form-error" role="alert">{deliveryError}</p>}{quotes.length > 0 && <fieldset className="shipping-options"><legend>Delivery service</legend>{quotes.map(quote => <label key={quote.token}><input type="radio" name="shippingQuote" value={quote.token} checked={selectedQuoteToken === quote.token} onChange={() => setSelectedQuoteToken(quote.token)} /><span><strong>{quote.serviceName}</strong><small>{quote.estimatedDaysMin ? `${quote.estimatedDaysMin}${quote.estimatedDaysMax && quote.estimatedDaysMax !== quote.estimatedDaysMin ? `–${quote.estimatedDaysMax}` : ""} business days` : "Delivery estimate shown after dispatch"}</small></span><b>{quote.amountCents ? money.format(quote.amountCents / 100) : "Free"}</b></label>)}</fieldset>}</section>
       <section className="checkout-section"><h2>Discount code</h2><label className="field">Code<input name="promotionCode" maxLength={32} autoComplete="off" placeholder="Optional" /></label><p className="fine-print">Eligible automatic offers and codes are applied at secure checkout. The final discounted total appears in Stripe before payment.</p></section>
       <section className="checkout-section payment-note"><LockKeyhole /><div><h2>Secure payment</h2><p>You will enter card details on Stripe Checkout. {store.displayName} never stores your card number.</p></div></section>
     </div>

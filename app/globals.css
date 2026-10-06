@@ -284,8 +284,16 @@ nav {
   background: var(--danger);
 }
 .button:disabled {
-  opacity: 0.55;
-  cursor: wait;
+  opacity: 1;
+  background: #586575;
+  border-color: #586575;
+  color: #fff;
+  cursor: not-allowed;
+}
+.button.secondary:disabled {
+  background: #f1f3f5;
+  border-color: #cbd2d9;
+  color: #485362;
 }
 .hero {
   max-width: 1180px;
@@ -521,6 +529,12 @@ h3 {
 .field.field-invalid select {
   border-color: #c9362a;
   box-shadow: 0 0 0 2px rgba(201, 54, 42, 0.12);
+}
+.field-validation-message {
+  display: block;
+  margin-top: 2px;
+  font-weight: 500;
+  line-height: 1.4;
 }
 
 .validation-summary {
@@ -2107,13 +2121,19 @@ body:has(.admin-shell) > footer {
   color: var(--muted);
   font-size: 0.86rem;
 }
-.panel-heading > a {
+.panel-heading > a:not(.button) {
   color: var(--brand);
   display: flex;
   align-items: center;
   gap: 6px;
   font-size: 0.84rem;
   font-weight: 750;
+}
+.admin-main a.button:not(.secondary) {
+  color: #fff;
+}
+.admin-main a.button.secondary {
+  color: var(--ink);
 }
 .admin-table {
   width: 100%;
@@ -5403,12 +5423,13 @@ body[data-store="kosykin"]:has(.kosy-home-hero) .site-header .nav-shop {
 }
 body[data-store="kosykin"] .site-header .nav-account,
 body[data-store="kosykin"]:has(.kosy-home-hero) .site-header .nav-account {
-  min-width: 0;
-  padding: 8px 7px;
+  min-width: 110px;
+  min-height: 40px;
+  padding: 7px 18px;
   border-color: #fbf6ed91;
   background: transparent;
   color: #fbf6ed;
-  font-size: .72rem;
+  font-size: 1rem;
 }
 .kosy-nav-cart .cart-link {
   display: flex;
@@ -5441,11 +5462,12 @@ body[data-store="kosykin"] .modular-landing > .kosy-home-hero { max-width: 1440p
   width: 182px;
   height: 45px;
   bottom: 0;
-  padding-top: 8px;
+  padding-top: 17px;
   border-radius: 0;
   background: url("/images/kosykin/hero-arrow-cutout.svg") center / 100% 100% no-repeat;
 }
-.kosy-hero-down svg { transform: rotate(90deg); }
+.kosy-hero-down::after { content: ""; position: absolute; bottom: 0; left: 50%; width: 120px; height: 2px; transform: translateX(-50%); background: #fff; }
+.kosy-hero-down svg { width: 20px; height: 20px; transform: rotate(90deg); }
 
 @media (max-width: 1050px) {
   body[data-store="kosykin"] .site-header { padding-inline: 24px; }

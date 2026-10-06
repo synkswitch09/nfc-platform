@@ -15,6 +15,7 @@ import {
 } from "@/lib/storefront";
 import { StoreCapability, StoreStatus } from "@prisma/client";
 import { AnalyticsConsent } from "@/components/commerce-analytics";
+import { FormValidationFeedback } from "@/components/form-validation-feedback";
 import { getRequestLocale } from "@/lib/request-locale";
 import {
   compactLocaleName,
@@ -164,6 +165,7 @@ export default async function RootLayout({
           } : {}),
         }}
       >
+        <FormValidationFeedback />
         <CartProvider storageKey={`commerce-cart:${store.id}:v1`}>
           <SiteHeader
             config={store.slug === "kosykin" ? { ...settings.headerConfig, showCategories: false, customLinks: [] } : settings.headerConfig}
