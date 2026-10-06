@@ -13,14 +13,14 @@ export async function quoteShippitParcels(destination: ShippingDestination, parc
   for (const parcel of parcels) {
     for (let i = 0; i < parcel.quantity; i++) {
       if (++count > 30) return [];
-      const body = await shippitRequest("/quotes", { method: "POST", body: JSON.stringify({
+      const body = await shippitRequest("/quotes", { method: "POST", body: JSON.stringify({ quote: {
         dropoff_postcode: destination.postcode,
         dropoff_suburb: destination.locality,
         dropoff_state: destination.administrativeArea,
         dropoff_country_code: "AU",
         service_levels: ["standard", "express"],
         parcel_attributes: [{ qty: 1, weight: parcel.weightGrams / 1000, length: parcel.lengthMm / 1000, width: parcel.widthMm / 1000, depth: parcel.heightMm / 1000 }],
-      }) });
+      } }) });
       const options = Array.isArray(body?.response) ? body.response as Quote[] : [];
       const current = new Map<string, number>();
       for (const option of options) {
