@@ -267,7 +267,7 @@ export function SiteHeader({
           )}
           {commerce && (
             <>
-              {kosykinLayout && config.showCart && <span className="kosy-nav-cart" onClick={close}><CartLink label={copy.cart} itemsLabel={copy.items} href={href("/cart")} /></span>}
+              {kosykinLayout && config.showCart && <span className="kosy-nav-cart" onClick={close}><CartLink label={copy.cart} itemsLabel={copy.items} href={href("/cart")} iconOnly /></span>}
               <Link
                 className="nav-shop"
                 href={href(config.shopHref)}

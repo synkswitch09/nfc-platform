@@ -5216,22 +5216,6 @@ body[data-store="tapkin"] .footer-links {
 .product-3d-button { margin:10px 0; }
 @media(max-width:700px) { .product-model-viewer { height:clamp(150px,28dvh,240px); } }
 /* Kosykin's two editable Home regions. Depth is progressive enhancement. */
-@media (min-width: 801px) {
-  body[data-store="kosykin"]:has(.kosy-home-hero) .site-header {
-    position: relative; z-index: 10; margin-bottom: -92px; background: transparent;
-    padding-inline: 60px; color: #fcf6eb;
-  }
-  body[data-store="kosykin"]:has(.kosy-home-hero) .site-header .brand {
-    position: absolute; top: 0; left: 50%; transform: translateX(-50%);
-    min-height: 68px; padding: 7px 30px 13px;
-    border-radius: 0 0 36px 36px; background: #fff; color: #24334b;
-  }
-  body[data-store="kosykin"]:has(.kosy-home-hero) .site-header .nav-centre a,
-  body[data-store="kosykin"]:has(.kosy-home-hero) .site-header .nav-actions a:not(.nav-shop) { color: #fcf6eb; }
-  body[data-store="kosykin"]:has(.kosy-home-hero) .site-header .nav-shop {
-    color: #24334b; background: #fff; border-color: #fff; border-radius: 99px;
-  }
-}
 .modular-landing > .kosy-home-hero,
 .modular-landing > .kosy-collections { max-width: 1280px; }
 .kosy-home-hero { padding: 0 18px; }
@@ -5333,8 +5317,6 @@ body[data-store="kosykin"] .site-header .nav-account {
   body[data-store="kosykin"] .site-header nav { justify-content: space-between; }
   body[data-store="kosykin"] .site-header .nav-centre { gap: 16px; }
   body[data-store="kosykin"] .site-header .nav-actions { gap: 12px; }
-  body[data-store="kosykin"]:has(.kosy-home-hero) .site-header { background: transparent; color: #fcf6eb; }
-  body[data-store="kosykin"]:has(.kosy-home-hero) .site-header .nav-account { color: #fcf6eb; }
 }
 /* Keep the headline and the product in separate regions at every breakpoint. */
 .kosy-hero-title { inset: 26% auto auto 6%; width: 54%; z-index: 3; }
@@ -5429,19 +5411,19 @@ body[data-store="kosykin"]:has(.kosy-home-hero) .site-header .nav-account {
   font-size: .72rem;
 }
 .kosy-nav-cart .cart-link {
-  display: grid;
-  place-items: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   position: relative;
   width: 42px;
   height: 42px;
-  overflow: hidden;
   border-radius: 50%;
   background: white;
   color: #233147;
-  font-size: 0;
+  line-height: 1;
 }
-.kosy-nav-cart .cart-link svg { width: 20px; height: 20px; }
-.kosy-nav-cart .cart-link span { position: absolute; right: 1px; top: 0; font-size: 10px; }
+.kosy-nav-cart .cart-link svg { display: block; flex: none; width: 20px; height: 20px; }
+.kosy-nav-cart .cart-link span:not(.sr-only) { position: absolute; right: -4px; top: -4px; font-size: 10px; }
 .kosy-hero-socials { position: absolute; z-index: 4; right: 35px; bottom: 30px; display: flex; gap: 14px; }
 .kosy-hero-socials a, .kosy-hero-socials span { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; background: #778498; color: white; }
 .kosy-hero-socials img { width: 20px; height: 20px; object-fit: contain; }
@@ -5573,4 +5555,24 @@ body[data-store="kosykin"] .site-footer .footer-socials :is(a, .footer-social-pr
 body[data-store="kosykin"] .site-footer .footer-socials a:hover {
   background: var(--kosy-navy);
   color: white;
+}
+
+/* Keep the shared chrome and each landing section on the same canvas. */
+body[data-store="kosykin"] .modular-landing > section,
+body[data-store="kosykin"] .site-footer {
+  width: calc(100% - 100px);
+  max-width: 1340px;
+  margin-inline: auto;
+}
+body[data-store="kosykin"] .modular-landing > .kosy-home-hero {
+  padding-inline: 0;
+}
+body[data-store="kosykin"] .kosy-nav-cart .cart-link {
+  color: #233147;
+}
+@media (max-width: 950px) {
+  body[data-store="kosykin"] .modular-landing > section,
+  body[data-store="kosykin"] .site-footer {
+    width: calc(100% - 24px);
+  }
 }
