@@ -37,7 +37,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   return [
     ...base,
     ...products.flatMap(product => ownCanonical(`/products/${product.slug}`, product.canonicalUrl) ? entry(`/products/${product.slug}`, product.updatedAt) : []),
-    ...categories.flatMap(category => ownCanonical(`/${category.slug}`, category.canonicalUrl) ? entry(`/${category.slug}`, category.updatedAt, category.canonicalUrl ? [] : sectionLocales(category.landingSections).filter(locale => category.contentPage?.translations.some(item => item.locale === locale))) : []),
+    // Kosykin category URLs redirect to filtered Shop views, which are noindex.
+    // Only list canonical pages that can actually be indexed.
+    ...(store.slug === "kosykin" ? [] : categories.flatMap(category => ownCanonical(`/${category.slug}`, category.canonicalUrl) ? entry(`/${category.slug}`, category.updatedAt, category.canonicalUrl ? [] : sectionLocales(category.landingSections).filter(locale => category.contentPage?.translations.some(item => item.locale === locale))) : [])),
     ...pageEntries,
   ];
 }

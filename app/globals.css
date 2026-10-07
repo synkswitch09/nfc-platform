@@ -5493,7 +5493,7 @@ body[data-store="kosykin"] .modular-landing > .kosy-home-hero { max-width: 1440p
     padding: 8px 30px 16px;
     transform: translateX(-50%);
     border-radius: 0;
-    background: url("/images/kosykin/header-cutout.svg") center / 100% 100% no-repeat;
+    background: url("/images/kosykin/header-cutout-compact.svg") center / 100% 100% no-repeat;
   }
   body[data-store="kosykin"] .site-header .brand { max-width: none; overflow: visible; }
   body[data-store="kosykin"] .site-header .brand .brand-logo,
@@ -5660,7 +5660,7 @@ body[data-store="kosykin"] .modular-landing > .kosy-home-hero {
   padding-inline: 0;
 }
 body[data-store="kosykin"] .kosy-hero-panel {
-  border-radius: 0 0 var(--kosy-header-radius) var(--kosy-header-radius);
+  border-radius: var(--kosy-header-radius);
 }
 .kosy-compact-logo { display: none; }
 
@@ -5683,7 +5683,7 @@ body[data-store="kosykin"] .site-header.compact-header .brand {
   transform: translateX(-50%);
   border-radius: 0;
   overflow: visible;
-  background: url("/images/kosykin/header-cutout.svg") center / 100% 100% no-repeat;
+  background: url("/images/kosykin/header-cutout-compact.svg") center / 100% 100% no-repeat;
 }
 body[data-store="kosykin"] .site-header.compact-header .brand .brand-logo,
 body[data-store="kosykin"] .site-header.compact-header .brand .kosy-brand-logo { display: none; }

@@ -45,7 +45,7 @@ export async function generateMetadata(): Promise<Metadata> {
     metadataBase: new URL(store.origin),
     robots:
       store.status === StoreStatus.ACTIVE
-        ? searchEnginePolicy(config.appEnv)
+        ? searchEnginePolicy(config.appEnv, config.previewMode)
         : { index: false, follow: false },
     title: {
       default: title,
