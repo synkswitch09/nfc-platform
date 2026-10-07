@@ -30,6 +30,7 @@ export function StorefrontChromeForm({
   const [logoUrl, setLogoUrl] = useState(
     area === "header" ? (header?.logoUrl ?? "") : (footer?.logoUrl ?? ""),
   );
+  const [compactLogoUrl, setCompactLogoUrl] = useState(header?.compactLogoUrl ?? "");
   const [socialIcons, setSocialIcons] = useState(
     footer?.socialIcons ?? { instagram: "", tumblr: "", facebook: "", tiktok: "", linkedin: "" },
   );
@@ -44,6 +45,7 @@ export function StorefrontChromeForm({
         ? {
             ...header,
             logoUrl,
+            compactLogoUrl,
             homeLabel: form.get("homeLabel"),
             categoriesLabel: form.get("categoriesLabel"),
             faqLabel: form.get("faqLabel"),
@@ -168,6 +170,13 @@ export function StorefrontChromeForm({
           value={logoUrl}
           onChange={setLogoUrl}
         />
+        {area === "header" && <MediaUploadField
+          uploadEndpoint="/api/admin/settings/images"
+          label="Compact header logo (mobile and narrow screens)"
+          name="compactLogoUrl"
+          value={compactLogoUrl}
+          onChange={setCompactLogoUrl}
+        />}
         {area === "header" && header ? (
           <HeaderFields config={header} />
         ) : footer ? (

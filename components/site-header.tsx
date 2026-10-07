@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { Menu, Radio, Shapes, X } from "lucide-react";
 import { usePathname } from "next/navigation";
-import { useState, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { CartLink } from "@/components/cart-link";
 import { LanguageSelector } from "@/components/language-selector";
 import { localizedPath, type SystemCopy } from "@/lib/i18n";
@@ -54,6 +54,39 @@ export function SiteHeader({
   defaultLocale: string;
 }) {
   const pathname = usePathname();
+  const headerRef = useRef<HTMLElement>(null);
+  const [compact, setCompact] = useState(false);
+  useEffect(() => {
+    const header = headerRef.current;
+    if (!kosykinLayout || !header) return;
+    let disposed = false;
+    const measure = () => {
+      if (disposed) return;
+      const nav = header.querySelector("nav");
+      if (!nav) return;
+      // Measure an invisible intrinsic-width copy even while the mobile menu is
+      // closed. This lets the full logo return when its navigation fits again.
+      const probe = nav.cloneNode(true) as HTMLElement;
+      probe.removeAttribute("id");
+      probe.className = "";
+      probe.inert = true;
+      probe.setAttribute("aria-hidden", "true");
+      Object.assign(probe.style, { display: "flex", position: "absolute", visibility: "hidden", width: "max-content", padding: "0", border: "0", pointerEvents: "none" });
+      for (const group of probe.querySelectorAll<HTMLElement>(".nav-centre, .nav-actions")) Object.assign(group.style, { display: "flex", width: "max-content", flexWrap: "nowrap" });
+      header.appendChild(probe);
+      const groups = Array.from(probe.querySelectorAll<HTMLElement>(".nav-centre, .nav-actions"));
+      const sideWidth = Math.max(0, ...groups.map(group => group.getBoundingClientRect().width));
+      probe.remove();
+      const padding = window.innerWidth <= 1050 ? 24 : 46;
+      const logoWidth = window.innerWidth <= 1050 ? Math.min(400, window.innerWidth * .4) : Math.min(500, window.innerWidth * .38);
+      setCompact(window.innerWidth <= 950 || 2 * (sideWidth + padding + 16) + logoWidth > header.getBoundingClientRect().width);
+    };
+    const observer = new ResizeObserver(measure);
+    observer.observe(header);
+    document.fonts.ready.then(measure);
+    measure();
+    return () => { disposed = true; observer.disconnect(); };
+  }, [kosykinLayout, config, categories, pages, authenticated, locale]);
   const [open, setOpen] = useState(false);
   const logoUrl = config.logoUrl || storeLogoUrl;
   const active = (path: string) => isNavigationActive(pathname, path);
@@ -193,7 +226,7 @@ export function SiteHeader({
   } as CSSProperties;
 
   return (
-    <header className="site-header" style={headerStyle}>
+    <header ref={headerRef} className={compact ? "site-header compact-header" : "site-header"} style={headerStyle}>
       <Link
         href={href("/")}
         className="brand"
@@ -207,6 +240,7 @@ export function SiteHeader({
           ...typographyStyle(config.brandTypography),
         }}
       >
+        {kosykinLayout && <Image className="kosy-compact-logo" src={config.compactLogoUrl || logoUrl || "/images/kosykin/logo.png"} alt={storeName} width={64} height={64} priority unoptimized />}
         {logoUrl ? (
           <Image
             className="brand-logo"

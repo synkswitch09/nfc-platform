@@ -8,6 +8,7 @@ import type { Metadata } from "next";
 import { KEYCHAIN_SLUG } from "@/lib/keychain-order";
 import { canAcceptVariant } from "@/lib/production-capacity";
 import { KEYCHAIN_PREVIEW_NAME, KEYCHAIN_PREVIEW_DESCRIPTION } from "@/lib/keychain-shop-preview";
+import { getRuntimeConfig, searchEnginePolicy } from "@/lib/config";
 
 type ShopQuery = { category?: string | string[]; min?: string; max?: string; availability?: string; sort?: string };
 const categoriesFrom = (query: ShopQuery) => (Array.isArray(query.category) ? query.category : query.category ? [query.category] : []).slice(0, 20);
@@ -15,7 +16,9 @@ const categoriesFrom = (query: ShopQuery) => (Array.isArray(query.category) ? qu
 export async function generateMetadata({ searchParams }: { searchParams: Promise<ShopQuery> }): Promise<Metadata> {
   const store = await getCurrentStorefront();
   const filtered = Object.keys(await searchParams).length > 0;
-  return { title: "Shop", alternates: { canonical: `${store.origin}/shop` }, robots: filtered ? { index: false, follow: true } : undefined, openGraph: { url: `${store.origin}/shop`, title: `Shop · ${store.displayName}` } };
+  const runtime = getRuntimeConfig();
+  const policy = store.status === StoreStatus.ACTIVE ? searchEnginePolicy(runtime.appEnv, runtime.previewMode) : { index: false, follow: false };
+  return { title: "Shop", alternates: { canonical: `${store.origin}/shop` }, robots: filtered && policy.index ? { index: false, follow: true } : policy, openGraph: { url: `${store.origin}/shop`, title: `Shop · ${store.displayName}` } };
 }
 
 export const dynamic = "force-dynamic";

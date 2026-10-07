@@ -1,18 +1,29 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-const mocks = vi.hoisted(() => ({ products: vi.fn(), categories: vi.fn(), pages: vi.fn() }));
+const mocks = vi.hoisted(() => ({ products: vi.fn(), categories: vi.fn(), pages: vi.fn(), storeSlug: "tapkin" }));
 vi.mock("@/lib/db", () => ({ db: { product: { findMany: mocks.products }, productCategory: { findMany: mocks.categories }, contentPage: { findMany: mocks.pages } } }));
 vi.mock("@/lib/config", () => ({ getRuntimeConfig: () => ({ appEnv: "production" }), searchEnginePolicy: () => ({ index: true }) }));
 vi.mock("@/lib/storefront", async importOriginal => {
   const actual = await importOriginal<typeof import("@/lib/storefront")>();
-  return { ...actual, getCurrentStorefront: () => ({ id: "shop", status: "ACTIVE", origin: "https://tapkin.example", capabilities: ["COMMERCE"], defaultLocale: "en-AU", enabledLocales: ["en-AU", "es-CO"] }) };
+  return { ...actual, getCurrentStorefront: () => ({ id: "shop", slug: mocks.storeSlug, status: "ACTIVE", origin: "https://tapkin.example", capabilities: ["COMMERCE"], defaultLocale: "en-AU", enabledLocales: ["en-AU", "es-CO"] }) };
 });
 import sitemap from "@/app/sitemap";
 
 const before = process.env.DATABASE_URL;
-afterEach(() => { process.env.DATABASE_URL = before; vi.resetAllMocks(); });
+afterEach(() => { process.env.DATABASE_URL = before; mocks.storeSlug = "tapkin"; vi.resetAllMocks(); });
 
 describe("published sitemap", () => {
+  it.each(["tapkin", "kosykin"])("lists only indexable category destinations for %s", async slug => {
+    process.env.DATABASE_URL = "postgresql://test";
+    mocks.storeSlug = slug;
+    mocks.products.mockResolvedValue([]);
+    mocks.pages.mockResolvedValue([]);
+    mocks.categories.mockResolvedValue([{ slug: "collection", canonicalUrl: null, updatedAt: new Date("2026-10-07"), contentPage: null, landingSections: [] }]);
+    const urls = (await sitemap()).map(item => item.url);
+    expect(urls.includes("https://tapkin.example/collection")).toBe(slug === "tapkin");
+    expect(urls).toContain("https://tapkin.example/shop");
+  });
+
   it("includes reachable CMS content, real translations, and excludes external canonicals", async () => {
     process.env.DATABASE_URL = "postgresql://test";
     mocks.products.mockResolvedValue([{ slug: "pet-tag", canonicalUrl: null, updatedAt: new Date("2026-09-22") }, { slug: "duplicate", canonicalUrl: "https://tapkin.example/products/pet-tag", updatedAt: new Date() }]);
