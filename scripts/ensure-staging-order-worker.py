@@ -1,6 +1,7 @@
 """Provision the staging HTTP worker without printing application secrets."""
 import json
 import os
+import secrets as secure_random
 import subprocess
 import tempfile
 import time
@@ -38,10 +39,15 @@ def main():
                 return
     env = {entry["name"]: entry for entry in app["properties"]["template"]["containers"][0].get("env", [])}
     reconcile = env.get("CHECKOUT_RECONCILE_SECRET", {})
-    secret_values = {entry["name"]: entry.get("value") for entry in az("containerapp", "secret", "list", "--name", app_name, "--resource-group", group)}
+    secret_values = {entry["name"]: entry.get("value") for entry in az("containerapp", "secret", "list", "--name", app_name, "--resource-group", group, "--show-values")}
     token = reconcile.get("value") or secret_values.get(reconcile.get("secretRef"))
     if not token:
-        raise RuntimeError("Staging CHECKOUT_RECONCILE_SECRET is not configured")
+        token = secure_random.token_urlsafe(48)
+        az("containerapp", "secret", "set", "--name", app_name, "--resource-group", group,
+           "--secrets", "order-worker-reconcile=" + token)
+        az("containerapp", "update", "--name", app_name, "--resource-group", group,
+           "--set-env-vars", "CHECKOUT_RECONCILE_SECRET=secretref:order-worker-reconcile")
+        print("Configured the missing staging order-worker authentication secret")
     secrets = [{"name": "reconcile", "value": token}]
     registries = []
     for registry in app["properties"].get("configuration", {}).get("registries", []):
