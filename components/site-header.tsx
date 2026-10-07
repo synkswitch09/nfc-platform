@@ -79,7 +79,7 @@ export function SiteHeader({
       probe.remove();
       const padding = window.innerWidth <= 1050 ? 24 : 46;
       const logoWidth = window.innerWidth <= 1050 ? Math.min(400, window.innerWidth * .4) : Math.min(500, window.innerWidth * .38);
-      setCompact(window.innerWidth <= 950 || 2 * (sideWidth + padding + 16) + logoWidth > Math.min(1340, window.innerWidth - 100));
+      setCompact(window.innerWidth <= 950 || 2 * (sideWidth + padding + 16) + logoWidth > header.getBoundingClientRect().width);
     };
     const observer = new ResizeObserver(measure);
     observer.observe(header);
