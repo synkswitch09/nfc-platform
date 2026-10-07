@@ -2568,6 +2568,10 @@ body:has(.admin-shell) > footer {
   padding: 15px 0;
   border-bottom: 1px solid var(--line);
 }
+.order-lines article > strong {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
 .order-lines article > div {
   min-width: 0;
   display: grid;
