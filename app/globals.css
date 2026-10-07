@@ -5650,6 +5650,7 @@ body[data-store="kosykin"] .site-header {
   border-radius: var(--kosy-header-radius);
 }
 body[data-store="kosykin"]:has(.kosy-home-hero) .site-header {
+  min-height: 92px;
   margin-bottom: -92px;
   border-bottom-left-radius: 0;
   border-bottom-right-radius: 0;
