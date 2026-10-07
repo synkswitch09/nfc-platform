@@ -5655,7 +5655,8 @@ body[data-store="kosykin"]:has(.kosy-home-hero) .site-header {
   border-bottom-right-radius: 0;
 }
 body[data-store="kosykin"] .modular-landing > .kosy-home-hero {
-  padding-inline: var(--kosy-frame-gutter);
+  max-width: 1340px;
+  padding-inline: 0;
 }
 body[data-store="kosykin"] .kosy-hero-panel {
   border-radius: 0 0 var(--kosy-header-radius) var(--kosy-header-radius);
