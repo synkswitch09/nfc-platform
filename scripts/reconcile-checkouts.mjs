@@ -3,11 +3,12 @@ const origin = process.env.APP_URL;
 const secret = process.env.CHECKOUT_RECONCILE_SECRET;
 if (!origin || !secret) throw new Error("APP_URL and CHECKOUT_RECONCILE_SECRET are required");
 async function cycle() {
+ let operationsFailed = false;
  try {
  const operations = await fetch(new URL("/api/integrations/orders/process", origin), { method: "POST", headers: { authorization: `Bearer ${secret}` }, signal: AbortSignal.timeout(120_000), redirect: "error" });
- if (!operations.ok) console.error(`Order operations worker failed (HTTP ${operations.status})`);
+ if (!operations.ok) { operationsFailed = true; console.error(`Order operations worker failed (HTTP ${operations.status})`); }
  else console.log(JSON.stringify(await operations.json()));
- } catch { console.error("Order operations request failed; checkout reconciliation will still run."); }
+ } catch { operationsFailed = true; console.error("Order operations request failed; checkout reconciliation will still run."); }
  let cursor;
  let pages = 0;
  do {
@@ -21,6 +22,7 @@ async function cycle() {
   pages++;
   if (pages >= 1000 && cursor) throw new Error("Reconciliation page limit reached; review pending payments");
  } while (cursor);
+ if (operationsFailed) throw new Error("Order operations failed; checkout reconciliation completed");
 }
 
 if (process.argv.includes("--watch")) {

@@ -55,6 +55,14 @@ jobs:
           AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
       - uses: actions/setup-node@v5
         with: { node-version: 24 }
+      - name: Ensure recurring staging order worker
+        if: inputs.target_environment == 'staging'
+        run: python3 scripts/ensure-staging-order-worker.py
+        env:
+          TARGET_ENVIRONMENT: ${{ inputs.target_environment }}
+          AZURE_CONTAINER_APP: ${{ vars.AZURE_CONTAINER_APP }}
+          AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+          APP_URL: ${{ vars.APP_URL }}
       - name: Run post-deployment smoke tests
         run: npm run smoke
         env:
