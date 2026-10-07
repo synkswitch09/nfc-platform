@@ -14,6 +14,8 @@ function configuration() {
   return { secret, base: environment === "production" ? "https://app.shippit.com/api/3" : "https://app.staging.shippit.com/api/3" };
 }
 
+export function assertShippitConfigured() { configuration(); }
+
 export async function shippitRequest(path: string, init?: RequestInit) {
   const { secret, base } = configuration();
   const response = await fetch(`${base}${path}`, { ...init, headers: { authorization: `Bearer ${secret}`, accept: "application/json", "content-type": "application/json", "user-agent": "TapkinKosykin/1.0", "x-shippit-platform": "Custom Next.js", ...init?.headers }, cache: "no-store", signal: AbortSignal.timeout(15000) });

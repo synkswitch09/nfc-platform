@@ -1,3 +1,4 @@
+import { queueShippitPreparation, processShippitPreparations } from "@/lib/shippit-preparation";
 import { changeReservation, consumeStock, orderReservations } from "@/lib/inventory-service";
 import { randomUUID } from "node:crypto";
 import { Prisma, StoreCapability, StoreStatus } from "@prisma/client";
@@ -243,8 +244,10 @@ export async function settleCheckoutEvent(input: { eventId: string; eventType: s
         await queueOrderNotice(tx, payment.orderId, `next-purchase:${payment.orderId}`, `${amount} off your next purchase`, `Thank you for your first order. Use code ${code} on your next ${payment.order.storeDisplayName} purchase within ${reward.secondPurchaseRewardValidityDays} days${minimum}. This code is for your email address and cannot be combined with another promotion.`);
       }
     }
+    await queueShippitPreparation(tx, payment.order);
     return { duplicate: false };
   }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
   if (!result.duplicate) await notifyPaidOrder(input.orderId);
+  await processShippitPreparations(input.orderId).catch(() => undefined);
   return result;
 }

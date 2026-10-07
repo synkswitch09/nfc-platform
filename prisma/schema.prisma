@@ -967,6 +967,7 @@ model Order {
   inventoryMovements         InventoryMovement[]
   shippingQuote              ShippingQuote?        @relation(fields: [shippingQuoteId], references: [id], onDelete: SetNull)
   shipments                  Shipment[]
+  shippitPreparation         ShippitPreparation?
   productionBooking          ProductionBooking?
   promotion                  Promotion?            @relation(fields: [promotionId], references: [id], onDelete: SetNull)
   marketplaceOrder           MarketplaceOrder?
@@ -1741,4 +1742,20 @@ model OrderSupportRequest {
 
   @@index([storeId, status, createdAt])
   @@index([orderId, createdAt])
+}
+
+// Durable payment-to-label workflow; booking remains an explicit seller action.
+model ShippitPreparation {
+  orderId     String   @id @db.Uuid
+  status      String   @default("PENDING")
+  attempts    Int      @default(0)
+  availableAt DateTime @default(now())
+  leaseToken  String?
+  leaseUntil  DateTime?
+  lastError   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  order       Order    @relation(fields: [orderId], references: [id], onDelete: Restrict)
+
+  @@index([status, availableAt])
 }

@@ -4,16 +4,19 @@ import { currentAppEnvironment } from "@/lib/config";
 import { getStorageProvider } from "@/lib/storage";
 import { createDocumentStorageKey } from "@/lib/storage/keys";
 import { FulfilmentError } from "@/lib/fulfilment-service";
-import { downloadShippitLabel, parseShippitLabel, parseShippitTracking, shippitOrderPayload, shippitRequest, type ParcelDimensions } from "@/lib/shippit";
+import { assertShippitConfigured, downloadShippitLabel, parseShippitLabel, parseShippitTracking, shippitOrderPayload, shippitRequest, type ParcelDimensions } from "@/lib/shippit";
 
 // A separate Shippit order is created for each physical box. Shippit combines
 // parcel_attributes by default, so a multi-parcel order cannot guarantee one label per box.
-export async function createShippitParcel(orderId: string, storeId: string, actorId: string, parcel: ParcelDimensions, service: "standard" | "express", requestId: string) {
-  const order = await db.order.findFirst({ where: { id: orderId, storeId }, include: { user: { select: { email: true } } } });
-  if (!order || order.status !== "READY_TO_SHIP") throw new FulfilmentError("Order must be ready to ship", 409);
+export async function createShippitParcel(orderId: string, storeId: string, actorId: string | undefined, parcel: ParcelDimensions, service: "standard" | "express", requestId: string) {
+  const order = await db.order.findFirst({ where: { id: orderId, storeId }, include: { user: { select: { email: true } }, payments: { select: { status: true, refundedAmountCents: true } } } });
+  if (!order || !["PAID", "PROCESSING", "READY_TO_SHIP"].includes(order.status)) throw new FulfilmentError("A paid order is required", 409);
+  if (!order.payments.some(payment => payment.status === "SUCCEEDED") || order.payments.some(payment => payment.status === "REFUNDED" || payment.refundedAmountCents > 0)) throw new FulfilmentError("A paid, unrefunded order is required", 409);
   if (order.shippingCountry !== "AU") throw new FulfilmentError("Shippit domestic labels currently require an Australian destination", 409);
-  const origin = await db.shippingOrigin.findFirst({ where: { storeId, active: true }, orderBy: [{ isDefault: "desc" }, { createdAt: "asc" }] });
+  const savedOrigin = order.shippingOriginSnapshot && typeof order.shippingOriginSnapshot === "object" && !Array.isArray(order.shippingOriginSnapshot) ? order.shippingOriginSnapshot as { id?: string } : null;
+  const origin = await db.shippingOrigin.findFirst({ where: { storeId, active: true, ...(savedOrigin?.id ? { id: savedOrigin.id } : {}) }, orderBy: [{ isDefault: "desc" }, { createdAt: "asc" }] });
   if (!origin || origin.country !== "AU") throw new FulfilmentError("Configure an Australian dispatch origin matching your Shippit location", 409);
+  assertShippitConfigured();
   const key = `shippit:${order.id}:${requestId}`;
   const reference = `${order.orderNumber}-${requestId.slice(0, 8)}`;
   const payload = shippitOrderPayload(order, parcel, reference, service);
@@ -37,27 +40,35 @@ export async function createShippitParcel(orderId: string, storeId: string, acto
   }
 }
 
-export async function refreshShippitLabel(shipmentId: string, storeId: string, actorId: string) {
+export async function refreshShippitLabel(shipmentId: string, storeId: string, actorId: string | undefined) {
   const shipment = await db.shipment.findFirst({ where: { id: shipmentId, storeId, idempotencyKey: { startsWith: "shippit:" } }, include: { order: true } });
   if (!shipment?.providerShipmentId) throw new FulfilmentError("Shippit order needs manual reconciliation before obtaining a label", 409);
   if (shipment.labelStorageKey) return shipment;
-  if (shipment.order.status !== "READY_TO_SHIP") throw new FulfilmentError("Order must be ready to ship", 409);
+  if (!["PAID", "PROCESSING", "READY_TO_SHIP"].includes(shipment.order.status)) throw new FulfilmentError("A paid order is required", 409);
   const parsed = parseShippitLabel(await shippitRequest(`/orders/${encodeURIComponent(shipment.providerShipmentId)}/label`));
   const bytes = await downloadShippitLabel(parsed.url);
   const storageKey = createDocumentStorageKey(currentAppEnvironment(), shipment.order.sourceDomain.includes("kosykin") ? "kosykin" : "tapkin", randomUUID(), "pdf");
   await getStorageProvider().put(storageKey, bytes, { contentType: "application/pdf", cacheControl: "private, no-store", metadata: { environment: currentAppEnvironment(), purpose: "shipping-label" } });
   const changed = await db.$transaction(async tx => {
-    const updated = await tx.shipment.update({ where: { id: shipmentId }, data: { labelStorageKey: storageKey, labelMimeType: "application/pdf", labelCreatedAt: new Date(), serviceName: parsed.carrier, status: "LABEL_READY", trackingUrl: parsed.trackingUrl?.startsWith("https://") ? parsed.trackingUrl : shipment.trackingUrl } });
+    const claimed = await tx.shipment.updateMany({ where: { id: shipmentId, labelStorageKey: null }, data: { labelStorageKey: storageKey, labelMimeType: "application/pdf", labelCreatedAt: new Date(), serviceName: parsed.carrier, status: "LABEL_READY", trackingUrl: parsed.trackingUrl?.startsWith("https://") ? parsed.trackingUrl : shipment.trackingUrl } });
+    if (!claimed.count) return null;
+    const updated = await tx.shipment.findUniqueOrThrow({ where: { id: shipmentId } });
     await tx.printJob.create({ data: { storeId, shipmentId } });
     await tx.auditLog.create({ data: { actorId, storeId, action: "SHIPPIT_LABEL_CREATED", entityType: "Shipment", entityId: shipmentId } });
     return updated;
   }).catch(async error => { await getStorageProvider().delete(storageKey).catch(() => undefined); throw error; });
+  if (!changed) {
+    await getStorageProvider().delete(storageKey).catch(() => undefined);
+    return db.shipment.findUniqueOrThrow({ where: { id: shipmentId } });
+  }
   return changed;
 }
 
-export async function bookShippitParcel(shipmentId: string, storeId: string, actorId: string) {
-  const shipment = await db.shipment.findFirst({ where: { id: shipmentId, storeId, idempotencyKey: { startsWith: "shippit:" } }, include: { order: true } });
+export async function bookShippitParcel(shipmentId: string, storeId: string, actorId: string | undefined) {
+  const shipment = await db.shipment.findFirst({ where: { id: shipmentId, storeId, idempotencyKey: { startsWith: "shippit:" } }, include: { order: { include: { shippitPreparation: true, payments: { select: { status: true, refundedAmountCents: true } } } } } });
   if (!shipment?.trackingNumber || !shipment.labelStorageKey || shipment.order.status !== "READY_TO_SHIP") throw new FulfilmentError("A ready order with a label is required", 409);
+  if (shipment.order.shippitPreparation && shipment.order.shippitPreparation.status !== "COMPLETE") throw new FulfilmentError("Wait until all checkout labels are ready", 409);
+  if (!shipment.order.payments.some(payment => payment.status === "SUCCEEDED") || shipment.order.payments.some(payment => payment.status === "REFUNDED" || payment.refundedAmountCents > 0)) throw new FulfilmentError("Refunded orders require review before booking", 409);
   if (shipment.bookedAt) return shipment;
   // Lock the booking intent before the external call, including across concurrent requests.
   const locked = await db.shipment.updateMany({ where: { id: shipment.id, bookedAt: null, externalRequestAt: { not: null } }, data: { externalRequestAt: null } });

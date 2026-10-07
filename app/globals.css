@@ -5632,3 +5632,62 @@ body[data-store="kosykin"] .storefront-main > .auth-shell {
     padding-block: 40px 64px;
   }
 }
+
+/* Compact brand shares the mobile layout breakpoint; no decorative notch overlaps the menu. */
+.kosy-compact-logo { display: none; }
+@media (max-width: 950px) {
+  body[data-store="kosykin"] .site-header .brand {
+    position: relative;
+    left: auto;
+    top: auto;
+    width: 64px;
+    height: 64px;
+    flex: 0 0 64px;
+    padding: 0;
+    transform: none;
+    background: none;
+    border-radius: 50%;
+  }
+  body[data-store="kosykin"] .site-header .brand .brand-logo,
+  body[data-store="kosykin"] .site-header .brand .kosy-brand-logo { display: none; }
+  body[data-store="kosykin"] .site-header .brand .kosy-compact-logo {
+    display: block;
+    width: 64px;
+    height: 64px;
+    object-fit: contain;
+    border-radius: 50%;
+  }
+  body[data-store="kosykin"] .site-header .mobile-nav-toggle { position: relative; z-index: 3; flex-shrink: 0; }
+}
+
+/* Intrinsic navigation measurements also switch tablet/narrow desktop layouts. */
+body[data-store="kosykin"] .site-header.compact-header,
+body[data-store="kosykin"]:has(.kosy-home-hero) .site-header.compact-header {
+  width: calc(100% - 24px);
+  min-height: 76px;
+  margin-top: 16px;
+  margin-bottom: 0;
+  padding-inline: 20px;
+  border-radius: 22px 22px 0 0;
+}
+body[data-store="kosykin"] .site-header.compact-header .brand {
+  position: relative; left: auto; top: auto; width: 64px; height: 64px;
+  flex: 0 0 64px; padding: 0; transform: none; background: none; border-radius: 50%;
+}
+body[data-store="kosykin"] .site-header.compact-header .brand .brand-logo,
+body[data-store="kosykin"] .site-header.compact-header .brand .kosy-brand-logo { display: none; }
+body[data-store="kosykin"] .site-header.compact-header .brand .kosy-compact-logo {
+  display: block; width: 64px; height: 64px; object-fit: contain; border-radius: 50%;
+}
+body[data-store="kosykin"] .site-header.compact-header .mobile-nav-toggle {
+  display: grid; position: relative; z-index: 3; flex-shrink: 0; margin-left: auto; color: #233147;
+}
+body[data-store="kosykin"] .site-header.compact-header nav { display: none; }
+body[data-store="kosykin"] .site-header.compact-header nav.is-open {
+  display: grid; position: absolute; z-index: 20; left: 16px; right: 16px;
+  top: calc(100% - 4px); width: auto; padding: 18px; border: 1px solid #3b5072;
+  border-radius: 18px; background: #233147; color: white; box-shadow: var(--shadow);
+}
+body[data-store="kosykin"] .site-header.compact-header nav.is-open .nav-centre,
+body[data-store="kosykin"] .site-header.compact-header nav.is-open .nav-actions { display: grid; justify-items: start; }
+body[data-store="kosykin"] .site-header.compact-header nav.is-open .nav-centre a { color: white; }

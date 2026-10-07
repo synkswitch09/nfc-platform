@@ -47,6 +47,7 @@ const navLinkSchema = z.object({
 
 export const headerConfigSchema = z.object({
   logoUrl: optionalImage.default(""),
+  compactLogoUrl: optionalImage.default(""),
   homeLabel: z.string().trim().min(1).max(40).default("Home"),
   faqLabel: z.string().trim().min(1).max(40).default("FAQs"),
   faqHref: internalHref.default("/faq"),

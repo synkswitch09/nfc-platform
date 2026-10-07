@@ -137,7 +137,7 @@ export async function createShippingQuotes(items: ShippingCartInput[], destinati
   const destinationHash = shippingDestinationHash(destination);
   const expiresAt = new Date(Date.now() + QUOTE_TTL_MS);
   const originSnapshot = originSnapshotOf(origin);
-  const packagingSnapshot = { packages: [...new Map(resolved.filter(line => line.selected).map(line => [line.selected!.id, line.selected!])).values(), ...(outer ? [outer] : [])].map(item => ({ id: item.id, code: item.code, name: item.name, lengthMm: item.lengthMm, widthMm: item.widthMm, heightMm: item.heightMm, emptyWeightGrams: item.emptyWeightGrams })), parcels };
+  const packagingSnapshot = { measurementsVerified: allMeasured, packages: [...new Map(resolved.filter(line => line.selected).map(line => [line.selected!.id, line.selected!])).values(), ...(outer ? [outer] : [])].map(item => ({ id: item.id, code: item.code, name: item.name, lengthMm: item.lengthMm, widthMm: item.widthMm, heightMm: item.heightMm, emptyWeightGrams: item.emptyWeightGrams })), parcels };
 
   return Promise.all(offered.map(async rate => {
     const token = createOpaqueToken();

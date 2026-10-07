@@ -24,6 +24,13 @@ describe("site chrome configuration", () => {
     expect(parseHeaderConfig({ faqHref: "/#faqs" }).faqHref).toBe("/faq");
   });
 
+  it("keeps uploaded compact logos in the header configuration and rejects unsafe URLs", () => {
+    const compactLogoUrl = "/api/media/staging-kosykin-11111111-1111-4111-8111-111111111111.png";
+    expect(parseHeaderConfig({ compactLogoUrl }).compactLogoUrl).toBe(compactLogoUrl);
+    expect(parseHeaderConfig({}).compactLogoUrl).toBe("");
+    expect(() => parseHeaderConfig({ compactLogoUrl: "javascript:alert(1)" })).toThrow();
+  });
+
   it("accepts controlled chrome colours and rejects style injection", () => {
     expect(
       parseHeaderConfig({
