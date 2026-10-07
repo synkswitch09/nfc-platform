@@ -2059,6 +2059,8 @@ body:has(.admin-shell) > footer {
   font-size: 0.82rem;
 }
 .admin-panel {
+  min-width: 0;
+  overflow-wrap: anywhere;
   background: white;
   border: 1px solid var(--line);
   border-radius: 18px;
@@ -2568,7 +2570,7 @@ body:has(.admin-shell) > footer {
 .order-detail {
   grid-template-columns: minmax(0, 1.6fr) minmax(280px, 0.4fr);
 }
-.order-detail aside {
+.order-detail > * {
   min-width: 0;
 }
 .order-detail address {
@@ -2587,7 +2589,9 @@ body:has(.admin-shell) > footer {
   border-bottom: 1px solid var(--line);
 }
 .order-lines article > div {
+  min-width: 0;
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
 }
 .order-lines article span {
   color: var(--muted);
@@ -2629,8 +2633,13 @@ body:has(.admin-shell) > footer {
   padding-top: 8px;
 }
 .status-update {
+  min-width: 0;
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 10px;
+}
+.status-update > * {
+  min-width: 0;
 }
 .status-update select,
 .status-update input {
@@ -2645,7 +2654,7 @@ body:has(.admin-shell) > footer {
 }
 .timeline article {
   display: grid;
-  grid-template-columns: 14px 1fr;
+  grid-template-columns: 14px minmax(0, 1fr);
   gap: 10px;
   padding-bottom: 18px;
 }
@@ -3718,6 +3727,8 @@ body:has(.admin-shell) > footer {
   margin-top: 3px;
 }
 .admin-subpanel {
+  min-width: 0;
+  overflow-wrap: anywhere;
   border: 1px solid var(--line);
   border-radius: 14px;
   padding: 12px;
