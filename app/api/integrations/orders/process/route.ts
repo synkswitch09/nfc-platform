@@ -1,3 +1,4 @@
+import { processShippitPreparations } from "@/lib/shippit-preparation";
 import { timingSafeEqual } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { getRuntimeConfig } from "@/lib/config";
@@ -10,6 +11,6 @@ export async function POST(request: NextRequest) {
   const expected = Buffer.from(`Bearer ${secret ?? ""}`);
   if (!secret || received.length !== expected.length || !timingSafeEqual(received, expected)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   // Keep the queues independent: one provider failing must not starve the other queue.
-  const [refunds, notifications] = await Promise.allSettled([processPendingRefunds(), processOrderNotifications()]);
-  return NextResponse.json({ refunds: refunds.status === "fulfilled" ? refunds.value : { error: "retry_required" }, notifications: notifications.status === "fulfilled" ? notifications.value : { error: "retry_required" } });
+  const [refunds, notifications, shipping] = await Promise.allSettled([processPendingRefunds(), processOrderNotifications(), processShippitPreparations()]);
+  return NextResponse.json({ shipping: shipping.status === "fulfilled" ? shipping.value : { error: "retry_required" }, refunds: refunds.status === "fulfilled" ? refunds.value : { error: "retry_required" }, notifications: notifications.status === "fulfilled" ? notifications.value : { error: "retry_required" } });
 }

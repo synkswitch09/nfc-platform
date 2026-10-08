@@ -17,9 +17,12 @@ describe("Shippit mapped tracking events", () => {
     const booked = { bookedAt: new Date(), trackingNumber: "TRACK-123", status: "IN_TRANSIT" };
     const pending = { bookedAt: null, trackingNumber: "TRACK-456", status: "LABEL_READY" };
     expect(shippitOrderProgress("READY_TO_SHIP", "in_transit", [booked, pending]).ship).toBe(false);
-    expect(shippitOrderProgress("READY_TO_SHIP", "in_transit", [booked, { ...pending, bookedAt: new Date() }]).ship).toBe(true);
+    expect(shippitOrderProgress("READY_TO_SHIP", "in_transit", [booked, { ...pending, bookedAt: new Date(), status: "IN_TRANSIT" }]).ship).toBe(true);
     expect(shippitOrderProgress("SHIPPED", "completed", [{ ...booked, status: "DELIVERED" }, booked]).deliver).toBe(false);
     expect(shippitOrderProgress("SHIPPED", "completed", [{ ...booked, status: "DELIVERED" }, { ...pending, status: "DELIVERED" }]).deliver).toBe(true);
+    expect(shippitOrderProgress("READY_TO_SHIP", "in_transit", [booked], 2).ship).toBe(false);
+    expect(shippitOrderProgress("SHIPPED", "completed", [{ ...booked, status: "DELIVERED" }], 2).deliver).toBe(false);
+    expect(shippitOrderProgress("READY_TO_SHIP", "in_transit", [booked, { ...pending, bookedAt: new Date() }]).ship).toBe(false);
     expect(shippitOrderProgress("READY_TO_SHIP", "order_placed", [booked]).ship).toBe(false);
   });
 });

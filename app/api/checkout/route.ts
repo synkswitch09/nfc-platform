@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
   const limited = await rateLimit("checkout", getClientIp(request), 20, 60 * 60 * 1000);
   if (!limited.allowed) return jsonError("Too many checkout attempts. Try again later.", 429);
   const parsed = checkoutSchema.safeParse(await request.json().catch(() => null));
-  if (!parsed.success) return jsonError(parsed.error.issues[0]?.message ?? "Invalid checkout details");
+  if (!parsed.success) return NextResponse.json({ error: "Check the highlighted checkout details and try again.", issues: parsed.error.issues.map(issue => ({ path: issue.path.join("."), message: issue.message })) }, { status: 400 });
 
   const [user, store] = await Promise.all([getCurrentUser(), getCurrentStorefront()]);
   if (!isStoreCommerceAvailable(store)) return jsonError("This store is not accepting orders", 409);

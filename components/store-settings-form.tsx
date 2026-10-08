@@ -25,6 +25,7 @@ type Settings = {
   faviconUrl: string | null;
   siteTitle: string;
   siteDescription: string;
+  googleSiteVerification?: string;
   defaultSocialImageUrl: string | null;
   socialLinks: Record<string, string | null>;
   shippingConfig: Record<string, number>;
@@ -83,6 +84,7 @@ export function StoreSettingsForm({
       faviconUrl: form.get("faviconUrl"),
       siteTitle: form.get("siteTitle"),
       siteDescription: form.get("siteDescription"),
+      googleSiteVerification: form.get("googleSiteVerification"),
       defaultSocialImageUrl: form.get("defaultSocialImageUrl"),
       instagram: settings.socialLinks.instagram ?? "",
       tumblr: settings.socialLinks.tumblr ?? "",
@@ -299,6 +301,11 @@ export function StoreSettingsForm({
             maxLength={170}
             required
           />
+        </label>
+        <label className="field">
+          Google Search Console verification code
+          <input name="googleSiteVerification" defaultValue={settings.googleSiteVerification ?? ""} maxLength={200} pattern="[A-Za-z0-9_-]*" />
+          <span className="muted">Paste only the content code from Google's HTML verification tag. Published on this store's production site; staging stays noindex. Domain properties verified by DNS do not need this field.</span>
         </label>
         <MediaUploadField
           uploadEndpoint="/api/admin/settings/images"

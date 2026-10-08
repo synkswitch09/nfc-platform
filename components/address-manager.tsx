@@ -4,16 +4,17 @@ import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Pencil, Plus, Trash2 } from "lucide-react";
 import { CountryAddressFields, type CountryAddressValue } from "@/components/country-address-fields";
+import { showFormIssues } from "@/components/form-validation-feedback";
 
 type Address = CountryAddressValue & { id: string; isDefault?:boolean; label: string | null; recipient: string; locality: string; postcode: string; country: string };
 
 export function AddressManager({ addresses, defaultName, countries }: { addresses: Address[]; defaultName: string; countries: string[] }) {
   const router = useRouter(); const [editing, setEditing] = useState<Address | null>(null); const [message, setMessage] = useState("");
   async function save(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault(); setMessage(""); const form = new FormData(event.currentTarget); const optional = (name: string) => String(form.get(name) ?? "").trim() || undefined;
+    event.preventDefault(); setMessage(""); const formElement = event.currentTarget; const form = new FormData(formElement); const optional = (name: string) => String(form.get(name) ?? "").trim() || undefined;
     const payload = { label: optional("label"), recipient: form.get("recipient"), company: optional("company"), line1: form.get("line1"), line2: optional("line2"), dependentLocality: optional("dependentLocality"), locality: form.get("locality"), administrativeArea: optional("administrativeArea"), postcode: form.get("postcode"), country: form.get("country"), phone: optional("phone") };
     const response = await fetch(editing ? `/api/account/addresses/${editing.id}` : "/api/account/addresses", { method: editing ? "PATCH" : "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(payload) }); const result = await response.json().catch(() => ({}));
-    if (!response.ok) return setMessage(result.error ?? "Address could not be saved"); setEditing(null); setMessage("Address saved"); router.refresh(); event.currentTarget.reset();
+    if (!response.ok) { showFormIssues(formElement, result.issues); return setMessage(result.error ?? "We couldn't save this address. Check the fields and try again."); } setEditing(null); setMessage("Address saved"); router.refresh(); formElement.reset();
   }
   async function setDefault(address:Address){const response=await fetch(`/api/account/addresses/${address.id}`,{method:"PATCH",headers:{"content-type":"application/json"},body:JSON.stringify({isDefault:true})});if(!response.ok)return setMessage("Could not change the default address");router.refresh();}
   async function remove(address: Address) { if (!window.confirm(`Delete ${address.label ?? "this address"}?`)) return; const response = await fetch(`/api/account/addresses/${address.id}`, { method: "DELETE" }); if (!response.ok) return setMessage("Address could not be deleted"); router.refresh(); }

@@ -10,7 +10,7 @@ export async function POST(request: NextRequest) {
   const limited = await rateLimit("shipping-quote", getClientIp(request), 40, 60 * 60 * 1000);
   if (!limited.allowed) return jsonError("Too many shipping quote requests. Try again later.", 429);
   const parsed = shippingQuoteSchema.safeParse(await request.json().catch(() => null));
-  if (!parsed.success) return jsonError(parsed.error.issues[0]?.message ?? "Invalid delivery details");
+  if (!parsed.success) return NextResponse.json({ error: "Check the highlighted delivery details and try again.", issues: parsed.error.issues.map(issue => ({ path: issue.path.join("."), message: issue.message })) }, { status: 400 });
   const store = await getCurrentStorefront();
   if (!isStoreCommerceAvailable(store)) return jsonError("This store is not accepting orders", 409);
   try {

@@ -25,7 +25,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   if (order.payments.some(payment => payment.status === "REFUNDED")) return jsonError("This order is refunded. Review fulfilment before proceeding.", 409);
   if (!canTransitionOrder(order.status, parsed.data.status)) return jsonError(`Cannot change ${order.status} to ${parsed.data.status}`, 409);
   const shippitParcels = order.shipments.filter(shipment => shipment.idempotencyKey.startsWith("shippit:"));
-  if (parsed.data.status === "SHIPPED" && shippitParcels.length && shippitParcels.some(shipment => !shipment.bookedAt || !shipment.trackingNumber)) return jsonError("Book all Shippit parcels before marking the order shipped", 409);
+  if (shippitParcels.length && ["SHIPPED", "DELIVERED"].includes(parsed.data.status)) return jsonError("Shippit updates shipped and delivered automatically through its webhook", 409);
   if (parsed.data.overridePreparation && (parsed.data.status !== "READY_TO_SHIP" || !context.isPlatformAdmin || (parsed.data.note?.length ?? 0) < 10)) return jsonError("Manager override requires a reason of at least 10 characters", 403);
   if (parsed.data.status === "CANCELLED" && order.status === "PAYMENT_PENDING") {
     try { await cancelStripeCheckout(orderId, store.id, user.id); }

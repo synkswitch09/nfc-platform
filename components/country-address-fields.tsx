@@ -16,13 +16,13 @@ export function CountryAddressFields({ initial, countries, includeCompany = true
     <label className="field">Country<select name="country" value={country} autoComplete="country" onChange={event => setCountry(event.target.value)}>{supported.map(code => <option value={code} key={code}>{displayNames?.of(code) ?? fallbackNames[code] ?? code}</option>)}</select></label>
     <div className="manual-address-note"><strong>Enter address manually</strong><span>Address suggestions are optional. You can always review or edit every field.</span></div>
     {includeCompany && <label className="field">Company <span className="optional">Optional</span><input name="company" autoComplete="organization" defaultValue={initial?.company ?? ""} /></label>}
-    <label className="field">Street address<input name="line1" autoComplete="address-line1" defaultValue={initial?.line1 ?? ""} required /></label>
+    <label className="field">Street address<input name="line1" autoComplete="address-line1" defaultValue={initial?.line1 ?? ""} minLength={3} required /></label>
     <label className="field">Address line 2 <span className="optional">Optional</span><input name="line2" autoComplete="address-line2" defaultValue={initial?.line2 ?? ""} /></label>
     <label className="field">Suburb / district <span className="optional">Optional</span><input name="dependentLocality" defaultValue={initial?.dependentLocality ?? ""} /></label>
     <div className="field-grid three">
       <label className="field">{fields.localityLabel}<input name="locality" autoComplete="address-level2" defaultValue={initial?.locality ?? ""} required /></label>
       <label className="field">{fields.administrativeAreaLabel}{fields.administrativeAreas ? <select name="administrativeArea" autoComplete="address-level1" defaultValue={initial?.administrativeArea ?? ""} required={fields.administrativeAreaRequired}><option value="">Select</option>{fields.administrativeAreas.map(area => <option key={area}>{area}</option>)}</select> : <input name="administrativeArea" autoComplete="address-level1" defaultValue={initial?.administrativeArea ?? ""} required={fields.administrativeAreaRequired} />}</label>
-      <label className="field">{fields.postalCodeLabel}<input name="postcode" autoComplete="postal-code" defaultValue={initial?.postcode ?? ""} required={fields.postalCodeRequired} pattern={fields.postalCodePattern} maxLength={20} /></label>
+      <label className="field">{fields.postalCodeLabel}<input name="postcode" autoComplete="postal-code" defaultValue={initial?.postcode ?? ""} required={fields.postalCodeRequired} pattern={fields.postalCodePattern} title={country === "AU" ? "Use 4 digits, for example 5000" : country === "CO" ? "Use 6 digits" : country === "US" ? "Use 5 digits or 5+4 digits" : undefined} maxLength={20} /></label>
     </div>
     {includePhone && <label className="field">Phone <span className="optional">Optional</span><input name="phone" type="tel" autoComplete="tel" defaultValue={initial?.phone ?? ""} /></label>}
   </div>;

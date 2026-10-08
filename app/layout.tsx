@@ -15,11 +15,13 @@ import {
 } from "@/lib/storefront";
 import { StoreCapability, StoreStatus } from "@prisma/client";
 import { AnalyticsConsent } from "@/components/commerce-analytics";
+import { FormValidationFeedback } from "@/components/form-validation-feedback";
 import { getRequestLocale } from "@/lib/request-locale";
 import {
   compactLocaleName,
   getSystemCopy,
 } from "@/lib/i18n";
+import { storeGoogleVerification } from "@/lib/site-verification";
 import { canonicalForStore, nonEmpty } from "@/lib/seo";
 import "./globals.css";
 
@@ -52,6 +54,7 @@ export async function generateMetadata(): Promise<Metadata> {
     },
     description,
     applicationName: settings.storeName,
+    verification: config.appEnv === "production" ? { google: storeGoogleVerification(store) } : undefined,
     alternates: { canonical },
     icons: store.faviconUrl ? { icon: store.faviconUrl } : undefined,
     openGraph: {
@@ -164,6 +167,7 @@ export default async function RootLayout({
           } : {}),
         }}
       >
+        <FormValidationFeedback />
         <CartProvider storageKey={`commerce-cart:${store.id}:v1:${user?.id??"guest"}`} legacyStorageKey={`commerce-cart:${store.id}:v1`} guestStorageKey={user?`commerce-cart:${store.id}:v1:guest`:undefined}>
           <SiteHeader
             config={store.slug === "kosykin" ? { ...settings.headerConfig, showCategories: false, customLinks: [] } : settings.headerConfig}

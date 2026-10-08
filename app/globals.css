@@ -284,8 +284,16 @@ nav {
   background: var(--danger);
 }
 .button:disabled {
-  opacity: 0.55;
-  cursor: wait;
+  opacity: 1;
+  background: #586575;
+  border-color: #586575;
+  color: #fff;
+  cursor: not-allowed;
+}
+.button.secondary:disabled {
+  background: #f1f3f5;
+  border-color: #cbd2d9;
+  color: #485362;
 }
 .hero {
   max-width: 1180px;
@@ -521,6 +529,12 @@ h3 {
 .field.field-invalid select {
   border-color: #c9362a;
   box-shadow: 0 0 0 2px rgba(201, 54, 42, 0.12);
+}
+.field-validation-message {
+  display: block;
+  margin-top: 2px;
+  font-weight: 500;
+  line-height: 1.4;
 }
 
 .validation-summary {
@@ -2109,13 +2123,19 @@ body:has(.admin-shell) > footer {
   color: var(--muted);
   font-size: 0.86rem;
 }
-.panel-heading > a {
+.panel-heading > a:not(.button) {
   color: var(--brand);
   display: flex;
   align-items: center;
   gap: 6px;
   font-size: 0.84rem;
   font-weight: 750;
+}
+.admin-main a.button:not(.secondary) {
+  color: #fff;
+}
+.admin-main a.button.secondary {
+  color: var(--ink);
 }
 .admin-table {
   width: 100%;

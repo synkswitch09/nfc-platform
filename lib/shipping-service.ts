@@ -8,6 +8,8 @@ import type { Storefront } from "@/lib/storefront";
 import { isKeychainProduct, keychainPaletteFromOptions, validateKeychainOptions } from "@/lib/keychain-order";
 import { currentAppEnvironment } from "@/lib/config";
 import { quoteShippitParcels } from "@/lib/shippit-quotes";
+import { ShippitError } from "@/lib/shippit";
+import { logEvent } from "@/lib/logger";
 
 const QUOTE_TTL_MS = 15 * 60 * 1000;
 
@@ -98,8 +100,14 @@ export async function createShippingQuotes(items: ShippingCartInput[], destinati
   const environment = currentAppEnvironment();
   const shippitSecret = environment === "production" ? process.env.SHIPPIT_PRODUCTION_API_SECRET : environment === "staging" ? process.env.SHIPPIT_STAGING_API_SECRET : undefined;
   if (shippitSecret && allMeasured) {
-    try { offered.push(...await quoteShippitParcels(destination, parcels)); }
-    catch { /* Retain configured manual rates if Shippit is unavailable. */ }
+    try {
+      const quoted = await quoteShippitParcels(destination, parcels);
+      offered.push(...quoted);
+      if (!quoted.length) logEvent("warn", "shipping.shippit_quote_empty", { storeId: store.id });
+    } catch (error) {
+      logEvent("warn", "shipping.shippit_quote_failed", { storeId: store.id, status: error instanceof ShippitError ? error.status : null });
+      // Retain configured manual rates if Shippit is unavailable.
+    }
   }
   for (const [providerKey, configured] of groups) {
     if (providerKey === "manual" && offered.length) continue;
@@ -129,7 +137,7 @@ export async function createShippingQuotes(items: ShippingCartInput[], destinati
   const destinationHash = shippingDestinationHash(destination);
   const expiresAt = new Date(Date.now() + QUOTE_TTL_MS);
   const originSnapshot = originSnapshotOf(origin);
-  const packagingSnapshot = { packages: [...new Map(resolved.filter(line => line.selected).map(line => [line.selected!.id, line.selected!])).values(), ...(outer ? [outer] : [])].map(item => ({ id: item.id, code: item.code, name: item.name, lengthMm: item.lengthMm, widthMm: item.widthMm, heightMm: item.heightMm, emptyWeightGrams: item.emptyWeightGrams })), parcels };
+  const packagingSnapshot = { measurementsVerified: allMeasured, packages: [...new Map(resolved.filter(line => line.selected).map(line => [line.selected!.id, line.selected!])).values(), ...(outer ? [outer] : [])].map(item => ({ id: item.id, code: item.code, name: item.name, lengthMm: item.lengthMm, widthMm: item.widthMm, heightMm: item.heightMm, emptyWeightGrams: item.emptyWeightGrams })), parcels };
 
   return Promise.all(offered.map(async rate => {
     const token = createOpaqueToken();

@@ -1,3 +1,4 @@
+import { checkoutShippitParcels } from "@/lib/shippit-preparation";
 import { createHash, timingSafeEqual } from "node:crypto";
 import { z } from "zod";
 import { db } from "@/lib/db";
@@ -16,10 +17,10 @@ const trackingEvent = z.object({
 const deliveredStates = new Set(["completed", "parcel_completed"]);
 const movingStates = new Set(["in_transit", "with_driver", "delivery_attempted", "awaiting_collection", "await_collection", "partially_completed", "completed", "parcel_completed"]);
 
-export function shippitOrderProgress(status: string, state: string, parcels: { bookedAt: Date | null; trackingNumber: string | null; status: string }[]) {
+export function shippitOrderProgress(status: string, state: string, parcels: { bookedAt: Date | null; trackingNumber: string | null; status: string }[], expectedParcels = parcels.length) {
   return {
-    ship: status === "READY_TO_SHIP" && movingStates.has(state) && parcels.length > 0 && parcels.every(item => item.bookedAt && item.trackingNumber),
-    deliver: parcels.length > 0 && parcels.every(item => item.status === "DELIVERED"),
+    ship: status === "READY_TO_SHIP" && movingStates.has(state) && parcels.length > 0 && parcels.length === expectedParcels && parcels.every(item => item.bookedAt && item.trackingNumber && ["IN_TRANSIT", "DELIVERED"].includes(item.status)),
+    deliver: parcels.length > 0 && parcels.length === expectedParcels && parcels.every(item => item.status === "DELIVERED"),
   };
 }
 
@@ -65,10 +66,11 @@ export async function applyShippitWebhook(payload: unknown, rawBody: string) {
       ...(event.trackingUrl ? { trackingUrl: event.trackingUrl } : {}),
     } });
     await tx.auditLog.create({ data: { storeId: shipment.storeId, action: "SHIPPIT_TRACKING_UPDATED", entityType: "Shipment", entityId: shipment.id, metadata: { state: event.state, at: event.eventAt.toISOString() } } });
-    const order = await tx.order.findUnique({ where: { id: shipment.orderId }, select: { status: true } });
+    const order = await tx.order.findUnique({ where: { id: shipment.orderId }, select: { status: true, packagingSnapshot: true, shippitPreparation: { select: { status: true } } } });
     if (!order) return "updated";
     const parcels = await tx.shipment.findMany({ where: { orderId: shipment.orderId, idempotencyKey: { startsWith: "shippit:" } }, select: { bookedAt: true, status: true, trackingNumber: true, serviceName: true, trackingState: true } });
-    if (shippitOrderProgress(order.status, event.state, parcels).ship) {
+    const expectedParcels = order.shippitPreparation ? checkoutShippitParcels(order.packagingSnapshot).length : parcels.length;
+    if (shippitOrderProgress(order.status, event.state, parcels, expectedParcels).ship) {
       const updated = await tx.order.updateMany({ where: { id: shipment.orderId, status: "READY_TO_SHIP" }, data: { status: "SHIPPED", shippedAt: event.eventAt, shippingCarrier: parcels[0].serviceName, trackingNumber: parcels[0].trackingNumber } });
       if (updated.count) {
         await releaseProduction(tx, shipment.orderId);
@@ -77,7 +79,7 @@ export async function applyShippitWebhook(payload: unknown, rawBody: string) {
       }
     }
     const current = await tx.order.findUnique({ where: { id: shipment.orderId }, select: { status: true } });
-    if (current?.status === "SHIPPED" && shippitOrderProgress(current.status, event.state, parcels).deliver) {
+    if (current?.status === "SHIPPED" && shippitOrderProgress(current.status, event.state, parcels, expectedParcels).deliver) {
       const updated = await tx.order.updateMany({ where: { id: shipment.orderId, status: "SHIPPED" }, data: { status: "DELIVERED" } });
       if (updated.count) await tx.orderStatusHistory.create({ data: { orderId: shipment.orderId, fromStatus: "SHIPPED", toStatus: "DELIVERED", note: "All Shippit parcels delivered" } });
     }

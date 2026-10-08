@@ -79,6 +79,7 @@ export type Storefront = {
   homepage: StorefrontHomepage;
   seoTitle: string;
   seoDescription: string;
+  googleSiteVerification?: string | null;
   socialImageUrl: string | null;
   organization: Record<string, unknown>;
   socialLinks: Record<string, string>;
@@ -160,6 +161,7 @@ function mapStorefront(
     homepage: homepageSchema.parse(row.homepage),
     seoTitle: row.seoTitle,
     seoDescription: row.seoDescription,
+    googleSiteVerification: row.googleSiteVerification,
     socialImageUrl: row.socialImageUrl,
     organization: asObject(row.organization),
     socialLinks: asObject(row.socialLinks) as Record<string, string>,
