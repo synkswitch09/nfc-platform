@@ -8,6 +8,7 @@ import { assertSameOrigin, jsonError } from "@/lib/http";
 import { StoreCapability, StoreStatus } from "@prisma/client";
 import { footerConfigSchema, headerConfigSchema } from "@/lib/site-chrome";
 import { isSafeImageSource } from "@/lib/image-source";
+import { googleVerificationToken } from "@/lib/site-verification";
 import { storefrontThemeSchema } from "@/lib/storefront-theme";
 
 const url = z
@@ -40,6 +41,7 @@ const schema = z
     faviconUrl: imageSource.optional(),
     siteTitle: z.string().trim().min(5).max(70),
     siteDescription: z.string().trim().min(20).max(170),
+    googleSiteVerification: googleVerificationToken.optional(),
     defaultSocialImageUrl: imageSource.optional(),
     instagram: url.optional(),
     tumblr: url.optional(),
@@ -109,6 +111,7 @@ export async function POST(request: NextRequest) {
         faviconUrl: value.faviconUrl || null,
         seoTitle: value.siteTitle,
         seoDescription: value.siteDescription,
+        googleSiteVerification: value.googleSiteVerification,
         socialImageUrl: value.defaultSocialImageUrl || null,
         socialLinks: {
           instagram: value.instagram || null,

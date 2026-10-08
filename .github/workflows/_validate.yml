@@ -31,6 +31,8 @@ jobs:
         run: npm audit --omit=dev --audit-level=critical
       - run: npm run config:check
       - run: npm run db:deploy
+      - name: Validate environment worker provisioning
+        run: python3 -m unittest discover -s tests -p test_order_worker.py
       - run: npm run lint
       - run: npm run typecheck
       - run: npm test

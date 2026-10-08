@@ -353,6 +353,7 @@ model Store {
   homepage             Json                 @default("{}")
   seoTitle             String
   seoDescription       String
+  googleSiteVerification String?
   socialImageUrl       String?
   organization         Json                 @default("{}")
   socialLinks          Json                 @default("{}")

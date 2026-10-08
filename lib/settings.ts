@@ -1,3 +1,4 @@
+import { storeGoogleVerification } from "@/lib/site-verification";
 import { getCurrentStorefront, type Storefront } from "@/lib/storefront";
 
 export async function getStoreSettings(storefront?: Storefront) {
@@ -16,6 +17,7 @@ export async function getStoreSettings(storefront?: Storefront) {
     faviconUrl: store.faviconUrl,
     siteTitle: store.seoTitle,
     siteDescription: store.seoDescription,
+    googleSiteVerification: storeGoogleVerification(store) ?? "",
     defaultSocialImageUrl: store.socialImageUrl,
     socialLinks: store.socialLinks,
     shippingConfig: store.shippingConfig,

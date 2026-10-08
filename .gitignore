@@ -7,3 +7,4 @@ coverage
 *.tsbuildinfo
 public/uploads
 data/uploads
+__pycache__/

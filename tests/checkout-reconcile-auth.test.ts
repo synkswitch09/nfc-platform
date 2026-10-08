@@ -1,7 +1,7 @@
 import { beforeEach, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
-const mocks = vi.hoisted(() => ({ secret: "a".repeat(32), reconcile: vi.fn() }));
-vi.mock("@/lib/config", () => ({ getRuntimeConfig: () => ({ stripe: { reconcileSecret: mocks.secret } }) }));
+const mocks = vi.hoisted(() => ({ secret: "a".repeat(32), checkoutEnabled: true, reconcile: vi.fn() }));
+vi.mock("@/lib/config", () => ({ getRuntimeConfig: () => ({ checkoutEnabled: mocks.checkoutEnabled, stripe: { reconcileSecret: mocks.secret } }) }));
 vi.mock("@/lib/checkout-reconciliation", () => ({ reconcilePendingCheckouts: mocks.reconcile }));
 vi.mock("@/lib/order-service", () => ({ CheckoutError: class extends Error {} }));
 import { POST } from "@/app/api/integrations/checkout/reconcile/route";
@@ -20,4 +20,14 @@ it("accepts a valid scheduler and rejects malformed pagination", async () => {
   const init = { method: "POST", headers: { authorization: `Bearer ${mocks.secret}` } };
   expect((await POST(new NextRequest("https://example.test/api/integrations/checkout/reconcile", init))).status).toBe(200);
   expect((await POST(new NextRequest("https://example.test/api/integrations/checkout/reconcile?cursor=bad", init))).status).toBe(400);
+});
+
+it("skips Stripe reconciliation when production checkout is closed", async () => {
+  mocks.checkoutEnabled = false;
+  mocks.secret = "a".repeat(32);
+  mocks.reconcile.mockClear();
+  const response = await POST(new NextRequest("https://example.test/api/integrations/checkout/reconcile", { method: "POST", headers: { authorization: `Bearer ${mocks.secret}` } }));
+  expect(await response.json()).toEqual({ outcomes: [], nextCursor: null, skipped: "checkout_disabled" });
+  expect(mocks.reconcile).not.toHaveBeenCalled();
+  mocks.checkoutEnabled = true;
 });

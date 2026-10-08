@@ -1,4 +1,4 @@
-"""Provision the staging HTTP worker without printing application secrets."""
+"""Provision the environment HTTP worker without printing application secrets."""
 import json
 import os
 import secrets as secure_random
@@ -16,8 +16,9 @@ def az(*args):
 
 
 def main():
-    if os.environ.get("TARGET_ENVIRONMENT") != "staging":
-        raise RuntimeError("This provisioner is restricted to staging")
+    target = os.environ.get("TARGET_ENVIRONMENT")
+    if target not in ("staging", "production"):
+        raise RuntimeError("Order worker requires staging or production")
     group, app_name = os.environ["AZURE_RESOURCE_GROUP"], os.environ["AZURE_CONTAINER_APP"]
     origin = os.environ["APP_URL"].rstrip("/")
     app = az("containerapp", "show", "--name", app_name, "--resource-group", group)
@@ -26,7 +27,7 @@ def main():
     for job in existing:
         props = job.get("properties", {})
         if job["name"] == job_name:
-            if job.get("tags", {}).get("managed-by") != "staging-order-worker":
+            if job.get("tags", {}).get("managed-by") not in ("staging-order-worker", "order-worker"):
                 raise RuntimeError("Worker resource name is already used by an unmanaged job")
             continue
         if props.get("environmentId") != app["properties"]["environmentId"]:
@@ -35,19 +36,28 @@ def main():
             command = " ".join(container.get("command", []) + container.get("args", []))
             env = {entry["name"]: entry.get("value") for entry in container.get("env", [])}
             if "reconcile-checkouts.mjs" in command and env.get("APP_URL", "").rstrip("/") == origin and props.get("configuration", {}).get("triggerType") == "Schedule":
-                print("Existing scheduled staging order worker verified")
-                return
+                raise RuntimeError("An existing separately managed order worker must be reconciled before deployment")
     env = {entry["name"]: entry for entry in app["properties"]["template"]["containers"][0].get("env", [])}
+    if env.get("APP_ENV", {}).get("value") != target:
+        raise RuntimeError("Application environment does not match the worker target")
+    if target == "production" and env.get("PRODUCTION_CHECKOUT_ENABLED", {}).get("value") != "false":
+        raise RuntimeError("This rollout requires production checkout to remain explicitly disabled")
     reconcile = env.get("CHECKOUT_RECONCILE_SECRET", {})
     secret_values = {entry["name"]: entry.get("value") for entry in az("containerapp", "secret", "list", "--name", app_name, "--resource-group", group, "--show-values")}
     token = reconcile.get("value") or secret_values.get(reconcile.get("secretRef"))
+    changes = []
     if not token:
         token = secure_random.token_urlsafe(48)
         az("containerapp", "secret", "set", "--name", app_name, "--resource-group", group,
            "--secrets", "order-worker-reconcile=" + token)
-        az("containerapp", "update", "--name", app_name, "--resource-group", group,
-           "--set-env-vars", "CHECKOUT_RECONCILE_SECRET=secretref:order-worker-reconcile")
-        print("Configured the missing staging order-worker authentication secret")
+        changes.append("CHECKOUT_RECONCILE_SECRET=secretref:order-worker-reconcile")
+        print("Configured missing order-worker authentication secret")
+    if len(token) < 32:
+        raise RuntimeError("Order-worker authentication secret must contain at least 32 characters")
+    if env.get("TRUST_PROXY", {}).get("value") != "true":
+        changes.append("TRUST_PROXY=true")
+    if changes:
+        az("containerapp", "update", "--name", app_name, "--resource-group", group, "--set-env-vars", *changes)
     secrets = [{"name": "reconcile", "value": token}]
     registries = []
     for registry in app["properties"].get("configuration", {}).get("registries", []):
@@ -71,7 +81,7 @@ def main():
     }
     if app["properties"].get("workloadProfileName"):
         properties["workloadProfileName"] = app["properties"]["workloadProfileName"]
-    body = {"location": app["location"], "tags": {"managed-by": "staging-order-worker"}, "properties": properties}
+    body = {"location": app["location"], "tags": {"managed-by": "order-worker", "environment": target}, "properties": properties}
     job_id = app["id"].rsplit("/", 2)[0] + "/jobs/" + job_name
     with tempfile.NamedTemporaryFile(mode="w", suffix=".json") as payload:
         json.dump(body, payload)
@@ -83,16 +93,20 @@ def main():
         if state == "Succeeded":
             break
         if state in ("Failed", "Canceled"):
-            raise RuntimeError("Staging worker provisioning failed")
+            raise RuntimeError("Order worker provisioning failed")
         time.sleep(5)
     else:
-        raise RuntimeError("Staging worker provisioning timed out")
+        raise RuntimeError("Order worker provisioning timed out")
     execution = az("containerapp", "job", "start", "--name", job_name, "--resource-group", group)["name"]
     for _ in range(60):
         result = az("containerapp", "job", "execution", "show", "--name", job_name, "--resource-group", group, "--job-execution-name", execution)
         status = result["properties"].get("status")
         if status == "Succeeded":
-            print("Staging order worker configured every five minutes; first execution succeeded")
+            print("Order worker configured every five minutes; first execution succeeded")
+            app = az("containerapp", "show", "--name", app_name, "--resource-group", group)
+            names = {entry["name"] for container in app["properties"]["template"]["containers"] for entry in container.get("env", [])}
+            print("Environment configuration names: " + ", ".join(sorted(names)))
+            print("Verified scheduled worker image, authentication and execution for " + target)
             return
         if status in ("Failed", "Canceled", "Cancelled"):
             raise RuntimeError("Staging order worker execution failed; inspect the job logs in Azure")

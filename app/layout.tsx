@@ -21,6 +21,7 @@ import {
   compactLocaleName,
   getSystemCopy,
 } from "@/lib/i18n";
+import { storeGoogleVerification } from "@/lib/site-verification";
 import { canonicalForStore, nonEmpty } from "@/lib/seo";
 import "./globals.css";
 
@@ -53,6 +54,7 @@ export async function generateMetadata(): Promise<Metadata> {
     },
     description,
     applicationName: settings.storeName,
+    verification: config.appEnv === "production" ? { google: storeGoogleVerification(store) } : undefined,
     alternates: { canonical },
     icons: store.faviconUrl ? { icon: store.faviconUrl } : undefined,
     openGraph: {
