@@ -2,6 +2,7 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import { AuthProvider, Prisma } from "@prisma/client";
 import * as oidc from "openid-client";
 import { requiredSecret } from "@/lib/crypto";
+import { googleOAuthCredentials } from "@/lib/google-oauth-config";
 import { db } from "@/lib/db";
 import type { Storefront } from "@/lib/storefront";
 
@@ -12,9 +13,9 @@ type VerifiedClaims = { sub: string; email?: string; email_verified?: boolean | 
 
 export const OAUTH_COOKIE = "nfc_oauth";
 
-export function getOAuthConfig(provider: OAuthProviderName): OAuthConfig | null {
-  const prefix = provider === "google" ? "GOOGLE" : "APPLE";
-  const clientId = process.env[`${prefix}_CLIENT_ID`]; const clientSecret = process.env[`${prefix}_CLIENT_SECRET`];
+export function getOAuthConfig(provider: OAuthProviderName, storeSlug: string): OAuthConfig | null {
+  const credentials = provider === "google" ? googleOAuthCredentials(storeSlug) : { clientId: process.env.APPLE_CLIENT_ID, clientSecret: process.env.APPLE_CLIENT_SECRET };
+  const clientId = credentials?.clientId; const clientSecret = credentials?.clientSecret;
   if (!clientId || !clientSecret) return null;
   const server = provider === "google"
     ? { issuer: "https://accounts.google.com", authorization_endpoint: "https://accounts.google.com/o/oauth2/v2/auth", token_endpoint: "https://oauth2.googleapis.com/token", jwks_uri: "https://www.googleapis.com/oauth2/v3/certs" }
@@ -42,8 +43,8 @@ export function buildOAuthAuthorizationUrl(config: OAuthConfig, parameters: Reco
 function sign(value: string) { const payload = Buffer.from(value).toString("base64url"); return `${payload}.${signatureFor(payload).toString("base64url")}`; }
 function signatureFor(payload: string) { return createHmac("sha256", requiredSecret("SESSION_SECRET")).update(`oauth:${payload}`).digest(); }
 
-export async function exchangeOAuthCode(provider: OAuthProviderName, callbackUrl: URL, verifier: string, state: string, nonce: string) {
-  const config = getOAuthConfig(provider); if (!config) throw new Error("OAUTH_NOT_CONFIGURED");
+export async function exchangeOAuthCode(provider: OAuthProviderName, storeSlug: string, callbackUrl: URL, verifier: string, state: string, nonce: string) {
+  const config = getOAuthConfig(provider, storeSlug); if (!config) throw new Error("OAUTH_NOT_CONFIGURED");
   const tokens = await oidc.authorizationCodeGrant(config.client, callbackUrl, { pkceCodeVerifier: verifier, expectedState: state, expectedNonce: nonce });
   const claims = tokens.claims(); if (!claims) throw new Error("ID_TOKEN_REQUIRED");
   return claims as VerifiedClaims;
