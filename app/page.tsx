@@ -125,7 +125,7 @@ export default async function Home() {
               "@id": `${origin}/#organization`,
               name: settings.businessName ?? settings.storeName,
               url: origin,
-              email: settings.supportEmail,
+              contactPoint: { "@type": "ContactPoint", contactType: "customer support", url: `${origin}/dashboard/help` },
               sameAs: Object.values(settings.socialLinks),
             },
             {

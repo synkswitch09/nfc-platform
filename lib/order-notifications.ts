@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
+import { orderEmailCategory } from "@/lib/email-senders";
 import { sendTransactionalEmail } from "@/lib/email";
 import { keychainInputFromOptions } from "@/lib/keychain-order";
 import { keychain3mf } from "@/lib/keychain-files";
@@ -48,7 +49,7 @@ export async function processOrderNotifications(orderId?: string) {
           printInstructions = "\n\nThe 3MF files could not be attached. Open Kosykin Admin → Orders and download them from this order before printing.";
         }
       }
-      const accepted = await sendTransactionalEmail({ to: row.to, subject: row.subject, text: row.text + printInstructions, idempotencyKey: row.id, storeSlug: row.order.store.slug, ...(attachments.length ? { attachments } : {}) });
+      const accepted = await sendTransactionalEmail({ to: row.to, subject: row.subject, text: row.text + printInstructions, idempotencyKey: row.id, storeSlug: row.order.store.slug, category: orderEmailCategory(row.dedupeKey), ...(attachments.length ? { attachments } : {}) });
       await db.orderNotification.updateMany({ where: { id: row.id, leaseToken: token }, data: { status: accepted ? "ACCEPTED" : "MOCKED", leaseToken: null, leaseUntil: null, lastError: null } });
     } catch {
       await db.orderNotification.updateMany({ where: { id: row.id, leaseToken: token }, data: { status: row.attempts + 1 >= 5 ? "FAILED" : "PENDING", availableAt: new Date(Date.now() + Math.min(3600, 30 * 2 ** row.attempts) * 1000), leaseToken: null, leaseUntil: null, lastError: "Provider request failed or its outcome is uncertain. Acceptance does not prove delivery." } });

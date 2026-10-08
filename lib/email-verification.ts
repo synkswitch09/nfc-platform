@@ -28,7 +28,7 @@ export async function sendEmailVerificationCode(user: { id: string; email: strin
     sent = await sendTransactionalEmail({
       to: user.email, subject: `Your ${store.displayName} verification code`,
       text: `Your ${store.displayName} verification code is ${code}. It expires in 10 minutes. If you did not create this account, you can ignore this email.`,
-      storeSlug: store.slug,
+      storeSlug: store.slug, category: "account",
     });
   } catch {
     await db.emailVerification.delete({ where: { id: record.id } }).catch(() => undefined);

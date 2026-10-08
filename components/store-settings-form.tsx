@@ -161,7 +161,7 @@ export function StoreSettingsForm({
             />
           </label>
           <label className="field">
-            Support email
+            Internal order notification recipient
             <input
               name="supportEmail"
               type="email"
