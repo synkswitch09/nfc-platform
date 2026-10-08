@@ -1,6 +1,5 @@
 import { EmailSendersForm } from "@/components/email-senders-form";
-import { parseEmailSenders, senderDomain } from "@/lib/email-senders";
-import { getRuntimeConfig } from "@/lib/config";
+import { parseEmailSenders, senderDomain, defaultStoreSender } from "@/lib/email-senders";
 import { AccountSettingsForm } from "@/components/account-settings-form";
 import { parseAccountConfig } from "@/lib/account-config";
 import { StoreSettingsForm } from "@/components/store-settings-form";
@@ -32,8 +31,7 @@ export default async function AdminSettingsPage() {
       isPrimary,
     }),
   );
-  const email = getRuntimeConfig().email;
-  const fallbackSender = context.store.slug === "kosykin" ? email.kosykinFromAddress ?? "hello@kosykin.com.au" : email.fromAddress ?? "hello@tapkin.com.au";
+  const fallbackSender = defaultStoreSender(domainRows);
   const senders = parseEmailSenders(parseAccountConfig(context.store.accountConfig).emailSenders, fallbackSender, context.store.displayName);
   return (
     <div>

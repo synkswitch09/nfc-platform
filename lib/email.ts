@@ -1,28 +1,21 @@
 import { appendFile } from "node:fs/promises";
 import { getRuntimeConfig } from "@/lib/config";
 import { db } from "@/lib/db";
-import { parseEmailSenders, resolveEmailSender, ticketSupportFooter, type EmailCategory } from "@/lib/email-senders";
+import { parseEmailSenders, resolveEmailSender, defaultStoreSender, ticketSupportFooter, type EmailCategory } from "@/lib/email-senders";
 import { logEvent } from "@/lib/logger";
 
 export type EmailAttachment = { filename: string; content: Buffer };
 
-export async function sendTransactionalEmail(input: { to: string; subject: string; text: string; idempotencyKey?: string; storeSlug?: string; attachments?: EmailAttachment[]; category?: EmailCategory }) {
+export async function sendTransactionalEmail(input: { to: string; subject: string; text: string; idempotencyKey?: string; storeSlug: string; attachments?: EmailAttachment[]; category?: EmailCategory }) {
   const { email, appEnv } = getRuntimeConfig();
-  const fallbackAddress = input.storeSlug === "kosykin" ? email.kosykinFromAddress ?? (email.mode !== "live" ? "hello@kosykin.com.au" : undefined) : email.fromAddress;
-  if (email.provider === "resend" && input.storeSlug === "kosykin" && (!fallbackAddress || !email.kosykinWebhookSecret)) throw new Error("Resend sender is not configured for store");
-  let sender = { address: fallbackAddress ?? "", name: "", from: fallbackAddress ?? "" };
-  let text = input.text;
-  if (input.storeSlug) {
-    const store = await db.store.findUnique({ where: { slug: input.storeSlug }, select: { displayName: true, accountConfig: true, domains: true } });
-    if (!store) throw new Error("Email store is not configured");
-    const config = store.accountConfig && typeof store.accountConfig === "object" && !Array.isArray(store.accountConfig) ? store.accountConfig as Record<string, unknown> : {};
-    // Sandbox uses the same brand senders while its provider still captures all delivery.
-    const address = fallbackAddress ?? (email.mode !== "live" ? `hello@${input.storeSlug}.com.au` : "");
-    sender = resolveEmailSender(parseEmailSenders(config.emailSenders, address, store.displayName), input.category ?? "default", address);
-    const domain = store.domains.find(row => row.environment === appEnv.toUpperCase() && row.isPrimary);
-    const origin = domain ? `${domain.protocol}://${domain.hostname}${domain.port ? `:${domain.port}` : ""}` : undefined;
-    text += ticketSupportFooter(origin);
-  }
+  const store = await db.store.findUnique({ where: { slug: input.storeSlug }, select: { displayName: true, accountConfig: true, domains: true } });
+  if (!store) throw new Error("Email store is not configured");
+  const config = store.accountConfig && typeof store.accountConfig === "object" && !Array.isArray(store.accountConfig) ? store.accountConfig as Record<string, unknown> : {};
+  const fallbackAddress = defaultStoreSender(store.domains);
+  const sender = resolveEmailSender(parseEmailSenders(config.emailSenders, fallbackAddress, store.displayName), input.category ?? "default", fallbackAddress);
+  const domain = store.domains.find(row => row.environment === appEnv.toUpperCase() && row.isPrimary);
+  const origin = domain ? `${domain.protocol}://${domain.hostname}${domain.port ? `:${domain.port}` : ""}` : undefined;
+  const text = input.text + ticketSupportFooter(origin);
   if (email.mode === "mock") {
     if (email.testOutboxPath) {
       await appendFile(email.testOutboxPath, `${JSON.stringify({ ...input, text, from: sender.from, attachments: input.attachments?.map(({ filename, content }) => ({ filename, size: content.length })), createdAt: new Date().toISOString() })}\n`, { encoding: "utf8", mode: 0o600 });
@@ -46,7 +39,7 @@ export async function sendTransactionalEmail(input: { to: string; subject: strin
   }
   if (email.provider === "resend") {
     const fromAddress = sender.from;
-    const secret = input.storeSlug === "kosykin" ? email.kosykinWebhookSecret : email.webhookSecret;
+    const secret = input.storeSlug === "kosykin" && email.kosykinWebhookSecret ? email.kosykinWebhookSecret : email.webhookSecret;
     if (!fromAddress || !secret) throw new Error("Resend sender is not configured for store");
     const response = await fetch(email.webhookUrl, {
       method: "POST",

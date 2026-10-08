@@ -1,14 +1,22 @@
 import { describe, expect, it } from "vitest";
-import { emailCategories, emailSendersSchema, parseEmailSenders, resolveEmailSender, orderEmailCategory, ticketSupportFooter } from "@/lib/email-senders";
+import { defaultStoreSender, emailCategories, emailSendersSchema, parseEmailSenders, resolveEmailSender, orderEmailCategory, ticketSupportFooter } from "@/lib/email-senders";
 import { parseAccountConfig } from "@/lib/account-config";
 
 describe("store email senders", () => {
+  it("uses the production primary domain even when staging is listed first", () => {
+    expect(defaultStoreSender([
+      { hostname: "staging.new-store.example", environment: "STAGING", isPrimary: true },
+      { hostname: "www.new-store.example", environment: "PRODUCTION", isPrimary: true }
+    ])).toBe("hello@new-store.example");
+    expect(defaultStoreSender([{ hostname: "staging.new-store.example", environment: "STAGING", isPrimary: true }])).toBe("hello@new-store.example");
+    expect(defaultStoreSender([])).toBe("");
+  });
   it("provides distinct branded senders for each message category", () => {
     const settings = parseEmailSenders(undefined, "hello@kosykin.com.au", "Kosykin");
     expect(emailCategories.map(category => resolveEmailSender(settings, category, "hello@kosykin.com.au").address)).toEqual(["hello@kosykin.com.au", "orders@kosykin.com.au", "accounts@kosykin.com.au", "promotions@kosykin.com.au", "support@kosykin.com.au"]);
     expect(resolveEmailSender(settings, "orders", "hello@kosykin.com.au").from).toBe("Kosykin Orders <orders@kosykin.com.au>");
   });
-  it("falls back to the CMS default then the server default for empty category addresses", () => {
+  it("falls back to the CMS default then the store domain default for empty category addresses", () => {
     const settings = parseEmailSenders(undefined, "hello@tapkin.com.au", "Tapkin");
     settings.orders = { address: "", name: "" }; settings.default = { address: "notifications@tapkin.com.au", name: "Tapkin" };
     expect(resolveEmailSender(settings, "orders", "hello@tapkin.com.au").from).toBe("Tapkin <notifications@tapkin.com.au>");
