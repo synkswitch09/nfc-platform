@@ -67,14 +67,14 @@ describe("Resend production email", () => {
       DATABASE_URL: "postgresql://app:password@db.example/tapkin_production?sslmode=require", DATABASE_EXPECTED_NAME: "tapkin_production",
       SESSION_SECRET: "a-production-session-secret-over-32-characters", ACTIVATION_PEPPER: "a-production-activation-pepper-over-32-characters",
       STORAGE_PROVIDER: "azure-blob", STORAGE_ENVIRONMENT: "production", AZURE_STORAGE_CONTAINER_URL: "https://store.blob.core.windows.net/tapkin-production", AZURE_STORAGE_SAS_TOKEN: "?test-token",
-      EMAIL_MODE: "live", EMAIL_PROVIDER: "resend", EMAIL_WEBHOOK_URL: "https://api.resend.com/emails", EMAIL_WEBHOOK_SECRET: "test-resend-key",
+      EMAIL_MODE: "live", EMAIL_PROVIDER: "resend", EMAIL_WEBHOOK_URL: "https://api.resend.com/emails", EMAIL_RESEND_STORES: JSON.stringify({ tapkin: { apiKey: "test-resend-key" } }),
     };
     for (const [key, value] of Object.entries(env)) vi.stubEnv(key, value);
     const message = { storeSlug: "tapkin", to: "customer@example.test", subject: "Verify your Tapkin email", text: "Verification link", idempotencyKey: "notice-123" };
     expect(await sendTransactionalEmail(message)).toBe(true);
     const [url, options] = fetchMock.mock.calls[0] as [string, RequestInit];
     expect(url).toBe(env.EMAIL_WEBHOOK_URL);
-    expect(options.headers).toEqual({ "content-type": "application/json", authorization: `Bearer ${env.EMAIL_WEBHOOK_SECRET}`, "Idempotency-Key": message.idempotencyKey });
+    expect(options.headers).toEqual({ "content-type": "application/json", authorization: "Bearer test-resend-key", "Idempotency-Key": message.idempotencyKey });
     expect(JSON.parse(options.body as string)).toEqual({ from: "Tapkin <hello@tapkin.com.au>", to: [message.to], subject: message.subject, text: message.text + ticketSupportFooter("https://tapkin.com.au") });
     await expect(sendTransactionalEmail(message)).rejects.toThrow("Email delivery failed");
   });
@@ -87,8 +87,7 @@ describe("Resend production email", () => {
       DATABASE_URL: "postgresql://app:password@db.example/tapkin_production?sslmode=require", DATABASE_EXPECTED_NAME: "tapkin_production",
       SESSION_SECRET: "a-production-session-secret-over-32-characters", ACTIVATION_PEPPER: "a-production-activation-pepper-over-32-characters",
       STORAGE_PROVIDER: "azure-blob", STORAGE_ENVIRONMENT: "production", AZURE_STORAGE_CONTAINER_URL: "https://store.blob.core.windows.net/tapkin-production", AZURE_STORAGE_SAS_TOKEN: "?test-token",
-      EMAIL_MODE: "live", EMAIL_PROVIDER: "resend", EMAIL_WEBHOOK_URL: "https://api.resend.com/emails", EMAIL_WEBHOOK_SECRET: "tapkin-only-key",
-      EMAIL_WEBHOOK_SECRET_KOSYKIN: "kosykin-only-key",
+      EMAIL_MODE: "live", EMAIL_PROVIDER: "resend", EMAIL_WEBHOOK_URL: "https://api.resend.com/emails", EMAIL_RESEND_STORES: JSON.stringify({ tapkin: { apiKey: "tapkin-only-key" }, kosykin: { apiKey: "kosykin-only-key" } }),
     };
     for (const [key, value] of Object.entries(env)) vi.stubEnv(key, value);
     await sendTransactionalEmail({ to: "customer@example.test", subject: "Kosykin order", text: "Shipped", storeSlug: "kosykin", attachments: [{ filename: "order.3mf", content: Buffer.from("printable model") }] });
@@ -105,15 +104,9 @@ describe("Resend production email", () => {
     const custom = JSON.parse(fetchMock.mock.calls[1][1].body as string);
     expect(custom.from).toBe("Kosykin Dispatch <dispatch@kosykin.com.au>");
     expect(custom.text).toContain("Replies to this address are not monitored");
-    vi.stubEnv("EMAIL_WEBHOOK_SECRET_KOSYKIN", "");
-    await sendTransactionalEmail({ to: "customer@example.test", subject: "Kosykin order", text: "Shipped", storeSlug: "kosykin" });
-    expect(fetchMock.mock.calls[2][1].headers).toMatchObject({ authorization: "Bearer tapkin-only-key" });
-    const newSenders = parseEmailSenders(undefined, "hello@new-store.example", "New store");
-    emailStore.findUnique.mockResolvedValueOnce({ displayName: "New store", accountConfig: { emailSenders: newSenders }, domains: [{ environment: "PRODUCTION", isPrimary: true, protocol: "https", hostname: "new-store.example", port: null }] });
-    await sendTransactionalEmail({ to: "customer@example.test", subject: "New store order", text: "Paid", storeSlug: "new-store", category: "orders" });
-    expect(fetchMock.mock.calls[3][1].headers).toMatchObject({ authorization: "Bearer tapkin-only-key" });
-    expect(JSON.parse(fetchMock.mock.calls[3][1].body as string).from).toBe("New store Orders <orders@new-store.example>");
-    expect(fetchMock).toHaveBeenCalledTimes(4);
+    vi.stubEnv("EMAIL_RESEND_STORES", JSON.stringify({ tapkin: { apiKey: "tapkin-only-key" } }));
+    await expect(sendTransactionalEmail({ to: "customer@example.test", subject: "Kosykin order", text: "Shipped", storeSlug: "kosykin" })).rejects.toThrow("Resend sender is not configured for store");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 });
 

@@ -19,8 +19,8 @@ describe("Google OAuth credentials per store", () => {
     expect(googleOAuthCredentials("kosykin", { GOOGLE_OAUTH_STORES: staging })?.clientId).toBe("stage-id");
     expect(googleOAuthCredentials("kosykin", { GOOGLE_OAUTH_STORES: stores })?.clientId).toBe("kosykin-id");
   });
-  it("preserves existing deployments until the map is configured", () => {
-    expect(googleOAuthCredentials("kosykin", legacy)?.clientId).toBe("shared-id");
+  it("does not use removed shared credentials", () => {
+    expect(googleOAuthCredentials("kosykin", legacy)).toBeUndefined();
     expect(googleOAuthCredentials("kosykin", {})).toBeUndefined();
   });
   it.each(["not-json", "null", '["invalid"]', JSON.stringify({ kosykin: { clientId: "id" } }), JSON.stringify({ kosykin: { clientId: "id", clientSecret: "" } })])("rejects invalid configuration without returning secret data", value => {

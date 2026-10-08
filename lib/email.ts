@@ -23,8 +23,9 @@ export async function sendTransactionalEmail(input: { to: string; subject: strin
     logEvent("info", "email_mocked", { messageType: input.subject, recipientDomain: input.to.split("@")[1] ?? "invalid" });
     return false;
   }
-  if (!email.webhookUrl || !email.webhookSecret) throw new Error("Email provider is not configured");
+  if (!email.webhookUrl || (email.provider !== "resend" && !email.webhookSecret)) throw new Error("Email provider is not configured");
   if (email.provider === "mailtrap-sandbox") {
+    if (!email.webhookSecret) throw new Error("Email provider is not configured");
     // Mailtrap captures the same print attachment without delivering to a real inbox.
     if (!sender.address) throw new Error("Mailtrap Sandbox sender is not configured");
     const response = await fetch(email.webhookUrl, {
@@ -39,7 +40,7 @@ export async function sendTransactionalEmail(input: { to: string; subject: strin
   }
   if (email.provider === "resend") {
     const fromAddress = sender.from;
-    const secret = input.storeSlug === "kosykin" && email.kosykinWebhookSecret ? email.kosykinWebhookSecret : email.webhookSecret;
+    const secret = Object.hasOwn(email.resendStores, input.storeSlug) ? email.resendStores[input.storeSlug].apiKey : undefined;
     if (!fromAddress || !secret) throw new Error("Resend sender is not configured for store");
     const response = await fetch(email.webhookUrl, {
       method: "POST",

@@ -35,15 +35,17 @@ const runtimeConfigSchema = z.object({
   EMAIL_PROVIDER: z.enum(["webhook", "mailtrap-sandbox", "resend"]).default("webhook"),
   EMAIL_WEBHOOK_URL: optionalUrl,
   EMAIL_WEBHOOK_SECRET: optionalString,
-  EMAIL_WEBHOOK_SECRET_KOSYKIN: optionalString,
+  EMAIL_RESEND_STORES: z.preprocess(value => {
+    if (!value) return {};
+    if (typeof value !== "string") return value;
+    try { return JSON.parse(value); } catch { return null; }
+  }, z.record(z.string().regex(/^[a-z0-9-]+$/), z.object({ apiKey: z.string().trim().min(1) }).strict())),
   EMAIL_TEST_OUTBOX_PATH: optionalString,
   STRIPE_SECRET_KEY: optionalString,
   STRIPE_WEBHOOK_SECRET: optionalString,
   CHECKOUT_RECONCILE_SECRET: z.preprocess(blankToUndefined, z.string().min(32).optional()),
   NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: optionalString,
   GOOGLE_OAUTH_STORES: googleOAuthStores,
-  GOOGLE_CLIENT_ID: optionalString,
-  GOOGLE_CLIENT_SECRET: optionalString,
   APPLE_CLIENT_ID: optionalString,
   APPLE_CLIENT_SECRET: optionalString,
   ETSY_API_KEY: optionalString,
@@ -65,7 +67,6 @@ const runtimeConfigSchema = z.object({
     if (Boolean(first) !== Boolean(second)) issue(first ? secondName : firstName, `${firstName} and ${secondName} must be configured together`);
   };
 
-  paired(value.GOOGLE_CLIENT_ID, value.GOOGLE_CLIENT_SECRET, "GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET");
   paired(value.APPLE_CLIENT_ID, value.APPLE_CLIENT_SECRET, "APPLE_CLIENT_ID", "APPLE_CLIENT_SECRET");
   paired(value.ETSY_API_KEY, value.ETSY_SHARED_SECRET, "ETSY_API_KEY", "ETSY_SHARED_SECRET");
   paired(value.DEV_ADMIN_EMAIL, value.DEV_ADMIN_PASSWORD, "DEV_ADMIN_EMAIL", "DEV_ADMIN_PASSWORD");
@@ -105,7 +106,7 @@ const runtimeConfigSchema = z.object({
     if (!value.AZURE_STORAGE_SAS_TOKEN) issue("AZURE_STORAGE_SAS_TOKEN", "AZURE_STORAGE_SAS_TOKEN is required for Azure Blob storage");
     if (value.EMAIL_MODE === "mock" && !value.PRODUCTION_PREVIEW_MODE) issue("EMAIL_MODE", "Staging and production require an isolated sandbox or live email provider");
     if (!value.EMAIL_WEBHOOK_URL && !value.PRODUCTION_PREVIEW_MODE) issue("EMAIL_WEBHOOK_URL", "EMAIL_WEBHOOK_URL is required outside development");
-    if (!value.EMAIL_WEBHOOK_SECRET && !value.PRODUCTION_PREVIEW_MODE) issue("EMAIL_WEBHOOK_SECRET", "EMAIL_WEBHOOK_SECRET is required outside development");
+    if (value.EMAIL_PROVIDER !== "resend" && !value.EMAIL_WEBHOOK_SECRET && !value.PRODUCTION_PREVIEW_MODE) issue("EMAIL_WEBHOOK_SECRET", "EMAIL_WEBHOOK_SECRET is required outside development");
     if (value.EMAIL_TEST_OUTBOX_PATH) issue("EMAIL_TEST_OUTBOX_PATH", "The test email outbox is restricted to development");
     if (value.ENABLE_TEST_CHECKOUT) issue("ENABLE_TEST_CHECKOUT", "Test checkout is restricted to development");
     if (value.DEV_ADMIN_EMAIL || value.DEV_ADMIN_PASSWORD) issue("DEV_ADMIN_EMAIL", "Development administrator credentials are forbidden outside development");
@@ -131,7 +132,7 @@ const runtimeConfigSchema = z.object({
     if (value.EMAIL_WEBHOOK_URL !== "https://api.resend.com/emails") issue("EMAIL_WEBHOOK_URL", "Resend requires the official HTTPS email endpoint");
   }
 
-  if (value.EMAIL_WEBHOOK_SECRET_KOSYKIN && value.EMAIL_PROVIDER !== "resend") issue("EMAIL_WEBHOOK_SECRET_KOSYKIN", "Legacy domain credentials require Resend");
+  if (value.EMAIL_PROVIDER === "resend" && Object.keys(value.EMAIL_RESEND_STORES).length === 0) issue("EMAIL_RESEND_STORES", "Resend requires per-store credentials");
 
   if (value.APP_ENV === "production") {
     if (value.PRODUCTION_PREVIEW_MODE) {
@@ -160,7 +161,7 @@ export type RuntimeConfig = {
   activationPepper?: string;
   trustProxy: boolean;
   storage: { provider: "local" | "azure-blob"; environment?: AppEnvironment; uploadDir: string; containerUrl?: string; sasToken?: string };
-  email: { mode: "mock" | "sandbox" | "live"; provider: "webhook" | "mailtrap-sandbox" | "resend"; webhookUrl?: string; webhookSecret?: string; kosykinWebhookSecret?: string; testOutboxPath?: string };
+  email: { mode: "mock" | "sandbox" | "live"; provider: "webhook" | "mailtrap-sandbox" | "resend"; webhookUrl?: string; webhookSecret?: string; resendStores: Record<string, { apiKey: string }>; testOutboxPath?: string };
   stripe: { secretKey?: string; webhookSecret?: string; reconcileSecret?: string; publishableKey?: string; testCheckout: boolean };
   etsy: { apiKey?: string; sharedSecret?: string; syncSecret?: string };
   analyticsStores: Record<string, { measurementId: string; apiSecret: string }>;
@@ -186,7 +187,7 @@ export function parseRuntimeConfig(environment: Record<string, string | undefine
     activationPepper: value.ACTIVATION_PEPPER,
     trustProxy: value.TRUST_PROXY,
     storage: { provider: value.STORAGE_PROVIDER, environment: value.STORAGE_ENVIRONMENT, uploadDir: value.UPLOAD_DIR, containerUrl: value.AZURE_STORAGE_CONTAINER_URL, sasToken: value.AZURE_STORAGE_SAS_TOKEN },
-    email: { mode: value.EMAIL_MODE, provider: value.EMAIL_PROVIDER, webhookUrl: value.EMAIL_WEBHOOK_URL, webhookSecret: value.EMAIL_WEBHOOK_SECRET, kosykinWebhookSecret: value.EMAIL_WEBHOOK_SECRET_KOSYKIN, testOutboxPath: value.EMAIL_TEST_OUTBOX_PATH },
+    email: { mode: value.EMAIL_MODE, provider: value.EMAIL_PROVIDER, webhookUrl: value.EMAIL_WEBHOOK_URL, webhookSecret: value.EMAIL_WEBHOOK_SECRET, resendStores: value.EMAIL_RESEND_STORES, testOutboxPath: value.EMAIL_TEST_OUTBOX_PATH },
     stripe: { reconcileSecret: value.CHECKOUT_RECONCILE_SECRET, secretKey: value.STRIPE_SECRET_KEY, webhookSecret: value.STRIPE_WEBHOOK_SECRET, publishableKey: value.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY, testCheckout: value.ENABLE_TEST_CHECKOUT },
     etsy: { apiKey: value.ETSY_API_KEY, sharedSecret: value.ETSY_SHARED_SECRET, syncSecret: value.ETSY_SYNC_SECRET },
     analyticsStores: value.ANALYTICS_GA4_STORES,
