@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { googleOAuthStores } from "@/lib/google-oauth-config";
 
 export const appEnvironments = ["development", "staging", "production"] as const;
 export type AppEnvironment = (typeof appEnvironments)[number];
@@ -40,6 +41,7 @@ const runtimeConfigSchema = z.object({
   STRIPE_WEBHOOK_SECRET: optionalString,
   CHECKOUT_RECONCILE_SECRET: z.preprocess(blankToUndefined, z.string().min(32).optional()),
   NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: optionalString,
+  GOOGLE_OAUTH_STORES: googleOAuthStores,
   GOOGLE_CLIENT_ID: optionalString,
   GOOGLE_CLIENT_SECRET: optionalString,
   APPLE_CLIENT_ID: optionalString,

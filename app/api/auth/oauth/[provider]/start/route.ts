@@ -8,7 +8,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   if (value !== "google" && value !== "apple") return NextResponse.json({ error: "Unsupported sign-in provider" }, { status: 404 });
   const store = await getCurrentStorefront();
   const provider = value as OAuthProviderName; if (!(provider === "apple" ? store.accountConfig?.appleEnabled : (store.accountConfig?.googleEnabled ?? true))) return NextResponse.redirect(new URL("/login?oauth=unavailable", store.origin));
-  const config = getOAuthConfig(provider);
+  const config = getOAuthConfig(provider, store.slug);
   if (!config) return NextResponse.redirect(new URL("/login?oauth=unavailable", store.origin));
   const transaction = createOAuthTransaction(provider, request.nextUrl.searchParams.get("next") ?? "/dashboard", store);
   const redirectUri = oauthCallbackUrl(provider, { appUrl: store.origin });

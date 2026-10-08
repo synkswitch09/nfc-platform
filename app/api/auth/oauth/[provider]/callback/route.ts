@@ -11,10 +11,10 @@ async function callback(request: NextRequest, providerValue: string, values: URL
   const code = values.get("code"); const state = values.get("state"); const error = values.get("error");
   if (!transaction || transaction.provider !== provider || transaction.storeId !== store.id || transaction.origin !== store.origin || !code || !state || state !== transaction.state || error) return clear(NextResponse.redirect(fallback));
   if (!(provider === "apple" ? store.accountConfig?.appleEnabled : (store.accountConfig?.googleEnabled ?? true))) return NextResponse.redirect(new URL("/login?oauth=unavailable", store.origin));
-  const config = getOAuthConfig(provider); if (!config) return clear(NextResponse.redirect(fallback));
+  const config = getOAuthConfig(provider, store.slug); if (!config) return clear(NextResponse.redirect(fallback));
   try {
     const callbackUrl = new URL(`${store.origin}/api/auth/oauth/${provider}/callback`); callbackUrl.search = values.toString();
-    const claims = await exchangeOAuthCode(provider, callbackUrl, transaction.verifier, transaction.state, transaction.nonce);
+    const claims = await exchangeOAuthCode(provider, store.slug, callbackUrl, transaction.verifier, transaction.state, transaction.nonce);
     const user = await findOrCreateOAuthUser(config, claims, store.id);
     await createSession(user.id, store);
     return clear(NextResponse.redirect(new URL(transaction.next, store.origin)));
