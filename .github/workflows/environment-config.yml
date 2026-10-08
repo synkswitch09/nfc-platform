@@ -1,0 +1,47 @@
+name: Audit and maintain Azure environment configuration
+on:
+  workflow_dispatch:
+    inputs:
+      apply:
+        description: Apply safe environment configuration corrections
+        type: boolean
+        required: true
+        default: false
+permissions:
+  contents: read
+  id-token: write
+jobs:
+  configure:
+    strategy:
+      fail-fast: false
+      matrix:
+        environment: [staging, production]
+    runs-on: ubuntu-latest
+    environment: ${{ matrix.environment }}
+    concurrency:
+      group: deploy-${{ matrix.environment }}
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v5
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Audit and normalize configuration without exposing values
+        run: python3 scripts/maintain-azure-env.py
+        env:
+          TARGET_ENVIRONMENT: ${{ matrix.environment }}
+          APPLY_CHANGES: ${{ inputs.apply }}
+          AZURE_CONTAINER_APP: ${{ vars.AZURE_CONTAINER_APP }}
+          AZURE_MIGRATION_JOB: ${{ vars.AZURE_MIGRATION_JOB }}
+          AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+          APP_URL: ${{ vars.APP_URL }}
+      - uses: actions/setup-node@v5
+        with: { node-version: 24 }
+      - name: Check storefront health after configuration
+        run: npm run smoke
+        env:
+          SMOKE_BASE_URL: ${{ vars.APP_URL }}
+          SMOKE_PRODUCT_SLUG: ${{ vars.SMOKE_PRODUCT_SLUG }}
+          SMOKE_TAG_ID: ${{ vars.SMOKE_TAG_ID }}
