@@ -1,0 +1,11 @@
+import { NextRequest,NextResponse } from "next/server";
+import { z } from "zod";
+import bcrypt from "bcryptjs";
+import { createSession,destroySession,getCurrentUser } from "@/lib/auth";
+import { db } from "@/lib/db";
+import { assertSameOrigin,jsonError,getClientIp } from "@/lib/http";
+import { rateLimit } from "@/lib/rate-limit";
+import { getCurrentStorefront } from "@/lib/storefront";
+import { sendTransactionalEmail } from "@/lib/email";
+const schema=z.discriminatedUnion("action",[z.object({action:z.literal("logout_all")}),z.object({action:z.literal("password"),currentPassword:z.string().max(200),newPassword:z.string().min(12).max(128).regex(/[a-z]/).regex(/[A-Z]/).regex(/[0-9]/)})]);
+export async function POST(request:NextRequest){if(!assertSameOrigin(request))return jsonError("Invalid origin",403);const user=await getCurrentUser();if(!user)return jsonError("Unauthorised",401);if(!(await rateLimit("account-security",`${user.id}:${getClientIp(request)}`,6,3600000)).allowed)return jsonError("Try again later",429);const parsed=schema.safeParse(await request.json().catch(()=>null));if(!parsed.success)return jsonError("Use a password of 12+ characters with upper and lowercase letters and a number.");const store=await getCurrentStorefront();if(parsed.data.action==="password"){const account=await db.user.findUniqueOrThrow({where:{id:user.id},select:{passwordHash:true}});if(!account.passwordHash||!await bcrypt.compare(parsed.data.currentPassword,account.passwordHash))return jsonError("Current password is incorrect. If you use Google, use password recovery to set an email password.",403);const hash=await bcrypt.hash(parsed.data.newPassword,12);await db.$transaction([db.user.update({where:{id:user.id},data:{passwordHash:hash}}),db.session.deleteMany({where:{userId:user.id}}),db.auditLog.create({data:{actorId:user.id,storeId:store.id,action:"ACCOUNT_PASSWORD_CHANGED",entityType:"User",entityId:user.id}})]);await createSession(user.id,store);await sendTransactionalEmail({to:user.email,subject:`${store.displayName}: password changed`,text:"Your account password was changed. If this was not you, reset your password and contact our support team.",storeSlug:store.slug}).catch(()=>undefined);}else{await db.session.deleteMany({where:{userId:user.id}});await destroySession();}return NextResponse.json({ok:true});}

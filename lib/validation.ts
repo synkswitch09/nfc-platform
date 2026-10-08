@@ -68,6 +68,7 @@ export const shippingQuoteSchema = z.object({
 });
 
 export const checkoutSchema = z.object({
+  saveAddress:z.boolean().default(false),
   promotionCode: z.string().trim().toUpperCase().regex(/^[A-Z0-9_-]{3,32}$/).optional(),
   items: checkoutItemsSchema,
   shippingQuoteToken: z.string().min(32).max(200),

@@ -1,0 +1,13 @@
+import {beforeEach,it,expect,vi} from "vitest";
+import {NextRequest} from "next/server";
+const m=vi.hoisted(()=>({user:vi.fn(),store:vi.fn(),origin:vi.fn(),update:vi.fn(),audit:vi.fn()}));
+vi.mock("@/lib/auth",()=>({getCurrentUser:m.user}));
+vi.mock("@/lib/storefront",()=>({getCurrentStorefront:m.store}));
+vi.mock("@/lib/http",()=>({assertSameOrigin:m.origin,jsonError:(error:string,status=400)=>Response.json({error},{status})}));
+vi.mock("@/lib/db",()=>({db:{$transaction:(operations:Promise<unknown>[])=>Promise.all(operations),user:{update:m.update},auditLog:{create:m.audit}}}));
+import {PATCH} from "@/app/api/account/profile/route";
+const request=(body:unknown)=>new NextRequest("https://test.example/api/account/profile",{method:"PATCH",body:JSON.stringify(body)});
+beforeEach(()=>{vi.resetAllMocks();m.user.mockResolvedValue({id:"owner"});m.store.mockResolvedValue({id:"store"});m.origin.mockReturnValue(true);m.update.mockResolvedValue({name:"Customer",phone:"123"});});
+it("never accepts an email or user id change in profile updates",async()=>{for(const body of [{name:"Customer",phone:null,email:"attacker@example.com"},{name:"Customer",phone:null,userId:"another-user"}])expect((await PATCH(request(body))).status).toBe(400);expect(m.update).not.toHaveBeenCalled();});
+it("uses the session owner rather than client-supplied identity",async()=>{expect((await PATCH(request({name:"Customer",phone:"123"}))).status).toBe(200);expect(m.update.mock.calls[0][0].where).toEqual({id:"owner"});});
+it("rejects unauthenticated and cross-origin mutations",async()=>{m.user.mockResolvedValue(null);expect((await PATCH(request({name:"Customer",phone:null}))).status).toBe(401);m.origin.mockReturnValue(false);expect((await PATCH(request({name:"Customer",phone:null}))).status).toBe(403);expect(m.update).not.toHaveBeenCalled();});

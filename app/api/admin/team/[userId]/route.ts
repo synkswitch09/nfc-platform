@@ -1,18 +1,6 @@
-import { NextRequest, NextResponse } from "next/server";
-import { z } from "zod";
-import { getCurrentUser } from "@/lib/auth";
+import { NextRequest,NextResponse } from "next/server";
+import { getAdminApiContext } from "@/lib/admin";
 import { db } from "@/lib/db";
-import { assertSameOrigin, jsonError } from "@/lib/http";
-
-const schema = z.object({ role: z.enum(["CUSTOMER", "STAFF", "ADMIN"]) });
-
-export async function POST(request: NextRequest, { params }: { params: Promise<{ userId: string }> }) {
-  if (!assertSameOrigin(request)) return jsonError("Invalid request origin", 403);
-  const actor = await getCurrentUser(); if (!actor || actor.role !== "ADMIN") return jsonError("Administrator access required", 403);
-  const parsed = schema.safeParse(await request.json().catch(() => null)); if (!parsed.success) return jsonError("Invalid role");
-  const { userId } = await params; if (userId === actor.id && parsed.data.role !== "ADMIN") return jsonError("You cannot remove your own administrator access", 409);
-  const target = await db.user.findUnique({ where: { id: userId }, select: { role: true, emailVerifiedAt: true, status: true } }); if (!target) return jsonError("User not found", 404);
-  if (!target.emailVerifiedAt || target.status !== "ACTIVE") return jsonError("Only active, verified users can join the operations team", 409);
-  await db.$transaction([db.user.update({ where: { id: userId }, data: { role: parsed.data.role } }), db.session.deleteMany({ where: { userId } }), db.auditLog.create({ data: { actorId: actor.id, action: "USER_ROLE_CHANGED", entityType: "User", entityId: userId, metadata: { from: target.role, to: parsed.data.role } } })]);
-  return NextResponse.json({ ok: true });
-}
+import { assertSameOrigin,jsonError } from "@/lib/http";
+import { teamAccessSchema } from "@/lib/team-access";
+export async function POST(request:NextRequest,{params}:{params:Promise<{userId:string}>}){if(!assertSameOrigin(request))return jsonError("Invalid origin",403);const context=await getAdminApiContext();if(!context?.isPlatformAdmin)return jsonError("Principal administrator required",403);const input=teamAccessSchema.safeParse(await request.json().catch(()=>null));if(!input.success)return jsonError("Select valid store roles and permissions");const {userId}=await params;const target=await db.user.findUnique({where:{id:userId},select:{role:true,status:true,emailVerifiedAt:true,email:true}});if(!target)return jsonError("User not found",404);if(target.role==="ADMIN")return jsonError("Principal administrator access cannot be changed here",409);if(!target.emailVerifiedAt||target.status!=="ACTIVE")return jsonError("Verify this active user's email first",409);const data=input.data;const enabled=data.enabled&&(data.roles.length>0||data.permissions.length>0);await db.$transaction([db.store.update({where:{id:context.store.id},data:{updatedAt:new Date()}}),db.user.update({where:{id:userId},data:{role:"STAFF"}}),db.storeMembership.upsert({where:{storeId_userId:{storeId:context.store.id,userId}},create:{storeId:context.store.id,userId,role:"STAFF",operationsRoles:data.roles,permissions:data.permissions,operationsEnabled:enabled},update:{role:"STAFF",operationsRoles:data.roles,permissions:data.permissions,operationsEnabled:enabled}}),db.teamInvitation.updateMany({where:{storeId:context.store.id,email:target.email,acceptedAt:null,revokedAt:null},data:{revokedAt:new Date()}}),db.session.deleteMany({where:{userId}}),db.auditLog.create({data:{actorId:context.user.id,storeId:context.store.id,action:"STORE_TEAM_ACCESS_UPDATED",entityType:"User",entityId:userId,metadata:data}})]);return NextResponse.json({ok:true});}

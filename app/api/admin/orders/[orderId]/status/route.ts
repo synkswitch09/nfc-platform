@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { canManageStore, getAdminApiContext } from "@/lib/admin";
+import { getAdminApiContext, hasPermission } from "@/lib/admin";
 import { db } from "@/lib/db";
 import { assertSameOrigin, jsonError } from "@/lib/http";
 import { CheckoutError } from "@/lib/order-service";
@@ -18,6 +18,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const { user, store } = context;
   const parsed = schema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return jsonError(parsed.error.issues[0]?.message ?? "Invalid order update");
+  if(parsed.data.status==="CANCELLED" && !hasPermission(context,"orders.cancel")) return jsonError("Cancellation permission required",403);
   const { orderId } = await params;
   const order = await db.order.findFirst({ where: { id: orderId, storeId: store.id }, select: { status: true, payments: { select: { status: true } }, shipments: { select: { idempotencyKey: true, bookedAt: true, trackingNumber: true, serviceName: true } } } });
   if (!order) return jsonError("Order not found", 404);
@@ -25,7 +26,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   if (!canTransitionOrder(order.status, parsed.data.status)) return jsonError(`Cannot change ${order.status} to ${parsed.data.status}`, 409);
   const shippitParcels = order.shipments.filter(shipment => shipment.idempotencyKey.startsWith("shippit:"));
   if (parsed.data.status === "SHIPPED" && shippitParcels.length && shippitParcels.some(shipment => !shipment.bookedAt || !shipment.trackingNumber)) return jsonError("Book all Shippit parcels before marking the order shipped", 409);
-  if (parsed.data.overridePreparation && (parsed.data.status !== "READY_TO_SHIP" || !canManageStore(context) || (parsed.data.note?.length ?? 0) < 10)) return jsonError("Manager override requires a reason of at least 10 characters", 403);
+  if (parsed.data.overridePreparation && (parsed.data.status !== "READY_TO_SHIP" || !context.isPlatformAdmin || (parsed.data.note?.length ?? 0) < 10)) return jsonError("Manager override requires a reason of at least 10 characters", 403);
   if (parsed.data.status === "CANCELLED" && order.status === "PAYMENT_PENDING") {
     try { await cancelStripeCheckout(orderId, store.id, user.id); }
     catch (error) { return jsonError(error instanceof CheckoutError ? error.message : "Payment could not be verified. Stock remains reserved; retry later.", 409); }

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { getAdminApiContext, canManageStore } from "@/lib/admin";
+import { getAdminApiContext, hasPermission } from "@/lib/admin";
 import { assertSameOrigin, jsonError } from "@/lib/http";
 import { db } from "@/lib/db";
 import { requestFullRefund, restockRefundedOrder, processRefund, RefundError } from "@/lib/refunds";
@@ -16,9 +16,10 @@ const schema = z.discriminatedUnion("action", [
 export async function POST(request: NextRequest, { params }: { params: Promise<{ orderId: string }> }) {
   if (!assertSameOrigin(request)) return jsonError("Invalid request origin", 403);
   const context = await getAdminApiContext();
-  if (!context || !canManageStore(context)) return jsonError("Store administrator required", 403);
+  if (!context) return jsonError("Store administrator required", 403);
   const parsed = schema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return jsonError("Confirm the action and provide a reason of at least 3 characters", 400);
+  if (!hasPermission(context, parsed.data.action === "resend" ? "support.write" : parsed.data.action === "restock" ? "catalog.write" : "finance.refund")) return jsonError("This action requires additional permission",403);
   const { orderId } = await params;
   if (!await db.order.findFirst({ where: { id: orderId, storeId: context.store.id }, select: { id: true } })) return jsonError("Order not found", 404);
   const input = parsed.data;

@@ -1,3 +1,5 @@
+import {redirect} from "next/navigation";
+import {hasPermission} from "@/lib/admin-permissions";
 import Link from "next/link";
 import { AlertTriangle, ArrowRight, Boxes, PackageCheck, ScanLine, ShoppingBag, Tags, Users } from "lucide-react";
 import { db } from "@/lib/db";
@@ -6,7 +8,8 @@ import { hasStoreCapability } from "@/lib/storefront";
 import { StoreCapability } from "@prisma/client";
 
 export default async function AdminPage() {
-  const { store } = await requireAdminPageContext();
+  const context=await requireAdminPageContext();const {store}=context;
+  if(!context.isPlatformAdmin){const links=[["catalog.read","/admin/products"],["production.read","/admin/manufacturing"],["shipping.read","/admin/shipping"],["support.read","/admin/support"],["content.read","/admin/storefront"],["orders.read","/admin/orders"],["customers.read","/admin/customers"],["settings.read","/admin/settings"],["audit.read","/admin/audit"]] as const;redirect(links.find(([permission])=>hasPermission(context,permission))?.[1]??"/dashboard");}
   const money = new Intl.NumberFormat("en-AU", { style: "currency", currency: store.currency, maximumFractionDigits: 0 });
   const nfcEnabled = hasStoreCapability(store, StoreCapability.NFC);
   const now = new Date();

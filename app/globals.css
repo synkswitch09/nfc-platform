@@ -5714,3 +5714,6 @@ body[data-store="kosykin"] .site-header.compact-header nav.is-open .nav-centre a
     --kosy-header-radius: 22px;
   }
 }
+
+/* Account tools remain usable on small screens. */
+.account-nav{display:flex;flex-wrap:wrap;gap:8px;margin:24px auto 0;padding:0 24px;max-width:1200px}.account-nav a{padding:10px 14px;border:1px solid var(--border,#dededb);border-radius:18px;font-size:.9rem}.account-nav a:hover{background:var(--cream,#f6f5ef)}.account-filters{display:flex;flex-wrap:wrap;align-items:end;gap:16px;margin-bottom:24px}.account-filters .field{flex:1;min-width:180px}.dashboard .card,.account-grid>*{min-width:0;overflow-wrap:anywhere}.dashboard details{margin-top:20px}.dashboard summary{cursor:pointer}.account-photo{max-width:160px;max-height:160px;border-radius:12px}.account-grid .card{margin-bottom:20px}@media(max-width:600px){.account-nav{padding:0 16px;gap:6px}.account-nav a{font-size:.8rem;padding:8px 10px}.account-grid{grid-template-columns:1fr}.account-filters{display:block}.account-filters .field{margin-bottom:12px}}

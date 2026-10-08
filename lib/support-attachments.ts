@@ -1,0 +1,3 @@
+import {z} from "zod";
+export const attachmentSchema=z.object({name:z.string().trim().min(1).max(100),type:z.enum(["image/jpeg","image/png","image/webp"]),data:z.string().max(700000)});
+export function validSupportPhoto(photo:z.infer<typeof attachmentSchema>){if(!/^[A-Za-z0-9+/]+={0,2}$/.test(photo.data))return false;const bytes=Buffer.from(photo.data,"base64");if(bytes.length>512000||bytes.length<12)return false;return photo.type==="image/jpeg"?bytes[0]===255&&bytes[1]===216&&bytes[2]===255:photo.type==="image/png"?bytes.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10])):bytes.toString("ascii",0,4)==="RIFF"&&bytes.toString("ascii",8,12)==="WEBP";}

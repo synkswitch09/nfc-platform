@@ -1,0 +1,5 @@
+import {NextResponse} from "next/server";
+import {getAdminApiContext,hasPermission} from "@/lib/admin";
+import {db} from "@/lib/db";
+import {jsonError} from "@/lib/http";
+export async function GET(){const context=await getAdminApiContext();if(!context||!hasPermission(context,"customers.export"))return jsonError("Forbidden",403);const rows=await db.storeMembership.findMany({where:{storeId:context.store.id},select:{createdAt:true,marketingConsentAt:true,user:{select:{name:true,email:true,phone:true}}},take:10000});const cell=(v:string)=>`"${(/^[=+@-]/.test(v)?"'":"")+v.replaceAll('"','""')}"`;const csv=["Name,Email,Phone,Joined,Marketing consent",...rows.map(r=>[r.user.name,r.user.email,r.user.phone??"",r.createdAt.toISOString(),String(Boolean(r.marketingConsentAt))].map(cell).join(","))].join("\r\n");await db.auditLog.create({data:{actorId:context.user.id,storeId:context.store.id,action:"CUSTOMERS_EXPORTED",entityType:"Store",entityId:context.store.id,metadata:{count:rows.length}}});return new NextResponse(csv,{headers:{"content-type":"text/csv; charset=utf-8","content-disposition":"attachment; filename=customers.csv","cache-control":"no-store"}});}

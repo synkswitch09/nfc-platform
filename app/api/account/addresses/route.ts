@@ -9,6 +9,6 @@ export async function POST(request: NextRequest) {
   const user = await getCurrentUser(); if (!user) return jsonError("Unauthorised", 401);
   const parsed = addressSchema.safeParse(await request.json().catch(() => null)); if (!parsed.success) return jsonError(parsed.error.issues[0]?.message ?? "Invalid address");
   if (await db.address.count({ where: { userId: user.id } }) >= 10) return jsonError("You can save up to 10 addresses", 409);
-  const address = await db.address.create({ data: { userId: user.id, ...addressDatabaseFields(parsed.data) } });
+  const address = await db.$transaction(async tx => { await tx.user.update({where:{id:user.id},data:{updatedAt:new Date()}}); const first=await tx.address.count({where:{userId:user.id}})===0;return tx.address.create({ data: { userId: user.id, isDefault:first, ...addressDatabaseFields(parsed.data) } }); });
   return NextResponse.json({ address }, { status: 201 });
 }
