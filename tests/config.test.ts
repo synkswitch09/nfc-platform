@@ -46,8 +46,9 @@ describe("runtime configuration", () => {
   });
 
   it("requires the official Resend endpoint while senders are configured per store", () => {
-    const production = { ...nonDevelopment("production"), STRIPE_SECRET_KEY: undefined, STRIPE_WEBHOOK_SECRET: undefined, NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: undefined, EMAIL_PROVIDER: "resend", EMAIL_WEBHOOK_URL: "https://api.resend.com/emails" };
+    const production = { ...nonDevelopment("production"), STRIPE_SECRET_KEY: undefined, STRIPE_WEBHOOK_SECRET: undefined, NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: undefined, EMAIL_PROVIDER: "resend", EMAIL_WEBHOOK_URL: "https://api.resend.com/emails", EMAIL_RESEND_STORES: JSON.stringify({ tapkin: { apiKey: secret } }) };
     expect(parseRuntimeConfig(production).email.provider).toBe("resend");
+    expect(() => parseRuntimeConfig({ ...production, EMAIL_RESEND_STORES: "", EMAIL_WEBHOOK_SECRET_KOSYKIN: secret })).toThrow("Resend requires per-store credentials");
     expect(parseRuntimeConfig({ ...production, EMAIL_WEBHOOK_SECRET_KOSYKIN: secret }).email.provider).toBe("resend");
     expect(parseRuntimeConfig({ ...production, EMAIL_FROM_ADDRESS: "obsolete invalid value", EMAIL_FROM_ADDRESS_KOSYKIN: "obsolete" }).email).not.toHaveProperty("fromAddress");
     expect(() => parseRuntimeConfig({ ...production, EMAIL_WEBHOOK_URL: "https://email.example/send" })).toThrow("official HTTPS email endpoint");

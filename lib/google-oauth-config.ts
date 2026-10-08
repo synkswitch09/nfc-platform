@@ -13,10 +13,5 @@ export const googleOAuthStores = z.preprocess(value => {
 export function googleOAuthCredentials(storeSlug: string, environment: Record<string, string | undefined> = process.env) {
   const result = googleOAuthStores.safeParse(environment.GOOGLE_OAUTH_STORES);
   if (!result.success) throw new Error("Invalid store Google OAuth configuration");
-  // Once store credentials are configured, a missing store must never use another brand's client.
-  if (result.data !== undefined) return Object.hasOwn(result.data, storeSlug) ? result.data[storeSlug] : undefined;
-  // Preserve existing deployments until their per-store credentials are installed.
-  const clientId = environment.GOOGLE_CLIENT_ID?.trim();
-  const clientSecret = environment.GOOGLE_CLIENT_SECRET?.trim();
-  return clientId && clientSecret ? { clientId, clientSecret } : undefined;
+  return result.data && Object.hasOwn(result.data, storeSlug) ? result.data[storeSlug] : undefined;
 }

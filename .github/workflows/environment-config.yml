@@ -2,6 +2,12 @@ name: Audit and maintain Azure environment configuration
 on:
   workflow_dispatch:
     inputs:
+      target_environment:
+        description: Environment matching the selected branch
+        type: choice
+        options: [staging, production]
+        required: true
+        default: staging
       apply:
         description: Apply safe environment configuration corrections
         type: boolean
@@ -12,14 +18,10 @@ permissions:
   id-token: write
 jobs:
   configure:
-    strategy:
-      fail-fast: false
-      matrix:
-        environment: [staging, production]
     runs-on: ubuntu-latest
-    environment: ${{ matrix.environment }}
+    environment: ${{ inputs.target_environment }}
     concurrency:
-      group: deploy-${{ matrix.environment }}
+      group: deploy-${{ inputs.target_environment }}
       cancel-in-progress: false
     steps:
       - uses: actions/checkout@v5
@@ -31,7 +33,7 @@ jobs:
       - name: Audit and normalize configuration without exposing values
         run: python3 scripts/maintain-azure-env.py
         env:
-          TARGET_ENVIRONMENT: ${{ matrix.environment }}
+          TARGET_ENVIRONMENT: ${{ inputs.target_environment }}
           APPLY_CHANGES: ${{ inputs.apply }}
           AZURE_CONTAINER_APP: ${{ vars.AZURE_CONTAINER_APP }}
           AZURE_MIGRATION_JOB: ${{ vars.AZURE_MIGRATION_JOB }}

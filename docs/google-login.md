@@ -24,7 +24,8 @@ Create a Container App secret named `google-oauth-stores`. Its value is a JSON o
 
 Bind environment variable `GOOGLE_OAUTH_STORES` to that secret and deploy a new application revision. Never commit actual secrets or include them in screenshots, logs or CMS fields. Staging and production must have different JSON values. A new store adds an entry to the same secret, without a new environment variable or code change.
 
-When `GOOGLE_OAUTH_STORES` is present, only configured stores can sign in with Google. Missing stores cannot fall back to shared credentials. Once both brands are configured, the legacy `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` variables may be removed. If the map is absent, legacy credentials remain supported to preserve existing login until migration. Do not remove `SESSION_SECRET`.
+Only `GOOGLE_OAUTH_STORES` supplies Google credentials. Missing stores cannot use another brand's client. Shared `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` variables are retired. Do not remove `SESSION_SECRET`.
+
 
 Enable Continue with Google in each store's CMS Customer accounts settings. The start and callback routes both select credentials by the server-resolved store slug. Each callback remains on the store's own trusted domain. Requested scopes remain `openid email profile`.
 
