@@ -1,3 +1,6 @@
+import { EmailSendersForm } from "@/components/email-senders-form";
+import { parseEmailSenders, senderDomain } from "@/lib/email-senders";
+import { getRuntimeConfig } from "@/lib/config";
 import { AccountSettingsForm } from "@/components/account-settings-form";
 import { parseAccountConfig } from "@/lib/account-config";
 import { StoreSettingsForm } from "@/components/store-settings-form";
@@ -29,6 +32,9 @@ export default async function AdminSettingsPage() {
       isPrimary,
     }),
   );
+  const email = getRuntimeConfig().email;
+  const fallbackSender = context.store.slug === "kosykin" ? email.kosykinFromAddress ?? "hello@kosykin.com.au" : email.fromAddress ?? "hello@tapkin.com.au";
+  const senders = parseEmailSenders(parseAccountConfig(context.store.accountConfig).emailSenders, fallbackSender, context.store.displayName);
   return (
     <div>
       <div className="admin-heading">
@@ -41,6 +47,7 @@ export default async function AdminSettingsPage() {
           </p>
         </div>
       </div>
+      <EmailSendersForm senders={senders} domain={senderDomain(fallbackSender)} />
       <AccountSettingsForm config={parseAccountConfig(context.store.accountConfig)} />
       <StoreSettingsForm
         settings={settings}

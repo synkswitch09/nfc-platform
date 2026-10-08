@@ -2,7 +2,12 @@ import { mkdtemp, readFile, rm, stat } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { parseEmailSenders } from "@/lib/email-senders";
 import { sendTransactionalEmail } from "@/lib/email";
+
+const emailStore = vi.hoisted(() => ({ findUnique: vi.fn() }));
+vi.mock("@/lib/db", () => ({ db: { store: emailStore } }));
+emailStore.findUnique.mockResolvedValue({ displayName: "Kosykin", accountConfig: {}, domains: [{ environment: "PRODUCTION", isPrimary: true, protocol: "https", hostname: "kosykin.com.au", port: null }] });
 
 const temporaryDirectories: string[] = [];
 
@@ -89,12 +94,21 @@ describe("Resend production email", () => {
     await sendTransactionalEmail({ to: "customer@example.test", subject: "Kosykin order", text: "Shipped", storeSlug: "kosykin", attachments: [{ filename: "order.3mf", content: Buffer.from("printable model") }] });
     const [, options] = fetchMock.mock.calls[0] as [string, RequestInit];
     expect(options.headers).toMatchObject({ authorization: "Bearer kosykin-only-key" });
-    expect(JSON.parse(options.body as string).from).toBe("hello@kosykin.com.au");
+    expect(JSON.parse(options.body as string).from).toBe("Kosykin <hello@kosykin.com.au>");
+    expect(JSON.parse(options.body as string).text).toContain("https://kosykin.com.au/dashboard/help");
+    expect(JSON.parse(options.body as string)).not.toHaveProperty("reply_to");
     expect(JSON.parse(options.body as string).attachments).toEqual([{ filename: "order.3mf", content: Buffer.from("printable model").toString("base64") }]);
+    const senders = parseEmailSenders(undefined, "hello@kosykin.com.au", "Kosykin");
+    senders.orders = { address: "dispatch@kosykin.com.au", name: "Kosykin Dispatch" };
+    emailStore.findUnique.mockResolvedValueOnce({ displayName: "Kosykin", accountConfig: { emailSenders: senders }, domains: [{ environment: "PRODUCTION", isPrimary: true, protocol: "https", hostname: "kosykin.com.au", port: null }] });
+    await sendTransactionalEmail({ to: "customer@example.test", subject: "Shipped", text: "Your order is on its way.", storeSlug: "kosykin", category: "orders" });
+    const custom = JSON.parse(fetchMock.mock.calls[1][1].body as string);
+    expect(custom.from).toBe("Kosykin Dispatch <dispatch@kosykin.com.au>");
+    expect(custom.text).toContain("Replies to this address are not monitored");
     vi.stubEnv("EMAIL_WEBHOOK_SECRET_KOSYKIN", "");
     vi.stubEnv("EMAIL_FROM_ADDRESS_KOSYKIN", "");
     await expect(sendTransactionalEmail({ to: "customer@example.test", subject: "Kosykin order", text: "Shipped", storeSlug: "kosykin" })).rejects.toThrow("not configured for store");
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 });
 
