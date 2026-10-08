@@ -29,7 +29,7 @@ function lineKey(variantId: string, personalisationChoice: "BASIC" | "PERSONALIS
   return `${variantId}:${personalisationChoice}:${JSON.stringify(Object.entries(personalisation).sort(([a], [b]) => a.localeCompare(b)))}`;
 }
 
-export function CartProvider({ children, storageKey,guestStorageKey }: { children: React.ReactNode; storageKey: string;guestStorageKey?:string }) {
+export function CartProvider({ children, storageKey,guestStorageKey,legacyStorageKey }: { children: React.ReactNode; storageKey: string;guestStorageKey?:string;legacyStorageKey?:string }) {
   const [lines, setLines] = useState<CartLine[]>([]);
   const [ready, setReady] = useState(false);
   const revision=useRef<string|undefined>(undefined);const syncing=useRef(false);const hydrated=useRef(false);const [syncMessage,setSyncMessage]=useState("");
@@ -38,14 +38,14 @@ export function CartProvider({ children, storageKey,guestStorageKey }: { childre
   useEffect(() => {
     const frame = requestAnimationFrame(() => {
       try {
-        const own = JSON.parse(localStorage.getItem(storageKey) ?? "[]");const guest=guestStorageKey?JSON.parse(localStorage.getItem(guestStorageKey)??"[]"):[];
-        const stored=Array.isArray(own)&&Array.isArray(guest)?[...new Map([...guest,...own].map(line=>[line.key,line])).values()]:[];if(guestStorageKey)localStorage.removeItem(guestStorageKey);
+        const own = JSON.parse(localStorage.getItem(storageKey) ?? (legacyStorageKey?localStorage.getItem(legacyStorageKey):null) ?? "[]");const guest=guestStorageKey?JSON.parse(localStorage.getItem(guestStorageKey)??"[]"):[];
+        const stored=Array.isArray(own)&&Array.isArray(guest)?[...new Map([...guest,...own].map(line=>[line.key,line])).values()]:[];if(guestStorageKey)localStorage.removeItem(guestStorageKey);if(legacyStorageKey)localStorage.removeItem(legacyStorageKey);
         if (Array.isArray(stored)) setLines(stored.filter(line => line && typeof line.variantId === "string" && Number.isInteger(line.quantity)).map(line => ({ ...line, personalisationChoice: line.personalisationChoice === "PERSONALISED" ? "PERSONALISED" : "BASIC", personalisation: line.personalisation && typeof line.personalisation === "object" ? line.personalisation : {} })));
       } catch { localStorage.removeItem(storageKey); }
       setReady(true);
     });
     return () => cancelAnimationFrame(frame);
-  }, [storageKey,guestStorageKey]);
+  }, [storageKey,guestStorageKey,legacyStorageKey]);
   useEffect(() => { if (ready) localStorage.setItem(storageKey, JSON.stringify(lines)); }, [lines, ready, storageKey]);
 
   const value = useMemo<CartContextValue>(() => ({

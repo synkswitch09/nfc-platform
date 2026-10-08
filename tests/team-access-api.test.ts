@@ -1,0 +1,14 @@
+import {beforeEach,it,expect,vi} from "vitest";
+import {NextRequest} from "next/server";
+const m=vi.hoisted(()=>({context:vi.fn(),origin:vi.fn(),find:vi.fn(),user:vi.fn(),member:vi.fn(),store:vi.fn(),sessions:vi.fn(),invitations:vi.fn(),audit:vi.fn()}));
+vi.mock("@/lib/admin",()=>({getAdminApiContext:m.context}));
+vi.mock("@/lib/http",()=>({assertSameOrigin:m.origin,jsonError:(error:string,status=400)=>Response.json({error},{status})}));
+vi.mock("@/lib/db",()=>({db:{$transaction:(operations:Promise<unknown>[])=>Promise.all(operations),store:{update:m.store},user:{findUnique:m.find,update:m.user},storeMembership:{upsert:m.member},session:{deleteMany:m.sessions},teamInvitation:{updateMany:m.invitations},auditLog:{create:m.audit}}}));
+import {POST} from "@/app/api/admin/team/[userId]/route";
+const request=(body:unknown)=>new NextRequest("https://test.example/api/admin/team/u",{method:"POST",body:JSON.stringify(body)});
+const params={params:Promise.resolve({userId:"u"})};
+beforeEach(()=>{vi.resetAllMocks();m.origin.mockReturnValue(true);m.context.mockResolvedValue({isPlatformAdmin:true,user:{id:"principal"},store:{id:"store-a"}});m.find.mockResolvedValue({role:"CUSTOMER",status:"ACTIVE",emailVerifiedAt:new Date(),email:"member@example.com"});});
+it("restricts team delegation to the principal administrator",async()=>{m.context.mockResolvedValue({isPlatformAdmin:false});expect((await POST(request({roles:["STORE_ADMIN"],permissions:[],enabled:true}),params)).status).toBe(403);expect(m.find).not.toHaveBeenCalled();});
+it("never changes a principal administrator through store roles",async()=>{m.find.mockResolvedValue({role:"ADMIN",status:"ACTIVE",emailVerifiedAt:new Date()});expect((await POST(request({roles:["SUPPORT"],permissions:[],enabled:true}),params)).status).toBe(409);expect(m.user).not.toHaveBeenCalled();});
+it("revokes sessions and outstanding invitations when access is suspended",async()=>{expect((await POST(request({roles:["SUPPORT"],permissions:[],enabled:false}),params)).status).toBe(200);expect(m.member.mock.calls[0][0].update.operationsEnabled).toBe(false);expect(m.member.mock.calls[0][0].where.storeId_userId).toEqual({storeId:"store-a",userId:"u"});expect(m.sessions).toHaveBeenCalledWith({where:{userId:"u"}});expect(m.invitations.mock.calls[0][0].where).toMatchObject({storeId:"store-a",email:"member@example.com",acceptedAt:null,revokedAt:null});});
+it("rejects unverified identities and invented global roles",async()=>{expect((await POST(request({roles:["ADMIN"],permissions:[],enabled:true}),params)).status).toBe(400);m.find.mockResolvedValue({role:"CUSTOMER",status:"ACTIVE",emailVerifiedAt:null});expect((await POST(request({roles:["SUPPORT"],permissions:[],enabled:true}),params)).status).toBe(409);expect(m.member).not.toHaveBeenCalled();});

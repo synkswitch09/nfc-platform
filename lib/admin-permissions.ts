@@ -32,6 +32,7 @@ export function permissionForRoute(path: string, method="GET"): Permission | "pl
  if (/^\/admin\/orders\/.+\/address$/.test(route)) return "orders.address";
  if (/^\/admin\/orders\/.+\/operations$/.test(route)) return "orders.read"; // Action-level checks handle refunds and resends.
  const group = route.split("/")[2];
+ if(!read && ["storefront","pages","storefront-releases","link-targets"].includes(group)) return "content.publish";
  const resource=({products:"catalog",categories:"catalog",inventory:"catalog",manufacturing:"production",tags:"production",orders:"orders",support:"support",customers:"customers",promotions:"content",storefront:"content",pages:"content",media:"content",shipping:"shipping",shipments:"shipping",settings:"settings","account-settings":"settings","storefront-releases":"content","link-targets":"content"} as Record<string,string>)[group];
  return resource?`${resource}.${read?"read":"write"}` as Permission:"platform";
 }

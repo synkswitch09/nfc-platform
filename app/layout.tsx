@@ -166,7 +166,7 @@ export default async function RootLayout({
         }}
       >
         <FormValidationFeedback />
-        <CartProvider storageKey={`commerce-cart:${store.id}:v1:${user?.id??"guest"}`} guestStorageKey={user?`commerce-cart:${store.id}:v1:guest`:undefined}>
+        <CartProvider storageKey={`commerce-cart:${store.id}:v1:${user?.id??"guest"}`} legacyStorageKey={`commerce-cart:${store.id}:v1`} guestStorageKey={user?`commerce-cart:${store.id}:v1:guest`:undefined}>
           <SiteHeader
             config={store.slug === "kosykin" ? { ...settings.headerConfig, showCategories: false, customLinks: [] } : settings.headerConfig}
             storeName={settings.storeName}
