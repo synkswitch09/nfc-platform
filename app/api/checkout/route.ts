@@ -1,3 +1,5 @@
+import {db} from "@/lib/db";
+import {addressDatabaseFields} from "@/lib/address-validation";
 import { randomUUID } from "node:crypto";
 import { Prisma } from "@prisma/client";
 import { InventoryConflict } from "@/lib/inventory-service";
@@ -22,7 +24,8 @@ export async function POST(request: NextRequest) {
   const [user, store] = await Promise.all([getCurrentUser(), getCurrentStorefront()]);
   if (!isStoreCommerceAvailable(store)) return jsonError("This store is not accepting orders", 409);
   if (!parsed.data.customer) return jsonError("Contact and shipping details are required");
-  const customer = parsed.data.customer;
+  const customer = {...parsed.data.customer,...(user?{email:user.email}:{})};
+  if(user && parsed.data.saveAddress){const fields=addressDatabaseFields({...customer.shipping,recipient:customer.name});await db.$transaction(async tx=>{await tx.user.update({where:{id:user.id},data:{updatedAt:new Date()}});const duplicate=await tx.address.findFirst({where:{userId:user.id,line1:fields.line1,line2:fields.line2,locality:fields.locality,postcode:fields.postcode,country:fields.country,recipient:fields.recipient}});const count=await tx.address.count({where:{userId:user.id}});if(!duplicate&&count<10)await tx.address.create({data:{userId:user.id,...fields,isDefault:count===0}});});}
 
   let checkout;
   try {

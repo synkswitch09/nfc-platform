@@ -18,7 +18,7 @@ export async function proxy(request: NextRequest) {
   }
   const incomingRequestId = request.headers.get("x-request-id");
   const requestId = incomingRequestId && /^[A-Za-z0-9_-]{8,64}$/.test(incomingRequestId) ? incomingRequestId : crypto.randomUUID();
-  const requestHeaders = new Headers(request.headers); requestHeaders.set("x-request-id", requestId);
+  const requestHeaders = new Headers(request.headers); requestHeaders.set("x-request-id", requestId); requestHeaders.set("x-admin-path", request.nextUrl.pathname); requestHeaders.set("x-admin-method", request.method);
   const requestedLocale = request.nextUrl.searchParams.get("locale");
   const rememberedLocale = request.cookies.get(localeCookieName)?.value;
   const locale = requestedLocale && /^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})?$/.test(requestedLocale) ? requestedLocale : rememberedLocale;

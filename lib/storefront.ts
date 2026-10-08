@@ -1,3 +1,4 @@
+import { parseAccountConfig, type AccountConfig } from "@/lib/account-config";
 import { cache } from "react";
 import type { CSSProperties } from "react";
 import { headers } from "next/headers";
@@ -84,6 +85,7 @@ export type Storefront = {
   shippingConfig: { flatRateCents: number; freeOverCents: number };
   headerConfig: HeaderConfig;
   footerConfig: FooterConfig;
+  accountConfig?: AccountConfig;
   petProfileConfig: PetProfileConfig;
   defaultLocale: string;
   enabledLocales: string[];
@@ -173,6 +175,7 @@ function mapStorefront(
     },
     headerConfig: parseHeaderConfig(row.headerConfig),
     footerConfig: parseFooterConfig(row.footerConfig),
+    accountConfig: parseAccountConfig(row.accountConfig),
     petProfileConfig: parsePetProfileConfig(row.petProfileConfig),
     defaultLocale: row.defaultLocale,
     enabledLocales: row.enabledLocales,

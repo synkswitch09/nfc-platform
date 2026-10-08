@@ -58,6 +58,7 @@ export async function findOrCreateOAuthUser(config: OAuthConfig, claims: Verifie
       if (linked) { if (linked.user.status !== "ACTIVE") throw new Error("ACCOUNT_DISABLED"); await tx.storeMembership.upsert({ where: { storeId_userId: { storeId, userId: linked.user.id } }, create: { storeId, userId: linked.user.id }, update: {} }); return linked.user; }
       const existing = await tx.user.findUnique({ where: { email } });
       if (existing?.status !== undefined && existing.status !== "ACTIVE") throw new Error("ACCOUNT_DISABLED");
+      if(existing && !existing.emailVerifiedAt)throw new Error("VERIFY_EXISTING_EMAIL_FIRST");
       const user = existing
         ? await tx.user.update({ where: { id: existing.id }, data: { emailVerifiedAt: existing.emailVerifiedAt ?? new Date() } })
         : await tx.user.create({ data: { email, name: claims.name?.trim().slice(0, 80) || email.split("@")[0], emailVerifiedAt: new Date() } });

@@ -1,0 +1,4 @@
+"use client";
+import {useState} from "react";
+import {useCart} from "@/components/cart-provider";
+export function ReorderButton({orderId}:{orderId:string}){const cart=useCart();const [message,setMessage]=useState("");const [pending,setPending]=useState(false);async function reorder(){setPending(true);try{const response=await fetch(`/api/account/orders/${orderId}/reorder`);const result=await response.json();if(!response.ok)return setMessage(result.error);result.lines.forEach(cart.add);setMessage(`${result.lines.length} item(s) added to your cart. Review options, current prices and availability before buying.`);}catch{setMessage("Please try again.");}finally{setPending(false);}}return <><button className="text-button" disabled={pending||!cart.ready} onClick={reorder}>Order again</button>{message&&<p role="status">{message}</p>}</>;}

@@ -4,7 +4,7 @@ import { FormEvent, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 
-export function AuthForm({ mode, storeName }: { mode: "login" | "register"; storeName: string }) {
+export function AuthForm({ mode, storeName, googleEnabled=true, appleEnabled=false }: { googleEnabled?:boolean; appleEnabled?:boolean; mode: "login" | "register"; storeName: string }) {
   const router = useRouter();
   const search = useSearchParams();
   const [error, setError] = useState("");
@@ -37,7 +37,7 @@ export function AuthForm({ mode, storeName }: { mode: "login" | "register"; stor
     router.refresh();
   }
 
-  return <><div className="oauth-grid"><a className="oauth-button" href={`/api/auth/oauth/google/start${oauthNext}`}><span>G</span> Continue with Google</a><a className="oauth-button dark" href={`/api/auth/oauth/apple/start${oauthNext}`}><span>●</span> Continue with Apple</a></div><div className="auth-divider"><span>or use email</span></div>{search.get("oauth") && <div className="form-error" role="alert">{search.get("oauth") === "unavailable" ? "That sign-in provider is not configured yet." : "Social sign-in could not be completed. Please try again."}</div>}<form className="form" onSubmit={submit}>
+  return <><div className="oauth-grid">{googleEnabled && <a className="oauth-button" href={`/api/auth/oauth/google/start${oauthNext}`}><span>G</span> Continue with Google</a>}{appleEnabled && <a className="oauth-button dark" href={`/api/auth/oauth/apple/start${oauthNext}`}><span>●</span> Continue with Apple</a>}</div><div className="auth-divider"><span>or use email</span></div>{search.get("oauth") && <div className="form-error" role="alert">{search.get("oauth") === "unavailable" ? "That sign-in provider is not configured yet." : "Social sign-in could not be completed. Please try again."}</div>}<form className="form" onSubmit={submit}>
     {!isLogin && <label className="field">Name<input name="name" autoComplete="name" minLength={2} maxLength={80} required /></label>}
     <label className="field">Email<input name="email" type="email" autoComplete="email" required /></label>
     <label className="field">Password<input name="password" type="password" autoComplete={isLogin ? "current-password" : "new-password"} minLength={isLogin ? 1 : 12} required /></label>

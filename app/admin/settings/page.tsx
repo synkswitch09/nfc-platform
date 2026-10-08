@@ -1,3 +1,5 @@
+import { AccountSettingsForm } from "@/components/account-settings-form";
+import { parseAccountConfig } from "@/lib/account-config";
 import { StoreSettingsForm } from "@/components/store-settings-form";
 import { canManageStore, requireAdminPageContext } from "@/lib/admin";
 import { getStoreSettings } from "@/lib/settings";
@@ -39,6 +41,7 @@ export default async function AdminSettingsPage() {
           </p>
         </div>
       </div>
+      <AccountSettingsForm config={parseAccountConfig(context.store.accountConfig)} />
       <StoreSettingsForm
         settings={settings}
         domains={domains}

@@ -1,7 +1,7 @@
 import { beforeEach, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 const m = vi.hoisted(() => ({ context: vi.fn(), manage: vi.fn(), origin: vi.fn(), order: vi.fn(), refund: vi.fn(), reconcile: vi.fn(), queue: vi.fn(), notices: vi.fn(), config: vi.fn(), shipping: vi.fn() }));
-vi.mock("@/lib/admin", () => ({ getAdminApiContext: m.context, canManageStore: m.manage }));
+vi.mock("@/lib/admin", () => ({ getAdminApiContext: m.context, hasPermission: m.manage }));
 vi.mock("@/lib/http", () => ({ assertSameOrigin: m.origin, jsonError: (error: string, status = 400) => Response.json({ error }, { status }) }));
 vi.mock("@/lib/db", () => ({ db: { order: { findFirst: m.order } } }));
 vi.mock("@/lib/refunds", () => ({ requestFullRefund: m.refund, restockRefundedOrder: vi.fn(), processRefund: vi.fn(), processPendingRefunds: m.reconcile, RefundError: class extends Error {} }));

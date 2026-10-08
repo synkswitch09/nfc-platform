@@ -1,0 +1,6 @@
+import {NextResponse} from "next/server";
+import {getCurrentUser} from "@/lib/auth";
+import {db} from "@/lib/db";
+import {getCurrentStorefront} from "@/lib/storefront";
+import {jsonError} from "@/lib/http";
+export async function GET(_request:Request,{params}:{params:Promise<{orderId:string}>}){const [user,store,{orderId}]=await Promise.all([getCurrentUser(),getCurrentStorefront(),params]);if(!user)return jsonError("Unauthorised",401);const order=await db.order.findFirst({where:{id:orderId,storeId:store.id,userId:user.id},include:{items:{include:{variant:{include:{product:true}}}}}});if(!order)return jsonError("Not found",404);const lines=order.items.filter(i=>i.variant.active&&i.variant.product.status==="ACTIVE").map(i=>({variantId:i.variantId,quantity:Math.min(10,i.quantity),productName:i.variant.product.name,variantName:i.variant.name,unitPriceCents:i.variant.priceCents,personalisationChoice:i.personalisationChoice,personalisation:i.personalisation&&typeof i.personalisation==="object"&&!Array.isArray(i.personalisation)?i.personalisation:{}}));if(!lines.length)return jsonError("These products are no longer available",409);return NextResponse.json({lines},{headers:{"cache-control":"no-store"}});}

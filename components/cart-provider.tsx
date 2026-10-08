@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useState, useRef } from "react";
 
 export type CartLine = {
   key: string;
@@ -29,19 +29,23 @@ function lineKey(variantId: string, personalisationChoice: "BASIC" | "PERSONALIS
   return `${variantId}:${personalisationChoice}:${JSON.stringify(Object.entries(personalisation).sort(([a], [b]) => a.localeCompare(b)))}`;
 }
 
-export function CartProvider({ children, storageKey }: { children: React.ReactNode; storageKey: string }) {
+export function CartProvider({ children, storageKey,guestStorageKey }: { children: React.ReactNode; storageKey: string;guestStorageKey?:string }) {
   const [lines, setLines] = useState<CartLine[]>([]);
   const [ready, setReady] = useState(false);
+  const revision=useRef<string|undefined>(undefined);const syncing=useRef(false);const hydrated=useRef(false);const [syncMessage,setSyncMessage]=useState("");
+  useEffect(()=>{if(!ready || hydrated.current)return;hydrated.current=true;syncing.current=true;void fetch("/api/account/cart",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({lines:lines.map(({variantId,quantity,personalisationChoice,personalisation})=>({variantId,quantity,personalisationChoice,personalisation}))})}).then(async response=>{if(!response.ok)return;const result=await response.json();revision.current=result.revision;setLines(result.lines);}).catch(()=>{}).finally(()=>{syncing.current=false;});},[ready,lines]);
+  useEffect(()=>{if(!ready||!revision.current||syncing.current)return;const timer=setTimeout(()=>{void fetch("/api/account/cart",{method:"PUT",headers:{"content-type":"application/json"},body:JSON.stringify({revision:revision.current,lines:lines.map(({variantId,quantity,personalisationChoice,personalisation})=>({variantId,quantity,personalisationChoice,personalisation}))})}).then(async response=>{if(response.ok)revision.current=(await response.json()).revision;else if(response.status===409)setSyncMessage("Your saved cart changed on another device. Reload this page to merge it.");}).catch(()=>setSyncMessage("Your cart is saved on this device. Reconnect to sync it to your account."));},500);return()=>clearTimeout(timer);},[lines,ready]);
   useEffect(() => {
     const frame = requestAnimationFrame(() => {
       try {
-        const stored = JSON.parse(localStorage.getItem(storageKey) ?? "[]");
+        const own = JSON.parse(localStorage.getItem(storageKey) ?? "[]");const guest=guestStorageKey?JSON.parse(localStorage.getItem(guestStorageKey)??"[]"):[];
+        const stored=Array.isArray(own)&&Array.isArray(guest)?[...new Map([...guest,...own].map(line=>[line.key,line])).values()]:[];if(guestStorageKey)localStorage.removeItem(guestStorageKey);
         if (Array.isArray(stored)) setLines(stored.filter(line => line && typeof line.variantId === "string" && Number.isInteger(line.quantity)).map(line => ({ ...line, personalisationChoice: line.personalisationChoice === "PERSONALISED" ? "PERSONALISED" : "BASIC", personalisation: line.personalisation && typeof line.personalisation === "object" ? line.personalisation : {} })));
       } catch { localStorage.removeItem(storageKey); }
       setReady(true);
     });
     return () => cancelAnimationFrame(frame);
-  }, [storageKey]);
+  }, [storageKey,guestStorageKey]);
   useEffect(() => { if (ready) localStorage.setItem(storageKey, JSON.stringify(lines)); }, [lines, ready, storageKey]);
 
   const value = useMemo<CartContextValue>(() => ({
@@ -66,7 +70,7 @@ export function CartProvider({ children, storageKey }: { children: React.ReactNo
     })),
   }), [lines, ready]);
 
-  return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
+  return <CartContext.Provider value={value}>{syncMessage&&<p className="notice" role="status">{syncMessage}</p>}{children}</CartContext.Provider>;
 }
 
 export function useCart() {

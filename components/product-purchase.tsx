@@ -1,5 +1,6 @@
 "use client";
 
+import {FavouriteButton} from "@/components/favourite-button";
 import Image from "next/image";
 import { createElement, FormEvent, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
@@ -105,7 +106,7 @@ export function ProductPurchase({ checkoutEnabled, previewOnly = false, productN
     </div>
     <div className="product-copy">
       <p className="eyebrow">{categoryName ?? (connected ? "Smart NFC product" : "Made-to-order product")}</p>
-      <h1>{productName}</h1>
+      <h1>{productName}</h1><FavouriteButton slug={productSlug}/>
       <p className="lead">{description}</p>
       <form className="purchase-panel" onSubmit={submit}>
         {variants.length > 1 && !hasMappedVariants && <label className="field">Variant<select value={variant?.id ?? ""} onChange={event => chooseVariant(event.target.value)}>{variants.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>}

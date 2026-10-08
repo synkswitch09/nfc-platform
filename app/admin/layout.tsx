@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { hasPermission, permissionForRoute } from "@/lib/admin-permissions";
 import Image from "next/image";
 import type { Metadata } from "next";
 import {
@@ -22,7 +23,6 @@ import {
   Users,
 } from "lucide-react";
 import {
-  canManageStore,
   getAccessibleAdminStores,
   requireAdminPageContext,
 } from "@/lib/admin";
@@ -130,7 +130,7 @@ export default async function AdminLayout({
       ),
     }))
     .map((group) =>
-      group.label === "System" && isPlatformAdmin
+      group.label === "System"
         ? {
             ...group,
             links: [
@@ -143,7 +143,7 @@ export default async function AdminLayout({
           }
         : group,
     )
-    .filter((group) => group.label !== "System" || canManageStore(context));
+    .map(group=>({...group,links:group.links.filter(link=>{const required=permissionForRoute(link.href);return !required || (required==="platform"?isPlatformAdmin:hasPermission(context,required));})})).filter(group=>group.links.length);
   return (
     <div className="admin-shell">
       <aside className="admin-sidebar">

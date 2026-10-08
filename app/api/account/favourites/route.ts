@@ -1,0 +1,12 @@
+import {NextRequest,NextResponse} from "next/server";
+import {getCurrentUser} from "@/lib/auth";
+import {db} from "@/lib/db";
+import {assertSameOrigin,jsonError} from "@/lib/http";
+import {getCurrentStorefront} from "@/lib/storefront";
+import {parseAccountConfig} from "@/lib/account-config";
+import {z} from "zod";
+async function context(){const [user,store]=await Promise.all([getCurrentUser(),getCurrentStorefront()]);return {user,store};}
+export async function GET(){const {user,store}=await context();if(!parseAccountConfig(store.accountConfig).favouritesEnabled)return jsonError("Disabled",404);if(!user)return jsonError("Unauthorised",401);const data=await db.customerAccountData.findUnique({where:{storeId_userId:{storeId:store.id,userId:user.id}}});return NextResponse.json({slugs:data?.favourites??[]},{headers:{"cache-control":"no-store"}});}
+async function update(request:NextRequest,merge:boolean){if(!assertSameOrigin(request))return jsonError("Invalid origin",403);const {user,store}=await context();if(!parseAccountConfig(store.accountConfig).favouritesEnabled)return jsonError("Disabled",404);if(!user)return jsonError("Unauthorised",401);const input=await request.json().catch(()=>null);const schema=merge?z.object({slugs:z.array(z.string().min(1).max(100)).max(100)}):z.object({slug:z.string().min(1).max(100),saved:z.boolean()});const parsed=schema.safeParse(input);if(!parsed.success)return jsonError("Invalid favourites");const result=await db.$transaction(async tx=>{await tx.user.update({where:{id:user.id},data:{updatedAt:new Date()}});const existing=await tx.customerAccountData.findUnique({where:{storeId_userId:{storeId:store.id,userId:user.id}}});const valid=await tx.product.findMany({where:{storeId:store.id,status:"ACTIVE",slug:{in:merge?input.slugs:[input.slug]}},select:{slug:true}});const slugs=merge?[...new Set([...(existing?.favourites??[]),...valid.map(v=>v.slug)])]:input.saved?[...new Set([...(existing?.favourites??[]),...valid.map(v=>v.slug)])]:(existing?.favourites??[]).filter(s=>s!==input.slug);return tx.customerAccountData.upsert({where:{storeId_userId:{storeId:store.id,userId:user.id}},create:{storeId:store.id,userId:user.id,favourites:slugs.slice(0,100)},update:{favourites:slugs.slice(0,100)}});});return NextResponse.json({slugs:result.favourites});}
+export function POST(r:NextRequest){return update(r,true);}
+export function PATCH(r:NextRequest){return update(r,false);}

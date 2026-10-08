@@ -1,14 +1,14 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { requireAdminPageContext } from "@/lib/admin";
+import { requireAdminPageContext,hasPermission } from "@/lib/admin";
 import { db } from "@/lib/db";
 import { ProductionSettingsForm } from "@/components/production-settings-form";
 import { ProductionBatchAction } from "@/components/production-batch-action";
 import { projectQueue } from "@/lib/production-capacity";
 
 export default async function ProductionPage() {
-  const { store, isPlatformAdmin } = await requireAdminPageContext();
-  if (!isPlatformAdmin) notFound();
+  const context=await requireAdminPageContext();const {store}=context;
+  if (!hasPermission(context,"production.shared")) notFound();
   const environment = store.environment;
   const [pool, bookings] = await Promise.all([
     db.productionPool.findUnique({ where: { environment } }),

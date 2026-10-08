@@ -315,6 +315,8 @@ model User {
   emailVerifiedAt           DateTime?
   createdAt                 DateTime             @default(now())
   updatedAt                 DateTime             @updatedAt
+  customerAccountData       CustomerAccountData[]
+  teamInvitations           TeamInvitation[]
   addresses                 Address[]
   orders                    Order[]
   tags                      NFCTag[]
@@ -357,6 +359,7 @@ model Store {
   shippingConfig       Json                 @default("{}")
   headerConfig         Json                 @default("{}")
   footerConfig         Json                 @default("{}")
+  accountConfig        Json                 @default("{}")
   petProfileConfig     Json                 @default("{}")
   defaultLocale        String               @default("en-AU")
   enabledLocales       String[]             @default(["en-AU"])
@@ -369,6 +372,8 @@ model Store {
   createdAt            DateTime             @default(now())
   updatedAt            DateTime             @updatedAt
   domains              StoreDomain[]
+  customerAccountData  CustomerAccountData[]
+  teamInvitations      TeamInvitation[]
   memberships          StoreMembership[]
   sessions             Session[]
   emailTokens          EmailVerification[]
@@ -422,6 +427,9 @@ model StoreMembership {
   storeId            String              @db.Uuid
   userId             String              @db.Uuid
   role               StoreMembershipRole @default(CUSTOMER)
+  operationsRoles    String[]            @default([])
+  permissions        String[]            @default([])
+  operationsEnabled  Boolean             @default(true)
   marketingConsentAt DateTime?
   createdAt          DateTime            @default(now())
   updatedAt          DateTime            @updatedAt
@@ -495,6 +503,7 @@ model PasswordReset {
 model Address {
   id                 String   @id @default(uuid()) @db.Uuid
   userId             String   @db.Uuid
+  isDefault          Boolean  @default(false)
   label              String?
   recipient          String
   company            String?
@@ -1734,6 +1743,8 @@ model OrderSupportRequest {
   kind        String
   message     String               @db.Text
   status      SupportRequestStatus @default(OPEN)
+  attachments Json                 @default("[]")
+  replies     Json                 @default("[]")
   adminNote   String?              @db.Text
   createdAt   DateTime             @default(now())
   updatedAt   DateTime             @updatedAt
@@ -1758,4 +1769,36 @@ model ShippitPreparation {
   order       Order    @relation(fields: [orderId], references: [id], onDelete: Restrict)
 
   @@index([status, availableAt])
+}
+
+model CustomerAccountData {
+  id String @id @default(uuid()) @db.Uuid
+  userId String @db.Uuid
+  storeId String @db.Uuid
+  favourites String[] @default([])
+  cart Json @default("[]")
+  notificationsReadAt DateTime?
+  deletionRequestedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user User @relation(fields:[userId],references:[id],onDelete:Cascade)
+  store Store @relation(fields:[storeId],references:[id],onDelete:Restrict)
+  @@unique([storeId, userId])
+}
+
+model TeamInvitation {
+  id String @id @default(uuid()) @db.Uuid
+  storeId String @db.Uuid
+  email String
+  tokenHash String @unique
+  roles String[] @default([])
+  permissions String[] @default([])
+  invitedBy String @db.Uuid
+  expiresAt DateTime
+  acceptedAt DateTime?
+  revokedAt DateTime?
+  createdAt DateTime @default(now())
+  store Store @relation(fields:[storeId],references:[id],onDelete:Restrict)
+  inviter User @relation(fields:[invitedBy],references:[id],onDelete:Restrict)
+  @@index([storeId, email])
 }

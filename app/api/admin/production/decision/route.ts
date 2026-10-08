@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { getAdminApiContext } from "@/lib/admin";
+import { getAdminApiContext,hasPermission } from "@/lib/admin";
 import { db } from "@/lib/db";
 import { assertSameOrigin, jsonError } from "@/lib/http";
 import { queueOrderNotice } from "@/lib/order-notifications";
@@ -9,7 +9,7 @@ import { projectQueue } from "@/lib/production-capacity";
 const schema = z.object({ decision: z.enum(["KEEP", "UPDATE_AND_NOTIFY"]), expectedVersion: z.number().int().min(0) });
 export async function POST(request: NextRequest) {
   if (!assertSameOrigin(request)) return jsonError("Invalid request origin", 403);
-  const context = await getAdminApiContext(); if (!context?.isPlatformAdmin) return jsonError("Forbidden", 403);
+  const context = await getAdminApiContext(); if (!context || !hasPermission(context,"production.shared")) return jsonError("Forbidden", 403);
   const parsed = schema.safeParse(await request.json().catch(() => null)); if (!parsed.success) return jsonError("Invalid decision", 400);
   const environment = context.store.environment;
   try {

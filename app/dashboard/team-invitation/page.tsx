@@ -1,0 +1,4 @@
+import Link from "next/link";
+import { getCurrentUser } from "@/lib/auth";
+import { AcceptInvitation } from "@/components/team-access-form";
+export default async function Page({searchParams}:{searchParams:Promise<{token?:string}>}){const {token}=await searchParams;const user=await getCurrentUser();if(!token)return <section className="dashboard"><h1>Invitation unavailable</h1></section>;const next=`/dashboard/team-invitation?token=${encodeURIComponent(token)}`;return <section className="dashboard"><h1>Team invitation</h1><p>Accept using the verified email to which this invitation was sent.</p>{user?<AcceptInvitation token={token}/>:<><Link className="button" href={`/login?next=${encodeURIComponent(next)}`}>Sign in</Link><Link className="button secondary" href={`/register?next=${encodeURIComponent(next)}`}>Create account</Link></>}</section>;}
