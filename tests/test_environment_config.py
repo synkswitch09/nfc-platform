@@ -52,8 +52,8 @@ class EnvironmentConfigTests(unittest.TestCase):
         submitted={}
         def az(*args):
             if args[:3]==('containerapp','job','show'): return job
-            if args[:1]==('rest',):
-                submitted.update(json.loads(Path(args[args.index('--body')+1][1:]).read_text()))
+            if args[:3]==('containerapp','job','start'):
+                submitted.update(json.loads(Path(args[args.index('--yaml')+1]).read_text()))
                 return {'name':'execution'}
             if args[:4]==('containerapp','job','execution','show'): return {'properties':{'status':'Succeeded'}}
             raise AssertionError('Unexpected Azure mutation')

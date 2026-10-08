@@ -12,7 +12,7 @@ def az(*args):
     result = subprocess.run(["az", *args, "--output", "json", "--only-show-errors"], capture_output=True, text=True)
     if result.returncode:
         # Emit only the provider error code, never request bodies or secret values.
-        match = re.search(r"ERROR: \(([A-Za-z0-9]+)\)", result.stderr)
+        match = re.search(r'(?:(?:ERROR: \()|(?:"code"\s*:\s*"))([A-Za-z0-9_]+)', result.stderr)
         raise RuntimeError("Azure operation failed: " + (match.group(1) if match else "unclassified"))
     return json.loads(result.stdout) if result.stdout.strip() else None
 
@@ -58,7 +58,7 @@ const db = new PrismaClient();
     with tempfile.NamedTemporaryFile(mode="w", suffix=".json") as payload:
         json.dump(template, payload)
         payload.flush()
-        execution = az("rest", "--method", "post", "--url", job["id"] + "/start?api-version=2024-03-01", "--body", "@" + payload.name)["name"]
+        execution = az("containerapp", "job", "start", "--name", migration_name, "--resource-group", group, "--yaml", payload.name)["name"]
     for _ in range(90):
         result = az("containerapp", "job", "execution", "show", "--name", migration_name, "--resource-group", group, "--job-execution-name", execution)
         status = result["properties"].get("status")
@@ -118,6 +118,9 @@ def main():
         obsolete |= {key for key in env if key.startswith("GOOGLE_SITE_VERIFICATION_")}
         if target == "production":
             obsolete.add("EMAIL_WEBHOOK_SECRET")
+    if apply:
+        # Both the previous and definitive runtime read a saved CMS token first.
+        obsolete |= {key for key in env if key.startswith("GOOGLE_SITE_VERIFICATION_")}
     remove = set(env) & obsolete
     if target == "staging":
         remove |= set(env) & {"PRODUCTION_CHECKOUT_ENABLED", "PRODUCTION_PREVIEW_MODE", "EMAIL_RESEND_STORES", "SHIPPIT_PRODUCTION_API_SECRET", "SHIPPIT_PRODUCTION_WEBHOOK_SECRET"}
