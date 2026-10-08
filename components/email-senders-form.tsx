@@ -22,7 +22,7 @@ export function EmailSendersForm({ senders, domain }: { senders: EmailSenders; d
   }
   return <form className="admin-panel form" onSubmit={submit}>
     <h2>Email senders</h2>
-    <p>Configure each sender for this store using @{domain}. Leave a category address empty to use the default sender. Provider credentials remain managed securely on the server.</p>
+    <p>Configure each sender for this store using @{domain}. Leave a category address empty to use the default sender. The sending domain comes from this store’s primary domain. Verify it in Resend before sending; provider credentials remain protected on the server.</p>
     <p>Customer service is handled through Account → Help & requests. Emails explain that replies are not monitored and link to the ticket channel.</p>
     {emailCategories.map(category => <fieldset className="admin-subpanel" key={category}><legend>{labels[category]}</legend><p>{descriptions[category]}</p><div className="field-grid"><label className="field">Sender email<input type="email" name={`${category}.address`} maxLength={254} defaultValue={senders[category].address} placeholder={`Use default sender`}/></label><label className="field">Display name<input name={`${category}.name`} maxLength={80} defaultValue={senders[category].name}/></label></div></fieldset>)}
     <button className="button secondary" disabled={pending}>{pending ? "Saving…" : "Save email senders"}</button>

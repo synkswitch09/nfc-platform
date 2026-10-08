@@ -1,10 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 import { parseEmailSenders } from "@/lib/email-senders";
-const mock = vi.hoisted(() => ({ context: vi.fn(), origin: vi.fn(), update: vi.fn(), audit: vi.fn() }));
+const mock = vi.hoisted(() => ({ context: vi.fn(), origin: vi.fn(), update: vi.fn(), domains: vi.fn(), audit: vi.fn() }));
 vi.mock("@/lib/admin", () => ({ getAdminApiContext: mock.context, hasPermission: (context: { permissions?: string[] } | null, permission: string) => Boolean(context?.permissions?.includes(permission)) }));
-vi.mock("@/lib/config", () => ({ getRuntimeConfig: () => ({ email: { fromAddress: "hello@tapkin.com.au", kosykinFromAddress: "hello@kosykin.com.au" } }) }));
-vi.mock("@/lib/db", () => ({ db: { $transaction: async (callback: (tx: unknown) => unknown) => callback({ store: { update: mock.update }, auditLog: { create: mock.audit } }) } }));
+vi.mock("@/lib/db", () => ({ db: { storeDomain: { findMany: mock.domains }, $transaction: async (callback: (tx: unknown) => unknown) => callback({ store: { update: mock.update }, auditLog: { create: mock.audit } }) } }));
 vi.mock("@/lib/http", () => ({ assertSameOrigin: mock.origin, jsonError: (error: string, status = 400) => Response.json({ error }, { status }) }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 import { PATCH } from "@/app/api/admin/settings/email/route";
@@ -13,6 +12,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   mock.context.mockResolvedValue({ user: { id: "admin" }, store: { id: "kosykin-store", slug: "kosykin" }, permissions: ["settings.write"] });
   mock.origin.mockReturnValue(true);
+  mock.domains.mockResolvedValue([{ hostname: "kosykin.com.au", environment: "PRODUCTION", isPrimary: true }]);
   mock.update.mockResolvedValue({ accountConfig: { appleEnabled: false, savedCartEnabled: true, helpEnabled: true } });
 });
 describe("email sender settings API", () => {
@@ -25,6 +25,11 @@ describe("email sender settings API", () => {
   it("rejects a sender from the other brand before writing", async () => {
     const senders = parseEmailSenders(undefined, "hello@kosykin.com.au", "Kosykin"); senders.orders.address = "orders@tapkin.com.au";
     expect((await PATCH(request(senders))).status).toBe(400);
+    expect(mock.update).not.toHaveBeenCalled();
+  });
+  it("requires a registered primary domain before saving", async () => {
+    mock.domains.mockResolvedValue([]);
+    expect((await PATCH(request(parseEmailSenders(undefined, "hello@kosykin.com.au", "Kosykin")))).status).toBe(400);
     expect(mock.update).not.toHaveBeenCalled();
   });
   it("requires settings write permission", async () => {

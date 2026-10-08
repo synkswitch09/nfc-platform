@@ -10,6 +10,14 @@ export const emailSendersSchema = z.object({ default: senderSchema, orders: send
 export type EmailSenders = z.infer<typeof emailSendersSchema>;
 
 export function senderDomain(address: string) { return address.split("@")[1]?.toLowerCase() ?? ""; }
+export function storeSendingDomain(domains: { hostname: string; environment: string; isPrimary: boolean }[]) {
+  const primary = domains.find(domain => domain.environment === "PRODUCTION" && domain.isPrimary) ?? domains.find(domain => domain.isPrimary);
+  return primary?.hostname.toLowerCase().replace(/^(?:staging|develop|development|www)\./, "") ?? "";
+}
+export function defaultStoreSender(domains: { hostname: string; environment: string; isPrimary: boolean }[]) {
+  const domain = storeSendingDomain(domains);
+  return domain ? `hello@${domain}` : "";
+}
 export function parseEmailSenders(value: unknown, fallbackAddress: string, storeName: string): EmailSenders {
   const parsed = emailSendersSchema.safeParse(value);
   if (parsed.success) return parsed.data;

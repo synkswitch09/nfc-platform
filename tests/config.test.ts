@@ -38,17 +38,18 @@ describe("runtime configuration", () => {
     expect(() => parseRuntimeConfig({ ...nonDevelopment("staging"), EMAIL_TEST_OUTBOX_PATH: "/tmp/tapkin-test-outbox.ndjson" })).toThrow("test email outbox is restricted to development");
   });
 
-  it("limits Mailtrap Sandbox to a staging inbox with a sender address", () => {
-    const staging = { ...nonDevelopment("staging"), EMAIL_PROVIDER: "mailtrap-sandbox", EMAIL_FROM_ADDRESS: "staging@tapkin.com.au", EMAIL_WEBHOOK_URL: "https://sandbox.api.mailtrap.io/api/send/12345" };
+  it("limits Mailtrap Sandbox to a staging inbox without environment sender addresses", () => {
+    const staging = { ...nonDevelopment("staging"), EMAIL_PROVIDER: "mailtrap-sandbox", EMAIL_WEBHOOK_URL: "https://sandbox.api.mailtrap.io/api/send/12345" };
     expect(parseRuntimeConfig(staging).email.provider).toBe("mailtrap-sandbox");
     expect(() => parseRuntimeConfig({ ...staging, EMAIL_WEBHOOK_URL: "https://send.api.mailtrap.io/api/send" })).toThrow("exact HTTPS sandbox inbox URL");
     expect(() => parseRuntimeConfig({ ...staging, APP_ENV: "production", STRIPE_SECRET_KEY: "sk_live_example", NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: "pk_live_example", EMAIL_MODE: "live" })).toThrow("restricted to staging");
   });
 
-  it("requires a verified sender and the official Resend endpoint for live production", () => {
-    const production = { ...nonDevelopment("production"), STRIPE_SECRET_KEY: undefined, STRIPE_WEBHOOK_SECRET: undefined, NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: undefined, EMAIL_PROVIDER: "resend", EMAIL_FROM_ADDRESS: "hello@tapkin.com.au", EMAIL_WEBHOOK_URL: "https://api.resend.com/emails" };
+  it("requires the official Resend endpoint while senders are configured per store", () => {
+    const production = { ...nonDevelopment("production"), STRIPE_SECRET_KEY: undefined, STRIPE_WEBHOOK_SECRET: undefined, NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: undefined, EMAIL_PROVIDER: "resend", EMAIL_WEBHOOK_URL: "https://api.resend.com/emails" };
     expect(parseRuntimeConfig(production).email.provider).toBe("resend");
-    expect(() => parseRuntimeConfig({ ...production, EMAIL_FROM_ADDRESS: undefined })).toThrow("verified sender address");
+    expect(parseRuntimeConfig({ ...production, EMAIL_WEBHOOK_SECRET_KOSYKIN: secret }).email.provider).toBe("resend");
+    expect(parseRuntimeConfig({ ...production, EMAIL_FROM_ADDRESS: "obsolete invalid value", EMAIL_FROM_ADDRESS_KOSYKIN: "obsolete" }).email).not.toHaveProperty("fromAddress");
     expect(() => parseRuntimeConfig({ ...production, EMAIL_WEBHOOK_URL: "https://email.example/send" })).toThrow("official HTTPS email endpoint");
     expect(() => parseRuntimeConfig({ ...production, APP_ENV: "staging", EMAIL_MODE: "sandbox" })).toThrow("live production email");
   });
