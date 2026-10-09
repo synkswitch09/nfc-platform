@@ -1,3 +1,4 @@
+import { parsePrivacyPreferences, privacyCookieName } from "@/lib/privacy-preferences";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getRuntimeConfig } from "@/lib/config";
@@ -13,7 +14,8 @@ export async function POST(request: NextRequest) {
   const config = getRuntimeConfig();
   const store = await getCurrentStorefront();
   const stream = config.appEnv === "production" ? config.analyticsStores[store.slug] : undefined;
-  if (!stream) return jsonError("Analytics unavailable", 404);
+  if (!stream || !store.integrations?.analyticsEnabled || !store.integrations.ga4MeasurementId) return jsonError("Analytics unavailable", 404);
+  if (!parsePrivacyPreferences(request.cookies.get(privacyCookieName(store.slug))?.value)?.analytics) return jsonError("Analytics consent required", 403);
   const limited = await rateLimit("analytics", getClientIp(request), 120, 60 * 60 * 1000);
   if (!limited.allowed) return jsonError("Too many events", 429);
   const body = await request.text();
@@ -47,7 +49,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const url = `https://www.google-analytics.com/mp/collect?measurement_id=${encodeURIComponent(stream.measurementId)}&api_secret=${encodeURIComponent(stream.apiSecret)}`;
+    const url = `https://www.google-analytics.com/mp/collect?measurement_id=${encodeURIComponent(store.integrations.ga4MeasurementId)}&api_secret=${encodeURIComponent(stream.apiSecret)}`;
     const response = await fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(commercePayload(event.event, params, event.clientId)), cache: "no-store", signal: AbortSignal.timeout(5_000) });
     if (!response.ok) return jsonError("Measurement temporarily unavailable", 503);
     return NextResponse.json({ ok: true });

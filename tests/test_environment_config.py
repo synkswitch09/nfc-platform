@@ -39,6 +39,7 @@ class EnvironmentConfigTests(unittest.TestCase):
             self.assertEqual(env['DATABASE_URL']['secretRef'],'database_url')
             self.assertEqual(env['CUSTOM_INFRA_VAR']['value'],'preserve-me')
             self.assertEqual(env['GOOGLE_OAUTH_STORES']['value'],'')
+            self.assertEqual(env['GEOAPIFY_STORES'], {'name':'GEOAPIFY_STORES','value':''})
             self.assertNotIn('EMAIL_FROM_ADDRESS',env)
             self.assertNotIn('GOOGLE_SITE_VERIFICATION_TAPKIN',env)
             if target=='production': self.assertNotIn('GOOGLE_SITE_VERIFICATION_KOSYKIN',env)

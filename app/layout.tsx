@@ -14,7 +14,8 @@ import {
   storeThemeStyle,
 } from "@/lib/storefront";
 import { StoreCapability, StoreStatus } from "@prisma/client";
-import { AnalyticsConsent } from "@/components/commerce-analytics";
+import { PrivacyControls } from "@/components/privacy-controls";
+import { parseIntegrationConfig } from "@/lib/integration-config";
 import { FormValidationFeedback } from "@/components/form-validation-feedback";
 import { getRequestLocale } from "@/lib/request-locale";
 import {
@@ -150,7 +151,8 @@ export default async function RootLayout({
   const commerce = isStoreCommerceAvailable(store);
   const nfcEnabled = hasStoreCapability(store, StoreCapability.NFC);
   const runtime = getRuntimeConfig();
-  const analyticsEnabled = runtime.appEnv === "production" && Boolean(runtime.analyticsStores[store.slug]);
+  const integrations = parseIntegrationConfig(store.integrations);
+  const analyticsEnabled = runtime.appEnv === "production" && integrations.analyticsEnabled && Boolean(integrations.ga4MeasurementId && runtime.analyticsStores[store.slug]);
   return (
     <html lang={locale}>
       <body
@@ -199,7 +201,7 @@ export default async function RootLayout({
             locale={locale}
             defaultLocale={store.defaultLocale}
           />
-          {analyticsEnabled && <AnalyticsConsent store={store.slug} />}
+          <PrivacyControls store={store.slug} analyticsAvailable={analyticsEnabled} rememberEnabled={integrations.rememberCheckoutEnabled} retentionDays={integrations.rememberCheckoutDays} />
         </CartProvider>
       </body>
     </html>
