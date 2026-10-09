@@ -18,7 +18,7 @@ export default async function ManufacturingPage() {
       where: { storeId: store.id },
       take: 30,
       orderBy: [{ priority: "desc" }, { createdAt: "asc" }],
-      include: { orderItem: { include: { order: { select: { id: true, orderNumber: true } } } }, productVariant: { select: { sku: true, name: true, product: { select: { name: true } } } } },
+      include: { orderItem: { include: { order: { select: { id: true, orderNumber: true, supportRequests: { where: { holdActive: true }, select: { id: true }, take: 1 } } } } }, productVariant: { select: { sku: true, name: true, product: { select: { name: true } } } } },
     }),
   ]);
   const countByStatus = new Map(grouped.map(item => [item.status, item._count._all]));
@@ -34,7 +34,7 @@ export default async function ManufacturingPage() {
           <span><Link className="text-link" href={`/admin/orders/${job.orderItem.order.id}`}>{job.orderItem.order.orderNumber}</Link><small>{job.orderItem.personalisationChoice === "PERSONALISED" ? "Personalised" : "Basic"}</small></span>
           <span>{job.material ?? "Not specified"}<small>{job.colour ?? "See selected colour"}</small></span>
           <span>{job.requiresNfc ? "3D + NFC" : "3D print"}<small>Priority {job.priority}</small></span>
-          <span><span className={`admin-status ${job.status}`}>{job.status.replaceAll("_", " ")}</span><ProductionActions jobId={job.id} next={jobTransitions[job.status] ?? []} /></span>
+          <span><span className={`admin-status ${job.status}`}>{job.status.replaceAll("_", " ")}</span>{job.orderItem.order.supportRequests.length ? <small className="notice">Preparation paused · review customer request</small> : <ProductionActions jobId={job.id} next={jobTransitions[job.status] ?? []} />}</span>
         </div>;
       })}</div>
       {!jobs.length && <div className="admin-empty">Paid 3D-print order items will appear here automatically.</div>}

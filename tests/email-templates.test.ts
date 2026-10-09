@@ -10,7 +10,7 @@ describe("store email templates", () => {
       const result = renderEmailTemplate(template, data);
       expect(result.text).toContain(data.message);
       expect(result.html).toContain("Kosykin");
-      expect(result.text).toContain("https://kosykin.com.au/dashboard/help");
+      expect(result.text).toContain("https://kosykin.com.au/support");
       expect(result.html).not.toContain("{{");
       if (!["password-reset", "team-invitation"].includes(key)) expect(result.html).not.toContain("Continue securely");
     }
@@ -47,7 +47,7 @@ describe("store email templates", () => {
     expect(validateEmailTemplate("payment", template).success).toBe(true);
     const result = renderEmailTemplate(template, sampleEmailData("payment", "Kosykin", "https://staging.kosykin.com.au"));
     expect(result.html).toContain('src="https://staging.kosykin.com.au/images/logo.png"');
-    expect(result.html).toContain('href="https://staging.kosykin.com.au/dashboard/help"');
+    expect(result.html).toContain('href="https://staging.kosykin.com.au/support"');
     expect(result.html).not.toContain("tapkin.com.au");
     const unsafe = renderEmailTemplate({ ...template, blocks: [{ type: "button", text: "Reset", url: "{{account.actionUrl}}" }] }, { ...sampleEmailData("password-reset", "Tapkin", "https://tapkin.com.au"), fields: { "account.actionUrl": 'javascript:alert("unsafe")' } });
     expect(unsafe.html).not.toContain('href="javascript:');

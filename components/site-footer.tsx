@@ -149,6 +149,7 @@ export function SiteFooter({
           </div>
         )}
         <div className="footer-links">
+          {!links.some(link => link.href === "/support") && <Link href="/support" style={typographyStyle(config.customLinksTypography)}>Help & requests</Link>}
           {links.map((link) =>
             link.href.startsWith("/") ? (
               <Link

@@ -1,5 +1,5 @@
 import { beforeEach, expect, it, vi } from "vitest";
-const m = vi.hoisted(() => ({ order: vi.fn(), origin: vi.fn(), unique: vi.fn(), create: vi.fn(), update: vi.fn(), shipment: vi.fn(), lock: vi.fn(), tx: vi.fn(), print: vi.fn(), audit: vi.fn(), remote: vi.fn(), configured: vi.fn(), put: vi.fn(), remove: vi.fn() }));
+const m = vi.hoisted(() => ({ order: vi.fn(), origin: vi.fn(), unique: vi.fn(), create: vi.fn(), update: vi.fn(), shipment: vi.fn(), lock: vi.fn(), tx: vi.fn(), print: vi.fn(), audit: vi.fn(), remote: vi.fn(), configured: vi.fn(), hold: vi.fn(), orderLock: vi.fn(), put: vi.fn(), remove: vi.fn() }));
 vi.mock("@/lib/config", () => ({ currentAppEnvironment: () => "staging" }));
 vi.mock("@/lib/db", () => ({ db: { order: { findFirst: m.order }, shippingOrigin: { findFirst: m.origin }, shipment: { findUnique: m.unique, findUniqueOrThrow: m.unique, findFirst: m.shipment, create: m.create, update: m.update, updateMany: m.lock }, auditLog: { create: m.audit }, $transaction: m.tx } }));
 vi.mock("@/lib/shippit", () => ({ assertShippitConfigured: m.configured, shippitOrderPayload: () => ({}), shippitRequest: m.remote, parseShippitTracking: () => "TRACK-123", parseShippitLabel: () => ({ url: "https://label", carrier: "Carrier" }), downloadShippitLabel: async () => Buffer.from("%PDF-test") }));
@@ -18,7 +18,9 @@ beforeEach(() => {
   m.update.mockResolvedValue({ id: "box", providerShipmentId: "TRACK-123" });
   m.remote.mockResolvedValue({ response: [{ success: true }] });
   m.lock.mockResolvedValue({ count: 1 });
-  m.tx.mockImplementation(fn => fn({ shipment: { updateMany: m.lock, findUniqueOrThrow: m.unique, update: m.update }, printJob: { create: m.print }, auditLog: { create: m.audit } }));
+  m.hold.mockResolvedValue(0);
+  m.orderLock.mockResolvedValue({ id: "o" });
+  m.tx.mockImplementation(fn => fn({ order: { update: m.orderLock }, orderSupportRequest: { count: m.hold }, shipment: { updateMany: m.lock, findUniqueOrThrow: m.unique, update: m.update }, printJob: { create: m.print }, auditLog: { create: m.audit } }));
 });
 it("reuses a stable checkout parcel without repeating the external create POST", async () => {
   m.unique.mockResolvedValueOnce(null).mockResolvedValueOnce({ id: "box", providerShipmentId: "TRACK-123" });
@@ -62,4 +64,11 @@ it("does not repeat an uncertain carrier booking", async () => {
   m.lock.mockResolvedValue({ count: 0 });
   await expect(bookShippitParcel("box", "s", "actor")).rejects.toThrow("reconciliation");
   expect(m.remote).not.toHaveBeenCalled();
+});
+
+it("blocks carrier booking while a verified support hold is active", async () => {
+  m.shipment.mockResolvedValue({ id: "box", orderId: "o", trackingNumber: "TRACK", labelStorageKey: "label.pdf", bookedAt: null, order: { status: "READY_TO_SHIP", payments: [{ status: "SUCCEEDED", refundedAmountCents: 0 }] } });
+  m.hold.mockResolvedValue(1);
+  await expect(bookShippitParcel("box", "s", undefined)).rejects.toThrow("Order paused");
+  expect(m.remote).not.toHaveBeenCalled(); expect(m.lock).not.toHaveBeenCalled();
 });

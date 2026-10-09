@@ -50,7 +50,7 @@ describe("store email senders", () => {
   it("directs customer service to authenticated tickets without inviting email replies", () => {
     const footer = ticketSupportFooter("https://kosykin.com.au");
     expect(footer).toContain("Replies to this address are not monitored");
-    expect(footer).toContain("https://kosykin.com.au/dashboard/help");
+    expect(footer).toContain("https://kosykin.com.au/support");
     expect(footer).not.toContain("mailto:");
   });
 });

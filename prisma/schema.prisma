@@ -957,6 +957,7 @@ model Order {
   packagingSnapshot          Json?
   shippingOriginSnapshot     Json?
   shippedAt                  DateTime?
+  preparationStartedAt       DateTime?
   status                     OrderStatus           @default(PENDING)
   currency                   String                @default("AUD")
   subtotalCents              Int
@@ -1739,22 +1740,69 @@ model Promotion {
 }
 
 model OrderSupportRequest {
-  id          String               @id @default(uuid()) @db.Uuid
-  orderId     String               @db.Uuid
-  storeId     String               @db.Uuid
-  kind        String
-  message     String               @db.Text
-  status      SupportRequestStatus @default(OPEN)
-  attachments Json                 @default("[]")
-  replies     Json                 @default("[]")
-  adminNote   String?              @db.Text
-  createdAt   DateTime             @default(now())
-  updatedAt   DateTime             @updatedAt
-  order       Order                @relation(fields: [orderId], references: [id], onDelete: Restrict)
-  store       Store                @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  id                 String               @id @default(uuid()) @db.Uuid
+  orderId            String?              @db.Uuid
+  storeId            String               @db.Uuid
+  customerUserId     String?              @db.Uuid
+  customerEmail      String?
+  customerName       String?
+  verifiedAt         DateTime?
+  responseDueAt      DateTime?
+  firstRespondedAt   DateTime?
+  priority           String               @default("NORMAL")
+  holdActive         Boolean              @default(false)
+  holdReleasedAt     DateTime?
+  holdReleaseReason  String?
+  kind               String
+  message            String               @db.Text
+  status             SupportRequestStatus @default(OPEN)
+  attachments        Json                 @default("[]")
+  replies            Json                 @default("[]")
+  adminNote          String?              @db.Text
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+  order              Order?               @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  store              Store                @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  notifications      SupportNotification[]
 
   @@index([storeId, status, createdAt])
+  @@index([orderId, holdActive])
   @@index([orderId, createdAt])
+  @@index([storeId, customerEmail, createdAt])
+  @@index([storeId, responseDueAt])
+}
+
+model SupportAccess {
+  id          String @id @default(uuid()) @db.Uuid
+  storeId     String @db.Uuid
+  email       String
+  codeHash    String
+  attempts    Int @default(0)
+  expiresAt   DateTime
+  verifiedAt  DateTime?
+  sessionHash String? @unique
+  sessionExpiresAt DateTime?
+  createdAt   DateTime @default(now())
+  @@index([storeId, expiresAt])
+}
+
+model SupportNotification {
+  id           String @id @default(uuid()) @db.Uuid
+  ticketId     String @db.Uuid
+  dedupeKey    String @unique
+  to           String
+  subject      String
+  text         String @db.Text
+  emailSnapshot Json?
+  status       String @default("PENDING")
+  attempts     Int @default(0)
+  availableAt  DateTime @default(now())
+  leaseUntil   DateTime?
+  leaseToken   String?
+  lastError    String?
+  createdAt    DateTime @default(now())
+  ticket       OrderSupportRequest @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  @@index([status, availableAt])
 }
 
 // Durable payment-to-label workflow; booking remains an explicit seller action.

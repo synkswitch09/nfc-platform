@@ -44,5 +44,5 @@ export function orderEmailCategory(dedupeKey: string | null): EmailCategory {
   return "orders";
 }
 export function ticketSupportFooter(origin?: string) {
-  return `\n\nThis is an automated email. Replies to this address are not monitored. For support, sign in to your account and open a ticket under Help & requests.${origin ? `\n${origin}/dashboard/help` : ""}`;
+  return `\n\nThis is an automated email. Replies to this address are not monitored. For support, open a ticket under Help & requests. Sign in or verify your email to use support without an account.${origin ? `\n${origin}/support` : ""}`;
 }

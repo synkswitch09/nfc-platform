@@ -1,3 +1,5 @@
+import { SupportSettingsForm } from "@/components/support-settings-form";
+import { parseSupportConfig } from "@/lib/support-config";
 import { IntegrationSettingsForm } from "@/components/integration-settings-form";
 import { parseIntegrationConfig } from "@/lib/integration-config";
 import { getRuntimeConfig } from "@/lib/config";
@@ -51,6 +53,7 @@ export default async function AdminSettingsPage() {
       </div>
       <IntegrationSettingsForm config={parseIntegrationConfig(context.store.integrations)} geoapifyReady={Boolean(runtime.geoapifyStores[context.store.slug])} analyticsReady={Boolean(runtime.analyticsStores[context.store.slug])} />
       <EmailSendersForm senders={senders} domain={senderDomain(fallbackSender)} />
+      <SupportSettingsForm config={parseSupportConfig(context.store.accountConfig)} timezone={context.store.timezone} />
       <AccountSettingsForm config={parseAccountConfig(context.store.accountConfig)} />
       <StoreSettingsForm
         settings={settings}
