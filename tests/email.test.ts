@@ -94,7 +94,7 @@ describe("Resend production email", () => {
     const [, options] = fetchMock.mock.calls[0] as [string, RequestInit];
     expect(options.headers).toMatchObject({ authorization: "Bearer kosykin-only-key" });
     expect(JSON.parse(options.body as string).from).toBe("Kosykin <hello@kosykin.com.au>");
-    expect(JSON.parse(options.body as string).text).toContain("https://kosykin.com.au/dashboard/help");
+    expect(JSON.parse(options.body as string).text).toContain("https://kosykin.com.au/support");
     expect(JSON.parse(options.body as string)).not.toHaveProperty("reply_to");
     expect(JSON.parse(options.body as string).attachments).toEqual([{ filename: "order.3mf", content: Buffer.from("printable model").toString("base64") }]);
     const senders = parseEmailSenders(undefined, "hello@kosykin.com.au", "Kosykin");

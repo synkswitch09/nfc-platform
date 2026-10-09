@@ -171,6 +171,52 @@ async function main() {
   await jsonResponse(await request("/api/admin/products", { method: "POST", json: {} }), 403, "Customerless request is rejected by Product Admin");
   const login = await jsonResponse(await request("/api/auth/login", { method: "POST", jar: adminJar, json: { email: adminEmail, password: adminPassword } }), 200, "Development administrator can sign in");
   assert(login.user.role === "ADMIN", "Administrator role is enforced");
+  // FLOW S — verified guest support, private replies and preparation interlocks.
+  const supportJar = new Map();
+  await jsonResponse(await request("/api/support/tickets"), 401, "Guests cannot read tickets before email verification");
+  await jsonResponse(await request(`/api/orders/${paidOrder.id}/support`, { method: "POST", json: { kind: "CANCELLATION_REQUEST", message: "Please review cancellation", claimToken } }), 401, "Checkout claim token cannot bypass support email verification");
+  const supportPage = await bodyText(await request("/support"));
+  assert(supportPage.text.includes("Access your tickets") && !supportPage.text.includes(orderNumber), "Guest support entry reveals no order data");
+  const challenge = await jsonResponse(await request("/api/support/access", { method: "POST", jar: supportJar, json: { email: guestEmail } }), 202, "Guest can request a support verification code");
+  const supportCode = await latestVerificationCode();
+  await jsonResponse(await request("/api/support/access", { method: "PATCH", jar: supportJar, json: { challengeId: challenge.challengeId, code: supportCode === "000000" ? "000001" : "000000" } }), 400, "Incorrect support code is rejected");
+  await jsonResponse(await request("/api/support/access", { method: "PATCH", jar: supportJar, json: { challengeId: challenge.challengeId, code: supportCode } }), 200, "Guest email verification creates private support access");
+  await jsonResponse(await request("/api/support/access", { method: "PATCH", jar: supportJar, json: { challengeId: challenge.challengeId, code: supportCode } }), 400, "Support verification code cannot be replayed");
+  await jsonResponse(await request("/api/support/tickets", { jar: supportJar, host: "home.localhost" }), 401, "Guest support access is isolated by store");
+  const guestTickets = await jsonResponse(await request("/api/support/tickets", { jar: supportJar }), 200, "Verified guest sees own order choices");
+  assert(guestTickets.orders.some(o => o.orderNumber === orderNumber), "Verified email matches an order even after account claim");
+  const generalTicket = await jsonResponse(await request("/api/support/tickets", { method: "POST", jar: supportJar, json: { kind: "PRIVACY", message: "Please explain data retention for my account" } }), 201, "Verified guest can create a privacy ticket without an order");
+  assert(generalTicket.held === false, "General tickets never pause unrelated orders");
+  await jsonResponse(await request("/api/support/tickets", { method: "POST", jar: supportJar, json: { kind: "CANCELLATION_REQUEST", message: "Please review cancellation", orderNumber: "NO-SUCH-ORDER" } }), 404, "Verified email cannot request changes to unrelated orders");
+  const pausedTicket = await jsonResponse(await request("/api/support/tickets", { method: "POST", jar: supportJar, json: { kind: "CANCELLATION_REQUEST", message: "Please pause and review cancellation", orderNumber } }), 201, "Verified cancellation request creates a review ticket");
+  assert(pausedTicket.held && await db.order.count({ where: { id: paidOrder.id, status: "PAID" } }) === 1, "Unstarted order is paused without cancelling or refunding it");
+  await jsonResponse(await request(`/api/admin/orders/${paidOrder.id}/status`, { method: "POST", jar: adminJar, json: { status: "PROCESSING" } }), 409, "Order cannot begin preparation while a ticket pause is active");
+  await jsonResponse(await request(`/api/admin/manufacturing/jobs/${manufacturingJob.id}`, { method: "POST", jar: adminJar, json: { status: "PRINTING" } }), 409, "Printing cannot bypass a ticket pause");
+  const pausedLine = await db.orderItem.findFirst({ where: { orderId: paidOrder.id } });
+  await jsonResponse(await request(`/api/admin/orders/${paidOrder.id}/items/${pausedLine.id}/pack`, { method: "POST", jar: adminJar, json: { quantity: 0 } }), 409, "Packing cannot bypass a ticket pause");
+  await jsonResponse(await request(`/api/support/tickets/${pausedTicket.id}/messages`, { method: "POST", json: { message: "Unverified message" } }), 401, "Anonymous callers cannot append messages");
+  await jsonResponse(await request(`/api/support/tickets/${pausedTicket.id}/messages`, { method: "POST", jar: supportJar, json: { message: "Please retain my request while you review" } }), 200, "Guest follows up within the existing verified ticket");
+  const ticketBeforeReply = await db.orderSupportRequest.findUnique({ where: { id: pausedTicket.id } });
+  const updateTicket = { status: "RESOLVED", priority: "HIGH", response: "We reviewed your request and agreed to continue with your order.", note: "PRIVATE INTERNAL E2E NOTE", notifyCustomer: true, expectedUpdatedAt: ticketBeforeReply.updatedAt.toISOString() };
+  await jsonResponse(await request(`/api/admin/support/${pausedTicket.id}`, { method: "PATCH", jar: adminJar, json: updateTicket }), 409, "Resolving a paused ticket requires explicit release and reason");
+  await jsonResponse(await request(`/api/admin/support/${pausedTicket.id}`, { method: "PATCH", jar: adminJar, json: { ...updateTicket, releaseHold: true, releaseReason: "Customer and team agreed to continue production" } }), 200, "Support team records a public reply and releases the preparation pause");
+  await jsonResponse(await request(`/api/admin/support/${pausedTicket.id}`, { method: "PATCH", jar: adminJar, json: updateTicket }), 409, "Stale support edits cannot overwrite newer replies");
+  const customerTickets = await jsonResponse(await request("/api/support/tickets", { jar: customerJar }), 200, "Verified account sees tickets created as a guest with the same email");
+  assert(!JSON.stringify(customerTickets).includes("PRIVATE INTERNAL E2E NOTE") && customerTickets.tickets.some(t => t.id === pausedTicket.id && t.replies.some(r => r.author === "team")), "Private notes stay internal while public replies appear in the account");
+  assert((await db.orderSupportRequest.findUnique({ where: { id: pausedTicket.id } })).firstRespondedAt, "Only a public team reply records first response");
+  const competing = await Promise.all([
+    request(`/api/admin/orders/${paidOrder.id}/status`, { method: "POST", jar: adminJar, json: { status: "PROCESSING" } }),
+    request("/api/support/tickets", { method: "POST", jar: supportJar, json: { kind: "ADDRESS_CHANGE", message: "Please review my address before beginning preparation", orderNumber } }),
+  ]);
+  const raceTicket = await competing[1].json(), raceOrder = await db.order.findUnique({ where: { id: paidOrder.id } });
+  assert(competing[1].status === 201 && ((raceTicket.held && raceOrder.status === "PAID" && competing[0].status === 409) || (!raceTicket.held && raceOrder.status === "PROCESSING" && competing[0].status === 200)), "Concurrent request and preparation start produce one consistent order outcome");
+  if (raceTicket.held) {
+    const heldRow = await db.orderSupportRequest.findUnique({ where: { id: raceTicket.id } });
+    await jsonResponse(await request(`/api/admin/support/${raceTicket.id}`, { method: "PATCH", jar: adminJar, json: { status: "RESOLVED", releaseHold: true, releaseReason: "Disposable test order reviewed for continued preparation", expectedUpdatedAt: heldRow.updatedAt.toISOString() } }), 200, "Race-created pause can be released after review");
+  }
+  await jsonResponse(await request("/api/support/access", { method: "DELETE", jar: supportJar }), 200, "Guest can clear support access from this browser");
+  await jsonResponse(await request("/api/support/tickets", { jar: supportJar }), 401, "Cleared guest access cannot reopen tickets");
+
   // CMS email drafts, preview, publication and tests use the active store only.
   const templateDesign = { subject: "{{email.subject}}", preheader: "An update from {{store.name}}", accent: "#284B63", blocks: [{ type: "text", text: "E2E design for {{store.name}} and {{customer.name}}" }] };
   const emailPage = await bodyText(await request("/admin/email-templates", { jar: adminJar }));

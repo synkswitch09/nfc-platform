@@ -9,8 +9,9 @@ export async function GET(_: Request, { params }: { params: Promise<{orderId:str
   const context=await getAdminApiContext();if(!context)return new NextResponse("Forbidden",{status:403});
   const {orderId,itemId,format}=await params;
   if(!["model.3mf","base.stl","letters.stl"].includes(format))return new NextResponse("Not found",{status:404});
-  const order=await db.order.findFirst({where:{id:orderId,storeId:context.store.id},select:{status:true,items:{where:{id:itemId},select:{personalisation:true,selectedOptions:true,variant:{select:{product:{select:{slug:true}}}}}}}});
+  const order=await db.order.findFirst({where:{id:orderId,storeId:context.store.id},select:{status:true,supportRequests:{where:{holdActive:true},select:{id:true},take:1},items:{where:{id:itemId},select:{personalisation:true,selectedOptions:true,variant:{select:{product:{select:{slug:true}}}}}}}});
   if(!order||!["PAID","PROCESSING","READY_TO_SHIP","SHIPPED","DELIVERED"].includes(order.status)||!order.items[0]||!isKeychainProduct(context.store.slug,order.items[0].variant.product.slug))return new NextResponse("Not found",{status:404});
+  if(order.supportRequests.length)return new NextResponse("Preparation paused. Review the verified support request before downloading print files.",{status:409,headers:{"cache-control":"private, no-store"}});
   try{
     const input=keychainInputFromOptions(order.items[0].personalisation,order.items[0].selectedOptions);
     const model=format==="model.3mf"?null:generateKeychain(input);

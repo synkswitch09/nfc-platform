@@ -1,3 +1,4 @@
+import { assertNoSupportHold } from "@/lib/support-access";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { getAdminApiContext, hasPermission } from "@/lib/admin";
@@ -33,6 +34,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   } else {
     const changed = await db.$transaction(async tx => {
       const changedAt = new Date();
+      if (["PROCESSING", "READY_TO_SHIP", "SHIPPED"].includes(parsed.data.status)) await assertNoSupportHold(tx, orderId, store.id);
       if (await tx.payment.count({ where: { orderId, status: "REFUNDED" } })) throw new Error("REFUNDED_ORDER");
       if (parsed.data.status === "READY_TO_SHIP") {
         const items = await tx.orderItem.findMany({ where: { orderId, order: { storeId: store.id } }, include: { manufacturingJobs: { select: { status: true, quantity: true, requiresNfc: true } }, tags: { select: { storeId: true, manufacturingStatus: true, status: true } } } });
@@ -40,7 +42,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         if (issues.length && !parsed.data.overridePreparation) throw new Error(`PREPARATION:${issues.join("; ")}`);
         if (issues.length) await tx.auditLog.create({ data: { actorId: user.id, storeId: store.id, action: "ORDER_PREPARATION_OVERRIDE", entityType: "Order", entityId: orderId, metadata: { reason: parsed.data.note, issues } } });
       }
-      const updated = await tx.order.updateMany({ where: { id: orderId, storeId: store.id, status: order.status }, data: { status: parsed.data.status, ...(parsed.data.status === "SHIPPED" ? { shippingCarrier: shippitParcels.length ? shippitParcels[0].serviceName : parsed.data.carrier, trackingNumber: shippitParcels.length ? shippitParcels[0].trackingNumber : parsed.data.trackingNumber, shippedAt: changedAt } : {}) } });
+      const updated = await tx.order.updateMany({ where: { id: orderId, storeId: store.id, status: order.status }, data: { status: parsed.data.status, ...(parsed.data.status === "PROCESSING" ? { preparationStartedAt: changedAt } : {}), ...(parsed.data.status === "SHIPPED" ? { shippingCarrier: shippitParcels.length ? shippitParcels[0].serviceName : parsed.data.carrier, trackingNumber: shippitParcels.length ? shippitParcels[0].trackingNumber : parsed.data.trackingNumber, shippedAt: changedAt } : {}) } });
       if (!updated.count) return false;
       if (parsed.data.status === "SHIPPED") {
         await releaseProduction(tx, orderId);
@@ -59,7 +61,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       if (parsed.data.status === "SHIPPED") await queueOrderNotice(tx, orderId, `status:${history.id}`, "Your order has shipped", shippitParcels.length ? `Your order has shipped. Parcels: ${shippitParcels.map(item => `${item.serviceName}: ${item.trackingNumber}`).join("; ")}.` : `Your order has shipped. Carrier: ${parsed.data.carrier}. Tracking: ${parsed.data.trackingNumber}.`);
       if (parsed.data.status === "DELIVERED") await queueOrderNotice(tx, orderId, `delivered:${history.id}`, "Your order has been delivered", "Your order has been marked as delivered. If you need help, open a ticket under Help & requests in your account.");
       return true;
-    }, { isolationLevel: "Serializable" }).catch(error => error instanceof Error && error.message.startsWith("PREPARATION:") ? error.message : false);
+    }, { isolationLevel: "Serializable" }).catch(error => error instanceof Error && (error.message.startsWith("PREPARATION:") || error.message === "SUPPORT_HOLD") ? error.message : false);
+    if (changed === "SUPPORT_HOLD") return jsonError("Preparation is paused by a verified support request. Review and release it in the support inbox.", 409);
     if (typeof changed === "string") return jsonError(changed.slice("PREPARATION:".length), 409);
     if (!changed) return jsonError("Order changed while updating. Refresh and try again.", 409);
   }

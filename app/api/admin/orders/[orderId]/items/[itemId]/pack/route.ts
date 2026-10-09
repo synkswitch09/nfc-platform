@@ -1,3 +1,4 @@
+import { assertNoSupportHold } from "@/lib/support-access";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { getAdminApiContext } from "@/lib/admin";
@@ -24,6 +25,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   if ((!requirements.requiresNfc && (tagIds.length || removeTagIds.length)) || (requirements.requiresNfc && tagIds.length + item.tags.length - removeTagIds.length !== quantity)) return jsonError("Provide exactly one verified NFC unit per packed unit", 409);
   try {
     const changed = await db.$transaction(async tx => {
+      await assertNoSupportHold(tx, orderId, context.store.id);
       const current = await tx.orderItem.findFirst({ where: { id: itemId, orderId, order: { storeId: context.store.id, status: { in: ["PAID", "PROCESSING"] } } }, select: { packedQuantity: true, tags: { select: { publicTagId: true } }, manufacturingJobs: { select: { status: true, quantity: true } } } });
       if (!current || current.packedQuantity !== item.packedQuantity || current.tags.length !== item.tags.length) return false;
       if (requirements.requiresManufacturing && current.manufacturingJobs.filter(job => job.status === "READY").reduce((sum, job) => sum + job.quantity, 0) < quantity) return false;
@@ -36,11 +38,12 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         if (!assigned.count) throw new Error("NFC unit is unavailable, unverified or belongs to another variant");
       }
       const updated = await tx.orderItem.updateMany({ where: { id: itemId, orderId, packedQuantity: current.packedQuantity }, data: { packedQuantity: quantity, packedAt: quantity === item.quantity ? new Date() : null } });
+      if (quantity > 0) await tx.order.update({ where: { id: orderId }, data: { preparationStartedAt: new Date() } });
       if (!updated.count) throw new Error("Packing changed during update");
       await tx.auditLog.create({ data: { storeId: context.store.id, actorId: context.user.id, action: "ORDER_ITEM_PACKED", entityType: "OrderItem", entityId: itemId, metadata: { quantity, previous: current.packedQuantity, assignedTags: tagIds, removedTags: removeTagIds } } });
       return true;
     }, { isolationLevel: "Serializable" });
     if (!changed) return jsonError("Packing changed; refresh and try again", 409);
     return NextResponse.json({ ok: true });
-  } catch (error) { return jsonError(error instanceof Error && error.message.startsWith("NFC unit") ? error.message : "Packing changed; refresh and try again", 409); }
+  } catch (error) { return jsonError(error instanceof Error && error.message === "SUPPORT_HOLD" ? "Preparation is paused. Review the support request before packing." : error instanceof Error && error.message.startsWith("NFC unit") ? error.message : "Packing changed; refresh and try again", 409); }
 }

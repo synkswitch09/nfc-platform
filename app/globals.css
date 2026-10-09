@@ -5782,3 +5782,12 @@ body[data-store="kosykin"] .site-header.compact-header nav.is-open .nav-centre a
 @media(max-width:600px){.email-block{padding:12px}.email-preview-frame{height:650px}.email-token{font-size:11px}.email-add-blocks .button{padding:8px 10px}}
 
 .email-fields input[type="color"]{width:84px;height:44px;padding:5px;cursor:pointer}
+
+/* Ticket content may contain long URLs and user supplied text. */
+.support-portal, .support-ticket, .support-ticket form {min-width:0; max-width:100%;}
+.support-portal {display:grid;gap:1rem;}
+.support-message {white-space:pre-wrap;overflow-wrap:anywhere;}
+.support-ticket blockquote {margin:1rem 0;padding:1rem;border-left:3px solid var(--primary,#43748b);overflow-wrap:anywhere;}
+.support-ticket textarea {width:100%;min-width:0;box-sizing:border-box;}
+.support-inbox-filters {display:flex;gap:1rem;flex-wrap:wrap;align-items:end;}
+.support-inbox-filters .field {flex:1 1 180px;}

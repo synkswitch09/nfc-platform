@@ -1,3 +1,4 @@
+import { assertNoSupportHold } from "@/lib/support-access";
 import { randomUUID } from "node:crypto";
 import { db } from "@/lib/db";
 import { currentAppEnvironment } from "@/lib/config";
@@ -71,7 +72,10 @@ export async function bookShippitParcel(shipmentId: string, storeId: string, act
   if (!shipment.order.payments.some(payment => payment.status === "SUCCEEDED") || shipment.order.payments.some(payment => payment.status === "REFUNDED" || payment.refundedAmountCents > 0)) throw new FulfilmentError("Refunded orders require review before booking", 409);
   if (shipment.bookedAt) return shipment;
   // Lock the booking intent before the external call, including across concurrent requests.
-  const locked = await db.shipment.updateMany({ where: { id: shipment.id, bookedAt: null, externalRequestAt: { not: null } }, data: { externalRequestAt: null } });
+  const locked = await db.$transaction(async tx => {
+    await assertNoSupportHold(tx, shipment.orderId, storeId);
+    return tx.shipment.updateMany({ where: { id: shipment.id, bookedAt: null, externalRequestAt: { not: null } }, data: { externalRequestAt: null } });
+  }).catch(error => { if (error instanceof Error && error.message === "SUPPORT_HOLD") throw new FulfilmentError("Order paused by a support request; review before booking", 409); throw error; });
   if (!locked.count) throw new FulfilmentError("Booking is already in progress or requires manual reconciliation in Shippit", 409);
   const response = await shippitRequest("/book", { method: "POST", body: JSON.stringify({ orders: [shipment.trackingNumber] }) });
   if (!Array.isArray(response?.response) || !response.response.some((item: { success?: boolean }) => item.success === true) || response.response.some((item: { success?: boolean }) => item.success === false)) throw new FulfilmentError("Booking was not confirmed. Check Shippit before any retry.", 409);
