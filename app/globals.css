@@ -5737,3 +5737,17 @@ body[data-store="kosykin"] .site-header.compact-header nav.is-open .nav-centre a
 
 /* Account tools remain usable on small screens. */
 .account-nav{display:flex;flex-wrap:wrap;gap:8px;margin:24px auto 0;padding:0 24px;max-width:1200px}.account-nav a{padding:10px 14px;border:1px solid var(--border,#dededb);border-radius:18px;font-size:.9rem}.account-nav a:hover{background:var(--cream,#f6f5ef)}.account-filters{display:flex;flex-wrap:wrap;align-items:end;gap:16px;margin-bottom:24px}.account-filters .field{flex:1;min-width:180px}.dashboard .card,.account-grid>*{min-width:0;overflow-wrap:anywhere}.dashboard details{margin-top:20px}.dashboard summary{cursor:pointer}.account-photo{max-width:160px;max-height:160px;border-radius:12px}.account-grid .card{margin-bottom:20px}@media(max-width:600px){.account-nav{padding:0 16px;gap:6px}.account-nav a{font-size:.8rem;padding:8px 10px}.account-grid{grid-template-columns:1fr}.account-filters{display:block}.account-filters .field{margin-bottom:12px}}
+
+/* Optional checkout assistance and privacy settings. */
+.address-suggestions { position: relative; min-width: 0; }
+.address-suggestions > input { width: 100%; }
+.address-suggestions [role="listbox"] { list-style: none; margin: .35rem 0; padding: .25rem; border: 1px solid var(--line, #ccd1d4); border-radius: .75rem; background: var(--surface, #fff); max-height: 18rem; overflow: auto; }
+.address-suggestions [role="option"] { padding: .75rem; cursor: pointer; overflow-wrap: anywhere; border-radius: .5rem; }
+.address-suggestions [role="option"]:hover, .address-suggestions [aria-selected="true"] { background: #eaf0f6; color: #123454; }
+.privacy-controls { max-height: min(80vh, 42rem); overflow-y: auto; }
+.privacy-controls h2 { font-size: 1.1rem; margin: 0 0 .5rem; }
+.privacy-controls .check-field { display: flex; align-items: center; gap: .5rem; margin: .5rem 0; }
+.privacy-controls .privacy-actions { display: flex; flex-wrap: wrap; gap: .5rem; }
+.privacy-controls .privacy-actions > button { flex: 1 1 auto; }
+
+.privacy-controls > div:first-child { display: block; }

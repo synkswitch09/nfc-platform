@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { geoapifyStoresSchema } from "@/lib/integration-config";
 import { googleOAuthStores } from "@/lib/google-oauth-config";
 
 export const appEnvironments = ["development", "staging", "production"] as const;
@@ -46,6 +47,7 @@ const runtimeConfigSchema = z.object({
   CHECKOUT_RECONCILE_SECRET: z.preprocess(blankToUndefined, z.string().min(32).optional()),
   NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: optionalString,
   GOOGLE_OAUTH_STORES: googleOAuthStores,
+  GEOAPIFY_STORES: geoapifyStoresSchema,
   APPLE_CLIENT_ID: optionalString,
   APPLE_CLIENT_SECRET: optionalString,
   ETSY_API_KEY: optionalString,
@@ -164,6 +166,7 @@ export type RuntimeConfig = {
   email: { mode: "mock" | "sandbox" | "live"; provider: "webhook" | "mailtrap-sandbox" | "resend"; webhookUrl?: string; webhookSecret?: string; resendStores: Record<string, { apiKey: string }>; testOutboxPath?: string };
   stripe: { secretKey?: string; webhookSecret?: string; reconcileSecret?: string; publishableKey?: string; testCheckout: boolean };
   etsy: { apiKey?: string; sharedSecret?: string; syncSecret?: string };
+  geoapifyStores: Record<string, { apiKey: string }>;
   analyticsStores: Record<string, { measurementId: string; apiSecret: string }>;
   logLevel: "info" | "warn" | "error";
   previewMode: boolean;
@@ -191,6 +194,7 @@ export function parseRuntimeConfig(environment: Record<string, string | undefine
     stripe: { reconcileSecret: value.CHECKOUT_RECONCILE_SECRET, secretKey: value.STRIPE_SECRET_KEY, webhookSecret: value.STRIPE_WEBHOOK_SECRET, publishableKey: value.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY, testCheckout: value.ENABLE_TEST_CHECKOUT },
     etsy: { apiKey: value.ETSY_API_KEY, sharedSecret: value.ETSY_SHARED_SECRET, syncSecret: value.ETSY_SYNC_SECRET },
     analyticsStores: value.ANALYTICS_GA4_STORES,
+    geoapifyStores: value.GEOAPIFY_STORES,
     logLevel: value.LOG_LEVEL,
     previewMode: value.PRODUCTION_PREVIEW_MODE,
     checkoutEnabled: !value.PRODUCTION_PREVIEW_MODE && (value.APP_ENV !== "production" || value.PRODUCTION_CHECKOUT_ENABLED),

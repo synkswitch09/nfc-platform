@@ -1,3 +1,6 @@
+import { IntegrationSettingsForm } from "@/components/integration-settings-form";
+import { parseIntegrationConfig } from "@/lib/integration-config";
+import { getRuntimeConfig } from "@/lib/config";
 import { EmailSendersForm } from "@/components/email-senders-form";
 import { parseEmailSenders, senderDomain, defaultStoreSender } from "@/lib/email-senders";
 import { AccountSettingsForm } from "@/components/account-settings-form";
@@ -31,6 +34,7 @@ export default async function AdminSettingsPage() {
       isPrimary,
     }),
   );
+  const runtime = getRuntimeConfig();
   const fallbackSender = defaultStoreSender(domainRows);
   const senders = parseEmailSenders(parseAccountConfig(context.store.accountConfig).emailSenders, fallbackSender, context.store.displayName);
   return (
@@ -45,6 +49,7 @@ export default async function AdminSettingsPage() {
           </p>
         </div>
       </div>
+      <IntegrationSettingsForm config={parseIntegrationConfig(context.store.integrations)} geoapifyReady={Boolean(runtime.geoapifyStores[context.store.slug])} analyticsReady={Boolean(runtime.analyticsStores[context.store.slug])} />
       <EmailSendersForm senders={senders} domain={senderDomain(fallbackSender)} />
       <AccountSettingsForm config={parseAccountConfig(context.store.accountConfig)} />
       <StoreSettingsForm
