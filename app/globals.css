@@ -5780,3 +5780,5 @@ body[data-store="kosykin"] .site-header.compact-header nav.is-open .nav-centre a
 .email-composer .category-image-upload input{max-width:100%;min-width:0}
 @media(max-width:1150px){.email-editor-grid{grid-template-columns:minmax(0,1fr)}}
 @media(max-width:600px){.email-block{padding:12px}.email-preview-frame{height:650px}.email-token{font-size:11px}.email-add-blocks .button{padding:8px 10px}}
+
+.email-fields input[type="color"]{width:84px;height:44px;padding:5px;cursor:pointer}

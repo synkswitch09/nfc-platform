@@ -12,6 +12,7 @@ describe("store email templates", () => {
       expect(result.html).toContain("Kosykin");
       expect(result.text).toContain("https://kosykin.com.au/dashboard/help");
       expect(result.html).not.toContain("{{");
+      if (!["password-reset", "team-invitation"].includes(key)) expect(result.html).not.toContain("Continue securely");
     }
   });
   it("escapes CMS text and customer values rather than executing uploaded HTML", () => {
