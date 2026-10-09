@@ -33,7 +33,7 @@ export function permissionForRoute(path: string, method="GET"): Permission | "pl
  if (/^\/admin\/orders\/.+\/operations$/.test(route)) return "orders.read"; // Action-level checks handle refunds and resends.
  const group = route.split("/")[2];
  if(!read && ["storefront","pages","storefront-releases","link-targets"].includes(group)) return "content.publish";
- const resource=({products:"catalog",categories:"catalog",inventory:"catalog",manufacturing:"production",tags:"production",orders:"orders",support:"support",customers:"customers",promotions:"content",storefront:"content",pages:"content",media:"content",shipping:"shipping",shipments:"shipping",settings:"settings","account-settings":"settings","storefront-releases":"content","link-targets":"content"} as Record<string,string>)[group];
+ const resource=({products:"catalog",categories:"catalog",inventory:"catalog",manufacturing:"production",tags:"production",orders:"orders",support:"support",customers:"customers",promotions:"content",storefront:"content",pages:"content",media:"content","email-templates":"content",shipping:"shipping",shipments:"shipping",settings:"settings","account-settings":"settings","storefront-releases":"content","link-targets":"content"} as Record<string,string>)[group];
  return resource?`${resource}.${read?"read":"write"}` as Permission:"platform";
 }
 export function hasPermission(context: {isPlatformAdmin:boolean;permissions?:string[]} | null, permission: Permission) { return Boolean(context && (context.isPlatformAdmin || context.permissions?.includes(permission))); }

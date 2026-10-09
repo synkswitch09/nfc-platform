@@ -1485,6 +1485,7 @@ model PaymentRefund {
 }
 
 model OrderNotification {
+  emailSnapshot Json?
   id           String   @id @default(uuid()) @db.Uuid
   orderId      String   @db.Uuid
   dedupeKey    String   @unique

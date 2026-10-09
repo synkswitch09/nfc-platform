@@ -171,6 +171,24 @@ async function main() {
   await jsonResponse(await request("/api/admin/products", { method: "POST", json: {} }), 403, "Customerless request is rejected by Product Admin");
   const login = await jsonResponse(await request("/api/auth/login", { method: "POST", jar: adminJar, json: { email: adminEmail, password: adminPassword } }), 200, "Development administrator can sign in");
   assert(login.user.role === "ADMIN", "Administrator role is enforced");
+  // CMS email drafts, preview, publication and tests use the active store only.
+  const templateDesign = { subject: "{{email.subject}}", preheader: "An update from {{store.name}}", accent: "#284B63", blocks: [{ type: "text", text: "E2E design for {{store.name}} and {{customer.name}}" }] };
+  const emailPage = await bodyText(await request("/admin/email-templates", { jar: adminJar }));
+  assert(emailPage.text.includes("Email templates"), "Email template editor is available in CMS");
+  const emailPreview = await jsonResponse(await request("/api/admin/email-templates", { method: "POST", jar: adminJar, json: { action: "preview", key: "verification", template: templateDesign } }), 200, "CMS previews safe example data");
+  assert(emailPreview.html.includes("123456") && emailPreview.html.includes("E2E design for Tapkin"), "Preview keeps mandatory verification details");
+  const templateDraft = await jsonResponse(await request("/api/admin/email-templates", { method: "POST", jar: adminJar, json: { action: "save", key: "verification", template: templateDesign, revision: 0 } }), 200, "CMS saves a draft without changing live emails");
+  assert(templateDraft.entry.published === null, "Draft stays unpublished");
+  await jsonResponse(await request("/api/admin/email-templates", { method: "POST", jar: adminJar, json: { action: "publish", key: "verification", template: templateDesign, revision: templateDraft.entry.revision } }), 200, "CMS publishes the reviewed design");
+  const templateTest = await jsonResponse(await request("/api/admin/email-templates", { method: "POST", jar: adminJar, json: { action: "test", key: "verification", template: templateDesign } }), 200, "CMS test is captured in the development outbox");
+  assert(templateTest.accepted === false, "Development test never delivers a real email");
+  const outboxMessages = (await readFile(emailOutbox, "utf8")).trim().split("\n").map(line => JSON.parse(line));
+  const templateTestMessage = outboxMessages.at(-1);
+  assert(templateTestMessage.to === adminEmail && templateTestMessage.html.includes("E2E design for Tapkin"), "Test goes only to the signed-in editor with HTML design");
+  assert(templateTestMessage.text.includes("example data only"), "Test email explicitly marks its data as synthetic");
+  const otherStoreTemplates = await db.store.findUnique({ where: { id: homeStore.id }, select: { accountConfig: true } });
+  assert(!otherStoreTemplates.accountConfig?.emailTemplates?.verification, "Publishing in Tapkin does not change Home Demo email designs");
+  await jsonResponse(await request("/api/admin/email-templates", { method: "POST", jar: adminJar, json: { action: "reset", key: "verification", revision: templateDraft.entry.revision + 1 } }), 200, "CMS safely restores its standard live template");
   const e2eCategory = await db.productCategory.findUnique({ where: { storeId_slug: { storeId: tapkinStore.id, slug: "pets" } } });
   assert(e2eCategory?.status === "PUBLISHED", "Published category exists for the product journey");
   const slug = `e2e-nfc-tag-${suffix}`; const sku = `E2E-${suffix.toUpperCase()}`.slice(0, 50);
