@@ -5751,3 +5751,32 @@ body[data-store="kosykin"] .site-header.compact-header nav.is-open .nav-centre a
 .privacy-controls .privacy-actions > button { flex: 1 1 auto; }
 
 .privacy-controls > div:first-child { display: block; }
+
+/* Store-scoped email composition, with contained previews on small admin screens. */
+.email-workspace,.email-composer,.email-preview-panel{min-width:0}
+.email-editor-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:24px;align-items:start}
+.email-fields{border:0;padding:0;margin:0;min-width:0;display:grid;gap:18px}
+.email-composer h2,.email-preview-panel h2{margin-top:0}
+.email-selector .field{max-width:480px}
+.email-actions,.email-add-blocks{display:flex;flex-wrap:wrap;gap:10px;margin-top:16px}
+.email-actions .button,.email-add-blocks .button{min-width:0;white-space:normal}
+.email-block{padding:18px;border:1px solid var(--border,#dce2e8);border-radius:12px;min-width:0;display:grid;gap:12px;background:var(--surface,#fff)}
+.email-block-heading{display:flex;align-items:center;justify-content:space-between;gap:8px;text-transform:capitalize}
+.email-block-heading>div{display:flex;flex-shrink:0;gap:4px}
+.email-token-list{padding:12px;background:#f5f7fa;border-radius:10px;overflow-wrap:anywhere}
+.email-token-list p{margin:0 0 10px}
+.email-token{display:inline-flex;align-items:center;gap:5px;margin:3px;padding:6px 8px;border:1px solid #dce2e8;border-radius:6px;background:#fff;font-size:12px;max-width:100%;cursor:pointer}
+.email-token code{overflow-wrap:anywhere;white-space:normal}
+.email-protected,.email-test{padding:16px;background:#f5f7fa;border-radius:10px;margin-top:20px;overflow-wrap:anywhere;font-size:14px}
+.email-protected p,.email-test p{margin:8px 0;line-height:1.6}
+.email-preview-heading{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.email-preview-heading .email-actions{margin:0}
+.email-preview-subject,.email-status{overflow-wrap:anywhere;line-height:1.6}
+.email-preview-frame{display:block;width:100%;height:720px;max-width:100%;border:1px solid #dce2e8;border-radius:10px;background:#f3f5f7;margin:16px auto}
+.email-preview-mobile{width:360px}
+.email-text-preview{padding:16px;white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-word;max-width:100%;font-family:inherit;font-size:14px;line-height:1.7;background:#f5f7fa;border-radius:10px}
+.email-import{max-width:190px;font-size:12px}
+.email-composer .category-image-upload{flex-wrap:wrap}
+.email-composer .category-image-upload input{max-width:100%;min-width:0}
+@media(max-width:1150px){.email-editor-grid{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:600px){.email-block{padding:12px}.email-preview-frame{height:650px}.email-token{font-size:11px}.email-add-blocks .button{padding:8px 10px}}

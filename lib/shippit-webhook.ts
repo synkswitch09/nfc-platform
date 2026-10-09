@@ -81,7 +81,10 @@ export async function applyShippitWebhook(payload: unknown, rawBody: string) {
     const current = await tx.order.findUnique({ where: { id: shipment.orderId }, select: { status: true } });
     if (current?.status === "SHIPPED" && shippitOrderProgress(current.status, event.state, parcels, expectedParcels).deliver) {
       const updated = await tx.order.updateMany({ where: { id: shipment.orderId, status: "SHIPPED" }, data: { status: "DELIVERED" } });
-      if (updated.count) await tx.orderStatusHistory.create({ data: { orderId: shipment.orderId, fromStatus: "SHIPPED", toStatus: "DELIVERED", note: "All Shippit parcels delivered" } });
+      if (updated.count) {
+        const history = await tx.orderStatusHistory.create({ data: { orderId: shipment.orderId, fromStatus: "SHIPPED", toStatus: "DELIVERED", note: "All Shippit parcels delivered" } });
+        await queueOrderNotice(tx, shipment.orderId, `delivered:${history.id}`, "Your order has been delivered", "All parcels in your order have been marked as delivered by the carrier. If you need help, open a ticket under Help & requests in your account.");
+      }
     }
     return "updated";
   }, { isolationLevel: "Serializable" });

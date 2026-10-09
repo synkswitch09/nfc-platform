@@ -37,7 +37,7 @@ describe("Mailtrap staging sandbox", () => {
     const [url, options] = fetchMock.mock.calls[0] as [string, RequestInit];
     expect(url).toBe(env.EMAIL_WEBHOOK_URL);
     expect(options.headers).toEqual({ "content-type": "application/json", "Api-Token": env.EMAIL_WEBHOOK_SECRET });
-    expect(JSON.parse(options.body as string)).toEqual({ from: { email: "hello@tapkin.com.au", name: "Tapkin" }, to: [{ email: message.to }], subject: message.subject, text: message.text + ticketSupportFooter("https://staging.tapkin.com.au") });
+    expect(JSON.parse(options.body as string)).toMatchObject({ from: { email: "hello@tapkin.com.au", name: "Tapkin" }, to: [{ email: message.to }], subject: message.subject, text: expect.stringContaining(message.text + ticketSupportFooter("https://staging.tapkin.com.au")), html: expect.stringContaining("<!doctype html>") });
     await expect(sendTransactionalEmail(message)).rejects.toThrow("Email delivery failed");
   });
   it("includes a 3MF as an attachment in the Mailtrap sandbox", async () => {
@@ -75,7 +75,7 @@ describe("Resend production email", () => {
     const [url, options] = fetchMock.mock.calls[0] as [string, RequestInit];
     expect(url).toBe(env.EMAIL_WEBHOOK_URL);
     expect(options.headers).toEqual({ "content-type": "application/json", authorization: "Bearer test-resend-key", "Idempotency-Key": message.idempotencyKey });
-    expect(JSON.parse(options.body as string)).toEqual({ from: "Tapkin <hello@tapkin.com.au>", to: [message.to], subject: message.subject, text: message.text + ticketSupportFooter("https://tapkin.com.au") });
+    expect(JSON.parse(options.body as string)).toMatchObject({ from: "Tapkin <hello@tapkin.com.au>", to: [message.to], subject: message.subject, text: expect.stringContaining(message.text + ticketSupportFooter("https://tapkin.com.au")), html: expect.stringContaining("<!doctype html>") });
     await expect(sendTransactionalEmail(message)).rejects.toThrow("Email delivery failed");
   });
 

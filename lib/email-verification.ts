@@ -15,7 +15,7 @@ export function emailVerificationCodeHash(userId: string, storeId: string, code:
     .digest("hex");
 }
 
-export async function sendEmailVerificationCode(user: { id: string; email: string }, store: Storefront, orderClaimId?: string | null) {
+export async function sendEmailVerificationCode(user: { id: string; email: string; name?: string }, store: Storefront, orderClaimId?: string | null) {
   const code = createEmailVerificationCode();
   const record = await db.emailVerification.create({
     data: {
@@ -28,7 +28,7 @@ export async function sendEmailVerificationCode(user: { id: string; email: strin
     sent = await sendTransactionalEmail({
       to: user.email, subject: `Your ${store.displayName} verification code`,
       text: `Your ${store.displayName} verification code is ${code}. It expires in 10 minutes. If you did not create this account, you can ignore this email.`,
-      storeSlug: store.slug, category: "account",
+      storeSlug: store.slug, category: "account", customerName: user.name, templateKey: "verification", templateFields: { "account.code": code },
     });
   } catch {
     await db.emailVerification.delete({ where: { id: record.id } }).catch(() => undefined);

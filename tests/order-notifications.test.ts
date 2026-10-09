@@ -67,3 +67,23 @@ it("delivers an admin fallback instruction if the model cannot be attached", asy
   expect(m.send.mock.calls[0][0]).not.toHaveProperty("attachments");
   expect(m.send.mock.calls[0][0].text).toContain("could not be attached");
 });
+
+it("saves a prepared body under its lease before provider submission", async () => {
+  const snapshot = { subject: "Paid", text: "Payment received", html: "<p>Payment</p>", sender: { address: "orders@kosykin.com.au", name: "Kosykin Orders", from: "Kosykin Orders <orders@kosykin.com.au>" } };
+  m.send.mockImplementation(async input => { await input.onPrepared(snapshot); return true; });
+  await processOrderNotifications();
+  expect(m.updateMany.mock.calls[2][0]).toMatchObject({ where: { id: "n", leaseToken: expect.any(String) }, data: { emailSnapshot: snapshot } });
+  expect(m.updateMany.mock.calls[3][0].data.status).toBe("ACCEPTED");
+});
+it("passes persisted snapshots to retries and refuses a lost snapshot lease", async () => {
+  const snapshot = { subject: "Original", text: "Original payment", html: "<p>Original</p>", sender: { address: "orders@kosykin.com.au", name: "Kosykin Orders", from: "Kosykin Orders <orders@kosykin.com.au>" } };
+  m.findMany.mockResolvedValue([{ id: "n", to: "test@example.com", subject: "Paid", text: "Payment", attempts: 1, emailSnapshot: snapshot, order: { store: { slug: "kosykin" } } }]);
+  m.send.mockResolvedValue(true); await processOrderNotifications();
+  expect(m.send.mock.calls[0][0].prepared).toEqual(snapshot);
+  m.updateMany.mockClear(); m.send.mockClear();
+  m.findMany.mockResolvedValue([{ id: "n", to: "test@example.com", subject: "Paid", text: "Payment", attempts: 1, order: { store: { slug: "kosykin" } } }]);
+  m.updateMany.mockResolvedValueOnce({ count: 1 }).mockResolvedValueOnce({ count: 1 }).mockResolvedValueOnce({ count: 0 }).mockResolvedValue({ count: 1 });
+  m.send.mockImplementation(async input => { await input.onPrepared(snapshot); return true; });
+  await processOrderNotifications();
+  expect(m.updateMany.mock.calls.at(-1)?.[0].data.status).toBe("PENDING");
+});

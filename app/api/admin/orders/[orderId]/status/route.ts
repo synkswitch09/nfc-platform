@@ -57,6 +57,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       const history = await tx.orderStatusHistory.create({ data: { orderId, fromStatus: order.status, toStatus: parsed.data.status, actorId: user.id, note: parsed.data.note || null } });
       await tx.auditLog.create({ data: { actorId: user.id, storeId: store.id, action: "ORDER_STATUS_CHANGED", entityType: "Order", entityId: orderId, metadata: { from: order.status, to: parsed.data.status } } });
       if (parsed.data.status === "SHIPPED") await queueOrderNotice(tx, orderId, `status:${history.id}`, "Your order has shipped", shippitParcels.length ? `Your order has shipped. Parcels: ${shippitParcels.map(item => `${item.serviceName}: ${item.trackingNumber}`).join("; ")}.` : `Your order has shipped. Carrier: ${parsed.data.carrier}. Tracking: ${parsed.data.trackingNumber}.`);
+      if (parsed.data.status === "DELIVERED") await queueOrderNotice(tx, orderId, `delivered:${history.id}`, "Your order has been delivered", "Your order has been marked as delivered. If you need help, open a ticket under Help & requests in your account.");
       return true;
     }, { isolationLevel: "Serializable" }).catch(error => error instanceof Error && error.message.startsWith("PREPARATION:") ? error.message : false);
     if (typeof changed === "string") return jsonError(changed.slice("PREPARATION:".length), 409);

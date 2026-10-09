@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
+import { orderNoticeTemplate, preparedEmailSchema } from "@/lib/email-templates";
 import { orderEmailCategory } from "@/lib/email-senders";
 import { sendTransactionalEmail } from "@/lib/email";
 import { keychainInputFromOptions } from "@/lib/keychain-order";
@@ -24,7 +25,7 @@ export async function processOrderNotifications(orderId?: string) {
   const due = { OR: [{ status: "PENDING", availableAt: { lte: now } }, { status: "PROCESSING", leaseUntil: { lt: now } }] };
   // Exhausted crashed attempts need a visible terminal state, not a permanently stuck lease.
   await db.orderNotification.updateMany({ where: { ...due, attempts: { gte: 5 }, ...(orderId ? { orderId } : {}) }, data: { status: "FAILED", leaseToken: null, leaseUntil: null, lastError: "Retry limit reached; inspect provider before retrying" } });
-  const rows = await db.orderNotification.findMany({ where: { ...due, attempts: { lt: 5 }, ...(orderId ? { orderId } : {}) }, include: { order: { select: { orderNumber: true, store: { select: { slug: true, supportEmail: true } }, items: { where: { variant: { product: { slug: "custom-name-keychain" } } }, select: { id: true, personalisation: true, selectedOptions: true } } } } }, orderBy: { availableAt: "asc" }, take: 5 });
+  const rows = await db.orderNotification.findMany({ where: { ...due, attempts: { lt: 5 }, ...(orderId ? { orderId } : {}) }, include: { order: { select: { orderNumber: true, customerName: true, shippingName: true, user: { select: { name: true } }, store: { select: { slug: true, supportEmail: true } }, items: { where: { variant: { product: { slug: "custom-name-keychain" } } }, select: { id: true, personalisation: true, selectedOptions: true } } } } }, orderBy: { availableAt: "asc" }, take: 5 });
   for (const row of rows) {
     const token = randomUUID();
     const claimed = await db.orderNotification.updateMany({ where: { id: row.id, ...due, attempts: { lt: 5 } }, data: { status: "PROCESSING", attempts: { increment: 1 }, leaseToken: token, leaseUntil: new Date(Date.now() + 120_000) } });
@@ -49,7 +50,11 @@ export async function processOrderNotifications(orderId?: string) {
           printInstructions = "\n\nThe 3MF files could not be attached. Open Kosykin Admin → Orders and download them from this order before printing.";
         }
       }
-      const accepted = await sendTransactionalEmail({ to: row.to, subject: row.subject, text: row.text + printInstructions, idempotencyKey: row.id, storeSlug: row.order.store.slug, category: orderEmailCategory(row.dedupeKey), ...(attachments.length ? { attachments } : {}) });
+      const prepared = row.emailSnapshot ? preparedEmailSchema.parse(row.emailSnapshot) : undefined;
+      const accepted = await sendTransactionalEmail({ prepared, onPrepared: async message => {
+        const saved = await db.orderNotification.updateMany({ where: { id: row.id, leaseToken: token }, data: { emailSnapshot: message } });
+        if (!saved.count) throw new Error("Notification lease lost before sending");
+      }, to: row.to, subject: row.subject, text: row.text + printInstructions, idempotencyKey: row.id, storeSlug: row.order.store.slug, category: orderEmailCategory(row.dedupeKey), templateKey: orderNoticeTemplate(row.dedupeKey, row.subject, Boolean(row.dedupeKey?.startsWith("paid:") && row.to === row.order.store.supportEmail)), customerName: row.order.customerName ?? row.order.user?.name ?? row.order.shippingName, templateFields: { "order.number": row.order.orderNumber }, ...(attachments.length ? { attachments } : {}) });
       await db.orderNotification.updateMany({ where: { id: row.id, leaseToken: token }, data: { status: accepted ? "ACCEPTED" : "MOCKED", leaseToken: null, leaseUntil: null, lastError: null } });
     } catch {
       await db.orderNotification.updateMany({ where: { id: row.id, leaseToken: token }, data: { status: row.attempts + 1 >= 5 ? "FAILED" : "PENDING", availableAt: new Date(Date.now() + Math.min(3600, 30 * 2 ** row.attempts) * 1000), leaseToken: null, leaseUntil: null, lastError: "Provider request failed or its outcome is uncertain. Acceptance does not prove delivery." } });
