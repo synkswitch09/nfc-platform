@@ -2,12 +2,12 @@ import { z } from "zod";
 import { isSafeImageSource } from "@/lib/image-source";
 import { ticketSupportFooter } from "@/lib/email-senders";
 
-export const emailTemplateKeys = ["verification", "password-reset", "security", "team-invitation", "payment", "shipped", "delivered", "dispatch-estimate", "refund", "support", "reward", "operations", "default"] as const;
+export const emailTemplateKeys = ["verification", "password-reset", "security", "team-invitation", "payment", "shipped", "delivered", "dispatch-estimate", "refund", "support", "reward", "loyalty", "operations", "default"] as const;
 export type EmailTemplateKey = typeof emailTemplateKeys[number];
 export const emailTemplateLabels: Record<EmailTemplateKey, string> = {
   verification: "Email verification", "password-reset": "Password reset", security: "Account security", "team-invitation": "Team invitation",
   payment: "Payment confirmation", shipped: "Order shipped", delivered: "Order delivered", "dispatch-estimate": "Dispatch estimate", refund: "Refund confirmation",
-  support: "Support update", reward: "Next purchase reward", operations: "Operations / print files", default: "Other notifications",
+  support: "Support update", reward: "Next purchase reward", loyalty: "Points earned", operations: "Operations / print files", default: "Other notifications",
 };
 const copy = z.string().max(3000);
 const blockSchema = z.discriminatedUnion("type", [
@@ -28,7 +28,7 @@ export type EmailTemplateEntry = z.infer<typeof entrySchema>;
 export type EmailTemplates = Partial<Record<EmailTemplateKey, EmailTemplateEntry>>;
 const commonTokens = ["store.name", "store.url", "store.helpUrl", "customer.name", "email.subject"];
 export function templateTokens(key: EmailTemplateKey) {
-  return [...commonTokens, ...(["verification"].includes(key) ? ["account.code"] : []), ...(["password-reset", "team-invitation"].includes(key) ? ["account.actionUrl"] : []), ...(["payment", "shipped", "delivered", "dispatch-estimate", "refund", "support", "reward", "operations"].includes(key) ? ["order.number"] : [])];
+  return [...commonTokens, ...(["verification"].includes(key) ? ["account.code"] : []), ...(["password-reset", "team-invitation"].includes(key) ? ["account.actionUrl"] : []), ...(["payment", "shipped", "delivered", "dispatch-estimate", "refund", "support", "reward", "loyalty", "operations"].includes(key) ? ["order.number"] : [])];
 }
 export function safeEmailUrl(value: string, origin?: string) {
   try {
@@ -63,6 +63,7 @@ export function defaultEmailTemplate(key: EmailTemplateKey): EmailTemplate {
     shipped: "Your order is on its way, {{customer.name}}. Your tracking details are below.", delivered: "Your order has been marked as delivered. Thank you for choosing {{store.name}}.",
     "dispatch-estimate": "Here is an update to the dispatch estimate for your order.", refund: "Here is an update about your refund.",
     support: "Our team has an update about your support ticket.", reward: "Thank you for shopping with {{store.name}}. Your next purchase offer is below.",
+    loyalty: "Thank you for shopping with {{store.name}}. Your points update is below.",
     operations: "A paid order is ready for review. Check the order details and any production attachments below.", default: "Here is the latest update from {{store.name}}.",
   };
   return { subject: "{{email.subject}}", preheader: "An update from {{store.name}}", accent: "#284B63", blocks: [{ type: "heading", text: "{{email.subject}}" }, { type: "text", text: introductions[key] }] };
@@ -121,12 +122,13 @@ export function sampleEmailData(key: EmailTemplateKey, storeName: string, origin
     "password-reset": `Reset your password: ${origin}/reset-password?token=preview-only`, security: "Your account password was updated. Other sessions were signed out. If this was not you, reset your password immediately.",
     "team-invitation": `You are invited to manage ${storeName}: ${origin}/dashboard/team-invitation?token=preview-only\nThis invitation expires in 7 days.`,
     payment: "Payment has been received for order DEMO-1001. We will let you know when your order progresses.", shipped: "Your order has shipped. Parcels: Example carrier: DEMO-TRACKING.", delivered: "All parcels in your order have been marked as delivered by the carrier. If you need help, open a ticket in your account.",
-    "dispatch-estimate": "The estimated dispatch date for order DEMO-1001 has been updated. We will email tracking when it ships.", refund: "A refund of 25.00 AUD has been confirmed by the payment provider. Your bank determines when it appears in your account.", support: "We have reviewed your order request. You can view the update under Help & requests in your account.", reward: "Use code DEMO-REWARD on your next purchase within the validity period. This is an example and is not redeemable.", operations: "Payment has been received for DEMO-1001. Production files, when applicable, are attached to the real notification.", default: "This is a sample notification. No account or order has been changed.",
+    "dispatch-estimate": "The estimated dispatch date for order DEMO-1001 has been updated. We will email tracking when it ships.", refund: "A refund of 25.00 AUD has been confirmed by the payment provider. Your bank determines when it appears in your account.", support: "We have reviewed your order request. You can view the update under Help & requests in your account.", reward: "Use code DEMO-REWARD on your next purchase within the validity period. This is an example and is not redeemable.", loyalty: "This purchase earned 50 points. Verify your purchase email to manage them under Account → Points. This is a preview; no points have been issued.", operations: "Payment has been received for DEMO-1001. Production files, when applicable, are attached to the real notification.", default: "This is a sample notification. No account or order has been changed.",
   };
   return { storeName, origin, logoUrl, customerName: "Alex", subject: `${storeName}: ${emailTemplateLabels[key]}`, message: samples[key], fields: { ...(key === "verification" ? { "account.code": "123456" } : {}), ...(["password-reset", "team-invitation"].includes(key) ? { "account.actionUrl": key === "team-invitation" ? `${origin}/dashboard/team-invitation?token=preview-only` : `${origin}/reset-password?token=preview-only` } : {}), ...(templateTokens(key).includes("order.number") ? { "order.number": "DEMO-1001" } : {}) } };
 }
 export function orderNoticeTemplate(key?: string, subject?: string, operations = false): EmailTemplateKey {
   if (operations) return "operations";
+  if (key?.startsWith("loyalty:")) return "loyalty";
   if (key?.startsWith("paid:")) return "payment";
   if (key?.startsWith("refund:")) return "refund";
   if (key?.startsWith("support:")) return "support";

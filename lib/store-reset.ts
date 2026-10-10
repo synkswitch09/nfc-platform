@@ -159,6 +159,7 @@ export async function resetStoreToPetsBaseline({
     });
     await tx.cartItem.deleteMany({ where: { cart: { storeId } } });
     await tx.cart.deleteMany({ where: { storeId } });
+    await tx.loyaltyWallet.deleteMany({ where: { storeId } });
     await tx.order.deleteMany({ where: { storeId } });
     await tx.shippingQuote.deleteMany({ where: { storeId } });
 

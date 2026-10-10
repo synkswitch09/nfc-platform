@@ -1,4 +1,5 @@
 "use client";
+import { maximumRedeemPoints, parseLoyaltyConfig, type LoyaltyConfig } from "@/lib/loyalty-config";
 import { ensureMeasurementSession } from "@/lib/measurement-client";
 
 import { FormEvent, useEffect, useRef, useState } from "react";
@@ -16,8 +17,22 @@ type CheckoutAddress = CountryAddressValue & { recipient: string };
 
 type ShippingQuote = { token: string; providerKey: string; serviceCode: string; serviceName: string; amountCents: number; estimatedDaysMin: number | null; estimatedDaysMax: number | null; expiresAt: string };
 
-export function CheckoutForm({ account, store, countries, integrations: configuredIntegrations, autocompleteEnabled = false }: { account: { name: string; email: string; address: CheckoutAddress | null;addresses?: (CheckoutAddress & {id:string;label:string|null;isDefault:boolean})[] } | null; store: { slug: string; displayName: string; currency: string; nfcEnabled: boolean }; countries: string[]; integrations?: IntegrationConfig; autocompleteEnabled?: boolean }) {
+export function CheckoutForm({ account, store, countries, integrations: configuredIntegrations, autocompleteEnabled = false, loyalty: configuredLoyalty }: { account: { name: string; email: string; address: CheckoutAddress | null;addresses?: (CheckoutAddress & {id:string;label:string|null;isDefault:boolean})[] } | null; store: { slug: string; displayName: string; currency: string; nfcEnabled: boolean }; countries: string[]; integrations?: IntegrationConfig; autocompleteEnabled?: boolean; loyalty?: LoyaltyConfig }) {
   const cart = useCart();
+  const loyalty = configuredLoyalty ?? parseLoyaltyConfig({});
+  const [pointsBalance, setPointsBalance] = useState<number | null>(null);
+  const [pointsToRedeem, setPointsToRedeem] = useState(0);
+  const [pointsNotice, setPointsNotice] = useState("");
+  useEffect(() => {
+    if (!account || !loyalty.enabled || store.currency !== "AUD") return;
+    const abort = new AbortController();
+    fetch("/api/account/loyalty", { signal: abort.signal, cache: "no-store" }).then(async response => {
+      const result = await response.json();
+      if (response.ok) setPointsBalance(result.balance);
+      else setPointsNotice(result.error ?? "Points could not be loaded. You can continue without them.");
+    }).catch(() => { if (!abort.signal.aborted) setPointsNotice("Points could not be loaded. You can continue without them."); });
+    return () => abort.abort();
+  }, [account, loyalty.enabled, store.currency]);
   const [addressId,setAddressId]=useState(account?.addresses?.[0]?.id??"");
   const integrations = parseIntegrationConfig(configuredIntegrations);
   const [remembered, setRemembered] = useState<CheckoutDetails | null>(null);
@@ -60,6 +75,9 @@ export function CheckoutForm({ account, store, countries, integrations: configur
   if (!cart.ready || !memoryReady) return <div className="card">Loading checkout…</div>;
   if (!cart.lines.length) return <div className="card cart-empty"><PackageCheck size={42} /><h2>Nothing to check out yet</h2><Link href="/shop" className="button">Browse products</Link></div>;
   const subtotal = cart.lines.reduce((sum, line) => sum + line.unitPriceCents * line.quantity, 0);
+  const pointsMaximum = maximumRedeemPoints(loyalty, pointsBalance ?? 0, subtotal);
+  const usablePoints = loyalty.enabled ? Math.min(pointsToRedeem, pointsMaximum) : 0;
+  const pointsDiscount = usablePoints >= loyalty.minimumRedeemPoints ? usablePoints / loyalty.redemptionUnitPoints * loyalty.redemptionUnitCents : 0;
   const selectedQuote = quotes.find(quote => quote.token === selectedQuoteToken);
   const shipping = selectedQuote?.amountCents ?? 0;
 
@@ -102,6 +120,7 @@ export function CheckoutForm({ account, store, countries, integrations: configur
       body: JSON.stringify({
         items: cart.lines.map(line => ({ variantId: line.variantId, quantity: line.quantity, personalisationChoice: line.personalisationChoice, personalisation: line.personalisation })),
         shippingQuoteToken: selectedQuoteToken,
+        pointsToRedeem: usablePoints,
         saveAddress: data.get("saveAddress")==="on",
         promotionCode: String(data.get("promotionCode") ?? "").trim().toUpperCase() || undefined,
         customer: {
@@ -141,9 +160,10 @@ export function CheckoutForm({ account, store, countries, integrations: configur
         {hasRemembered && <><p className="fine-print">Your previously saved details have been filled in. Please check they are still correct.</p><button className="text-button" type="button" onClick={() => window.dispatchEvent(new Event("checkout-details-forgotten"))}>Forget my saved details</button></>}
         {memoryNotice && <p role="status">{memoryNotice}</p>}
       </section>}
-      <section className="checkout-section"><h2>Discount code</h2><label className="field">Code<input name="promotionCode" maxLength={32} autoComplete="off" placeholder="Optional" /></label><p className="fine-print">Eligible automatic offers and codes are applied at secure checkout. The final discounted total appears in Stripe before payment.</p></section>
+      <section className="checkout-section"><h2>Discount code</h2><label className="field">Code<input name="promotionCode" disabled={usablePoints > 0 && !loyalty.allowCouponStacking} maxLength={32} autoComplete="off" placeholder="Optional" /></label><p className="fine-print">Eligible automatic offers and codes are applied at secure checkout. The final discounted total appears in Stripe before payment.</p></section>
+      {loyalty.enabled && store.currency === "AUD" && <section className="checkout-section"><h2>Points</h2>{account ? <><p>{pointsBalance === null ? "Your points balance is loading or unavailable." : `${pointsBalance} points available for this store.`}</p>{pointsNotice && <p role="status">{pointsNotice}</p>}<label className="field">Points to use<input name="pointsToRedeem" type="number" min={0} max={pointsMaximum} step={loyalty.redemptionUnitPoints} value={usablePoints} disabled={pointsBalance === null || !pointsMaximum} onChange={event => setPointsToRedeem(Math.max(0, Number(event.target.value) || 0))} /></label><p className="fine-print">{loyalty.redemptionUnitPoints} points = {money.format(loyalty.redemptionUnitCents / 100)} off. Minimum {loyalty.minimumRedeemPoints} points; maximum {loyalty.maximumRedeemPercent}% of products. {loyalty.allowCouponStacking ? "Eligible offers can be combined; final limits are checked before payment." : "Using points replaces automatic offers and cannot be combined with a discount code."} Points are reserved while payment is pending.</p><Link href="/dashboard/points">View points history and expiry</Link></> : <p>This qualifying purchase earns points after payment. Create an account later and verify this purchase email to claim them. <Link href="/login">Sign in</Link> to use an existing balance.</p>}</section>}
       <section className="checkout-section payment-note"><LockKeyhole /><div><h2>Secure payment</h2><p>You will enter card details on Stripe Checkout. {store.displayName} never stores your card number.</p></div></section>
     </div>
-    <aside className="order-summary checkout-summary"><h2>Your order</h2>{cart.lines.map(line => <p key={line.key}><span>{line.productName} × {line.quantity}</span><strong>{money.format(line.unitPriceCents * line.quantity / 100)}</strong></p>)}<p><span>Shipping</span><strong>{selectedQuote ? (shipping ? money.format(shipping / 100) : "Free") : "Calculate at address"}</strong></p><p className="summary-total"><span>Total</span><strong>{money.format((subtotal + shipping) / 100)}</strong></p>{error && <div className="form-error" role="alert">{error}</div>}<button className="button purchase-button" disabled={pending || !selectedQuote}>{pending ? "Preparing secure payment…" : "Continue to secure payment"}</button><p className="fine-print">By continuing, you agree to our <Link href="/terms"><u>terms</u></Link> and acknowledge our <Link href="/privacy"><u>privacy policy</u></Link>.</p></aside>
+    <aside className="order-summary checkout-summary"><h2>Your order</h2>{cart.lines.map(line => <p key={line.key}><span>{line.productName} × {line.quantity}</span><strong>{money.format(line.unitPriceCents * line.quantity / 100)}</strong></p>)}<p><span>Shipping</span><strong>{selectedQuote ? (shipping ? money.format(shipping / 100) : "Free") : "Calculate at address"}</strong></p>{pointsDiscount > 0 && <p><span>Points discount</span><strong>−{money.format(pointsDiscount / 100)}</strong></p>}<p className="summary-total"><span>Total before other offers</span><strong>{money.format((subtotal + shipping - pointsDiscount) / 100)}</strong></p>{error && <div className="form-error" role="alert">{error}</div>}<button className="button purchase-button" disabled={pending || !selectedQuote}>{pending ? "Preparing secure payment…" : "Continue to secure payment"}</button><p className="fine-print">By continuing, you agree to our <Link href="/terms"><u>terms</u></Link> and acknowledge our <Link href="/privacy"><u>privacy policy</u></Link>.</p></aside>
   </form>;
 }

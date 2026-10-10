@@ -10,7 +10,7 @@ Choose a notification and edit its subject, inbox preview, accent colour and ord
 
 Validated JSON export/import loads drafts without publishing. It does not accept arbitrary HTML/scripts. Files must match the selected notification. Uploaded images are environment-specific: upload production copies before publishing if necessary. Tapkin and Kosykin are configured independently.
 
-Covered notifications: verification, password reset, security, team invitations, payment, shipping, delivery, dispatch estimates, refunds, support, next-purchase rewards, operations/print attachments, and other notifications. Sender categories are preserved. This phase does not launch marketing campaigns or change consent.
+Covered notifications: verification, password reset, security, team invitations, payment, shipping, delivery, dispatch estimates, refunds, support, next-purchase rewards, loyalty points earned, operations/print attachments, and other notifications. Sender categories are preserved. This phase does not launch marketing campaigns or change consent.
 
 Mandatory codes, secure links, transaction facts, tracking references, reward conditions and ticket-only support instructions are appended independently of editable content. Dynamic values and text are HTML-escaped, subjects use one line, and links permit HTTPS (HTTP only on loopback for development). Uploaded media resolves against the current store domain. Messages include a plain-text alternative and retain existing 3MF attachments.
 

@@ -1,7 +1,9 @@
+import { randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { request as httpRequest } from "node:http";
 import { PrismaClient } from "@prisma/client";
 import Stripe from "stripe";
+import { tsImport } from "tsx/esm/api";
 
 const origin = process.env.E2E_BASE_URL ?? "http://127.0.0.1:3000";
 const emailOutbox = process.env.E2E_EMAIL_OUTBOX ?? "/tmp/nfc-e2e-email-outbox.ndjson";
@@ -10,6 +12,7 @@ const adminPassword = process.env.E2E_ADMIN_PASSWORD ?? "E2eAdminPassword123";
 const stripeWebhookSecret = process.env.E2E_STRIPE_WEBHOOK_SECRET ?? "e2e-webhook-secret";
 const db = new PrismaClient();
 const checks = [];
+let serviceDb;
 
 function assert(condition, label, detail = "") {
   if (!condition) throw new Error(`${label}${detail ? `: ${detail}` : ""}`);
@@ -153,6 +156,7 @@ async function main() {
   assert(registered.verificationRequired === true, "New password account requires email verification");
   const pendingDashboard = await request("/dashboard", { jar: customerJar, redirect: "manual" });
   assert([302, 303, 307, 308].includes(pendingDashboard.status) && (pendingDashboard.headers.get("location") ?? "").includes("/verify-email"), "Unverified session cannot access dashboard");
+  await jsonResponse(await request("/api/account/loyalty", { jar: customerJar }), 403, "Unverified account cannot claim guest points");
   const verificationCode = await latestVerificationCode();
   await jsonResponse(await request("/api/auth/verify-email", { method: "POST", jar: customerJar, json: { code: verificationCode === "000000" ? "000001" : "000000" } }), 400, "Incorrect verification code is rejected");
   const verification = await jsonResponse(await request("/api/auth/verify-email", { method: "POST", jar: customerJar, json: { code: verificationCode } }), 200, "Email ownership verification completes");
@@ -331,11 +335,71 @@ async function main() {
   assert(robots.lower.includes("disallow: /"), "Development robots blocks all crawling");
   assert(!sitemap.text.includes(`/products/${slug}`), "Development sitemap publishes no storefront URLs");
   assert(storeProduct.text.includes("application/ld+json") && storeProduct.text.includes("canonical"), "Product renders canonical metadata and structured data");
+  // FLOW L — real database, verified guest claiming, audited CMS controls and concurrent redemption.
+  await jsonResponse(await request("/api/account/loyalty"), 401, "Anonymous points balance is private");
+  const claimedPoints = await jsonResponse(await request("/api/account/loyalty", { jar: customerJar }), 200, "Verified purchase email claims guest points");
+  assert(claimedPoints.balance === Math.floor(paidOrder.loyaltyEligibleCents / 100), "Points exclude shipping and use authoritative merchandise prices");
+  assert(await db.loyaltyLot.count({ where: { orderId: paidOrder.id } }) === 1, "Duplicate payment webhook awards points once");
+  const pointsPageResponse = await request("/dashboard/points", { jar: customerJar });
+  const pointsPage = await bodyText(pointsPageResponse);
+  assert(pointsPageResponse.status === 200 && pointsPage.lower.includes("available points"), "Customer points history renders");
+  const pointsCmsResponse = await request("/admin/settings/loyalty", { jar: adminJar });
+  assert(pointsCmsResponse.status === 200, "Admin can review store-scoped points accounts");
+  await jsonResponse(await request("/api/admin/settings/loyalty", { method: "PATCH", jar: customerJar, json: claimedPoints.config }), 403, "Customer cannot change points economics");
+  await jsonResponse(await request("/api/admin/settings/loyalty", { method: "PATCH", jar: adminJar, json: { ...claimedPoints.config, minimumRedeemPoints: 150 } }), 400, "CMS rejects an invalid redemption minimum");
+  await jsonResponse(await request("/api/admin/settings/loyalty", { method: "PATCH", jar: adminJar, json: claimedPoints.config }), 200, "Admin can save complete points settings");
+  const linkedWallet = await db.loyaltyWallet.findFirstOrThrow({ where: { storeId: tapkinStore.id, user: { email: guestEmail } } });
+  const creditKey = randomUUID(); const adjustmentBody = { walletId: linkedWallet.id, points: 100 - claimedPoints.balance, reason: "Disposable E2E loyalty balance setup", key: creditKey };
+  await jsonResponse(await request("/api/admin/settings/loyalty", { method: "POST", jar: adminJar, json: adjustmentBody }), 200, "Manual points adjustment is accepted with a reason");
+  const repeatAdjustment = await jsonResponse(await request("/api/admin/settings/loyalty", { method: "POST", jar: adminJar, json: adjustmentBody }), 200, "Retrying a manual adjustment is safe");
+  assert(repeatAdjustment.duplicate && await db.auditLog.count({ where: { entityId: linkedWallet.id, action: "LOYALTY_ADJUSTED" } }) === 1, "Manual credits are idempotent and audited once");
+  const foreignWallet = await db.loyaltyWallet.create({ data: { storeId: homeStore.id, emailHash: `e2e-foreign-${suffix}` } });
+  await jsonResponse(await request("/api/admin/settings/loyalty", { method: "POST", jar: adminJar, json: { ...adjustmentBody, walletId: foreignWallet.id, key: randomUUID() } }), 409, "Admin cannot adjust another store's wallet");
+  await jsonResponse(await request("/api/admin/settings/loyalty", { method: "POST", jar: adminJar, json: { ...adjustmentBody, points: -101, key: randomUUID() } }), 409, "Admin cannot remove unavailable points");
+  const beforeRedeem = await jsonResponse(await request("/api/account/loyalty", { jar: customerJar }), 200, "Verified account has its adjusted balance");
+  assert(beforeRedeem.balance === 100, "Manual retries did not duplicate the credit");
+  const redemptionQuote = await jsonResponse(await request("/api/shipping/quotes", { method: "POST", json: { items: quotedItems, destination } }), 200, "Delivery quote supports points checkout");
+  const redemptionInput = { items: quotedItems, shippingQuoteToken: redemptionQuote.quotes[0].token, customer: { name: "E2E Customer", email: "spoofed@example.test", shipping: destination }, pointsToRedeem: 100 };
+  await jsonResponse(await request("/api/checkout", { method: "POST", jar: customerJar, json: { ...redemptionInput, pointsToRedeem: 150 } }), 400, "Server rejects fractional redemption units");
+  await jsonResponse(await request("/api/checkout", { method: "POST", jar: customerJar, json: { ...redemptionInput, promotionCode: "NO-STACK" } }), 400, "Server refuses coupon stacking by default");
+  const competingQuote = await jsonResponse(await request("/api/shipping/quotes", { method: "POST", json: { items: quotedItems, destination } }), 200, "Concurrent checkout has an independent delivery quote");
+  const competingRedemptions = await Promise.all([request("/api/checkout", { method: "POST", jar: customerJar, json: redemptionInput }), request("/api/checkout", { method: "POST", jar: customerJar, json: { ...redemptionInput, shippingQuoteToken: competingQuote.quotes[0].token } })]);
+  assert(competingRedemptions.filter(r => r.status === 200).length === 1 && competingRedemptions.filter(r => r.status === 409).length === 1, "Concurrent checkouts cannot spend the same 100 points twice", `statuses ${competingRedemptions.map(r => r.status)}`);
+  const redemptionResult = await competingRedemptions.find(r => r.status === 200).json();
+  const redeemedOrder = await db.order.findUniqueOrThrow({ where: { id: redemptionResult.orderId } });
+  assert(redeemedOrder.loyaltyPointsUsed === 100 && redeemedOrder.loyaltyDiscountCents === 200 && redeemedOrder.status === "PAID", "Paid order snapshots the exact points discount");
+  assert(await db.loyaltyReservation.count({ where: { walletId: linkedWallet.id, status: "SPENT" } }) === 1, "Settled reservation is spent once");
+  const afterRedeem = await jsonResponse(await request("/api/account/loyalty", { jar: customerJar }), 200, "Balance refreshes after paid redemption");
+  assert(afterRedeem.balance === Math.floor(redeemedOrder.loyaltyEligibleCents / 100), "Redeemed points cannot earn new points on their own discount");
+  const soonExpired = await db.loyaltyLot.create({ data: { walletId: linkedWallet.id, originalPoints: 50, remainingPoints: 50, expiresAt: new Date(Date.now() - 1000) } });
+  await jsonResponse(await request("/api/account/loyalty", { jar: customerJar }), 200, "Account refresh expires overdue credits");
+  await jsonResponse(await request("/api/account/loyalty", { jar: customerJar }), 200, "Expiry can be checked repeatedly");
+  assert(await db.loyaltyEntry.count({ where: { walletId: linkedWallet.id, eventKey: `expiry:${soonExpired.id}` } }) === 1, "Expired credits leave one durable history entry");
+  await jsonResponse(await request("/api/admin/settings/loyalty", { method: "PATCH", jar: adminJar, json: { ...claimedPoints.config, enabled: false } }), 200, "CMS can pause future accrual and redemption");
+  const pausedPoints = await jsonResponse(await request("/api/account/loyalty", { jar: customerJar }), 200, "Existing balance remains visible when paused");
+  assert(!pausedPoints.config.enabled && pausedPoints.balance === afterRedeem.balance, "Pausing does not erase customer credits");
+  await jsonResponse(await request("/api/admin/settings/loyalty", { method: "PATCH", jar: adminJar, json: claimedPoints.config }), 200, "Disposable test restores points settings");
+
+  // Provider-normalized confirmed refund service: no external provider calls or real money.
+  const { applyStripeRefund } = await tsImport("../lib/refunds.ts", import.meta.url);
+  serviceDb = (await tsImport("../lib/db.ts", import.meta.url)).db;
+  const redeemedPayment = await db.payment.findFirstOrThrow({ where: { orderId: redeemedOrder.id } });
+  const refundIntent = `pi_e2e_points_${suffix}`;
+  await db.payment.update({ where: { id: redeemedPayment.id }, data: { providerPaymentIntentId: refundIntent } });
+  const remoteRefund = { id: `re_e2e_points_${suffix}`, payment_intent: refundIntent, currency: "aud", amount: redeemedOrder.totalCents, status: "pending", metadata: {} };
+  await applyStripeRefund(remoteRefund);
+  const pendingRefundBalance = await jsonResponse(await request("/api/account/loyalty", { jar: customerJar }), 200, "Pending provider refund does not change points");
+  assert(pendingRefundBalance.balance === afterRedeem.balance, "Only confirmed refunds restore redemption and reverse earnings");
+  await applyStripeRefund({ ...remoteRefund, status: "succeeded" }); await applyStripeRefund({ ...remoteRefund, status: "succeeded" });
+  const refundedBalance = await jsonResponse(await request("/api/account/loyalty", { jar: customerJar }), 200, "Confirmed full refund reconciles points");
+  assert(refundedBalance.balance === 100 && await db.paymentRefund.count({ where: { providerRefundId: remoteRefund.id } }) === 1, "Full refund returns the original 100 points once and removes its earned credits");
+  assert((await db.loyaltyReservation.findUniqueOrThrow({ where: { orderId: redeemedOrder.id } })).restoredPoints === 100, "Database enforces the complete redemption return");
+
   await jsonResponse(await request("/api/auth/logout", { method: "POST", jar: customerJar }), 200, "Customer can sign out");
   const signedOutDashboard = await request("/dashboard", { jar: customerJar, redirect: "manual" });
   assert([302, 303, 307, 308].includes(signedOutDashboard.status), "Signed-out session cannot reopen the dashboard");
 
-  console.info(`\nE2E COMPLETE: ${checks.length} assertions passed across flows A–E.`);
+  console.info(`\nE2E COMPLETE: ${checks.length} assertions passed across storefront, accounts, operations, measurement and loyalty flows.`);
 }
 
-main().catch(error => { console.error(`E2E FAILED: ${error instanceof Error ? error.stack : error}`); process.exitCode = 1; }).finally(() => db.$disconnect());
+main().catch(error => { console.error(`E2E FAILED: ${error instanceof Error ? error.stack : error}`); process.exitCode = 1; }).finally(async () => { await db.$disconnect(); if (serviceDb) await serviceDb.$disconnect(); });

@@ -1,3 +1,4 @@
+import { LoyaltyError } from "@/lib/loyalty";
 import { currentMeasurementSession } from "@/lib/measurement";
 import { parsePrivacyPreferences, privacyCookieName } from "@/lib/privacy-preferences";
 import {db} from "@/lib/db";
@@ -33,8 +34,9 @@ export async function POST(request: NextRequest) {
   try {
     const consent = parsePrivacyPreferences(request.cookies.get(privacyCookieName(store.slug))?.value);
     const measurement = getRuntimeConfig().appEnv === "production" && (consent?.analytics || consent?.advertising) ? await currentMeasurementSession(request, store) : null;
-    checkout = await createPendingOrder(parsed.data.items, { ...customer, userId: user?.id, ...(measurement ? { measurementSessionId: measurement.id } : {}) }, store, parsed.data.shippingQuoteToken, parsed.data.promotionCode);
+    checkout = await createPendingOrder(parsed.data.items, { ...customer, userId: user?.id, ...(measurement ? { measurementSessionId: measurement.id } : {}) }, store, parsed.data.shippingQuoteToken, parsed.data.promotionCode, parsed.data.pointsToRedeem);
   } catch (error) {
+    if (error instanceof LoyaltyError) return jsonError(error.message, 409);
     if (error instanceof CheckoutError) return jsonError(error.message, error.status);
     if (error instanceof InventoryConflict || (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2034")) return jsonError("Stock changed while checking out. Refresh your cart and try again.", 409);
     return jsonError("Checkout could not be prepared", 500);
@@ -58,7 +60,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const coupon = checkout.order.discountCents > 0 ? await stripe.coupons.create({ id: `order-${checkout.order.payments[0].id}`, amount_off: checkout.order.discountCents, currency: store.currency.toLowerCase(), duration: "once", name: "Order promotion" }, { idempotencyKey: `coupon:${checkout.order.payments[0].id}` }) : null;
+    const coupon = checkout.order.discountCents > 0 ? await stripe.coupons.create({ id: `order-${checkout.order.payments[0].id}`, amount_off: checkout.order.discountCents, currency: store.currency.toLowerCase(), duration: "once", name: checkout.order.loyaltyDiscountCents ? "Order discount and points" : "Order promotion" }, { idempotencyKey: `coupon:${checkout.order.payments[0].id}` }) : null;
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
       customer_email: customer.email,

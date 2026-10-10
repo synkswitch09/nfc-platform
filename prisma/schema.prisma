@@ -315,6 +315,7 @@ model User {
   emailVerifiedAt           DateTime?
   createdAt                 DateTime             @default(now())
   updatedAt                 DateTime             @updatedAt
+  loyaltyWallets            LoyaltyWallet[]
   customerAccountData       CustomerAccountData[]
   teamInvitations           TeamInvitation[]
   addresses                 Address[]
@@ -403,6 +404,7 @@ model Store {
   printJobs            PrintJob[]
   landingSections      LandingPageSection[]
   marketplaceConnections MarketplaceConnection[]
+  loyaltyWallets LoyaltyWallet[]
   measurementSessions MeasurementSession[]
   measurementDeliveries MeasurementDelivery[]
 
@@ -964,6 +966,13 @@ model Order {
   currency                   String                @default("AUD")
   subtotalCents              Int
   shippingCents              Int                   @default(0)
+  loyaltySnapshot            Json?
+  loyaltyEligibleCents       Int                   @default(0)
+  loyaltyPointsUsed          Int                   @default(0)
+  loyaltyDiscountCents       Int                   @default(0)
+  loyaltyLot                LoyaltyLot?
+  loyaltyReservation        LoyaltyReservation?
+  loyaltyEntries            LoyaltyEntry[]
   discountCents              Int                   @default(0)
   promotionId                String?               @db.Uuid
   totalCents                 Int                   
@@ -1899,4 +1908,74 @@ model MeasurementDelivery {
   session     MeasurementSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   @@unique([storeId, provider, eventKey])
   @@index([status, nextAttemptAt])
+}
+
+model LoyaltyWallet {
+  id String @id @default(uuid()) @db.Uuid
+  storeId String @db.Uuid
+  emailHash String
+  userId String? @db.Uuid
+  debtPoints Int @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+  lots LoyaltyLot[]
+  reservations LoyaltyReservation[]
+  entries LoyaltyEntry[]
+  @@unique([storeId, emailHash])
+  @@index([storeId, userId])
+}
+model LoyaltyLot {
+  id String @id @default(uuid()) @db.Uuid
+  walletId String @db.Uuid
+  orderId String? @unique @db.Uuid
+  originalPoints Int
+  remainingPoints Int
+  revokedPoints Int @default(0)
+  expiredPoints Int @default(0)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  wallet LoyaltyWallet @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  order Order? @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  allocations LoyaltyAllocation[]
+  @@index([walletId, expiresAt])
+  @@index([expiresAt, remainingPoints])
+}
+model LoyaltyReservation {
+  id String @id @default(uuid()) @db.Uuid
+  walletId String @db.Uuid
+  orderId String @unique @db.Uuid
+  points Int
+  discountCents Int
+  restoredPoints Int @default(0)
+  status String @default("HELD")
+  createdAt DateTime @default(now())
+  wallet LoyaltyWallet @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  allocations LoyaltyAllocation[]
+}
+model LoyaltyAllocation {
+  id String @id @default(uuid()) @db.Uuid
+  reservationId String @db.Uuid
+  lotId String @db.Uuid
+  points Int
+  restoredPoints Int @default(0)
+  reservation LoyaltyReservation @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+  lot LoyaltyLot @relation(fields: [lotId], references: [id], onDelete: Cascade)
+  @@unique([reservationId, lotId])
+}
+model LoyaltyEntry {
+  id String @id @default(uuid()) @db.Uuid
+  walletId String @db.Uuid
+  orderId String? @db.Uuid
+  eventKey String
+  kind String
+  points Int
+  description String
+  createdAt DateTime @default(now())
+  wallet LoyaltyWallet @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  order Order? @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  @@unique([walletId, eventKey])
+  @@index([walletId, createdAt])
 }

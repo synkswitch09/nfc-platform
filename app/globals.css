@@ -5793,3 +5793,11 @@ body[data-store="kosykin"] .site-header.compact-header nav.is-open .nav-centre a
 .support-inbox-filters .field {flex:1 1 180px;}
 
 .measurement-frame { position:fixed; width:1px; height:1px; border:0; opacity:0; pointer-events:none; bottom:0; left:0; }
+
+/* Points histories keep long notes inside a keyboard-scrollable table. */
+.loyalty-table-wrap { min-width: 0; max-width: 100%; overflow-x: auto; margin: 16px 0; border: 1px solid var(--line); border-radius: 12px; }
+.loyalty-table-wrap table { width: 100%; min-width: 560px; border-collapse: collapse; text-align: left; font-size: .9rem; }
+.loyalty-table-wrap th, .loyalty-table-wrap td { padding: 12px 14px; vertical-align: top; border-bottom: 1px solid var(--line); overflow-wrap: anywhere; }
+.loyalty-table-wrap th { background: var(--surface); font-weight: 700; }
+.loyalty-table-wrap tr:last-child td { border-bottom: 0; }
+.loyalty-table-wrap td:last-child { min-width: 180px; max-width: 380px; }

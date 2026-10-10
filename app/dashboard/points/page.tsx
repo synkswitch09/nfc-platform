@@ -1,0 +1,15 @@
+import Link from "next/link";
+import { requireUser } from "@/lib/auth";
+import { getCurrentStorefront } from "@/lib/storefront";
+import { loyaltyAccount } from "@/lib/loyalty";
+import { parseLoyaltyConfig } from "@/lib/loyalty-config";
+export default async function PointsPage() {
+  const [user, store] = await Promise.all([requireUser(), getCurrentStorefront()]);
+  const [account, config] = [await loyaltyAccount(user, store.id), parseLoyaltyConfig(store.accountConfig)];
+  const money = new Intl.NumberFormat("en-AU", { style: "currency", currency: "AUD" });
+  return <section className="dashboard"><p className="eyebrow">Your {store.displayName} account</p><h1>Points</h1><div className="card"><h2>{account.balance.toLocaleString("en-AU")} available points</h2><p>{account.reservedPoints} points reserved for checkouts awaiting confirmation.</p>{account.debtPoints > 0 && <p>{account.debtPoints} points from refunded purchases had already been used. Future credits offset this adjustment before they become available; this is not a cash payment request.</p>}</div>
+    {config.enabled && store.currency === "AUD" ? <p>Earn {config.pointsPerDollar} point(s) per A$1 of products after discounts, excluding shipping. {config.redemptionUnitPoints} points give {money.format(config.redemptionUnitCents / 100)} off. Redeem at least {config.minimumRedeemPoints} points, in units of {config.redemptionUnitPoints}, up to {config.maximumRedeemPercent}% of products after promotional discounts. {config.allowCouponStacking ? "Points can be combined with eligible offers." : "Choose points or a promotional offer; they cannot be combined."} New points expire after {config.expiryMonths} months.</p> : <p>New earning and redemption are currently paused. Your existing history and original expiry dates remain available.</p>}
+    <p>Balances are separate for each store. Purchases made as a guest with your verified email are included automatically. Refunds adjust earned and redeemed points proportionally to the confirmed cash refund; returned points keep their original expiry. There is no cash withdrawal or transfer between stores.</p>
+    <h2>Upcoming expiry</h2>{account.expiring.length ? <ul>{account.expiring.map((lot, i) => <li key={i}>{lot.points} points · {lot.expiresAt.toLocaleDateString("en-AU", { timeZone: store.timezone })}</li>)}</ul> : <p>No available points awaiting expiry.</p>}
+    <h2>Recent activity</h2><div className="loyalty-table-wrap" tabIndex={0} role="region" aria-label="Points table"><table><thead><tr><th>Date</th><th>Activity</th><th>Points</th><th>Details</th></tr></thead><tbody>{account.history.map(row => <tr key={row.id}><td>{row.createdAt.toLocaleDateString("en-AU", { timeZone: store.timezone })}</td><td>{row.kind.replaceAll("_", " ")}</td><td>{row.points > 0 ? "+" : ""}{row.points}</td><td>{row.order?.orderNumber && <strong>{row.order.orderNumber}: </strong>}{row.description}</td></tr>)}</tbody></table></div>{!account.history.length && <p>Your first points will appear here after a qualifying payment is confirmed.</p>}<Link className="button secondary" href="/shop">Browse products</Link></section>;
+}
