@@ -3,14 +3,14 @@ import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import type { IntegrationConfig } from "@/lib/integration-config";
 
-export function IntegrationSettingsForm({ config, geoapifyReady, analyticsReady }: { config: IntegrationConfig; geoapifyReady: boolean; analyticsReady: boolean }) {
+export function IntegrationSettingsForm({ config, geoapifyReady, analyticsReady, metaReady, production, origin }: { config: IntegrationConfig; geoapifyReady: boolean; analyticsReady: boolean; metaReady: boolean; production: boolean; origin: string }) {
   const router = useRouter();
   const [message, setMessage] = useState("");
   const [pending, setPending] = useState(false);
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); setPending(true); setMessage("");
     const data = new FormData(event.currentTarget);
-    const payload = { ...Object.fromEntries(["geoapifyEnabled", "rememberCheckoutEnabled", "analyticsEnabled"].map(key => [key, data.get(key) === "on"])), rememberCheckoutDays: Number(data.get("rememberCheckoutDays")), ...Object.fromEntries(["ga4MeasurementId", "clarityProjectId", "metaPixelId", "metaCatalogId"].map(key => [key, String(data.get(key) ?? "").trim()])) };
+    const payload = { ...Object.fromEntries(["geoapifyEnabled", "rememberCheckoutEnabled", "analyticsEnabled", "clarityEnabled", "metaPixelEnabled", "metaCapiEnabled", "metaCatalogEnabled"].map(key => [key, data.get(key) === "on"])), rememberCheckoutDays: Number(data.get("rememberCheckoutDays")), ...Object.fromEntries(["ga4MeasurementId", "clarityProjectId", "metaPixelId", "metaCatalogId"].map(key => [key, String(data.get(key) ?? "").trim()])) };
     try {
       const response = await fetch("/api/admin/settings/integrations", { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify(payload) });
       const result = await response.json();
@@ -35,8 +35,27 @@ export function IntegrationSettingsForm({ config, geoapifyReady, analyticsReady 
       <label className="field">Google Analytics measurement ID<input name="ga4MeasurementId" defaultValue={config.ga4MeasurementId} placeholder="G-…" maxLength={22} /></label>
       <label className="check-field"><input type="checkbox" name="analyticsEnabled" defaultChecked={config.analyticsEnabled} />Enable consent-based shopping events in production</label>
       <p>{analyticsReady ? "Server credential configured. Events require a measurement ID, production mode and visitor consent." : "Server credential not configured. No analytics events will be sent."}</p>
-      <p className="fine-print">The following IDs prepare the next integration phase. Saving them does not load scripts, send advertising events or synchronise products.</p>
-      {([ ["clarityProjectId", "Microsoft Clarity project ID"], ["metaPixelId", "Meta Pixel ID"], ["metaCatalogId", "Meta catalog ID"] ] as const).map(([key, label]) => <label className="field" key={key}>{label}<input name={key} defaultValue={config[key]} maxLength={key === "clarityProjectId" ? 40 : 30} /></label>)}
+      {!production && <p className="notice">This environment never sends live analytics or advertising events and never serves the production catalog feed.</p>}
+    </fieldset>
+    <fieldset><legend>Microsoft Clarity</legend>
+      <label className="field">Clarity project ID<input name="clarityProjectId" defaultValue={config.clarityProjectId} maxLength={40} /></label>
+      <label className="check-field"><input type="checkbox" name="clarityEnabled" defaultChecked={config.clarityEnabled} />Enable recordings after analytics consent</label>
+      <p className="fine-print">Anonymous home, shop, FAQ and policy browsing only. All text is masked. Checkout, products with personalisation, accounts, orders, tickets, administration and NFC profiles are excluded. Select strict masking and require consent in Clarity too.</p>
+    </fieldset>
+    <fieldset><legend>Meta advertising</legend>
+      <label className="field">Meta Pixel / dataset ID<input name="metaPixelId" defaultValue={config.metaPixelId} maxLength={30} /></label>
+      <label className="check-field"><input type="checkbox" name="metaPixelEnabled" defaultChecked={config.metaPixelEnabled} />Enable Meta Pixel after advertising consent</label>
+      <label className="check-field"><input type="checkbox" name="metaCapiEnabled" defaultChecked={config.metaCapiEnabled} />Enable Conversions API after advertising consent</label>
+      <p>{metaReady ? "Matching Conversions API credential configured." : "Conversions API needs this store’s matching dataset ID and access token in META_CONVERSIONS_STORES in Azure."}</p>
+      <p className="fine-print">Pixel and server events share an event ID. Payment-confirmed purchases are measured once per order. Personalised text and contact details are never sent. Refunds are recorded in GA4; Meta has no standard ecommerce Refund event.</p>
+    </fieldset>
+    <fieldset><legend>Meta catalog</legend>
+      <label className="field">Meta catalog ID<input name="metaCatalogId" defaultValue={config.metaCatalogId} maxLength={30} /></label>
+      <label className="check-field"><input type="checkbox" name="metaCatalogEnabled" defaultChecked={config.metaCatalogEnabled} />Publish this store’s production catalog feed</label>
+      <p className="fine-print">In Commerce Manager, add a scheduled data feed using the URL below, choose a complete replacement feed, and schedule daily or hourly updates. New products and changes are included automatically at the next Meta import. Products without a public image or valid price are omitted.</p>
+      <label className="field">Production feed URL<input readOnly value={`${origin}/api/meta/catalog`} /></label>
+      {production && config.metaCatalogEnabled && <a className="text-button" href="/api/meta/catalog" target="_blank" rel="noreferrer">View current catalog feed</a>}
+      <a className="text-button" href="/admin/settings/measurement">View measurement delivery status</a>
     </fieldset>
     <button className="button secondary" disabled={pending}>{pending ? "Saving…" : "Save integration settings"}</button>
     {message && <p role="status">{message}</p>}

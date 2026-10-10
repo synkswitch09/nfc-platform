@@ -403,6 +403,8 @@ model Store {
   printJobs            PrintJob[]
   landingSections      LandingPageSection[]
   marketplaceConnections MarketplaceConnection[]
+  measurementSessions MeasurementSession[]
+  measurementDeliveries MeasurementDelivery[]
 
   @@index([status, name])
 }
@@ -982,6 +984,8 @@ model Order {
   productionBooking          ProductionBooking?
   promotion                  Promotion?            @relation(fields: [promotionId], references: [id], onDelete: SetNull)
   marketplaceOrder           MarketplaceOrder?
+  measurementSessionId       String?               @db.Uuid
+  measurementSession         MeasurementSession?   @relation(fields: [measurementSessionId], references: [id], onDelete: SetNull)
 
   @@index([storeId, userId, createdAt])
   @@index([storeId, guestEmail, createdAt])
@@ -1851,4 +1855,48 @@ model TeamInvitation {
   store Store @relation(fields:[storeId],references:[id],onDelete:Restrict)
   inviter User @relation(fields:[invitedBy],references:[id],onDelete:Restrict)
   @@index([storeId, email])
+}
+
+// Only anonymous measurement identifiers and allowlisted commerce payloads.
+model MeasurementSession {
+  id          String   @id @default(uuid()) @db.Uuid
+  tokenHash   String   @unique
+  storeId     String   @db.Uuid
+  clientId    String
+  sessionId   String
+  analytics   Boolean  @default(false)
+  advertising Boolean  @default(false)
+  fbp         String?
+  fbc         String?
+  clientUserAgent String?
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  store       Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  orders      Order[]
+  deliveries  MeasurementDelivery[]
+  @@index([expiresAt])
+}
+
+model MeasurementDelivery {
+  id          String   @id @default(uuid()) @db.Uuid
+  storeId     String   @db.Uuid
+  sessionId   String   @db.Uuid
+  provider    String
+  targetId    String
+  eventKey    String
+  eventName   String
+  payload     Json
+  eventTime   DateTime @default(now())
+  status      String   @default("PENDING")
+  attempts    Int      @default(0)
+  leaseToken  String?
+  leaseUntil  DateTime?
+  nextAttemptAt DateTime @default(now())
+  sentAt      DateTime?
+  lastError   String?
+  store       Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  session     MeasurementSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  @@unique([storeId, provider, eventKey])
+  @@index([status, nextAttemptAt])
 }

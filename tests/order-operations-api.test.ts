@@ -6,6 +6,7 @@ vi.mock("@/lib/http", () => ({ assertSameOrigin: m.origin, jsonError: (error: st
 vi.mock("@/lib/db", () => ({ db: { order: { findFirst: m.order } } }));
 vi.mock("@/lib/refunds", () => ({ requestFullRefund: m.refund, restockRefundedOrder: vi.fn(), processRefund: vi.fn(), processPendingRefunds: m.reconcile, RefundError: class extends Error {} }));
 vi.mock("@/lib/order-notifications", () => ({ notifyPaidOrder: m.queue, processOrderNotifications: m.notices }));
+vi.mock("@/lib/measurement", () => ({ processMeasurementDeliveries: async () => ({ checked: 0 }) }));
 vi.mock("@/lib/support-notifications", () => ({ processSupportNotifications: async () => ({ checked: 0 }) }));
 vi.mock("@/lib/shippit-preparation", () => ({ processShippitPreparations: m.shipping }));
 vi.mock("@/lib/config", () => ({ getRuntimeConfig: m.config }));
@@ -46,5 +47,5 @@ it("continues processing notices if refund reconciliation fails", async () => {
   m.reconcile.mockRejectedValue(new Error("provider unavailable"));
   m.notices.mockResolvedValue({ checked: 1 });
   const response = await worker(new NextRequest("https://test.example/api/integrations/orders/process", { method: "POST", headers: { authorization: "Bearer test-secret" } }));
-  expect(await response.json()).toEqual({ support: { checked: 0 }, shipping: { checked: 0 }, refunds: { error: "retry_required" }, notifications: { checked: 1 } });
+  expect(await response.json()).toEqual({ measurement: { checked: 0 }, support: { checked: 0 }, shipping: { checked: 0 }, refunds: { error: "retry_required" }, notifications: { checked: 1 } });
 });

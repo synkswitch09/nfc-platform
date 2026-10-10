@@ -1,4 +1,5 @@
 "use client";
+import { ensureMeasurementSession } from "@/lib/measurement-client";
 
 import { FormEvent, useEffect, useRef, useState } from "react";
 import Link from "next/link";
@@ -94,6 +95,7 @@ export function CheckoutForm({ account, store, countries, integrations: configur
     const form = event.currentTarget;
     const data = new FormData(form);
     try {
+      await ensureMeasurementSession(store.slug, true);
       const response = await fetch("/api/checkout", {
       method: "POST",
       headers: { "content-type": "application/json" },

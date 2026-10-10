@@ -18,6 +18,14 @@ const analyticsStores = z.preprocess((value) => {
   if (typeof value !== "string") return value;
   try { return JSON.parse(value); } catch { return null; }
 }, analyticsStoresSchema);
+const metaStores = z.preprocess(value => {
+  if (!value) return {};
+  if (typeof value !== "string") return value;
+  try { return JSON.parse(value); } catch { return null; }
+}, z.record(z.string().regex(/^[a-z0-9-]+$/), z.object({
+  pixelId: z.string().regex(/^[0-9]{5,30}$/),
+  accessToken: z.string().trim().min(20).max(2000),
+}).strict()));
 
 const runtimeConfigSchema = z.object({
   APP_ENV: z.enum(appEnvironments).default("development"),
@@ -58,6 +66,7 @@ const runtimeConfigSchema = z.object({
   PRODUCTION_CHECKOUT_ENABLED: booleanString,
   ANALYTICS_ID: optionalString,
   ANALYTICS_GA4_STORES: analyticsStores,
+  META_CONVERSIONS_STORES: metaStores,
   LOG_LEVEL: z.enum(["info", "warn", "error"]).default("info"),
   DEV_ADMIN_EMAIL: optionalString,
   DEV_ADMIN_PASSWORD: optionalString,
@@ -75,6 +84,8 @@ const runtimeConfigSchema = z.object({
   paired(value.STAGING_ADMIN_EMAIL, value.STAGING_ADMIN_PASSWORD, "STAGING_ADMIN_EMAIL", "STAGING_ADMIN_PASSWORD");
   if (value.ANALYTICS_ID) issue("ANALYTICS_ID", "Use per-store ANALYTICS_GA4_STORES instead of a shared analytics ID");
   const ids = Object.values(value.ANALYTICS_GA4_STORES).map(item => item.measurementId);
+  const pixelIds = Object.values(value.META_CONVERSIONS_STORES).map(item => item.pixelId);
+  if (new Set(pixelIds).size !== pixelIds.length) issue("META_CONVERSIONS_STORES", "Each store needs a separate Meta dataset");
   if (new Set(ids).size !== ids.length) issue("ANALYTICS_GA4_STORES", "Each store needs a separate GA4 web stream");
 
   if (value.DATABASE_URL) {
@@ -168,6 +179,7 @@ export type RuntimeConfig = {
   etsy: { apiKey?: string; sharedSecret?: string; syncSecret?: string };
   geoapifyStores: Record<string, { apiKey: string }>;
   analyticsStores: Record<string, { measurementId: string; apiSecret: string }>;
+  metaStores: Record<string, { pixelId: string; accessToken: string }>;
   logLevel: "info" | "warn" | "error";
   previewMode: boolean;
   checkoutEnabled: boolean;
@@ -194,6 +206,7 @@ export function parseRuntimeConfig(environment: Record<string, string | undefine
     stripe: { reconcileSecret: value.CHECKOUT_RECONCILE_SECRET, secretKey: value.STRIPE_SECRET_KEY, webhookSecret: value.STRIPE_WEBHOOK_SECRET, publishableKey: value.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY, testCheckout: value.ENABLE_TEST_CHECKOUT },
     etsy: { apiKey: value.ETSY_API_KEY, sharedSecret: value.ETSY_SHARED_SECRET, syncSecret: value.ETSY_SYNC_SECRET },
     analyticsStores: value.ANALYTICS_GA4_STORES,
+    metaStores: value.META_CONVERSIONS_STORES,
     geoapifyStores: value.GEOAPIFY_STORES,
     logLevel: value.LOG_LEVEL,
     previewMode: value.PRODUCTION_PREVIEW_MODE,

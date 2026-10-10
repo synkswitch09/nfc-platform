@@ -24,6 +24,12 @@ export function savePrivacyPreferences(store: string, analytics: boolean, advert
     localStorage.removeItem(`commerce-analytics-consent:${store}`);
     if (!analytics) sessionStorage.removeItem(`commerce-analytics-client:${store}`);
   } catch { /* Blocked browser storage must not interrupt privacy choices. */ }
+  for (const name of [...(!analytics ? ["_clck", "_clsk"] : []), ...(!advertising ? ["_fbp", "_fbc"] : [])]) {
+    document.cookie = `${name}=; Path=/; Max-Age=0`;
+    document.cookie = `${name}=; Path=/; Max-Age=0; Domain=${location.hostname}`;
+    const base = location.hostname.split(".").slice(-3).join(".");
+    if (base !== location.hostname) document.cookie = `${name}=; Path=/; Max-Age=0; Domain=${base}`;
+  }
   window.dispatchEvent(new Event(privacyEvent));
   return value;
 }

@@ -1,3 +1,4 @@
+import { measurementAvailability } from "@/lib/measurement";
 import { SupportSettingsForm } from "@/components/support-settings-form";
 import { parseSupportConfig } from "@/lib/support-config";
 import { IntegrationSettingsForm } from "@/components/integration-settings-form";
@@ -14,6 +15,7 @@ import { db } from "@/lib/db";
 import { StoreCapability } from "@prisma/client";
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import { storeDomainOrigin } from "@/lib/storefront";
 import { isStoreResetAllowed } from "@/lib/store-reset";
 
 export default async function AdminSettingsPage() {
@@ -37,6 +39,10 @@ export default async function AdminSettingsPage() {
     }),
   );
   const runtime = getRuntimeConfig();
+  const integrations = parseIntegrationConfig(context.store.integrations);
+  const ready = measurementAvailability(context.store.slug, integrations);
+  const productionDomain = domainRows.find(d => d.environment === "PRODUCTION" && d.isPrimary);
+  const catalogOrigin = productionDomain ? storeDomainOrigin(productionDomain) : context.store.origin;
   const fallbackSender = defaultStoreSender(domainRows);
   const senders = parseEmailSenders(parseAccountConfig(context.store.accountConfig).emailSenders, fallbackSender, context.store.displayName);
   return (
@@ -51,7 +57,7 @@ export default async function AdminSettingsPage() {
           </p>
         </div>
       </div>
-      <IntegrationSettingsForm config={parseIntegrationConfig(context.store.integrations)} geoapifyReady={Boolean(runtime.geoapifyStores[context.store.slug])} analyticsReady={Boolean(runtime.analyticsStores[context.store.slug])} />
+      <IntegrationSettingsForm config={parseIntegrationConfig(context.store.integrations)} geoapifyReady={Boolean(runtime.geoapifyStores[context.store.slug])} analyticsReady={ready.ga4} metaReady={ready.capi} production={runtime.appEnv === "production"} origin={catalogOrigin} />
       <EmailSendersForm senders={senders} domain={senderDomain(fallbackSender)} />
       <SupportSettingsForm config={parseSupportConfig(context.store.accountConfig)} timezone={context.store.timezone} />
       <AccountSettingsForm config={parseAccountConfig(context.store.accountConfig)} />

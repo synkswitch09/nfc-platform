@@ -97,7 +97,7 @@ def main():
     cleanup = os.environ.get("ALLOW_LEGACY_REMOVAL") == "true"
     migration_name = os.environ.get("AZURE_MIGRATION_JOB")
     changes = {key: value for key, value in defaults.items() if values.get(key) != value}
-    for optional in ("GOOGLE_OAUTH_STORES", "GEOAPIFY_STORES"):
+    for optional in ("GOOGLE_OAUTH_STORES", "GEOAPIFY_STORES", "ANALYTICS_GA4_STORES", "META_CONVERSIONS_STORES"):
         if optional not in env:
             changes[optional] = ""
     if apply:

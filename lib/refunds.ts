@@ -1,3 +1,4 @@
+import { queueOrderMeasurement } from "@/lib/measurement";
 import { Prisma } from "@prisma/client";
 import type Stripe from "stripe";
 import { db } from "@/lib/db";
@@ -52,6 +53,7 @@ export async function applyStripeRefund(remote: Stripe.Refund) {
     await tx.payment.update({ where: { id: payment.id }, data: { refundedAmountCents: amount, ...(amount === payment.amountCents ? { status: "REFUNDED" } : {}) } });
     if (!existing || existing.status !== status) {
       await tx.auditLog.create({ data: { storeId: payment.order.storeId, action: "REFUND_STATUS_CHANGED", entityType: "PaymentRefund", entityId: refund.id, metadata: { orderId: payment.orderId, status, amountCents: remote.amount, partial: amount > 0 && amount < payment.amountCents } } });
+      if (status === "SUCCEEDED") await queueOrderMeasurement(tx, payment.orderId, { id: refund.id, amountCents: remote.amount });
       if (status === "SUCCEEDED") await queueOrderNotice(tx, payment.orderId, `refund:${refund.id}`, "Refund confirmed", `A refund of ${(remote.amount / 100).toFixed(2)} ${payment.currency} has been confirmed by the payment provider. Your bank determines when it appears in your account.`);
     }
     return { refundId: refund.id, status };

@@ -1,3 +1,4 @@
+import { queueOrderMeasurement } from "@/lib/measurement";
 import { queueShippitPreparation, processShippitPreparations } from "@/lib/shippit-preparation";
 import { changeReservation, consumeStock, orderReservations } from "@/lib/inventory-service";
 import { randomUUID } from "node:crypto";
@@ -19,6 +20,7 @@ import { calculatePromotion } from "@/lib/promotions";
 export type CheckoutItemInput = { variantId: string; quantity: number; personalisationChoice?: "BASIC" | "PERSONALISED"; personalisation?: Record<string, string> };
 export type CheckoutCustomerInput = {
   userId?: string;
+  measurementSessionId?: string;
   email: string;
   name: string;
   shipping: ShippingDestination;
@@ -103,6 +105,7 @@ export async function createPendingOrder(items: CheckoutItemInput[], customer: C
         userId: customer.userId,
         storeId: store.id,
         sourceDomain: store.hostname,
+        measurementSessionId: customer.measurementSessionId,
         checkoutEnvironment: store.environment,
         storeDisplayName: store.displayName,
         guestEmail: customer.userId ? null : customer.email,
@@ -224,6 +227,7 @@ export async function settleCheckoutEvent(input: { eventId: string; eventType: s
     for (const productId of new Set(payment.order.items.map(item => item.variant.productId))) await queueEtsyInventorySync(tx, payment.order.storeId, productId);
     await tx.payment.update({ where: { id: payment.id }, data: { status: "SUCCEEDED", providerPaymentIntentId: input.paymentIntentId ?? null } });
     await tx.orderStatusHistory.create({ data: { orderId: payment.orderId, fromStatus: "PAYMENT_PENDING", toStatus: "PAID" } });
+    await queueOrderMeasurement(tx, payment.orderId);
     const jobs = payment.order.items.flatMap(item => {
       const requirements = manufacturingRequirements(payment.order.store.capabilities, item.productType);
       return requirements ? [{ storeId: payment.order.storeId, orderItemId: item.id, productVariantId: item.variantId, quantity: item.quantity, material: item.variant.material, colour: item.variant.colour, requiresNfc: requirements.requiresNfc, estimatedMinutes: item.variant.productionMinutes ? item.variant.productionMinutes * item.quantity : null }] : [];

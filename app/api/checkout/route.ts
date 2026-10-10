@@ -1,3 +1,5 @@
+import { currentMeasurementSession } from "@/lib/measurement";
+import { parsePrivacyPreferences, privacyCookieName } from "@/lib/privacy-preferences";
 import {db} from "@/lib/db";
 import {addressDatabaseFields} from "@/lib/address-validation";
 import { randomUUID } from "node:crypto";
@@ -29,7 +31,9 @@ export async function POST(request: NextRequest) {
 
   let checkout;
   try {
-    checkout = await createPendingOrder(parsed.data.items, { ...customer, userId: user?.id }, store, parsed.data.shippingQuoteToken, parsed.data.promotionCode);
+    const consent = parsePrivacyPreferences(request.cookies.get(privacyCookieName(store.slug))?.value);
+    const measurement = getRuntimeConfig().appEnv === "production" && (consent?.analytics || consent?.advertising) ? await currentMeasurementSession(request, store) : null;
+    checkout = await createPendingOrder(parsed.data.items, { ...customer, userId: user?.id, ...(measurement ? { measurementSessionId: measurement.id } : {}) }, store, parsed.data.shippingQuoteToken, parsed.data.promotionCode);
   } catch (error) {
     if (error instanceof CheckoutError) return jsonError(error.message, error.status);
     if (error instanceof InventoryConflict || (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2034")) return jsonError("Stock changed while checking out. Refresh your cart and try again.", 409);
