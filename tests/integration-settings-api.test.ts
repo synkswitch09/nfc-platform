@@ -1,13 +1,13 @@
 import { beforeEach, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
-const m = vi.hoisted(() => ({ context: vi.fn(), permission: vi.fn(), update: vi.fn(), audit: vi.fn(), revalidate: vi.fn() }));
+const m = vi.hoisted(() => ({ context: vi.fn(), permission: vi.fn(), update: vi.fn(), others: vi.fn(), audit: vi.fn(), revalidate: vi.fn() }));
 vi.mock("@/lib/admin", () => ({ getAdminApiContext: m.context, hasPermission: m.permission }));
 vi.mock("next/cache", () => ({ revalidatePath: m.revalidate }));
-vi.mock("@/lib/db", () => ({ db: { $transaction: (fn: (tx: unknown) => Promise<unknown>) => fn({ store: { update: m.update }, auditLog: { create: m.audit } }) } }));
+vi.mock("@/lib/db", () => ({ db: { $transaction: (fn: (tx: unknown) => Promise<unknown>) => fn({ $executeRaw: async () => 1, store: { update: m.update, findMany: m.others }, auditLog: { create: m.audit } }) } }));
 import { PATCH } from "@/app/api/admin/settings/integrations/route";
 const request = (body: unknown, origin = "https://kosykin.test") => new NextRequest("https://kosykin.test/api/admin/settings/integrations", { method: "PATCH", headers: { origin, host: "kosykin.test" }, body: JSON.stringify(body) });
 beforeEach(() => {
-  vi.resetAllMocks(); m.context.mockResolvedValue({ user: { id: "admin" }, store: { id: "store-1" } }); m.permission.mockReturnValue(true);
+  vi.resetAllMocks(); m.others.mockResolvedValue([]); m.context.mockResolvedValue({ user: { id: "admin" }, store: { id: "store-1" } }); m.permission.mockReturnValue(true);
   m.update.mockResolvedValue({ accountConfig: { googleEnabled: false, emailSenders: { default: { address: "orders@kosykin.test" } } } });
 });
 it("updates only the authorised store and preserves account settings and email senders", async () => {
@@ -20,5 +20,12 @@ it("rejects unauthorised changes, cross-origin requests, secrets and store overr
   m.permission.mockReturnValue(false); expect((await PATCH(request({}))).status).toBe(403);
   m.permission.mockReturnValue(true);
   for (const body of [{ apiKey: "private" }, { storeId: "other" }, { rememberCheckoutDays: 91 }]) expect((await PATCH(request(body))).status).toBe(400);
+  expect(m.update).not.toHaveBeenCalled();
+});
+
+it("rejects duplicate store identifiers and enabled integrations without IDs", async () => {
+  expect((await PATCH(request({ metaPixelEnabled: true }))).status).toBe(400);
+  m.others.mockResolvedValue([{ accountConfig: { integrations: { metaPixelId: "123456" } } }]);
+  expect((await PATCH(request({ metaPixelId: "123456" }))).status).toBe(400);
   expect(m.update).not.toHaveBeenCalled();
 });

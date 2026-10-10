@@ -171,6 +171,26 @@ async function main() {
   await jsonResponse(await request("/api/admin/products", { method: "POST", json: {} }), 403, "Customerless request is rejected by Product Admin");
   const login = await jsonResponse(await request("/api/auth/login", { method: "POST", jar: adminJar, json: { email: adminEmail, password: adminPassword } }), 200, "Development administrator can sign in");
   assert(login.user.role === "ADMIN", "Administrator role is enforced");
+  // FLOW M — measurement boundaries and durable deduplication, using only the disposable DB.
+  const beforeMeasurement = await db.store.findUniqueOrThrow({ where: { id: tapkinStore.id }, select: { accountConfig: true } });
+  await jsonResponse(await request("/api/admin/settings/integrations", { method: "PATCH", jar: adminJar, json: { analyticsEnabled: true, ga4MeasurementId: "G-E2E1234567", clarityEnabled: true, clarityProjectId: "e2eclarity", metaPixelEnabled: true, metaCapiEnabled: true, metaPixelId: "999999999901", metaCatalogEnabled: true, metaCatalogId: "999999999902" } }), 200, "CMS stores phase-four integration controls without private credentials");
+  const disabledConsent = new Map([["privacy-preferences-tapkin", encodeURIComponent(JSON.stringify({ version: 1, analytics: true, advertising: true, savedAt: Date.now() }))]]);
+  await jsonResponse(await request("/api/analytics/session", { method: "POST", jar: disabledConsent, json: { clientId: "123.456" } }), 404, "Development cannot start live measurement even with all CMS switches enabled");
+  await jsonResponse(await request("/api/analytics", { method: "POST", jar: disabledConsent, json: { event: "view_item", eventId: paidOrder.id, productId: paidOrder.items?.[0]?.variantId ?? paidOrder.id } }), 404, "Development shopping events never reach live providers");
+  assert((await request("/api/analytics/pixel", { jar: disabledConsent })).status === 404, "Pixel document is unavailable outside production");
+  assert((await request("/api/meta/catalog")).status === 404, "Development cannot serve a live Meta catalog");
+  const measurementPage = await bodyText(await request("/admin/settings/measurement", { jar: adminJar }));
+  assert(measurementPage.status === 200 && measurementPage.text.includes("Measurement &amp; catalog"), "CMS delivery status is available to the administrator");
+  const measurementSession = await db.measurementSession.create({ data: { tokenHash: `e2e-measurement-${suffix}`, storeId: tapkinStore.id, clientId: "123.456", sessionId: "123", analytics: true, advertising: false, expiresAt: new Date(Date.now() + 3600_000) } });
+  const eventKey = `e2e-purchase:${suffix}`;
+  await Promise.all(Array.from({ length: 4 }, () => db.measurementDelivery.upsert({ where: { storeId_provider_eventKey: { storeId: tapkinStore.id, provider: "GA4", eventKey } }, create: { storeId: tapkinStore.id, sessionId: measurementSession.id, provider: "GA4", targetId: "G-E2E1234567", eventKey, eventName: "purchase", payload: { transaction_id: paidOrder.id, value: 1, currency: "AUD" } }, update: {} })));
+  assert(await db.measurementDelivery.count({ where: { storeId: tapkinStore.id, provider: "GA4", eventKey } }) === 1, "Concurrent event retries create only one durable provider delivery");
+  await db.order.update({ where: { id: paidOrder.id }, data: { measurementSessionId: measurementSession.id } });
+  await db.measurementSession.delete({ where: { id: measurementSession.id } });
+  assert(await db.measurementDelivery.count({ where: { sessionId: measurementSession.id } }) === 0, "Anonymous session deletion also removes its measurement deliveries");
+  assert((await db.order.findUniqueOrThrow({ where: { id: paidOrder.id } })).measurementSessionId === null, "Retention cleanup removes the measurement pointer without deleting the order");
+  await db.store.update({ where: { id: tapkinStore.id }, data: { accountConfig: beforeMeasurement.accountConfig } });
+
   // FLOW S — verified guest support, private replies and preparation interlocks.
   const supportJar = new Map();
   await jsonResponse(await request("/api/support/tickets"), 401, "Guests cannot read tickets before email verification");

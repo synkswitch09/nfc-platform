@@ -1,3 +1,5 @@
+import { StoreMeasurement } from "@/components/store-measurement";
+import { measurementAvailability } from "@/lib/measurement";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { getCurrentUser } from "@/lib/auth";
@@ -152,11 +154,13 @@ export default async function RootLayout({
   const nfcEnabled = hasStoreCapability(store, StoreCapability.NFC);
   const runtime = getRuntimeConfig();
   const integrations = parseIntegrationConfig(store.integrations);
-  const analyticsEnabled = runtime.appEnv === "production" && integrations.analyticsEnabled && Boolean(integrations.ga4MeasurementId && runtime.analyticsStores[store.slug]);
+  const availability = measurementAvailability(store.slug, integrations);
+  const analyticsEnabled = availability.ga4 || availability.clarity;
   return (
     <html lang={locale}>
       <body
         className={inter.variable}
+        data-clarity-mask="true"
         data-store={store.slug}
         data-theme-style={store.theme.fontStyle}
         style={{
@@ -201,7 +205,8 @@ export default async function RootLayout({
             locale={locale}
             defaultLocale={store.defaultLocale}
           />
-          <PrivacyControls store={store.slug} analyticsAvailable={analyticsEnabled} rememberEnabled={integrations.rememberCheckoutEnabled} retentionDays={integrations.rememberCheckoutDays} />
+          <StoreMeasurement store={store.slug} production={runtime.appEnv === "production"} clarityProjectId={availability.clarity ? integrations.clarityProjectId : ""} pixelEnabled={availability.pixel} />
+          <PrivacyControls store={store.slug} analyticsAvailable={analyticsEnabled} advertisingAvailable={availability.pixel || availability.capi} rememberEnabled={integrations.rememberCheckoutEnabled} retentionDays={integrations.rememberCheckoutDays} />
         </CartProvider>
       </body>
     </html>

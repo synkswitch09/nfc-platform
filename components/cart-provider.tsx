@@ -1,5 +1,6 @@
 "use client";
 
+import { emitCommerceEvent } from "@/lib/measurement-client";
 import { createContext, useContext, useEffect, useMemo, useState, useRef } from "react";
 
 export type CartLine = {
@@ -52,13 +53,18 @@ export function CartProvider({ children, storageKey,guestStorageKey,legacyStorag
     lines,
     ready,
     count: lines.reduce((sum, line) => sum + line.quantity, 0),
-    add: input => setLines(current => {
+    add: input => {
+      const existing = lines.find(line => line.key === lineKey(input.variantId, input.personalisationChoice, input.personalisation));
+      const added = Math.min(input.quantity, 10 - (existing?.quantity ?? 0));
+      if (added > 0) emitCommerceEvent({ event: "add_to_cart", items: [{ variantId: input.variantId, quantity: added }] });
+      setLines(current => {
       const key = lineKey(input.variantId, input.personalisationChoice, input.personalisation);
       const existing = current.find(line => line.key === key);
       return existing
         ? current.map(line => line.key === key ? { ...line, quantity: Math.min(10, line.quantity + input.quantity) } : line)
         : [...current, { ...input, key }];
-    }),
+    });
+    },
     setQuantity: (key, quantity) => setLines(current => current.map(line => line.key === key ? { ...line, quantity: Math.max(1, Math.min(10, quantity)) } : line)),
     remove: key => setLines(current => current.filter(line => line.key !== key)),
     clear: () => setLines([]),

@@ -5791,3 +5791,5 @@ body[data-store="kosykin"] .site-header.compact-header nav.is-open .nav-centre a
 .support-ticket textarea {width:100%;min-width:0;box-sizing:border-box;}
 .support-inbox-filters {display:flex;gap:1rem;flex-wrap:wrap;align-items:end;}
 .support-inbox-filters .field {flex:1 1 180px;}
+
+.measurement-frame { position:fixed; width:1px; height:1px; border:0; opacity:0; pointer-events:none; bottom:0; left:0; }

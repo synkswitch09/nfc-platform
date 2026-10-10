@@ -9,6 +9,7 @@ export function LanguageSelector({ locale, locales, defaultLocale, label }: { lo
     const params = new URLSearchParams(search.toString());
     if (nextLocale === defaultLocale) params.delete("locale"); else params.set("locale", nextLocale);
     document.cookie = `tapkin-locale=${encodeURIComponent(nextLocale)}; Path=/; Max-Age=31536000; SameSite=Lax`;
+    if (window.clarity) { window.location.assign(`${pathname}${params.size ? `?${params}` : ""}`); return; }
     router.push(`${pathname}${params.size ? `?${params}` : ""}`); router.refresh();
   }
   return <label className="language-selector"><Languages size={17} aria-hidden="true" /><span className="sr-only">{label}</span><select aria-label={label} value={locale} onChange={event => change(event.target.value)}>{locales.map(item => <option value={item.code} key={item.code}>{item.name}</option>)}</select></label>;
