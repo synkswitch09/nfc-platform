@@ -68,6 +68,7 @@ export const shippingQuoteSchema = z.object({
 });
 
 export const checkoutSchema = z.object({
+  pointsToRedeem: z.number().int().min(0).max(1000000).default(0),
   saveAddress:z.boolean().default(false),
   promotionCode: z.string().trim().toUpperCase().regex(/^[A-Z0-9_-]{3,32}$/).optional(),
   items: checkoutItemsSchema,

@@ -1,3 +1,5 @@
+import { reserveLoyalty, releaseLoyalty, settleLoyalty } from "@/lib/loyalty";
+import { parseLoyaltyConfig, redemptionCents, maximumRedeemPoints } from "@/lib/loyalty-config";
 import { queueOrderMeasurement } from "@/lib/measurement";
 import { queueShippitPreparation, processShippitPreparations } from "@/lib/shippit-preparation";
 import { changeReservation, consumeStock, orderReservations } from "@/lib/inventory-service";
@@ -30,7 +32,7 @@ export class CheckoutError extends Error {
   constructor(message: string, readonly status = 400) { super(message); }
 }
 
-export async function createPendingOrder(items: CheckoutItemInput[], customer: CheckoutCustomerInput, store: Storefront, shippingQuoteToken: string, promotionCode?: string) {
+export async function createPendingOrder(items: CheckoutItemInput[], customer: CheckoutCustomerInput, store: Storefront, shippingQuoteToken: string, promotionCode?: string, pointsToRedeem = 0) {
   if (store.status !== StoreStatus.ACTIVE || !hasStoreCapability(store, StoreCapability.COMMERCE)) throw new CheckoutError("This store is not accepting orders", 409);
   const claimToken = customer.userId ? null : createOpaqueToken();
   return db.$transaction(async tx => {
@@ -86,8 +88,11 @@ export async function createPendingOrder(items: CheckoutItemInput[], customer: C
     const baseTotals = calculateQuotedOrderTotals(lines.map(line => ({ unitPriceCents: line.unitPriceCents, quantity: line.item.quantity })), quote.amountCents);
     const now = new Date();
     const activePromotions = await tx.promotion.findMany({ where: { storeId: store.id, active: true, OR: [{ startsAt: null }, { startsAt: { lte: now } }], AND: [{ OR: [{ endsAt: null }, { endsAt: { gt: now } }] }] } });
+    const loyalty = parseLoyaltyConfig(store.accountConfig);
+    if (pointsToRedeem && (!loyalty.enabled || store.currency !== "AUD" || !customer.userId)) throw new CheckoutError("Sign in to a verified account in a store with points enabled to redeem");
     const code = promotionCode?.trim().toUpperCase();
-    const candidates = code ? activePromotions.filter(promotion => promotion.code === code) : activePromotions.filter(promotion => !promotion.code);
+    if (pointsToRedeem && code && !loyalty.allowCouponStacking) throw new CheckoutError("Choose either points or a discount code; they cannot be combined");
+    const candidates = code ? activePromotions.filter(promotion => promotion.code === code) : (pointsToRedeem && !loyalty.allowCouponStacking ? [] : activePromotions.filter(promotion => !promotion.code));
     let promotion: typeof activePromotions[number] | undefined;
     let discountCents = 0;
     for (const candidate of candidates) {
@@ -97,6 +102,13 @@ export async function createPendingOrder(items: CheckoutItemInput[], customer: C
       if (discount > discountCents) { promotion = candidate; discountCents = discount; }
     }
     if (code && !promotion) throw new CheckoutError("The discount code does not apply to this order", 409);
+    const merchandiseAfterPromotion = baseTotals.subtotalCents - (promotion?.kind === "FREE_SHIPPING" ? 0 : discountCents);
+    let pointsDiscountCents = 0;
+    if (pointsToRedeem) {
+      try { pointsDiscountCents = redemptionCents(loyalty, pointsToRedeem); } catch { throw new CheckoutError("Choose points in the permitted redemption units"); }
+      if (pointsToRedeem > maximumRedeemPoints(loyalty, pointsToRedeem, merchandiseAfterPromotion)) throw new CheckoutError("Points discount exceeds this store’s checkout limit");
+    }
+    discountCents += pointsDiscountCents;
     const totals = { ...baseTotals, totalCents: baseTotals.totalCents - discountCents };
     if (totals.totalCents < 50) throw new CheckoutError("The order total after discount must be at least A$0.50", 409);
     const order = await tx.order.create({
@@ -136,6 +148,10 @@ export async function createPendingOrder(items: CheckoutItemInput[], customer: C
         currency: store.currency,
         ...totals,
         discountCents,
+        loyaltySnapshot: loyalty.enabled && store.currency === "AUD" ? loyalty : undefined,
+        loyaltyEligibleCents: Math.max(0, merchandiseAfterPromotion - pointsDiscountCents),
+        loyaltyPointsUsed: pointsToRedeem,
+        loyaltyDiscountCents: pointsDiscountCents,
         promotionId: promotion?.id,
         items: { create: lines.map(({ item, variant, unitPriceCents, personalisationChoice, personalisation, selectedOptions }) => ({
           variantId: variant.id,
@@ -156,6 +172,7 @@ export async function createPendingOrder(items: CheckoutItemInput[], customer: C
       },
       include: { payments: true },
     });
+    if (pointsToRedeem) await reserveLoyalty(tx, order, customer.userId!, loyalty);
     if (productionMinutes) try { await reserveProduction(tx, store.environment, order.id, productionMinutes); }
     catch (error) { if (error instanceof ProductionCapacityError) throw new CheckoutError(error.message, 409); throw error; }
 
@@ -183,6 +200,7 @@ export async function cancelPendingOrder(orderId: string, reason: string, actorI
     if (!order || order.status !== "PAYMENT_PENDING") return false;
     const claimed = await tx.order.updateMany({ where: { id: orderId, status: "PAYMENT_PENDING" }, data: { status: "CANCELLED" } });
     if (claimed.count !== 1) return false;
+    await releaseLoyalty(tx, order);
     await releaseProduction(tx, orderId);
     const reservations = await orderReservations(tx, orderId);
     for (const [variantId, quantity] of reservations) {
@@ -227,6 +245,7 @@ export async function settleCheckoutEvent(input: { eventId: string; eventType: s
     for (const productId of new Set(payment.order.items.map(item => item.variant.productId))) await queueEtsyInventorySync(tx, payment.order.storeId, productId);
     await tx.payment.update({ where: { id: payment.id }, data: { status: "SUCCEEDED", providerPaymentIntentId: input.paymentIntentId ?? null } });
     await tx.orderStatusHistory.create({ data: { orderId: payment.orderId, fromStatus: "PAYMENT_PENDING", toStatus: "PAID" } });
+    await settleLoyalty(tx, payment.order);
     await queueOrderMeasurement(tx, payment.orderId);
     const jobs = payment.order.items.flatMap(item => {
       const requirements = manufacturingRequirements(payment.order.store.capabilities, item.productType);

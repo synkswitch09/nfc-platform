@@ -1,3 +1,5 @@
+import { LoyaltySettingsForm } from "@/components/loyalty-settings-form";
+import { parseLoyaltyConfig } from "@/lib/loyalty-config";
 import { measurementAvailability } from "@/lib/measurement";
 import { SupportSettingsForm } from "@/components/support-settings-form";
 import { parseSupportConfig } from "@/lib/support-config";
@@ -58,6 +60,7 @@ export default async function AdminSettingsPage() {
         </div>
       </div>
       <IntegrationSettingsForm config={parseIntegrationConfig(context.store.integrations)} geoapifyReady={Boolean(runtime.geoapifyStores[context.store.slug])} analyticsReady={ready.ga4} metaReady={ready.capi} production={runtime.appEnv === "production"} origin={catalogOrigin} />
+      <LoyaltySettingsForm config={parseLoyaltyConfig(context.store.accountConfig)} />
       <EmailSendersForm senders={senders} domain={senderDomain(fallbackSender)} />
       <SupportSettingsForm config={parseSupportConfig(context.store.accountConfig)} timezone={context.store.timezone} />
       <AccountSettingsForm config={parseAccountConfig(context.store.accountConfig)} />

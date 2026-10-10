@@ -1,3 +1,4 @@
+import { parseLoyaltyConfig } from "@/lib/loyalty-config";
 import { parseIntegrationConfig } from "@/lib/integration-config";
 import type { Metadata } from "next";
 import { CheckoutForm } from "@/components/checkout-form";
@@ -20,5 +21,5 @@ export default async function CheckoutPage() {
   const integrations = parseIntegrationConfig(store.integrations);
   const autocompleteEnabled = integrations.geoapifyEnabled && Boolean(getRuntimeConfig().geoapifyStores[store.slug]);
   const nfcEnabled = hasStoreCapability(store, StoreCapability.NFC);
-  return <section className="section compact-section"><div className="section-head"><p className="eyebrow">Secure checkout · {settings.storeName}</p><h1 className="page-title">Complete your order</h1><p className="lead">Checkout as a guest or use your signed-in account. {nfcEnabled ? "An account is only required later to activate and manage connected products." : "Your order can be linked securely if you create an account later."}</p></div><CheckoutForm account={user ? { name: user.name, email: user.email, address:addresses[0]??null,addresses } : null} store={{ slug: store.slug, displayName: settings.storeName, currency: settings.currency, nfcEnabled }} countries={countries.length ? countries : [store.country]} integrations={integrations} autocompleteEnabled={autocompleteEnabled} /></section>;
+  return <section className="section compact-section"><div className="section-head"><p className="eyebrow">Secure checkout · {settings.storeName}</p><h1 className="page-title">Complete your order</h1><p className="lead">Checkout as a guest or use your signed-in account. {nfcEnabled ? "An account is only required later to activate and manage connected products." : "Your order can be linked securely if you create an account later."}</p></div><CheckoutForm account={user ? { name: user.name, email: user.email, address:addresses[0]??null,addresses } : null} store={{ slug: store.slug, displayName: settings.storeName, currency: settings.currency, nfcEnabled }} countries={countries.length ? countries : [store.country]} loyalty={parseLoyaltyConfig(store.accountConfig)} integrations={integrations} autocompleteEnabled={autocompleteEnabled} /></section>;
 }

@@ -20,6 +20,8 @@
 - PostgreSQL migrations and constraints, Docker/NAS deployment, persistent media volume, health check, CI and database/media backup tooling
 - CI-backed HTTP E2E coverage for guest purchase, post-purchase account, protected NFC management, Product Admin, credential rotation and continuity of active tags when categories/products leave sale
 
+- Store-specific loyalty points with CMS economics, verified guest claiming, serializable checkout redemption, original-expiry returns, confirmed-refund reconciliation and audited manual adjustments
+
 ## External configuration before launch
 
 - Register Google and Apple applications and place their secrets in the deployment secret store
