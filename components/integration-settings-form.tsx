@@ -53,7 +53,7 @@ export function IntegrationSettingsForm({ config, geoapifyReady, analyticsReady,
       <label className="field">Meta catalog ID<input name="metaCatalogId" defaultValue={config.metaCatalogId} maxLength={30} /></label>
       <label className="check-field"><input type="checkbox" name="metaCatalogEnabled" defaultChecked={config.metaCatalogEnabled} />Publish this store’s production catalog feed</label>
       <p className="fine-print">In Commerce Manager, add a scheduled data feed using the URL below, choose a complete replacement feed, and schedule daily or hourly updates. New products and changes are included automatically at the next Meta import. Products without a public image or valid price are omitted.</p>
-      <label className="field">Production feed URL<input readOnly value={`${origin}/api/meta/catalog`} /></label>
+      {origin ? <label className="field">Production feed URL<input readOnly value={`${origin}/api/meta/catalog`} /></label> : <p>Open this store’s production CMS to copy its feed URL. This environment has no verified production domain.</p>}
       {production && config.metaCatalogEnabled && <a className="text-button" href="/api/meta/catalog" target="_blank" rel="noreferrer">View current catalog feed</a>}
       <a className="text-button" href="/admin/settings/measurement">View measurement delivery status</a>
     </fieldset>

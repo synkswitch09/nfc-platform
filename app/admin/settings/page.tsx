@@ -42,7 +42,7 @@ export default async function AdminSettingsPage() {
   const integrations = parseIntegrationConfig(context.store.integrations);
   const ready = measurementAvailability(context.store.slug, integrations);
   const productionDomain = domainRows.find(d => d.environment === "PRODUCTION" && d.isPrimary);
-  const catalogOrigin = productionDomain ? storeDomainOrigin(productionDomain) : context.store.origin;
+  const catalogOrigin = productionDomain ? storeDomainOrigin(productionDomain) : runtime.appEnv === "production" ? context.store.origin : "";
   const fallbackSender = defaultStoreSender(domainRows);
   const senders = parseEmailSenders(parseAccountConfig(context.store.accountConfig).emailSenders, fallbackSender, context.store.displayName);
   return (
