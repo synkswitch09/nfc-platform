@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
   if (text.length > 1024) return jsonError("Request too large", 413);
   const parsed = schema.safeParse((() => { try { return JSON.parse(text); } catch { return null; } })());
   if (!parsed.success) return jsonError("Invalid identifiers", 400);
-  const expiresAt = new Date(Math.min(preferences!.savedAt + 365 * 86_400_000, Date.now() + 90 * 86_400_000));
+  const expiresAt = new Date(Math.min(preferences!.savedAt + 365 * 86_400_000, (existing?.createdAt ?? new Date()).getTime() + 90 * 86_400_000));
   const userAgent = request.headers.get("user-agent") ?? "";
   const safeAgent = /^[\x20-\x7E]{1,512}$/.test(userAgent) && !/@|https?:\/\//i.test(userAgent) ? userAgent : null;
   const fbpCookie = request.cookies.get("_fbp")?.value;

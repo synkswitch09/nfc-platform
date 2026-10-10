@@ -179,8 +179,9 @@ async function main() {
   await jsonResponse(await request("/api/analytics", { method: "POST", jar: disabledConsent, json: { event: "view_item", eventId: paidOrder.id, productId: paidOrder.items?.[0]?.variantId ?? paidOrder.id } }), 404, "Development shopping events never reach live providers");
   assert((await request("/api/analytics/pixel", { jar: disabledConsent })).status === 404, "Pixel document is unavailable outside production");
   assert((await request("/api/meta/catalog")).status === 404, "Development cannot serve a live Meta catalog");
-  const measurementPage = await bodyText(await request("/admin/settings/measurement", { jar: adminJar }));
-  assert(measurementPage.status === 200 && measurementPage.text.includes("Measurement &amp; catalog"), "CMS delivery status is available to the administrator");
+  const measurementResponse = await request("/admin/settings/measurement", { jar: adminJar });
+  const measurementPage = await bodyText(measurementResponse);
+  assert(measurementResponse.status === 200 && measurementPage.text.includes("Measurement &amp; catalog"), "CMS delivery status is available to the administrator", `received ${measurementResponse.status}`);
   const measurementSession = await db.measurementSession.create({ data: { tokenHash: `e2e-measurement-${suffix}`, storeId: tapkinStore.id, clientId: "123.456", sessionId: "123", analytics: true, advertising: false, expiresAt: new Date(Date.now() + 3600_000) } });
   const eventKey = `e2e-purchase:${suffix}`;
   await Promise.all(Array.from({ length: 4 }, () => db.measurementDelivery.upsert({ where: { storeId_provider_eventKey: { storeId: tapkinStore.id, provider: "GA4", eventKey } }, create: { storeId: tapkinStore.id, sessionId: measurementSession.id, provider: "GA4", targetId: "G-E2E1234567", eventKey, eventName: "purchase", payload: { transaction_id: paidOrder.id, value: 1, currency: "AUD" } }, update: {} })));

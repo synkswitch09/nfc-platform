@@ -36,7 +36,7 @@ export async function buildMetaCatalog(store: Storefront) {
   for (const product of products) for (const variant of product.variants) {
     const price = variantOfferPrice(variant, product.options, product.personalisationMode);
     const image = [variant.image, ...product.images.filter(i => i.variantId === variant.id), ...product.images].map(i => i && publicCatalogImage(i.url, store.origin)).find(Boolean);
-    if (!price || !image) { skipped++; continue; }
+    if (!price || !image || !Number.isFinite(Number(price)) || Number(price) <= 0) { skipped++; continue; }
     const available = getRuntimeConfig().checkoutEnabled && canAcceptVariant(variant, pool, booked._sum.minutes ?? 0);
     const stock = variant.trackInventory && variant.inventory > variant.reservedInventory;
     rows.push([variant.id, product.id, `${product.name}${product.variants.length > 1 ? ` — ${variant.name}` : ""}`.slice(0, 200), (product.shortDescription || product.description).replace(/<[^>]*>/g, " ").slice(0, 9999), available ? stock ? "in stock" : "available for order" : "out of stock", "new", `${price} ${store.currency}`, `${store.origin}/products/${product.slug}?variant=${variant.id}`, image, product.brand || store.displayName, variant.colour || "", variant.size || "", variant.material || ""]);

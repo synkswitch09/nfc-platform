@@ -12,6 +12,7 @@ const inFlight = new Set<string>();
 const seenEvents = new Set<string>();
 export function ensureMeasurementSession(store: string, force = false) {
   const p = readPrivacyPreferences(store);
+  if (!p) return Promise.resolve(false);
   const key = JSON.stringify(p);
   const previous = sessions.get(store);
   if (!force && previous?.key === key) return previous.promise;
@@ -22,7 +23,7 @@ export function ensureMeasurementSession(store: string, force = false) {
       const v = crypto.getRandomValues(new Uint32Array(2)); id = `${v[0]}.${v[1]}`;
       if (p?.analytics || p?.advertising) try { sessionStorage.setItem(`commerce-analytics-client:${store}`, id); } catch { /* Optional. */ }
     }
-    const response = await fetch("/api/analytics/session", { method: "POST", credentials: "same-origin", referrerPolicy: "no-referrer", headers: { "content-type": "application/json" }, body: JSON.stringify({ clientId: id, ...(p?.advertising && /^[A-Za-z0-9_-]{1,250}$/.test(new URLSearchParams(location.search).get("fbclid") ?? "") ? { fbc: `fb.1.${Date.now()}.${new URLSearchParams(location.search).get("fbclid")}` } : {}) }) });
+    const response = await fetch("/api/analytics/session", { method: "POST", credentials: "same-origin", referrerPolicy: "no-referrer", signal: AbortSignal.timeout(3000), headers: { "content-type": "application/json" }, body: JSON.stringify({ clientId: id, ...(p?.advertising && /^[A-Za-z0-9_-]{1,250}$/.test(new URLSearchParams(location.search).get("fbclid") ?? "") ? { fbc: `fb.1.${Date.now()}.${new URLSearchParams(location.search).get("fbclid")}` } : {}) }) });
     if (!response.ok) { sessions.delete(store); return false; }
     return Boolean((await response.json()).enabled);
   })().catch(() => { sessions.delete(store); return false; });
@@ -39,7 +40,7 @@ export async function sendCommerceEvent(store: string, data: CommerceEvent, even
   if (!await ensureMeasurementSession(store)) return 404;
   inFlight.add(key);
   try {
-    const response = await fetch("/api/analytics", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ ...data, eventId }), referrerPolicy: "no-referrer", credentials: "same-origin" });
+    const response = await fetch("/api/analytics", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ ...data, eventId }), referrerPolicy: "no-referrer", credentials: "same-origin", signal: AbortSignal.timeout(3000) });
     if (response.ok) {
       const result = await response.json();
       seenEvents.add(key);

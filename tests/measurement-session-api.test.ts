@@ -45,3 +45,10 @@ it("keeps the anonymous client stable and renews the GA4 session after inactivit
   expect(m.update.mock.calls[0][0].data).not.toHaveProperty("clientId");
   expect(m.update.mock.calls[0][0].data.clientUserAgent).toBe("Mozilla/5.0 TestBrowser");
 });
+
+it("never extends an anonymous record beyond 90 days from creation", async () => {
+  const createdAt = new Date(Date.now() - 60 * 86400_000);
+  m.find.mockResolvedValue({ id: "session", createdAt, updatedAt: new Date(), fbp: null, fbc: null });
+  await POST(request(`${preferences(true, false)}; ${token}`));
+  expect(m.update.mock.calls[0][0].data.expiresAt.getTime()).toBe(createdAt.getTime() + 90 * 86400_000);
+});
