@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Prisma, Order } from "@prisma/client";
 import { loyaltyConfigSchema, loyaltyExpiry, maximumRedeemPoints, parseLoyaltyConfig, proportionalPoints, redemptionCents } from "@/lib/loyalty-config";
+import { parseAccountConfig } from "@/lib/account-config";
 const m = vi.hoisted(() => ({ transaction: vi.fn(), notice: vi.fn() }));
 vi.mock("@/lib/db", () => ({ db: { $transaction: m.transaction } }));
 vi.mock("@/lib/order-notifications", () => ({ queueOrderNotice: m.notice }));
@@ -9,6 +10,7 @@ const config = loyaltyConfigSchema.parse({});
 describe("points economics", () => {
   it("keeps the agreed independent defaults", () => { expect(config).toMatchObject({ pointsPerDollar: 1, redemptionUnitPoints: 100, redemptionUnitCents: 200, minimumRedeemPoints: 100, maximumRedeemPercent: 10, expiryMonths: 12, allowCouponStacking: false }); });
   it("fails closed for a malformed CMS configuration", () => { expect(parseLoyaltyConfig({ loyalty: { pointsPerDollar: -1 } }).enabled).toBe(false); });
+  it("preserves fail-closed rules through storefront account parsing", () => { const account = parseAccountConfig({ googleEnabled: false, loyalty: { pointsPerDollar: -1 } }); expect(parseLoyaltyConfig(account).enabled).toBe(false); expect(account.googleEnabled).toBe(false); });
   it("requires the minimum to follow the redemption unit", () => { expect(loyaltyConfigSchema.safeParse({ minimumRedeemPoints: 150 }).success).toBe(false); });
   it.each([[99, 20000, 0], [100, 1999, 0], [100, 2000, 100], [999, 9999, 400], [999, 20000, 900]])("caps balance %i on subtotal %i at %i points", (balance, subtotal, result) => { expect(maximumRedeemPoints(config, balance, subtotal)).toBe(result); });
   it("uses integral units with no fractional-cent promises", () => { expect(redemptionCents(config, 300)).toBe(600); for (const points of [0, 50, 150, 100.5]) expect(() => redemptionCents(config, points)).toThrow(); });
