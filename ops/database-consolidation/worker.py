@@ -70,13 +70,19 @@ def restore_toc(text):
     return "\n".join(line for line in text.splitlines() if not re.search(pattern,line)) + "\n"
 
 
-def empty_target(admin, target):
+def restricted_target(admin, target):
     owner=query(admin,"SELECT pg_get_userbyid(datdba) FROM pg_database WHERE datname=%s",(STAGING_DB,))
     flags=query(admin,"SELECT rolsuper,rolcreatedb,rolcreaterole,rolreplication,rolbypassrls FROM pg_roles WHERE rolname=%s",(STAGING_ROLE,))
     if owner != [(STAGING_ROLE,)] or flags != [(False,False,False,False,False)]:
         raise RuntimeError("Existing target ownership or role privileges differ from the migration")
     memberships=query(admin,"SELECT count(*) FROM pg_auth_members WHERE member=(SELECT oid FROM pg_roles WHERE rolname=%s)",(STAGING_ROLE,))[0][0]
     if memberships:raise RuntimeError("Target role inherits other roles; isolation requires review")
+    if query(admin,"SELECT has_database_privilege(%s,%s,'CONNECT')",(STAGING_ROLE,PRODUCTION_DB))[0][0]:
+        raise RuntimeError("Existing target role is not isolated from production")
+
+
+def empty_target(admin,target):
+    restricted_target(admin,target)
     with closing(connect(target)) as conn:
         tables=query(conn,"SELECT count(*) FROM pg_tables WHERE schemaname NOT LIKE 'pg_%' AND schemaname <> 'information_schema'")[0][0]
         namespaces=query(conn,"SELECT count(*) FROM pg_namespace WHERE nspname NOT LIKE 'pg_%' AND nspname NOT IN ('public','information_schema')")[0][0]
@@ -85,8 +91,13 @@ def empty_target(admin, target):
         sequences=query(conn,"SELECT count(*) FROM pg_sequences WHERE schemaname NOT LIKE 'pg_%'")[0][0]
         if tables or namespaces or types or functions or sequences:
             raise RuntimeError("Existing target is not empty; never overwrite its data")
-    if query(admin,"SELECT has_database_privilege(%s,%s,'CONNECT')",(STAGING_ROLE,PRODUCTION_DB))[0][0]:
-        raise RuntimeError("Existing target role is not isolated from production")
+
+
+def known_clone(admin,target):
+    restricted_target(admin,target)
+    expected=json.loads(os.environ['EXPECTED_CLONE_MANIFEST'])
+    actual=json.loads(json.dumps(manifest(target)))
+    if actual != expected:raise RuntimeError('Target copy changed independently; never overwrite its data')
 
 
 def manifest(params):
@@ -158,11 +169,12 @@ def main():
                          "tableCount": len(info["tables"]), "rowCount": sum(x["count"] for x in info["tables"].values())})
             print("Preflight passed: PostgreSQL 18, only staging database, private TLS and backup access verified")
             return
-        if mode not in ("copy", "copy-empty") or os.environ.get("STAGING_WRITES_PAUSED") != "true":
+        if mode not in ("copy", "copy-empty", "copy-clone") or os.environ.get("STAGING_WRITES_PAUSED") != "true":
             raise RuntimeError("Copy requires confirmed staging write pause")
-        retry = mode == "copy-empty" and os.environ.get('ALLOW_EMPTY_TARGET_RETRY') == 'true'
-        if retry:
-            empty_target(admin,target)
+        clone = mode=='copy-clone' and os.environ.get('ALLOW_KNOWN_CLONE_RETRY')=='true'
+        retry = (mode == "copy-empty" and os.environ.get('ALLOW_EMPTY_TARGET_RETRY') == 'true') or clone
+        if clone:known_clone(admin,target)
+        elif retry:empty_target(admin,target)
         else:
             if query(admin, "SELECT 1 FROM pg_database WHERE datname=%s", (STAGING_DB,)):
                 raise RuntimeError("Target database already exists; never overwrite a live database")
@@ -192,7 +204,8 @@ def main():
                     query(admin, sql.SQL("REVOKE ALL ON DATABASE {} FROM PUBLIC").format(sql.Identifier(STAGING_DB)))
                     query(admin, sql.SQL("REVOKE CONNECT, TEMPORARY ON DATABASE {} FROM PUBLIC").format(sql.Identifier(PRODUCTION_DB)))
                 # Only an empty, restricted staging database is eligible for bootstrap cleanup.
-                empty_target(admin,target)
+                if clone:known_clone(admin,target)
+                else:empty_target(admin,target)
                 with closing(connect(target)) as target_conn:
                     owns_public=query(target_conn,"SELECT pg_has_role(nspowner,'USAGE') FROM pg_namespace WHERE nspname='public'")[0][0]
                 if not owns_public:
