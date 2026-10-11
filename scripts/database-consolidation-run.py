@@ -55,9 +55,22 @@ def guard_url(value, host, database):
 
 def put_resource(resource, properties):
     # A mode-0600 file prevents credentials appearing in the command or logs.
+    properties = copy.deepcopy(properties)
+    entries = properties.get('configuration', {}).get('secrets', [])
+    missing = [x for x in entries if 'value' not in x and not x.get('keyVaultUrl')]
+    if missing:
+        kind = 'job' if '/jobs/' in resource['id'] else 'app'
+        group = resource['id'].split('/')[4]
+        values = secret_values(kind, resource['id'].split('/')[-1], group)
+        for entry in missing:
+            if values.get(entry['name']) is None: raise RuntimeError('Cannot preserve an existing resource secret')
+            entry['value'] = values[entry['name']]
+    body = {'location':resource['location'], 'properties':properties}
+    for key in ('identity','tags'):
+        if key in resource: body[key] = resource[key]
     with tempfile.TemporaryDirectory() as d:
-        path = Path(d) / 'resource.json'; path.write_text(json.dumps({'location':resource['location'], 'properties':properties})); path.chmod(0o600)
-        return az('rest', '--method', 'put', '--url', 'https://management.azure.com' + resource['id'] + '?api-version=2025-01-01', '--body', '@' + str(path))
+        path = Path(d) / 'resource.json'; path.write_text(json.dumps(body)); path.chmod(0o600)
+        return az('rest', '--method', 'put', '--url', 'https://management.azure.com' + resource['id'] + '?api-version=2024-03-01', '--body', '@' + str(path))
 
 
 def update_env(kind, name, value):
@@ -165,13 +178,13 @@ def network():
 
 def start_worker(mode, source, production, target, sas, backup):
     app = show('app','app-tapkin-production-au',PROD)
-    prop = app['properties']; registry = next(r for r in prop['configuration']['registries'] if r['server']=='ghcr.io')
-    registry_value = secret_values('app','app-tapkin-production-au',PROD)[registry['passwordSecretRef']]
+    prop = app['properties']; registry = next((r for r in prop['configuration'].get('registries', []) if r['server']=='ghcr.io'), None)
+    registry_value = secret_values('app','app-tapkin-production-au',PROD)[registry['passwordSecretRef']] if registry else None
     env = {'MIGRATION_MODE':mode, 'STAGING_WRITES_PAUSED':str(mode=='copy').lower(), 'BACKUP_NAME':backup}
     secret_env = {'SOURCE_DATABASE_URL':source,'PRODUCTION_DATABASE_URL':production,'TARGET_DATABASE_URL':target,'BACKUP_CONTAINER_SAS':sas}
     config = {'triggerType':'Manual','replicaTimeout':1800,'replicaRetryLimit':0,'manualTriggerConfig':{'parallelism':1,'replicaCompletionCount':1},
-              'registries':[{'server':'ghcr.io','username':registry['username'],'passwordSecretRef':'registry-token'}],
-              'secrets':[{'name':'registry-token','value':registry_value}]+[{'name':k.lower().replace('_','-'),'value':v} for k,v in secret_env.items()]}
+              'registries':[{'server':'ghcr.io','username':registry['username'],'passwordSecretRef':'registry-token'}] if registry else [],
+              'secrets':([{'name':'registry-token','value':registry_value}] if registry else [])+[{'name':k.lower().replace('_','-'),'value':v} for k,v in secret_env.items()]}
     resource = {'id':'/subscriptions/'+SUB+'/resourceGroups/'+PROD+'/providers/Microsoft.App/jobs/'+JOB, 'location':'australiaeast'}
     props = {'environmentId':prop['environmentId'], 'configuration':config,'template':{'containers':[{'name':'copy','image':os.environ['CONSOLIDATION_IMAGE'],'resources':{'cpu':0.5,'memory':'1Gi'},
                'env':[{'name':k,'value':v} for k,v in env.items()]+[{'name':k,'secretRef':k.lower().replace('_','-')} for k in secret_env]}]}}
