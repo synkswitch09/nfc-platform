@@ -189,6 +189,12 @@ def start_worker(mode, source, production, target, sas, backup):
     props = {'environmentId':prop['environmentId'], 'configuration':config,'template':{'containers':[{'name':'copy','image':os.environ['CONSOLIDATION_IMAGE'],'resources':{'cpu':0.5,'memory':'1Gi'},
                'env':[{'name':k,'value':v} for k,v in env.items()]+[{'name':k,'secretRef':k.lower().replace('_','-')} for k in secret_env]}]}}
     put_resource(resource, props)
+    for attempt in range(60):
+        provisioning = show('job', JOB, PROD)['properties'].get('provisioningState')
+        if provisioning == 'Succeeded': break
+        if provisioning in ('Failed', 'Canceled'): raise RuntimeError('Migration job provisioning failed')
+        time.sleep(5)
+    else: raise RuntimeError('Migration job provisioning timed out')
     run = az('containerapp','job','start','-n',JOB,'-g',PROD)['name']
     print('Private migration worker started: '+mode, flush=True)
     for attempt in range(180):
