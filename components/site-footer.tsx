@@ -7,10 +7,11 @@ import {
   MessageCircle,
   Radio,
   Shapes,
+  Globe,
   Users,
 } from "lucide-react";
 import type { CSSProperties } from "react";
-import type { FooterConfig } from "@/lib/site-chrome";
+import { footerSocialProfiles, type FooterConfig } from "@/lib/site-chrome";
 import { localizedPath, type SystemCopy } from "@/lib/i18n";
 import { typographyStyle } from "@/lib/typography";
 
@@ -50,7 +51,7 @@ export function SiteFooter({
   const customLinks = config.customLinks
     .filter((link) => link.visible)
     .sort((a, b) => a.order - b.order);
-  const managedLinks = pages
+  const managedLinks = (config.includeManagedPages ? pages : [])
     .filter(
       (page) =>
         !(page.slug === "terms" && config.showTerms) &&
@@ -69,9 +70,7 @@ export function SiteFooter({
         rows.findIndex((item) => item.href === link.href) === index,
     )
     .sort((a, b) => a.order - b.order);
-  const socials = (Object.keys(socialIcons) as Array<keyof typeof socialIcons>).filter(
-    (platform) => Boolean(socialLinks[platform] || config.socialIcons[platform]),
-  );
+  const socials = footerSocialProfiles(config, socialLinks).filter(row => row.visible).sort((a, b) => a.order - b.order);
   const copyright =
     config.copyright ||
     `© ${new Date().getUTCFullYear()} ${storeName}. All rights reserved.`;
@@ -122,9 +121,9 @@ export function SiteFooter({
       <div className="footer-end">
         {socials.length > 0 && (
           <div className="footer-socials">
-            {socials.map((platform) => {
-              const Icon = socialIcons[platform];
-              const imageUrl = config.socialIcons[platform];
+            {socials.map((profile) => {
+              const Icon = socialIcons[profile.label.toLowerCase() as keyof typeof socialIcons] ?? Globe;
+              const imageUrl = profile.iconUrl;
               const icon = imageUrl ? (
                 <Image
                   className="footer-social-icon-image"
@@ -135,13 +134,13 @@ export function SiteFooter({
                   unoptimized
                 />
               ) : <Icon size={19} />;
-              const href = socialLinks[platform];
+              const href = profile.href;
               return href ? (
-                <a href={href} target="_blank" rel="noopener noreferrer" aria-label={platform} key={platform}>
+                <a href={href} target="_blank" rel="noopener noreferrer" aria-label={profile.label} key={profile.id}>
                   {icon}
                 </a>
               ) : (
-                <span className="footer-social-preview" aria-hidden="true" key={platform}>
+                <span className="footer-social-preview" aria-hidden="true" key={profile.id}>
                   {icon}
                 </span>
               );

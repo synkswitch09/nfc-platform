@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   isNavigationActive,
   parseFooterConfig,
+  footerSocialProfiles,
   parseFooterLinks,
   parseHeaderConfig,
   parseHeaderLinks,
@@ -90,6 +91,18 @@ describe("site chrome configuration", () => {
         ],
       }),
     ).toThrow();
+  });
+
+  it("retains legacy social media and supports arbitrary ordered networks and an explicitly empty list", () => {
+    const config = parseFooterConfig({ socialIcons: { facebook: "/images/tapkin/brand/footer-logo.webp" } });
+    const legacy = footerSocialProfiles(config, { instagram: "https://instagram.com/example" });
+    expect(legacy.map(row => row.label)).toEqual(["Instagram", "Facebook"]);
+    expect(legacy[1].iconUrl).toBe("/images/tapkin/brand/footer-logo.webp");
+    expect(footerSocialProfiles(parseFooterConfig({ socialProfiles: [] }), { instagram: "https://instagram.com/example" })).toEqual([]);
+    const custom = parseFooterConfig({ socialProfiles: [{ id: "ba364e87-d62d-40d8-8f89-2933cdcc6c1a", label: "YouTube", href: "https://youtube.com/example", order: 2, visible: false }] });
+    expect(footerSocialProfiles(custom, {})).toMatchObject([{ label: "YouTube", order: 2, visible: false }]);
+    expect(() => parseFooterConfig({ socialProfiles: [{ ...custom.socialProfiles![0], href: "javascript:alert(1)" }] })).toThrow();
+    expect(() => parseFooterConfig({ policyLinks: [{ label: "External", href: "https://other.example" }] })).toThrow();
   });
 
   it("keeps footer link order and only complete rows", () => {

@@ -117,6 +117,16 @@ export const footerConfigSchema = z.object({
   showTerms: z.boolean().default(true),
   showPrivacy: z.boolean().default(true),
   customLinks: z.array(footerLinkSchema).max(12).default([]),
+  includeManagedPages: z.boolean().default(true),
+  policyLinks: z.array(footerLinkSchema.extend({ href: internalHref })).max(12).default([]),
+  socialProfiles: z.array(z.object({
+    id: z.string().uuid(),
+    label: z.string().trim().min(1).max(60),
+    href: httpsHref.or(z.literal("")),
+    iconUrl: optionalImage.default(""),
+    visible: z.boolean().default(true),
+    order: z.number().int().min(0).max(100).default(0),
+  })).max(24).nullable().default(null),
   backgroundColour: optionalColour.default(""),
   textColour: optionalColour.default(""),
   linkColour: optionalColour.default(""),
@@ -143,6 +153,13 @@ export const footerConfigSchema = z.object({
 
 export type HeaderConfig = z.infer<typeof headerConfigSchema>;
 export type FooterConfig = z.infer<typeof footerConfigSchema>;
+
+// Null means legacy data; an explicitly empty list must stay empty.
+export function footerSocialProfiles(config: FooterConfig, links: Record<string, string | null>) {
+  return config.socialProfiles ?? (Object.keys(config.socialIcons) as Array<keyof FooterConfig["socialIcons"]>)
+    .filter(platform => links[platform] || config.socialIcons[platform])
+    .map((platform, order) => ({ id: `00000000-0000-4000-8000-${String(order + 1).padStart(12, "0")}`, label: platform[0].toUpperCase() + platform.slice(1), href: links[platform] ?? "", iconUrl: config.socialIcons[platform], visible: true, order }));
+}
 
 export function parseHeaderConfig(value: unknown): HeaderConfig {
   const config: Record<string, unknown> | null =

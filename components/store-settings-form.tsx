@@ -171,7 +171,7 @@ export function StoreSettingsForm({
           <label className="field">Registered business name<input name="registeredBusinessName" defaultValue={settings.registeredBusinessName} maxLength={150} /></label>
           <label className="field">Australian Business Number (ABN)<input name="businessAbn" defaultValue={settings.businessAbn} inputMode="numeric" maxLength={20} /></label>
           <label className="field">GST registration<select name="gstRegistration" defaultValue={settings.gstRegistration}><option value="unspecified">Not specified</option><option value="not-registered">Not registered for GST</option><option value="registered">Registered for GST</option></select></label>
-          <p className="fine-print">Enter the actual legal holder and registered business name, not only the storefront brand. These public details appear on policy pages. Publishing a policy does not register a business name.</p>
+          <p className="fine-print">Enter the actual legal holder and registered business name, not only the storefront brand. The registered business name and ABN appear at the end of the terms. The legal holder name is kept for administration. Publishing a policy does not register a business name.</p>
           <label className="field">
             Internal order notification recipient
             <input

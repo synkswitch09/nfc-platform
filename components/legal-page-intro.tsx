@@ -1,19 +1,13 @@
 import Link from "next/link";
 import type { Storefront } from "@/lib/storefront";
-import { validAbn } from "@/lib/business-identity";
+import { localizedPath } from "@/lib/i18n";
 
-export function LegalPageIntro({ name, store }: { name: string; store: Storefront }) {
-  const abn = typeof store.organization.abn === "string" ? store.organization.abn : "";
-  const registeredName = typeof store.organization.registeredBusinessName === "string" ? store.organization.registeredBusinessName : "";
+export function LegalPageIntro({ name, store, slug, locale = store.defaultLocale }: { name: string; store: Storefront; slug: string; locale?: string }) {
+  const links = store.footerConfig.policyLinks.filter(link => link.visible).sort((a, b) => a.order - b.order);
   return <header className="section compact-section legal-page-intro">
     <h1>{name}</h1>
-    {store.legalName && <p>Seller: {store.legalName}{registeredName && `, trading as ${registeredName}`}{validAbn(abn) && ` · ABN ${abn}`}</p>}
-    {store.organization.gstRegistered === false && <p>Not currently registered for GST.</p>}
-    {store.slug === "kosykin" && <nav aria-label="Policies and help">
-      <Link href="/terms">Terms</Link><Link href="/privacy">Privacy</Link>
-      <Link href="/shipping-delivery">Shipping & delivery</Link><Link href="/returns-cancellations">Returns & cancellations</Link>
-      <Link href="/custom-designs">Custom designs</Link><Link href="/customer-points">Customer points</Link>
-      <Link href="/faq">FAQs</Link><Link href="/support">Help & requests</Link>
+    {links.length > 0 && <nav aria-label="Policies">
+      {links.map(link => <Link key={link.id} href={localizedPath(link.href, locale, store.defaultLocale)} aria-current={link.href === `/${slug}` ? "page" : undefined}>{link.label}</Link>)}
     </nav>}
   </header>;
 }

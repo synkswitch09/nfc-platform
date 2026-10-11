@@ -1,6 +1,7 @@
 import { StoreCapability } from "@prisma/client";
 import type { Metadata } from "next";
 import { reservedPageMetadata } from "@/lib/public-page-seo";
+import { LegalSellerInformation } from "@/components/legal-seller-information";
 import { LegalPageIntro } from "@/components/legal-page-intro";
 
 export async function generateMetadata(): Promise<Metadata> { return reservedPageMetadata("terms", "Terms of service"); }
@@ -36,7 +37,7 @@ export default async function TermsPage() {
   if (page?.sections.length) {
     const localized = localizeContentPage(page, locale, store.defaultLocale);
     return (
-      <div className="legal-page"><LegalPageIntro name={localized.name} store={store} /><ModularPageRenderer
+      <div className="legal-page"><LegalPageIntro name={localized.name} store={store} slug={"terms"} locale={locale} /><ModularPageRenderer
         name={localized.name}
         sections={localized.sections}
         products={[]}
@@ -48,7 +49,7 @@ export default async function TermsPage() {
         }}
         theme={localized.visualTheme.toLowerCase()}
         breadcrumbs={[{ label: "Home", href: "/" }, { label: localized.name }]}
-      /></div>
+      /><LegalSellerInformation store={store} /></div>
     );
   }
   return (
