@@ -7,6 +7,7 @@ from pathlib import Path
 import subprocess
 import sys
 import tempfile
+import traceback
 from urllib.parse import urlsplit, unquote, parse_qsl, urlencode, urlunsplit
 from urllib.request import Request, urlopen
 
@@ -185,5 +186,6 @@ if __name__ == "__main__":
     except Exception as error:
         # SQL/HTTP exception strings may include secrets or customer records.
         print("Migration failed safely (" + type(error).__name__ + "); source server retained", file=sys.stderr)
+        print("Safe failure locations: " + json.dumps([{ "function": f.name, "line": f.lineno } for f in traceback.extract_tb(error.__traceback__)]), file=sys.stderr)
         if type(error) is RuntimeError or (type(error) is ValueError and str(error) in {"Unexpected database destination", "Database transport must use TLS", "Backup destination must be the private migration container", "Staging requires its own restricted login"}): print(str(error), file=sys.stderr)
         sys.exit(1)
