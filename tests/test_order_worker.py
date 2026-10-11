@@ -13,7 +13,7 @@ spec.loader.exec_module(worker)
 
 class OrderWorkerTests(unittest.TestCase):
     def test_both_environments_create_or_update_isolated_worker(self):
-        for target in ("staging", "production"):
+        for target, existing_cron in [("staging", None), ("production", None), ("staging", "0 */6 * * *"), ("production", "15 * * * *")]:
             with self.subTest(target=target):
                 calls = []
                 body = {}
@@ -21,7 +21,7 @@ class OrderWorkerTests(unittest.TestCase):
                 def az(*args):
                     calls.append(args)
                     if args[:2] == ("containerapp", "show"): return app
-                    if args[:3] == ("containerapp", "job", "list"): return [{"name": "app-orders", "tags": {"managed-by": "staging-order-worker"}}]
+                    if args[:3] == ("containerapp", "job", "list"): return [{"name": "app-orders", "tags": {"managed-by": "staging-order-worker"}, "properties": {"configuration": {"scheduleTriggerConfig": {"cronExpression": existing_cron}}}}]
                     if args[:3] == ("containerapp", "secret", "list"): return []
                     if args[:1] == ("rest",):
                         body.update(json.loads(Path(args[args.index("--body") + 1][1:]).read_text()))
@@ -35,7 +35,7 @@ class OrderWorkerTests(unittest.TestCase):
                 container = props["template"]["containers"][0]
                 self.assertEqual(container["image"], "image:" + target)
                 self.assertEqual(container["resources"], {"cpu": 0.25, "memory": "0.5Gi"})
-                self.assertEqual(props["configuration"]["scheduleTriggerConfig"]["cronExpression"], "*/5 * * * *")
+                self.assertEqual(props["configuration"]["scheduleTriggerConfig"]["cronExpression"], existing_cron or ("0 * * * *" if target == "staging" else "*/5 * * * *"))
                 self.assertEqual({entry["name"] for entry in container["env"]}, {"APP_URL", "CHECKOUT_RECONCILE_SECRET"})
                 token = props["configuration"]["secrets"][0]["value"]
                 self.assertGreaterEqual(len(token), 32)
