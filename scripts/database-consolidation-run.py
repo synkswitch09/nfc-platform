@@ -73,10 +73,37 @@ def put_resource(resource, properties):
         return az('rest', '--method', 'put', '--url', 'https://management.azure.com' + resource['id'] + '?api-version=2024-03-01', '--body', '@' + str(path))
 
 
+def patch_resource(resource, properties):
+    # Patch only the intended fields, preserving existing environment and identity links.
+    with tempfile.TemporaryDirectory() as directory:
+        path = Path(directory) / 'patch.json'
+        path.write_text(json.dumps({'properties': properties})); path.chmod(0o600)
+        return az('rest','--method','patch','--url','https://management.azure.com'+resource['id']+'?api-version=2024-03-01','--body','@'+str(path))
+
+
 def update_env(kind, name, value):
-    args = ['containerapp', *(['job'] if kind == 'job' else []), 'update', '-n', name, '-g', STAGE, '--set-env-vars', 'DATABASE_URL=secretref:' + value]
-    if kind == 'job': args += ['DATABASE_EXPECTED_NAME=tapkin_staging', 'APP_ENV=staging']
-    return az(*args)
+    resource = show(kind, name)
+    template = copy.deepcopy(resource['properties']['template'])
+    for container in template['containers']:
+        entries = {item['name']:item for item in container.get('env', [])}
+        if 'DATABASE_URL' not in entries: continue
+        entries['DATABASE_URL']={'name':'DATABASE_URL','secretRef':value}
+        if kind=='job':
+            entries['DATABASE_EXPECTED_NAME']={'name':'DATABASE_EXPECTED_NAME','value':'tapkin_staging'}
+            entries['APP_ENV']={'name':'APP_ENV','value':'staging'}
+        container['env']=list(entries.values())
+    patch_resource(resource, {'template':template})
+    for attempt in range(90):
+        current = show(kind, name)
+        if current['properties'].get('provisioningState') in ('Failed','Canceled'):
+            raise RuntimeError('Database connection revision provisioning failed')
+        if current['properties'].get('provisioningState')=='Succeeded' and env_values(current)['DATABASE_URL'].get('secretRef')==value:
+            if kind=='job':return current
+            latest=current['properties']['latestRevisionName']
+            revision=next((r for r in revisions() if r['name']==latest),None)
+            if revision and env_values(revision).get('DATABASE_URL',{}).get('secretRef')==value:return current
+        time.sleep(5)
+    raise RuntimeError('Timed out waiting for the database connection revision')
 
 
 def set_secret(kind, name, value):
@@ -87,7 +114,7 @@ def set_secret(kind, name, value):
     # Preserve Key Vault references and identities when present.
     config = props['configuration']; existing = {x['name']:x for x in config.get('secrets', [])}
     config['secrets'] = [{**existing.get(k, {'name': k}), **({'value':v} if v is not None else {})} for k,v in current.items()]
-    put_resource(resource, props)
+    patch_resource(resource, {'configuration': {'secrets': config['secrets']}})
 
 
 def storage_args():
@@ -135,7 +162,7 @@ def pause(state):
     props = copy.deepcopy(worker['properties']); config = props['configuration']
     config['triggerType'] = 'Manual'; config.pop('scheduleTriggerConfig', None)
     config['manualTriggerConfig'] = {'parallelism':1, 'replicaCompletionCount':1}
-    put_resource(worker, props)
+    patch_resource(worker, {'configuration': {'triggerType':'Manual','manualTriggerConfig':config['manualTriggerConfig'],'scheduleTriggerConfig':None,'eventTriggerConfig':None}})
     for name in (ORDERS, MIG):
         executions = az('containerapp', 'job', 'execution', 'list', '-n', name, '-g', STAGE)
         running = [e for e in executions if e['properties']['status'] in ('Running', 'Processing', 'Pending')]
@@ -154,7 +181,7 @@ def restore_orders(state):
     for key in ('triggerType','manualTriggerConfig','scheduleTriggerConfig','eventTriggerConfig'):
         props['configuration'].pop(key, None)
         if key in state['orderConfiguration']: props['configuration'][key] = state['orderConfiguration'][key]
-    put_resource(worker, props)
+    patch_resource(worker, {'configuration': {key: state['orderConfiguration'].get(key) for key in ('triggerType','manualTriggerConfig','scheduleTriggerConfig','eventTriggerConfig')}})
 
 
 def network():
@@ -211,6 +238,9 @@ def retirement(state):
     for kind,name in (('app',APP),('job',MIG)):
         parsed = guard_url(db_url(kind,name),TARGET_HOST,'tapkin_staging')
         if unquote(parsed.username) != ROLE: raise RuntimeError('Staging must use restricted login')
+    active = [r for r in revisions() if r['properties'].get('active')]
+    if not active or any(env_values(r).get('DATABASE_URL',{}).get('secretRef')!=SECRET for r in active):
+        raise RuntimeError('An active staging revision has an unverified database connection')
     for group in (PROD,STAGE):
         for kind in ('app','job'):
             resources = az('containerapp', *(['job'] if kind=='job' else []),'list','-g',group)
