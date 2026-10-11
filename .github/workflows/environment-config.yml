@@ -2,6 +2,12 @@ name: Audit and maintain Azure environment configuration
 on:
   workflow_dispatch:
     inputs:
+      operation:
+        description: Audit database consolidation or maintain existing configuration
+        type: choice
+        options: [maintain, database-audit]
+        required: true
+        default: maintain
       target_environment:
         description: Environment matching the selected branch
         type: choice
@@ -31,6 +37,7 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
       - name: Audit and normalize configuration without exposing values
+        if: inputs.operation != 'database-audit'
         run: python3 scripts/maintain-azure-env.py
         env:
           TARGET_ENVIRONMENT: ${{ inputs.target_environment }}
@@ -39,9 +46,13 @@ jobs:
           AZURE_MIGRATION_JOB: ${{ vars.AZURE_MIGRATION_JOB }}
           AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
           APP_URL: ${{ vars.APP_URL }}
+      - name: Audit PostgreSQL metadata and private networks without reading secrets
+        if: inputs.operation == 'database-audit'
+        run: python3 scripts/consolidate-staging-database.py
       - uses: actions/setup-node@v5
         with: { node-version: 24 }
       - name: Check storefront health after configuration
+        if: inputs.operation != 'database-audit'
         run: npm run smoke
         env:
           SMOKE_BASE_URL: ${{ vars.APP_URL }}
