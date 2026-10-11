@@ -39,6 +39,13 @@ class ConsolidationSafety(unittest.TestCase):
             self.assertEqual(m.activate_revision('app--new'),revision)
             cli.assert_not_called()
 
+    def test_drain_requires_an_active_verified_target_before_touching_old_revision(self):
+        app={'id':'/app','properties':{'latestRevisionName':'app--new','template':{'containers':[{'env':[{'name':'DATABASE_URL','secretRef':m.SECRET}]}]}}}
+        revision={'name':'app--new','properties':{'active':False,'template':{'containers':[{'env':[{'name':'DATABASE_URL','secretRef':m.SECRET}]}]}}}
+        with patch.object(m,'show',return_value=app),patch.object(m,'revisions',return_value=[revision]),patch.object(m,'az') as cli:
+            with self.assertRaises(RuntimeError):m.reconcile_target_revisions()
+            cli.assert_not_called()
+
 class PostgreSQLClientSafety(unittest.TestCase):
     def load_worker(self):
         fake=types.ModuleType('psycopg2');fake.sql=types.SimpleNamespace()
