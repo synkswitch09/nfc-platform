@@ -40,6 +40,20 @@ class PostgreSQLClientSafety(unittest.TestCase):
         worker=importlib.util.module_from_spec(spec)
         with patch.dict(sys.modules,{'psycopg2':fake}):spec.loader.exec_module(worker)
         return worker
+    def test_restore_retains_app_objects_and_comments_without_replacing_builtin_language(self):
+        worker=self.load_worker()
+        toc='4; 3079 100 EXTENSION - plpgsql\n8; 0 0 COMMENT - EXTENSION plpgsql\n20; 1259 123 TABLE public Product owner\n21; 0 123 TABLE DATA public Product owner\n22; 0 0 COMMENT public TABLE Product owner\n'
+        filtered=worker.restore_toc(toc)
+        self.assertNotIn('EXTENSION - plpgsql',filtered)
+        self.assertNotIn('COMMENT - EXTENSION plpgsql',filtered)
+        self.assertIn('TABLE DATA public Product',filtered)
+        self.assertIn('COMMENT public TABLE Product',filtered)
+    def test_restore_error_diagnostics_never_include_row_values(self):
+        worker=self.load_worker()
+        error=types.SimpleNamespace(returncode=1,stdout=b'',stderr=b'ERROR: must be owner of extension plpgsql\nDETAIL: private customer value')
+        with patch.object(worker.subprocess,'run',return_value=error):
+            with self.assertRaisesRegex(RuntimeError,'builtin extension ownership') as result:worker.pg_tool('pg_restore',{})
+            self.assertNotIn('private customer',str(result.exception))
     def test_implicit_client_tls_is_upgraded_to_verified_tls(self):
         worker=self.load_worker()
         params=worker.connection_parameters('postgresql://stage:private@'+m.SOURCE_HOST+'/tapkin_staging',m.SOURCE_HOST,'tapkin_staging')

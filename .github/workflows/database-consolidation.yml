@@ -5,7 +5,7 @@ on:
       operation:
         description: Audit, migrate and retire staging, or finish verified retirement
         type: choice
-        options: [audit, migrate, retire, recover]
+        options: [audit, migrate, retire, recover, resume]
         required: true
         default: audit
 permissions:
@@ -28,10 +28,10 @@ jobs:
       - name: Verify migration controls
         run: python3 -m unittest discover -s tests -p 'test_database_consolidation.py'
       - uses: docker/login-action@v3
-        if: inputs.operation == 'migrate'
+        if: inputs.operation == 'migrate' || inputs.operation == 'resume'
         with: {registry: ghcr.io, username: "${{ github.actor }}", password: "${{ secrets.GITHUB_TOKEN }}"}
       - uses: docker/build-push-action@v6
-        if: inputs.operation == 'migrate'
+        if: inputs.operation == 'migrate' || inputs.operation == 'resume'
         with:
           context: .
           file: ops/database-consolidation/Dockerfile

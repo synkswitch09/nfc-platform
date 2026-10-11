@@ -84,7 +84,14 @@ def patch_resource(resource, properties):
 
 def update_env(kind, name, value):
     resource = show(kind, name)
+    current_values=env_values(resource)
+    if current_values.get('DATABASE_URL',{}).get('secretRef')==value:
+        if kind=='app':return resource
+        if current_values.get('DATABASE_EXPECTED_NAME',{}).get('value')=='tapkin_staging' and current_values.get('APP_ENV',{}).get('value')=='staging':return resource
     template = copy.deepcopy(resource['properties']['template'])
+    if kind=='app':template['revisionSuffix']='db-'+secrets.token_hex(4)
+    for container in template['containers']:
+        if container.get('resources'):container['resources']={key:v for key,v in container['resources'].items() if key in ('cpu','memory','gpu')}
     for container in template['containers']:
         entries = {item['name']:item for item in container.get('env', [])}
         if 'DATABASE_URL' not in entries: continue
@@ -230,7 +237,7 @@ def start_worker(mode, source, production, target, sas, backup):
     app = show('app','app-tapkin-production-au',PROD)
     prop = app['properties']; registry = next((r for r in prop['configuration'].get('registries', []) if r['server']=='ghcr.io'), None)
     registry_value = secret_values('app','app-tapkin-production-au',PROD)[registry['passwordSecretRef']] if registry else None
-    env = {'MIGRATION_MODE':mode, 'STAGING_WRITES_PAUSED':str(mode=='copy').lower(), 'BACKUP_NAME':backup}
+    env = {'MIGRATION_MODE':mode, 'STAGING_WRITES_PAUSED':str(mode in ('copy','copy-empty')).lower(), 'ALLOW_EMPTY_TARGET_RETRY':str(mode=='copy-empty').lower(), 'BACKUP_NAME':backup}
     secret_env = {'SOURCE_DATABASE_URL':source,'PRODUCTION_DATABASE_URL':production,'TARGET_DATABASE_URL':target,'BACKUP_CONTAINER_SAS':sas}
     config = {'triggerType':'Manual','replicaTimeout':1800,'replicaRetryLimit':0,'manualTriggerConfig':{'parallelism':1,'replicaCompletionCount':1},
               'registries':[{'server':'ghcr.io','username':registry['username'],'passwordSecretRef':'registry-token'}] if registry else [],
@@ -301,7 +308,7 @@ def main():
     global STATE
     operation = os.environ['CONSOLIDATION_OPERATION']
     if operation=='audit': audit.audit(); return
-    if operation not in ('migrate','retire','recover'): raise RuntimeError('Unknown operation')
+    if operation not in ('migrate','retire','recover','resume'): raise RuntimeError('Unknown operation')
     # Use storage account keys only for a container-scoped short-lived SAS; never print them.
     key = az('storage','account','keys','list','-g',PROD,'-n',STORAGE)[0]['value']
     os.environ['AZURE_STORAGE_KEY']=key
@@ -318,7 +325,11 @@ def main():
     if STATE and STATE['phase'] in ('cutover-verified','retirement-started'):
         STATE['phase']='cutover-verified';retirement(STATE);return
     if STATE and STATE['phase']=='completed': health();print('Already completed');return
-    if STATE: raise RuntimeError('Previous attempt exists; review source and destination before retry')
+    resuming = operation=='resume'
+    if resuming:
+        if not STATE or STATE.get('phase') not in ('prepared','recovered','rolled-back'):raise RuntimeError('Resume requires a recorded source recovery or failed copy')
+        recover_source(STATE)
+    elif STATE: raise RuntimeError('Previous attempt exists; review source and destination before retry')
     source=db_url('job',MIG); production=db_url('app','app-tapkin-production-au',PROD)
     guard_url(source,SOURCE_HOST,'tapkin_staging'); prod_parsed=guard_url(production,TARGET_HOST,'tapkin_production')
     guard_url(db_url('app',APP),SOURCE_HOST,'tapkin_staging')
@@ -327,19 +338,22 @@ def main():
     if prod_job.username!=prod_parsed.username: raise RuntimeError('Review production migration login before changing PUBLIC access')
     app=show('app',APP)
     if env_values(app).get('APP_ENV',{}).get('value')!='staging': raise RuntimeError('Application environment mismatch')
-    target='postgresql://'+ROLE+':'+quote(secrets.token_urlsafe(48),safe='')+'@'+TARGET_HOST+':5432/tapkin_staging?sslmode=require'
+    target=secret_values('app',APP)[SECRET] if resuming else 'postgresql://'+ROLE+':'+quote(secrets.token_urlsafe(48),safe='')+'@'+TARGET_HOST+':5432/tapkin_staging?sslmode=require'
+    if unquote(guard_url(target,TARGET_HOST,'tapkin_staging').username)!=ROLE:raise RuntimeError('Target login must remain restricted')
     network()
     expiry=(dt.datetime.now(dt.timezone.utc)+dt.timedelta(hours=3)).strftime('%Y-%m-%dT%H:%MZ')
     token=az('storage','container','generate-sas',*storage_args(),'-n',CONTAINER,'--permissions','racw','--expiry',expiry,'--https-only')
     sas='https://'+STORAGE+'.blob.core.windows.net/'+CONTAINER+'?'+token
     backup='staging-'+dt.datetime.now(dt.timezone.utc).strftime('%Y%m%dT%H%M%SZ')+'.dump'
     start_worker('probe',source,production,target,sas,backup)
-    set_secret('app',APP,target);set_secret('job',MIG,target)
-    STATE={'phase':'prepared','backup':backup,'originalAppSecret':env_values(app)['DATABASE_URL']['secretRef'],'originalMigrationSecret':env_values(show('job',MIG))['DATABASE_URL']['secretRef']}
+    if not resuming:set_secret('app',APP,target);set_secret('job',MIG,target)
+    if resuming:
+        STATE['previousBackup']=STATE['backup'];STATE['backup']=backup;STATE['phase']='prepared'
+    else:STATE={'phase':'prepared','backup':backup,'originalAppSecret':env_values(app)['DATABASE_URL']['secretRef'],'originalMigrationSecret':env_values(show('job',MIG))['DATABASE_URL']['secretRef']}
     write_control(STATE)
     try:
         pause(STATE)
-        result=start_worker('copy',source,production,target,sas,backup)
+        result=start_worker('copy-empty' if resuming else 'copy',source,production,target,sas,backup)
         if result['phase']!='copy-verified' or not result['stagingCannotAccessProduction']: raise RuntimeError('Copy verification missing')
         STATE.update(result);write_control(STATE)
         update_env('job',MIG,SECRET)
