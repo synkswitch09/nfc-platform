@@ -33,7 +33,7 @@ def show(kind, name, group=STAGE):
 
 
 def secret_values(kind, name, group=STAGE):
-    result = az('containerapp', *(['job'] if kind == 'job' else []), 'secret', 'list', '-n', name, '-g', group)
+    result = az('containerapp', *(['job'] if kind == 'job' else []), 'secret', 'list', '-n', name, '-g', group, '--show-values')
     return {item['name']: item.get('value') for item in result}
 
 
@@ -250,6 +250,8 @@ def main():
     guard_url(source,SOURCE_HOST,'tapkin_staging'); prod_parsed=guard_url(production,TARGET_HOST,'tapkin_production')
     guard_url(db_url('job',MIG),SOURCE_HOST,'tapkin_staging')
     if unquote(prod_parsed.username)!='tapkin_production_admin': raise RuntimeError('Unexpected production owner login')
+    prod_job=guard_url(db_url('job','job-tapkin-production-migrate',PROD),TARGET_HOST,'tapkin_production')
+    if prod_job.username!=prod_parsed.username: raise RuntimeError('Review production migration login before changing PUBLIC access')
     app=show('app',APP)
     if env_values(app).get('APP_ENV',{}).get('value')!='staging': raise RuntimeError('Application environment mismatch')
     target='postgresql://'+ROLE+':'+quote(secrets.token_urlsafe(48),safe='')+'@'+TARGET_HOST+':5432/tapkin_staging?sslmode=require'
