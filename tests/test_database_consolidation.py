@@ -1,6 +1,8 @@
 import importlib.util
 from pathlib import Path
 import unittest
+import types
+import sys
 from unittest.mock import patch
 
 spec=importlib.util.spec_from_file_location('consolidation',Path(__file__).resolve().parents[1]/'scripts/database-consolidation-run.py')
@@ -23,5 +25,24 @@ class ConsolidationSafety(unittest.TestCase):
             with self.assertRaises(RuntimeError):m.retirement({'phase':'cutover-verified','backup':'private.dump','backupSha256':'mismatch'})
             health.assert_not_called()
             self.assertFalse(any('delete' in call.args for call in cli.call_args_list))
+
+class PostgreSQLClientSafety(unittest.TestCase):
+    def load_worker(self):
+        fake=types.ModuleType('psycopg2');fake.sql=types.SimpleNamespace()
+        spec=importlib.util.spec_from_file_location('migration_worker',Path(__file__).resolve().parents[1]/'ops/database-consolidation/worker.py')
+        worker=importlib.util.module_from_spec(spec)
+        with patch.dict(sys.modules,{'psycopg2':fake}):spec.loader.exec_module(worker)
+        return worker
+    def test_implicit_client_tls_is_upgraded_to_verified_tls(self):
+        worker=self.load_worker()
+        params=worker.connection_parameters('postgresql://stage:private@'+m.SOURCE_HOST+'/tapkin_staging',m.SOURCE_HOST,'tapkin_staging')
+        self.assertEqual(params['sslmode'],'verify-full')
+        with self.assertRaises(ValueError):worker.connection_parameters('postgresql://stage:private@'+m.SOURCE_HOST+'/tapkin_staging?sslmode=disable',m.SOURCE_HOST,'tapkin_staging')
+    def test_dump_client_uses_named_database_instead_of_login_default(self):
+        worker=self.load_worker()
+        with patch.object(worker.subprocess,'run',return_value=types.SimpleNamespace(returncode=0,stdout=b'ok')) as child:
+            worker.pg_tool('pg_dump',{'dbname':'tapkin_staging','password':'private','host':m.SOURCE_HOST},'--schema-only')
+            self.assertEqual(child.call_args.kwargs['env']['PGDATABASE'],'tapkin_staging')
+            self.assertNotIn('private',child.call_args.args[0])
 
 if __name__=='__main__':unittest.main()
