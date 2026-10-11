@@ -162,7 +162,7 @@ def pause(state):
     props = copy.deepcopy(worker['properties']); config = props['configuration']
     config['triggerType'] = 'Manual'; config.pop('scheduleTriggerConfig', None)
     config['manualTriggerConfig'] = {'parallelism':1, 'replicaCompletionCount':1}
-    patch_resource(worker, {'configuration':config})
+    patch_resource(worker, {'configuration': {'triggerType':'Manual','manualTriggerConfig':config['manualTriggerConfig'],'scheduleTriggerConfig':None,'eventTriggerConfig':None}})
     for name in (ORDERS, MIG):
         executions = az('containerapp', 'job', 'execution', 'list', '-n', name, '-g', STAGE)
         running = [e for e in executions if e['properties']['status'] in ('Running', 'Processing', 'Pending')]
@@ -181,7 +181,7 @@ def restore_orders(state):
     for key in ('triggerType','manualTriggerConfig','scheduleTriggerConfig','eventTriggerConfig'):
         props['configuration'].pop(key, None)
         if key in state['orderConfiguration']: props['configuration'][key] = state['orderConfiguration'][key]
-    patch_resource(worker, {'configuration': props['configuration']})
+    patch_resource(worker, {'configuration': {key: state['orderConfiguration'].get(key) for key in ('triggerType','manualTriggerConfig','scheduleTriggerConfig','eventTriggerConfig')}})
 
 
 def network():
