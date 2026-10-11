@@ -40,6 +40,10 @@ class PostgreSQLClientSafety(unittest.TestCase):
         worker=importlib.util.module_from_spec(spec)
         with patch.dict(sys.modules,{'psycopg2':fake}):spec.loader.exec_module(worker)
         return worker
+    def test_known_clone_cannot_overwrite_independently_changed_data(self):
+        worker=self.load_worker()
+        with patch.object(worker,'restricted_target'),patch.object(worker,'manifest',return_value={'tables':{'User':{'count':2}}}),patch.dict(worker.os.environ,{'EXPECTED_CLONE_MANIFEST':'{"tables":{"User":{"count":1}}}'}):
+            with self.assertRaisesRegex(RuntimeError,'changed independently'):worker.known_clone(None,{})
     def test_restore_retains_app_objects_and_comments_without_replacing_builtin_language(self):
         worker=self.load_worker()
         toc='4; 3079 100 EXTENSION - plpgsql\n8; 0 0 COMMENT - EXTENSION plpgsql\n20; 1259 123 TABLE public Product owner\n21; 0 123 TABLE DATA public Product owner\n22; 0 0 COMMENT public TABLE Product owner\n'
