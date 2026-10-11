@@ -5,7 +5,7 @@ on:
       operation:
         description: Audit, migrate and retire staging, or finish verified retirement
         type: choice
-        options: [audit, migrate, retire]
+        options: [audit, migrate, retire, recover]
         required: true
         default: audit
 permissions:
