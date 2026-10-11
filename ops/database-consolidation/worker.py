@@ -3,6 +3,7 @@ from contextlib import closing
 import hashlib
 import json
 import os
+import re
 from pathlib import Path
 import subprocess
 import sys
@@ -55,8 +56,37 @@ def pg_tool(name, params, *args):
     # Credentials stay in process environment; no raw stderr enters logs.
     result = subprocess.run([name, *args], env=env, capture_output=True)
     if result.returncode:
-        raise RuntimeError(name + " failed; source is retained")
+        categories = {'must be owner of extension':'builtin extension ownership', 'schema "public" already exists':'public schema already exists', 'permission denied for schema public':'public schema permission', 'server version mismatch':'client/server version mismatch'}
+        details = result.stderr.decode(errors='replace').lower()
+        category = next((v for k,v in categories.items() if k in details), 'redacted database tool error')
+        raise RuntimeError(name + " failed (" + category + "); source is retained")
     return result.stdout
+
+
+def restore_toc(text):
+    # plpgsql is supplied by PostgreSQL in template0 and owned by the managed service.
+    # Keep every application object and comment; retain the existing builtin language.
+    pattern = r";\s+\d+\s+\d+\s+(?:EXTENSION\s+-\s+plpgsql|COMMENT\s+-\s+EXTENSION\s+plpgsql)(?:\s|$)"
+    return "\n".join(line for line in text.splitlines() if not re.search(pattern,line)) + "\n"
+
+
+def empty_target(admin, target):
+    owner=query(admin,"SELECT pg_get_userbyid(datdba) FROM pg_database WHERE datname=%s",(STAGING_DB,))
+    flags=query(admin,"SELECT rolsuper,rolcreatedb,rolcreaterole,rolreplication,rolbypassrls FROM pg_roles WHERE rolname=%s",(STAGING_ROLE,))
+    if owner != [(STAGING_ROLE,)] or flags != [(False,False,False,False,False)]:
+        raise RuntimeError("Existing target ownership or role privileges differ from the migration")
+    memberships=query(admin,"SELECT count(*) FROM pg_auth_members WHERE member=(SELECT oid FROM pg_roles WHERE rolname=%s)",(STAGING_ROLE,))[0][0]
+    if memberships:raise RuntimeError("Target role inherits other roles; isolation requires review")
+    with closing(connect(target)) as conn:
+        tables=query(conn,"SELECT count(*) FROM pg_tables WHERE schemaname NOT LIKE 'pg_%' AND schemaname <> 'information_schema'")[0][0]
+        namespaces=query(conn,"SELECT count(*) FROM pg_namespace WHERE nspname NOT LIKE 'pg_%' AND nspname NOT IN ('public','information_schema')")[0][0]
+        types=query(conn,"SELECT count(*) FROM pg_type t JOIN pg_namespace n ON n.oid=t.typnamespace WHERE n.nspname='public'")[0][0]
+        functions=query(conn,"SELECT count(*) FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace WHERE n.nspname='public'")[0][0]
+        sequences=query(conn,"SELECT count(*) FROM pg_sequences WHERE schemaname NOT LIKE 'pg_%'")[0][0]
+        if tables or namespaces or types or functions or sequences:
+            raise RuntimeError("Existing target is not empty; never overwrite its data")
+    if query(admin,"SELECT has_database_privilege(%s,%s,'CONNECT')",(STAGING_ROLE,PRODUCTION_DB))[0][0]:
+        raise RuntimeError("Existing target role is not isolated from production")
 
 
 def manifest(params):
@@ -75,7 +105,7 @@ def manifest(params):
         extensions = query(conn, "SELECT extname, extversion FROM pg_extension ORDER BY 1")
         large_objects = query(conn, "SELECT count(*) FROM pg_largeobject_metadata")[0][0]
     schema = pg_tool("pg_dump", params, "--schema-only", "--no-owner", "--no-acl").decode()
-    normalized = "\n".join(line for line in schema.splitlines() if line.strip() and not line.startswith(("--", "\\restrict", "\\unrestrict")))
+    normalized = "\n".join(line for line in schema.splitlines() if line.strip() and not line.startswith(("--", "\\restrict", "\\unrestrict")) and line.strip() != 'CREATE SCHEMA public;')
     return {"tables": rows, "sequences": sequences, "extensions": extensions,
             "largeObjects": large_objects, "schemaSha256": hashlib.sha256(normalized.encode()).hexdigest()}
 
@@ -128,12 +158,16 @@ def main():
                          "tableCount": len(info["tables"]), "rowCount": sum(x["count"] for x in info["tables"].values())})
             print("Preflight passed: PostgreSQL 18, only staging database, private TLS and backup access verified")
             return
-        if mode != "copy" or os.environ.get("STAGING_WRITES_PAUSED") != "true":
+        if mode not in ("copy", "copy-empty") or os.environ.get("STAGING_WRITES_PAUSED") != "true":
             raise RuntimeError("Copy requires confirmed staging write pause")
-        if query(admin, "SELECT 1 FROM pg_database WHERE datname=%s", (STAGING_DB,)):
-            raise RuntimeError("Target database already exists; never overwrite a live database")
-        if query(admin, "SELECT 1 FROM pg_roles WHERE rolname=%s", (STAGING_ROLE,)):
-            raise RuntimeError("Target role already exists; review before retrying")
+        retry = mode == "copy-empty" and os.environ.get('ALLOW_EMPTY_TARGET_RETRY') == 'true'
+        if retry:
+            empty_target(admin,target)
+        else:
+            if query(admin, "SELECT 1 FROM pg_database WHERE datname=%s", (STAGING_DB,)):
+                raise RuntimeError("Target database already exists; never overwrite a live database")
+            if query(admin, "SELECT 1 FROM pg_roles WHERE rolname=%s", (STAGING_ROLE,)):
+                raise RuntimeError("Target role already exists; review before retrying")
         # All database data operations target staging only. Production is observed.
         with closing(connect(production)) as prod_guard:
             owner = query(prod_guard, "SELECT pg_get_userbyid(datdba) FROM pg_database WHERE datname=%s", (PRODUCTION_DB,))[0][0]
@@ -141,7 +175,7 @@ def main():
                 raise RuntimeError("Production owner must retain access before PUBLIC isolation")
         production_before = manifest(production)['schemaSha256']
         query(source_conn, sql.SQL("ALTER DATABASE {} SET default_transaction_read_only = on").format(sql.Identifier(STAGING_DB)))
-        query(source_conn, "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname=%s AND pid <> pg_backend_pid()", (STAGING_DB,))
+        query(source_conn, "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname=%s AND backend_type='client backend' AND pid <> pg_backend_pid()", (STAGING_DB,))
         try:
             before = manifest(source)
             with tempfile.TemporaryDirectory() as directory:
@@ -152,12 +186,26 @@ def main():
                     raise RuntimeError("Backup needs chunked transfer; source retained")
                 backup_name = os.environ["BACKUP_NAME"]
                 upload(backup_name, data)
-                query(admin, sql.SQL("CREATE ROLE {} LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS PASSWORD %s").format(sql.Identifier(STAGING_ROLE)), (target["password"],))
-                query(admin, sql.SQL("CREATE DATABASE {} OWNER {} TEMPLATE template0").format(sql.Identifier(STAGING_DB), sql.Identifier(STAGING_ROLE)))
-                query(admin, sql.SQL("REVOKE ALL ON DATABASE {} FROM PUBLIC").format(sql.Identifier(STAGING_DB)))
-                # PUBLIC CONNECT must not let the staging login open production.
-                query(admin, sql.SQL("REVOKE CONNECT, TEMPORARY ON DATABASE {} FROM PUBLIC").format(sql.Identifier(PRODUCTION_DB)))
-                pg_tool("pg_restore", target, "--no-owner", "--no-acl", "--single-transaction", "--exit-on-error", "--dbname", STAGING_DB, str(path))
+                if not retry:
+                    query(admin, sql.SQL("CREATE ROLE {} LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS PASSWORD %s").format(sql.Identifier(STAGING_ROLE)), (target["password"],))
+                    query(admin, sql.SQL("CREATE DATABASE {} OWNER {} TEMPLATE template0").format(sql.Identifier(STAGING_DB), sql.Identifier(STAGING_ROLE)))
+                    query(admin, sql.SQL("REVOKE ALL ON DATABASE {} FROM PUBLIC").format(sql.Identifier(STAGING_DB)))
+                    query(admin, sql.SQL("REVOKE CONNECT, TEMPORARY ON DATABASE {} FROM PUBLIC").format(sql.Identifier(PRODUCTION_DB)))
+                # Only an empty, restricted staging database is eligible for bootstrap cleanup.
+                empty_target(admin,target)
+                with closing(connect(target)) as target_conn:
+                    owns_public=query(target_conn,"SELECT pg_has_role(nspowner,'USAGE') FROM pg_namespace WHERE nspname='public'")[0][0]
+                if not owns_public:
+                    with closing(connect(production,STAGING_DB)) as target_admin:
+                        query(target_admin,sql.SQL("ALTER SCHEMA public OWNER TO {}").format(sql.Identifier(STAGING_ROLE)))
+                toc_path=Path(directory)/'restore.list'
+                toc_path.write_text(restore_toc(pg_tool('pg_restore',target,'--list',str(path)).decode()))
+                pg_tool("pg_restore", target, "--no-owner", "--no-acl", "--clean", "--if-exists", "--single-transaction", "--exit-on-error", "--use-list", str(toc_path), "--dbname", STAGING_DB, str(path))
+                # Preserve the builtin language comment without granting its ownership to staging.
+                source_comment=query(source_conn,"SELECT obj_description(oid,'pg_extension') FROM pg_extension WHERE extname='plpgsql'")[0][0]
+                with closing(connect(production,STAGING_DB)) as target_admin:
+                    target_comment=query(target_admin,"SELECT obj_description(oid,'pg_extension') FROM pg_extension WHERE extname='plpgsql'")[0][0]
+                    if source_comment!=target_comment:query(target_admin,"COMMENT ON EXTENSION plpgsql IS %s",(source_comment,))
                 after = manifest(target)
                 if before != after or manifest(source) != before:
                     raise RuntimeError("Restored database differs from frozen source")
