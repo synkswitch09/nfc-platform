@@ -323,7 +323,12 @@ def retirement(state):
         az('postgres','flexible-server','delete','-g',STAGE,'-n',PG,'--yes')
         print('Old staging PostgreSQL server deleted after verified cutover',flush=True)
     zones = az('network','private-dns','zone','list','-g',STAGE)
-    if any(z['name']==ZONE for z in zones): az('network','private-dns','zone','delete','-g',STAGE,'-n',ZONE,'--yes')
+    if any(z['name']==ZONE for z in zones):
+        links=az('network','private-dns','link','vnet','list','-g',STAGE,'-z',ZONE)
+        allowed_vnets={('/subscriptions/'+SUB+'/resourceGroups/'+STAGE+'/providers/Microsoft.Network/virtualNetworks/vnet-tapkin-staging-au').lower(),('/subscriptions/'+SUB+'/resourceGroups/'+PROD+'/providers/Microsoft.Network/virtualNetworks/vnet-commerce-production-au').lower()}
+        if any(link['virtualNetwork']['id'].lower() not in allowed_vnets for link in links):raise RuntimeError('Source DNS zone contains an unaudited network link')
+        for link in links:az('network','private-dns','link','vnet','delete','-g',STAGE,'-z',ZONE,'-n',link['name'],'--yes')
+        az('network','private-dns','zone','delete','-g',STAGE,'-n',ZONE,'--yes')
     # Retain the staging VNet, Container Apps subnet, applications, jobs, storage and logs.
     subnets = az('network','vnet','subnet','list','-g',STAGE,'--vnet-name','vnet-tapkin-staging-au')
     subnet = next((s for s in subnets if s['name']=='snet-postgres'),None)
