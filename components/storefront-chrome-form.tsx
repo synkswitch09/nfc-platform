@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { MediaUploadField } from "@/components/media-upload-field";
 import {
   parseFooterLinks,
+  footerSocialProfiles,
   parseHeaderLinks,
   type FooterConfig,
   type HeaderConfig,
@@ -31,9 +32,8 @@ export function StorefrontChromeForm({
     area === "header" ? (header?.logoUrl ?? "") : (footer?.logoUrl ?? ""),
   );
   const [compactLogoUrl, setCompactLogoUrl] = useState(header?.compactLogoUrl ?? "");
-  const [socialIcons, setSocialIcons] = useState(
-    footer?.socialIcons ?? { instagram: "", tumblr: "", facebook: "", tiktok: "", linkedin: "" },
-  );
+  const [socialProfiles, setSocialProfiles] = useState(footer ? footerSocialProfiles(footer, socialLinks) : []);
+
 
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -120,7 +120,9 @@ export function StorefrontChromeForm({
               customLinksTypography: typographyFromForm(form, "customLinksTypography", footer.customLinksTypography),
               termsTypography: typographyFromForm(form, "termsTypography", footer.termsTypography),
               privacyTypography: typographyFromForm(form, "privacyTypography", footer.privacyTypography),
-              socialIcons,
+              includeManagedPages: form.get("includeManagedPages") === "on",
+              policyLinks: parseFooterLinks(String(form.get("policyLinks") ?? ""), footer.policyLinks),
+              socialProfiles: socialProfiles.map((row, order) => ({ ...row, order })),
             }
           : null;
     const payload = {
@@ -128,13 +130,7 @@ export function StorefrontChromeForm({
       config,
       ...(area === "footer"
         ? {
-            socialLinks: {
-              instagram: form.get("instagram"),
-              tumblr: form.get("tumblr"),
-              facebook: form.get("facebook"),
-              tiktok: form.get("tiktok"),
-              linkedin: form.get("linkedin"),
-            },
+            socialLinks: Object.fromEntries(["instagram", "tumblr", "facebook", "tiktok", "linkedin"].map(platform => [platform, socialLinks[platform] ?? ""])),
           }
         : {}),
     };
@@ -182,11 +178,8 @@ export function StorefrontChromeForm({
         ) : footer ? (
           <FooterFields
             config={footer}
-            socialLinks={socialLinks}
-            socialIcons={socialIcons}
-            onSocialIconChange={(platform, value) =>
-              setSocialIcons((icons) => ({ ...icons, [platform]: value }))
-            }
+            socialProfiles={socialProfiles}
+            onSocialProfilesChange={setSocialProfiles}
           />
         ) : null}
       </section>
@@ -407,14 +400,12 @@ function HeaderFields({ config }: { config: HeaderConfig }) {
 
 function FooterFields({
   config,
-  socialLinks,
-  socialIcons,
-  onSocialIconChange,
+  socialProfiles,
+  onSocialProfilesChange,
 }: {
   config: FooterConfig;
-  socialLinks: SocialLinks;
-  socialIcons: FooterConfig["socialIcons"];
-  onSocialIconChange: (platform: keyof FooterConfig["socialIcons"], value: string) => void;
+  socialProfiles: NonNullable<FooterConfig["socialProfiles"]>;
+  onSocialProfilesChange: (rows: NonNullable<FooterConfig["socialProfiles"]>) => void;
 }) {
   return (
     <>
@@ -446,6 +437,7 @@ function FooterFields({
         </label>
       </div>
       <div className="check-row">
+        <Check name="includeManagedPages" label="Include pages marked for the footer" checked={config.includeManagedPages} />
         <Check name="showTerms" label="Show Terms" checked={config.showTerms} />
         <Check
           name="showPrivacy"
@@ -453,38 +445,28 @@ function FooterFields({
           checked={config.showPrivacy}
         />
       </div>
-      <h3>Social links</h3>
-      <div className="field-grid">
-        {(["instagram", "tumblr", "facebook", "tiktok", "linkedin"] as const).map(
-          (platform) => (
-            <Text
-              key={platform}
-              name={platform}
-              label={`${platform[0].toUpperCase()}${platform.slice(1)} URL`}
-              value={socialLinks[platform] ?? ""}
-              type="url"
-            />
-          ),
-        )}
-      </div>
+      <h3>Policy submenu</h3>
+      <label className="field">Policy submenu links<textarea name="policyLinks" defaultValue={[...config.policyLinks].sort((a,b) => a.order-b.order).map(link => `${link.label} | ${link.href}`).join("\n")} /><small>One per line: Label | /page. Shown at the top of legal pages.</small></label>
+      <h3>Social networks</h3>
+      <p>Add any network, choose its icon and destination, then reorder or hide it. An icon without a URL remains a decorative preview.</p>
+      <button type="button" className="button secondary" disabled={socialProfiles.length >= 24} onClick={() => onSocialProfilesChange([...socialProfiles, { id: crypto.randomUUID(), label: "New network", href: "", iconUrl: "", visible: true, order: socialProfiles.length }])}>Add social network</button>
       <div className="admin-stack compact-stack">
-        <p className="field-hint">
-          Add an icon from the design. It appears as a decorative preview until
-          you add its destination URL above.
-        </p>
-        {(["instagram", "tumblr", "facebook", "tiktok", "linkedin"] as const).map(
-          (platform) => (
-            <MediaUploadField
-              key={platform}
-              uploadEndpoint="/api/admin/settings/images"
-              disabledMessage="Store media upload is unavailable."
-              label={`${platform[0].toUpperCase()}${platform.slice(1)} icon`}
-              name={`${platform}Icon`}
-              value={socialIcons[platform]}
-              onChange={(value) => onSocialIconChange(platform, value)}
-            />
-          ),
-        )}
+        {socialProfiles.map((row, index) => {
+          const update = (patch: Partial<typeof row>) => onSocialProfilesChange(socialProfiles.map(item => item.id === row.id ? { ...item, ...patch } : item));
+          const move = (offset: number) => { const rows = [...socialProfiles]; [rows[index], rows[index + offset]] = [rows[index + offset], rows[index]]; onSocialProfilesChange(rows); };
+          return <section className="admin-panel" key={row.id} aria-label={`Social network ${index + 1}`}>
+            <div className="field-grid">
+              <label className="field">Network name<input aria-label={`Network ${index + 1} name`} value={row.label} maxLength={60} required onChange={e => update({ label: e.target.value })} /></label>
+              <label className="field">Destination URL<input aria-label={`Network ${index + 1} URL`} type="url" value={row.href} onChange={e => update({ href: e.target.value })} /></label>
+            </div>
+            <MediaUploadField uploadEndpoint="/api/admin/settings/images" label={`${row.label} icon`} name={`social-${row.id}`} value={row.iconUrl} onChange={iconUrl => update({ iconUrl })} />
+            <div className="check-row"><label><input type="checkbox" checked={row.visible} onChange={e => update({ visible: e.target.checked })} /> Visible</label>
+              <button type="button" className="button secondary" disabled={index === 0} onClick={() => move(-1)}>Move earlier</button>
+              <button type="button" className="button secondary" disabled={index === socialProfiles.length - 1} onClick={() => move(1)}>Move later</button>
+              <button type="button" className="button secondary" onClick={() => onSocialProfilesChange(socialProfiles.filter(item => item.id !== row.id))}>Remove network</button>
+            </div>
+          </section>;
+        })}
       </div>
       <h3>Colours</h3>
       <div className="field-grid">

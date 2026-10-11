@@ -36,7 +36,7 @@ export default async function PrivacyPage() {
   if (page?.sections.length) {
     const localized = localizeContentPage(page, locale, store.defaultLocale);
     return (
-      <div className="legal-page"><LegalPageIntro name={localized.name} store={store} /><ModularPageRenderer
+      <div className="legal-page"><LegalPageIntro name={localized.name} store={store} slug={"privacy"} locale={locale} /><ModularPageRenderer
         name={localized.name}
         sections={localized.sections}
         products={[]}

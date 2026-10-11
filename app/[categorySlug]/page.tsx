@@ -191,7 +191,7 @@ export default async function PublicCategoryPage({
     if (page.slug !== categorySlug) permanentRedirect(`/${page.slug}`);
     const localized = localizeContentPage(page, locale, store.defaultLocale);
     return (
-      <div className={page.kind === "LEGAL" ? "legal-page" : undefined}>{page.kind === "LEGAL" && <LegalPageIntro name={localized.name} store={store} />}<ModularPageRenderer
+      <div className={page.kind === "LEGAL" ? "legal-page" : undefined}>{page.kind === "LEGAL" && <LegalPageIntro name={localized.name} store={store} slug={page.slug} locale={locale} />}<ModularPageRenderer
         name={localized.name}
         sections={localized.sections}
         products={products}
