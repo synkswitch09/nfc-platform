@@ -24,11 +24,15 @@ def main():
     app = az("containerapp", "show", "--name", app_name, "--resource-group", group)
     existing = az("containerapp", "job", "list", "--resource-group", group)
     job_name = f"{app_name}-orders"
+    cron = "0 * * * *" if target == "staging" else "*/5 * * * *"
     for job in existing:
         props = job.get("properties", {})
         if job["name"] == job_name:
             if job.get("tags", {}).get("managed-by") not in ("staging-order-worker", "order-worker"):
                 raise RuntimeError("Worker resource name is already used by an unmanaged job")
+            configured_cron = props.get("configuration", {}).get("scheduleTriggerConfig", {}).get("cronExpression")
+            if configured_cron:
+                cron = configured_cron
             continue
         if props.get("environmentId") != app["properties"]["environmentId"]:
             continue
@@ -72,7 +76,7 @@ def main():
     properties = {
         "environmentId": app["properties"]["environmentId"],
         "configuration": {"triggerType": "Schedule", "replicaTimeout": 240, "replicaRetryLimit": 0,
-                          "scheduleTriggerConfig": {"cronExpression": "*/5 * * * *", "parallelism": 1, "replicaCompletionCount": 1},
+                          "scheduleTriggerConfig": {"cronExpression": cron, "parallelism": 1, "replicaCompletionCount": 1},
                           "registries": registries, "secrets": secrets},
         "template": {"containers": [{"name": "orders", "image": os.environ["IMAGE"],
                                       "command": ["node"], "args": ["/app/scripts/reconcile-checkouts.mjs"],
@@ -102,7 +106,7 @@ def main():
         result = az("containerapp", "job", "execution", "show", "--name", job_name, "--resource-group", group, "--job-execution-name", execution)
         status = result["properties"].get("status")
         if status == "Succeeded":
-            print("Order worker configured every five minutes; first execution succeeded")
+            print("Order worker schedule preserved/configured: " + cron + "; first execution succeeded")
             app = az("containerapp", "show", "--name", app_name, "--resource-group", group)
             names = {entry["name"] for container in app["properties"]["template"]["containers"] for entry in container.get("env", [])}
             print("Environment configuration names: " + ", ".join(sorted(names)))
