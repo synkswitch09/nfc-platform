@@ -10,6 +10,7 @@ import { footerConfigSchema, headerConfigSchema } from "@/lib/site-chrome";
 import { isSafeImageSource } from "@/lib/image-source";
 import { googleVerificationToken } from "@/lib/site-verification";
 import { storefrontThemeSchema } from "@/lib/storefront-theme";
+import { businessAbnSchema } from "@/lib/business-identity";
 
 const url = z
   .string()
@@ -33,6 +34,9 @@ const schema = z
   .object({
     storeName: z.string().trim().min(2).max(100),
     businessName: z.string().trim().max(150).optional(),
+    businessAbn: businessAbnSchema.optional(),
+    registeredBusinessName: z.string().trim().max(150).optional(),
+    gstRegistration: z.enum(["registered", "not-registered", "unspecified"]).optional(),
     supportEmail: z.string().trim().email(),
     currency: z.string().regex(/^[A-Z]{3}$/),
     defaultCountry: z.string().regex(/^[A-Z]{2}$/),
@@ -103,6 +107,7 @@ export async function POST(request: NextRequest) {
       data: {
         displayName: value.storeName,
         legalName: value.businessName || null,
+        organization: { ...store.organization, ...(value.businessAbn !== undefined ? { abn: value.businessAbn } : {}), ...(value.registeredBusinessName !== undefined ? { registeredBusinessName: value.registeredBusinessName } : {}), ...(value.gstRegistration !== undefined ? { gstRegistered: value.gstRegistration === "unspecified" ? null : value.gstRegistration === "registered" } : {}) },
         supportEmail: value.supportEmail,
         currency: value.currency,
         country: value.defaultCountry,
