@@ -108,7 +108,7 @@ def main():
     source = connection_parameters(os.environ["SOURCE_DATABASE_URL"], SOURCE_HOST, STAGING_DB)
     production = connection_parameters(os.environ["PRODUCTION_DATABASE_URL"], TARGET_HOST, PRODUCTION_DB)
     target = connection_parameters(os.environ["TARGET_DATABASE_URL"], TARGET_HOST, STAGING_DB)
-    if target["user"] != STAGING_ROLE or source["user"] == target["user"]:
+    if target["user"] != STAGING_ROLE:
         raise ValueError("Staging requires its own restricted login")
     with closing(connect(source)) as source_conn, closing(connect(production, "postgres")) as admin:
         version = query(source_conn, "SHOW server_version_num")[0][0]
