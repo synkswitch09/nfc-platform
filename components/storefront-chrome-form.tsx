@@ -446,7 +446,7 @@ function FooterFields({
         />
       </div>
       <h3>Policy submenu</h3>
-      <label className="field">Policy submenu links<textarea name="policyLinks" defaultValue={[...config.policyLinks].sort((a,b) => a.order-b.order).map(link => `${link.label} | ${link.href}`).join("\n")} /><small>One per line: Label | /page. Shown at the top of legal pages.</small></label>
+      <label className="field">Policy submenu links<textarea name="policyLinks" defaultValue={[...config.policyLinks].sort((a,b) => a.order-b.order).map(link => `${link.label} | ${link.href}`).join("\n")} /><small>One per line: Label | /page. Shown only at the top of Terms &amp; Conditions.</small></label>
       <h3>Social networks</h3>
       <p>Add any network, choose its icon and destination, then reorder or hide it. An icon without a URL remains a decorative preview.</p>
       <button type="button" className="button secondary" disabled={socialProfiles.length >= 24} onClick={() => onSocialProfilesChange([...socialProfiles, { id: crypto.randomUUID(), label: "New network", href: "", iconUrl: "", visible: true, order: socialProfiles.length }])}>Add social network</button>
