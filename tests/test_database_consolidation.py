@@ -33,6 +33,12 @@ class ConsolidationSafety(unittest.TestCase):
             with self.assertRaises(RuntimeError):m.retirement({'phase':'cutover-verified'})
             cli.assert_not_called()
 
+    def test_already_active_revision_needs_no_activation_request(self):
+        revision={'name':'app--new','properties':{'active':True}}
+        with patch.object(m,'show',return_value={'id':'/app'}),patch.object(m,'revisions',return_value=[revision]),patch.object(m,'az') as cli:
+            self.assertEqual(m.activate_revision('app--new'),revision)
+            cli.assert_not_called()
+
 class PostgreSQLClientSafety(unittest.TestCase):
     def load_worker(self):
         fake=types.ModuleType('psycopg2');fake.sql=types.SimpleNamespace()

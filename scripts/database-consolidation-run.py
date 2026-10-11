@@ -187,7 +187,15 @@ def pause(state):
 
 def activate_revision(name):
     resource = show('app', APP)
-    return az('rest','--method','post','--url','https://management.azure.com'+resource['id']+'/revisions/'+name+'/activate?api-version=2024-03-01')
+    current=next((r for r in revisions() if r['name']==name),None)
+    if current and current['properties'].get('active'):return current
+    try:
+        return az('rest','--method','post','--url','https://management.azure.com'+resource['id']+'/revisions/'+name+'/activate?api-version=2024-03-01')
+    except RuntimeError as error:
+        if 'RevisionAlreadyInRequestedState' not in str(error):raise
+        current=next((r for r in revisions() if r['name']==name),None)
+        if not current or not current['properties'].get('active'):raise
+        return current
 
 
 def recover_source(state):

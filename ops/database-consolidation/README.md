@@ -13,6 +13,10 @@ references; no PostgreSQL hostname is embedded in application code.
 - `migrate`: private peering/DNS, preflight, write pause, backup, copy, verification,
   connection cutover, health checks, and retirement.
 - `retire`: finishes retirement only with persisted verified cutover and backup.
+- `recover`: restores original source references and schedule, then checks readiness.
+- `resume`: resumes a recorded attempt. Reuse only an empty destination or a verified
+  migration clone whose complete current manifest still matches its saved snapshot.
+  Any independently changed destination requires review and is never overwritten.
 
 The private `staging-db-consolidation` container on `stcommerceproductionau`
 contains a timestamped custom-format dump, a manifest of table counts/hashes,
