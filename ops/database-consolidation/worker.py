@@ -25,7 +25,7 @@ def connection_parameters(url, expected_host, expected_db):
     if parsed.hostname != expected_host or unquote(parsed.path[1:]) != expected_db:
         raise ValueError("Unexpected database destination")
     query = dict(parse_qsl(parsed.query))
-    if query.get("sslmode") not in ("require", "verify-ca", "verify-full"):
+    if query.get("sslmode") == "disable":
         raise ValueError("Database transport must use TLS")
     return dict(host=parsed.hostname, port=parsed.port or 5432,
                 user=unquote(parsed.username or ""), password=unquote(parsed.password or ""),
@@ -49,7 +49,7 @@ def query(conn, statement, parameters=()):
 
 
 def pg_tool(name, params, *args):
-    env = {**os.environ, **{"PG" + k.upper(): str(v) for k, v in params.items()
+    env = {**os.environ, **{("PGDATABASE" if k == "dbname" else "PG" + k.upper()): str(v) for k, v in params.items()
                            if k in ("host", "port", "user", "password", "dbname", "sslmode", "sslrootcert", "connect_timeout")}}
     # Credentials stay in process environment; no raw stderr enters logs.
     result = subprocess.run([name, *args], env=env, capture_output=True)
@@ -185,5 +185,5 @@ if __name__ == "__main__":
     except Exception as error:
         # SQL/HTTP exception strings may include secrets or customer records.
         print("Migration failed safely (" + type(error).__name__ + "); source server retained", file=sys.stderr)
-        if type(error) is RuntimeError: print(str(error), file=sys.stderr)
+        if type(error) is RuntimeError or (type(error) is ValueError and str(error) in {"Unexpected database destination", "Database transport must use TLS", "Backup destination must be the private migration container", "Staging requires its own restricted login"}): print(str(error), file=sys.stderr)
         sys.exit(1)
