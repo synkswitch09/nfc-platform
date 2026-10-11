@@ -9,6 +9,7 @@ import { hasStoreCapability } from "@/lib/storefront";
 import { StoreCapability } from "@prisma/client";
 import { LandingSectionRenderer } from "@/components/landing-section-renderer";
 import { ModularPageRenderer } from "@/components/landing-section-renderer";
+import { LegalPageIntro } from "@/components/legal-page-intro";
 import { modularFaq, modularHeroImage } from "@/lib/landing-sections";
 import { db } from "@/lib/db";
 import { canonicalForStore, nonEmpty } from "@/lib/seo";
@@ -190,7 +191,7 @@ export default async function PublicCategoryPage({
     if (page.slug !== categorySlug) permanentRedirect(`/${page.slug}`);
     const localized = localizeContentPage(page, locale, store.defaultLocale);
     return (
-      <ModularPageRenderer
+      <div className={page.kind === "LEGAL" ? "legal-page" : undefined}>{page.kind === "LEGAL" && <LegalPageIntro name={localized.name} store={store} />}<ModularPageRenderer
         name={localized.name}
         sections={localized.sections}
         products={products}
@@ -202,7 +203,7 @@ export default async function PublicCategoryPage({
         }}
         theme={localized.visualTheme.toLowerCase()}
         breadcrumbs={[{ label: "Home", href: "/" }, { label: localized.name }]}
-      />
+      /></div>
     );
   }
   if (categorySlug !== category.slug)

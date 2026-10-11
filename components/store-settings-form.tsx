@@ -17,6 +17,9 @@ type Settings = {
   status: string;
   storeName: string;
   businessName: string | null;
+  businessAbn: string;
+  registeredBusinessName: string;
+  gstRegistration: string;
   supportEmail: string | null;
   currency: string;
   defaultCountry: string;
@@ -76,6 +79,9 @@ export function StoreSettingsForm({
     const payload = {
       storeName: form.get("storeName"),
       businessName: form.get("businessName"),
+      businessAbn: form.get("businessAbn"),
+      registeredBusinessName: form.get("registeredBusinessName"),
+      gstRegistration: form.get("gstRegistration"),
       supportEmail: form.get("supportEmail"),
       currency: String(form.get("currency")).toUpperCase(),
       defaultCountry: String(form.get("defaultCountry")).toUpperCase(),
@@ -156,12 +162,16 @@ export function StoreSettingsForm({
             />
           </label>
           <label className="field">
-            Legal business name
+            Legal seller / entity name
             <input
               name="businessName"
               defaultValue={settings.businessName ?? ""}
             />
           </label>
+          <label className="field">Registered business name<input name="registeredBusinessName" defaultValue={settings.registeredBusinessName} maxLength={150} /></label>
+          <label className="field">Australian Business Number (ABN)<input name="businessAbn" defaultValue={settings.businessAbn} inputMode="numeric" maxLength={20} /></label>
+          <label className="field">GST registration<select name="gstRegistration" defaultValue={settings.gstRegistration}><option value="unspecified">Not specified</option><option value="not-registered">Not registered for GST</option><option value="registered">Registered for GST</option></select></label>
+          <p className="fine-print">Enter the actual legal holder and registered business name, not only the storefront brand. These public details appear on policy pages. Publishing a policy does not register a business name.</p>
           <label className="field">
             Internal order notification recipient
             <input

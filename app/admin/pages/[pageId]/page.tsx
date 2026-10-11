@@ -151,8 +151,8 @@ export default async function EditContentPage({
       <nav className="admin-subnav" aria-label="Page editor sections">
         <a href="#general">General</a>
         {page.kind !== "HOME" && <a href="#placement">Placement</a>}
-        <a href={isFaqPage ? "#faqs" : "#sections"}>
-          {isFaqPage ? "General FAQs" : "Sections"}
+        <a href={isFaqPage && faqSections.length <= 1 ? "#faqs" : "#sections"}>
+          {isFaqPage && faqSections.length <= 1 ? "General FAQs" : "Sections"}
         </a>
         <a href="#seo">SEO</a>
         {localizedEditors.length > 0 && (
@@ -163,7 +163,7 @@ export default async function EditContentPage({
         </a>
       </nav>
       <ContentPageEditor initial={initial} />
-      {isFaqPage ? (
+      {isFaqPage && faqSections.length <= 1 ? (
         <GeneralFaqEditor
           pageId={page.id}
           initialItems={faqItems}

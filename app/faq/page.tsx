@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { reservedPageMetadata } from "@/lib/public-page-seo";
+import { uniqueFaqSections } from "@/lib/public-faq";
 import {
   CategoryStatus,
   LandingSectionType,
@@ -142,10 +143,11 @@ export default async function FaqPage() {
     });
   // Category FAQs are always shown first, followed by the dedicated general
   // FAQ questions configured in Admin → Content → Pages → FAQs.
-  const sections = [...categoryFaqSections, ...generalFaqSections];
+  const sections = uniqueFaqSections([...categoryFaqSections, ...generalFaqSections]);
+  const faqItems = modularFaq(sections);
   if (sections.length) {
     return (
-      <><header className="section compact-section faq-page-intro">
+      <><script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({ "@context": "https://schema.org", "@type": "FAQPage", mainEntity: faqItems.map(item => ({ "@type": "Question", name: item.question, acceptedAnswer: { "@type": "Answer", text: item.answer } })) }).replaceAll("<", "\\u003c") }} /><header className="section compact-section faq-page-intro">
         <h1>Frequently asked questions</h1>
         <p>Find practical answers about {store.displayName} products{nfcEnabled ? ", NFC and QR codes" : ""}{print3dEnabled ? ", and 3D printing" : ""}. Explore the questions below before choosing a product.</p>
       </header><ModularPageRenderer
