@@ -3,7 +3,7 @@ from pathlib import Path
 import unittest
 import types
 import sys
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 
 spec=importlib.util.spec_from_file_location('consolidation',Path(__file__).resolve().parents[1]/'scripts/database-consolidation-run.py')
 m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m)
@@ -38,6 +38,15 @@ class PostgreSQLClientSafety(unittest.TestCase):
         params=worker.connection_parameters('postgresql://stage:private@'+m.SOURCE_HOST+'/tapkin_staging',m.SOURCE_HOST,'tapkin_staging')
         self.assertEqual(params['sslmode'],'verify-full')
         with self.assertRaises(ValueError):worker.connection_parameters('postgresql://stage:private@'+m.SOURCE_HOST+'/tapkin_staging?sslmode=disable',m.SOURCE_HOST,'tapkin_staging')
+    def test_literal_percent_in_catalog_query_is_not_a_bind_placeholder(self):
+        worker=self.load_worker()
+        cursor=MagicMock();cursor.description=None
+        def execute(statement, parameters):
+            if parameters is not None and 'pg_%' in statement:
+                raise ValueError('Literal SQL percent was treated as a binding placeholder')
+        cursor.execute.side_effect=execute
+        connection=MagicMock();connection.cursor.return_value.__enter__.return_value=cursor
+        worker.query(connection, "SELECT schemaname FROM pg_tables WHERE schemaname NOT LIKE 'pg_%'")
     def test_dump_client_uses_named_database_instead_of_login_default(self):
         worker=self.load_worker()
         with patch.object(worker.subprocess,'run',return_value=types.SimpleNamespace(returncode=0,stdout=b'ok')) as child:
