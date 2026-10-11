@@ -13,7 +13,7 @@ from urllib.parse import urlsplit, unquote
 def az(*args):
     result = subprocess.run(["az", *args, "--output", "json", "--only-show-errors"], capture_output=True, text=True)
     if result.returncode:
-        code = re.search(r"(?:ERROR: \(|\"code\"\s*:\s*\")([A-Za-z0-9_]+)", result.stderr)
+        code = re.search(r"(?:ERROR: \(|[\"\']code[\"\']\s*:\s*[\"\'])([A-Za-z0-9_]+)", result.stderr, re.IGNORECASE)
         raise RuntimeError("Azure operation failed: " + (code.group(1) if code else "unclassified") + " [" + " ".join(args[:3]) + "]")
     return json.loads(result.stdout) if result.stdout.strip() else None
 
