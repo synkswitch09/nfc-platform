@@ -1,0 +1,43 @@
+{
+  "Name": "Tapkin staging database consolidation (temporary)",
+  "IsCustom": true,
+  "Description": "Temporary migration access for github-tapkin-production-deploy, limited to staging app/job connections, PostgreSQL source metadata/retirement, and private-network dependencies. Remove the assignment after migration or cancellation.",
+  "Actions": [
+    "Microsoft.Resources/subscriptions/resourceGroups/read",
+    "Microsoft.DBforPostgreSQL/flexibleServers/read",
+    "Microsoft.DBforPostgreSQL/flexibleServers/databases/read",
+    "Microsoft.DBforPostgreSQL/flexibleServers/configurations/read",
+    "Microsoft.DBforPostgreSQL/flexibleServers/delete",
+    "Microsoft.App/containerApps/read",
+    "Microsoft.App/containerApps/write",
+    "Microsoft.App/containerApps/listSecrets/action",
+    "Microsoft.App/containerApps/revisions/read",
+    "Microsoft.App/containerApps/revisions/activate/action",
+    "Microsoft.App/containerApps/revisions/deactivate/action",
+    "Microsoft.App/jobs/read",
+    "Microsoft.App/jobs/write",
+    "Microsoft.App/jobs/listSecrets/action",
+    "Microsoft.App/jobs/start/action",
+    "Microsoft.App/jobs/stop/action",
+    "Microsoft.App/jobs/executions/read",
+    "Microsoft.Network/virtualNetworks/read",
+    "Microsoft.Network/virtualNetworks/peer/action",
+    "Microsoft.Network/virtualNetworks/join/action",
+    "Microsoft.Network/virtualNetworks/subnets/read",
+    "Microsoft.Network/virtualNetworks/subnets/delete",
+    "Microsoft.Network/virtualNetworks/virtualNetworkPeerings/read",
+    "Microsoft.Network/virtualNetworks/virtualNetworkPeerings/write",
+    "Microsoft.Network/virtualNetworks/virtualNetworkPeerings/delete",
+    "Microsoft.Network/privateDnsZones/read",
+    "Microsoft.Network/privateDnsZones/delete",
+    "Microsoft.Network/privateDnsZones/virtualNetworkLinks/read",
+    "Microsoft.Network/privateDnsZones/virtualNetworkLinks/write",
+    "Microsoft.Network/privateDnsZones/virtualNetworkLinks/delete"
+  ],
+  "NotActions": [],
+  "DataActions": [],
+  "NotDataActions": [],
+  "AssignableScopes": [
+    "/subscriptions/8db29c6a-b3f5-4e02-919f-3ea5b3cab71e/resourceGroups/rg-tapkin-staging-au"
+  ]
+}
