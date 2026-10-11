@@ -21,10 +21,17 @@ class ConsolidationSafety(unittest.TestCase):
                 cli.assert_not_called()
     def test_backup_mismatch_prevents_deletion(self):
         target='postgresql://'+m.ROLE+':private@'+m.TARGET_HOST+'/tapkin_staging?sslmode=require'
-        with patch.object(m,'db_url',return_value=target),patch.object(m,'az',return_value=[] ) as cli,patch.object(m,'blob_read',return_value=b'wrong'),patch.object(m,'health') as health:
+        with patch.object(m,'db_url',return_value=target),patch.object(m,'az',return_value=[] ) as cli,patch.object(m,'revisions',return_value=[{'properties':{'active':True,'template':{'containers':[{'env':[{'name':'DATABASE_URL','secretRef':m.SECRET}]}]}}}]),patch.object(m,'blob_read',return_value=b'wrong'),patch.object(m,'health') as health:
             with self.assertRaises(RuntimeError):m.retirement({'phase':'cutover-verified','backup':'private.dump','backupSha256':'mismatch'})
             health.assert_not_called()
             self.assertFalse(any('delete' in call.args for call in cli.call_args_list))
+
+    def test_active_legacy_revision_prevents_retirement(self):
+        target='postgresql://'+m.ROLE+':private@'+m.TARGET_HOST+'/tapkin_staging?sslmode=require'
+        legacy={'properties':{'active':True,'template':{'containers':[{'env':[{'name':'DATABASE_URL','secretRef':'database-url-vnet'}]}]}}}
+        with patch.object(m,'db_url',return_value=target),patch.object(m,'revisions',return_value=[legacy]),patch.object(m,'az') as cli:
+            with self.assertRaises(RuntimeError):m.retirement({'phase':'cutover-verified'})
+            cli.assert_not_called()
 
 class PostgreSQLClientSafety(unittest.TestCase):
     def load_worker(self):
