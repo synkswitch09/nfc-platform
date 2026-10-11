@@ -42,7 +42,7 @@ def connect(params, database=None):
     return result
 
 
-def query(conn, statement, parameters=()):
+def query(conn, statement, parameters=None):
     with conn.cursor() as cur:
         cur.execute(statement, parameters)
         return cur.fetchall() if cur.description else []
