@@ -265,9 +265,9 @@ def main():
         STATE['phase']='cutover-verified';retirement(STATE);return
     if STATE and STATE['phase']=='completed': health();print('Already completed');return
     if STATE: raise RuntimeError('Previous attempt exists; review source and destination before retry')
-    source=db_url('app',APP); production=db_url('app','app-tapkin-production-au',PROD)
+    source=db_url('job',MIG); production=db_url('app','app-tapkin-production-au',PROD)
     guard_url(source,SOURCE_HOST,'tapkin_staging'); prod_parsed=guard_url(production,TARGET_HOST,'tapkin_production')
-    guard_url(db_url('job',MIG),SOURCE_HOST,'tapkin_staging')
+    guard_url(db_url('app',APP),SOURCE_HOST,'tapkin_staging')
     if unquote(prod_parsed.username)!='tapkin_production_admin': raise RuntimeError('Unexpected production owner login')
     prod_job=guard_url(db_url('job','job-tapkin-production-migrate',PROD),TARGET_HOST,'tapkin_production')
     if prod_job.username!=prod_parsed.username: raise RuntimeError('Review production migration login before changing PUBLIC access')
