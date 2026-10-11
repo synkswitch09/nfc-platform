@@ -100,7 +100,9 @@ def update_env(kind, name, value):
             entries['DATABASE_EXPECTED_NAME']={'name':'DATABASE_EXPECTED_NAME','value':'tapkin_staging'}
             entries['APP_ENV']={'name':'APP_ENV','value':'staging'}
         container['env']=list(entries.values())
-    patch_resource(resource, {'template':template})
+    if kind=='app':
+        az('containerapp','update','-n',name,'-g',STAGE,'--set-env-vars','DATABASE_URL=secretref:'+value,'--revision-suffix',template['revisionSuffix'])
+    else:patch_resource(resource, {'template':template})
     for attempt in range(90):
         current = show(kind, name)
         if current['properties'].get('provisioningState') in ('Failed','Canceled'):
@@ -237,8 +239,9 @@ def start_worker(mode, source, production, target, sas, backup):
     app = show('app','app-tapkin-production-au',PROD)
     prop = app['properties']; registry = next((r for r in prop['configuration'].get('registries', []) if r['server']=='ghcr.io'), None)
     registry_value = secret_values('app','app-tapkin-production-au',PROD)[registry['passwordSecretRef']] if registry else None
-    env = {'MIGRATION_MODE':mode, 'STAGING_WRITES_PAUSED':str(mode in ('copy','copy-empty')).lower(), 'ALLOW_EMPTY_TARGET_RETRY':str(mode=='copy-empty').lower(), 'BACKUP_NAME':backup}
+    env = {'MIGRATION_MODE':mode, 'STAGING_WRITES_PAUSED':str(mode in ('copy','copy-empty','copy-clone')).lower(), 'ALLOW_EMPTY_TARGET_RETRY':str(mode=='copy-empty').lower(), 'ALLOW_KNOWN_CLONE_RETRY':str(mode=='copy-clone').lower(), 'BACKUP_NAME':backup}
     secret_env = {'SOURCE_DATABASE_URL':source,'PRODUCTION_DATABASE_URL':production,'TARGET_DATABASE_URL':target,'BACKUP_CONTAINER_SAS':sas}
+    if mode=='copy-clone':secret_env['EXPECTED_CLONE_MANIFEST']=json.dumps(STATE['manifest'],sort_keys=True)
     config = {'triggerType':'Manual','replicaTimeout':1800,'replicaRetryLimit':0,'manualTriggerConfig':{'parallelism':1,'replicaCompletionCount':1},
               'registries':[{'server':'ghcr.io','username':registry['username'],'passwordSecretRef':'registry-token'}] if registry else [],
               'secrets':([{'name':'registry-token','value':registry_value}] if registry else [])+[{'name':k.lower().replace('_','-'),'value':v} for k,v in secret_env.items()]}
@@ -353,7 +356,7 @@ def main():
     write_control(STATE)
     try:
         pause(STATE)
-        result=start_worker('copy-empty' if resuming else 'copy',source,production,target,sas,backup)
+        result=start_worker(('copy-clone' if STATE.get('manifest') else 'copy-empty') if resuming else 'copy',source,production,target,sas,backup)
         if result['phase']!='copy-verified' or not result['stagingCannotAccessProduction']: raise RuntimeError('Copy verification missing')
         STATE.update(result);write_control(STATE)
         update_env('job',MIG,SECRET)
