@@ -274,6 +274,27 @@ def start_worker(mode, source, production, target, sas, backup):
     raise RuntimeError('Private database worker timed out')
 
 
+def reconcile_target_revisions():
+    app=show('app',APP)
+    if env_values(app).get('DATABASE_URL',{}).get('secretRef')!=SECRET:raise RuntimeError('Current app template is not the verified target')
+    latest=app['properties']['latestRevisionName']
+    current=next((r for r in revisions() if r['name']==latest),None)
+    if not current or not current['properties'].get('active') or env_values(current).get('DATABASE_URL',{}).get('secretRef')!=SECRET:
+        raise RuntimeError('Verified target revision must be active before draining old revisions')
+    if app['properties']['configuration'].get('activeRevisionsMode','').lower()=='multiple':
+        az('containerapp','ingress','traffic','set','-n',APP,'-g',STAGE,'--revision-weight','latest=100')
+    for revision in revisions():
+        if revision['properties'].get('active') and env_values(revision).get('DATABASE_URL',{}).get('secretRef')!=SECRET:
+            az('rest','--method','post','--url','https://management.azure.com'+app['id']+'/revisions/'+revision['name']+'/deactivate?api-version=2024-03-01')
+    for attempt in range(30):
+        active=[r for r in revisions() if r['properties'].get('active')]
+        if active and all(env_values(r).get('DATABASE_URL',{}).get('secretRef')==SECRET for r in active):break
+        time.sleep(5)
+    else:raise RuntimeError('Older staging revisions did not drain')
+    health()
+    print('All active staging revisions and traffic use the verified target',flush=True)
+
+
 def retirement(state):
     if state.get('phase') != 'cutover-verified': raise RuntimeError('Retirement requires persisted verified cutover')
     for kind,name in (('app',APP),('job',MIG)):
@@ -332,9 +353,10 @@ def main():
     if operation=='recover': recover_source(STATE);return
     if operation=='retire':
         if STATE and STATE['phase']=='retirement-started': STATE['phase']='cutover-verified'
+        if STATE and STATE.get('phase')=='cutover-verified':reconcile_target_revisions()
         retirement(STATE or {});return
     if STATE and STATE['phase'] in ('cutover-verified','retirement-started'):
-        STATE['phase']='cutover-verified';retirement(STATE);return
+        STATE['phase']='cutover-verified';reconcile_target_revisions();retirement(STATE);return
     if STATE and STATE['phase']=='completed': health();print('Already completed');return
     resuming = operation=='resume'
     if resuming:
@@ -379,6 +401,7 @@ def main():
         recover_source(STATE)
         raise
 
+    reconcile_target_revisions()
     retirement(STATE)
 
 
