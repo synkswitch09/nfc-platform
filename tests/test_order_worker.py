@@ -21,7 +21,7 @@ class OrderWorkerTests(unittest.TestCase):
                 def az(*args):
                     calls.append(args)
                     if args[:2] == ("containerapp", "show"): return app
-                    if args[:3] == ("containerapp", "job", "list"): return [{"name": "app-orders", "tags": {"managed-by": "staging-order-worker"}, "properties": {"configuration": {"scheduleTriggerConfig": {"cronExpression": existing_cron}}}}]
+                    if args[:3] == ("containerapp", "job", "list"): return [{"name": "app-orders", "tags": {"managed-by": "staging-order-worker"}, "properties": {"configuration": {"scheduleTriggerConfig": {"cronExpression": existing_cron} if existing_cron else None}}}]
                     if args[:3] == ("containerapp", "secret", "list"): return []
                     if args[:1] == ("rest",):
                         body.update(json.loads(Path(args[args.index("--body") + 1][1:]).read_text()))
