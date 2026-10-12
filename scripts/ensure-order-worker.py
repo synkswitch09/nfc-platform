@@ -30,7 +30,7 @@ def main():
         if job["name"] == job_name:
             if job.get("tags", {}).get("managed-by") not in ("staging-order-worker", "order-worker"):
                 raise RuntimeError("Worker resource name is already used by an unmanaged job")
-            configured_cron = props.get("configuration", {}).get("scheduleTriggerConfig", {}).get("cronExpression")
+            configured_cron = ((props.get("configuration") or {}).get("scheduleTriggerConfig") or {}).get("cronExpression")
             if configured_cron:
                 cron = configured_cron
             continue
