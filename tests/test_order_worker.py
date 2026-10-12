@@ -35,7 +35,13 @@ class OrderWorkerTests(unittest.TestCase):
                 container = props["template"]["containers"][0]
                 self.assertEqual(container["image"], "image:" + target)
                 self.assertEqual(container["resources"], {"cpu": 0.25, "memory": "0.5Gi"})
-                self.assertEqual(props["configuration"]["scheduleTriggerConfig"]["cronExpression"], existing_cron or ("0 * * * *" if target == "staging" else "*/5 * * * *"))
+                if target == "staging":
+                    self.assertEqual(props["configuration"]["triggerType"], "Manual")
+                    self.assertIsNone(props["configuration"]["scheduleTriggerConfig"])
+                    self.assertEqual(props["configuration"]["manualTriggerConfig"], {"parallelism": 1, "replicaCompletionCount": 1})
+                else:
+                    self.assertEqual(props["configuration"]["triggerType"], "Schedule")
+                    self.assertEqual(props["configuration"]["scheduleTriggerConfig"]["cronExpression"], existing_cron or "*/5 * * * *")
                 self.assertEqual({entry["name"] for entry in container["env"]}, {"APP_URL", "CHECKOUT_RECONCILE_SECRET"})
                 token = props["configuration"]["secrets"][0]["value"]
                 self.assertGreaterEqual(len(token), 32)
