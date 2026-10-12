@@ -75,8 +75,9 @@ def main():
             registries.append({"server": "ghcr.io", "username": registry["username"], "passwordSecretRef": "registry"})
     properties = {
         "environmentId": app["properties"]["environmentId"],
-        "configuration": {"triggerType": "Schedule", "replicaTimeout": 240, "replicaRetryLimit": 0,
-                          "scheduleTriggerConfig": {"cronExpression": cron, "parallelism": 1, "replicaCompletionCount": 1},
+        "configuration": {"triggerType": "Manual" if target == "staging" else "Schedule", "replicaTimeout": 240, "replicaRetryLimit": 0,
+                          "scheduleTriggerConfig": None if target == "staging" else {"cronExpression": cron, "parallelism": 1, "replicaCompletionCount": 1},
+                          **({"manualTriggerConfig": {"parallelism": 1, "replicaCompletionCount": 1}} if target == "staging" else {}),
                           "registries": registries, "secrets": secrets},
         "template": {"containers": [{"name": "orders", "image": os.environ["IMAGE"],
                                       "command": ["node"], "args": ["/app/scripts/reconcile-checkouts.mjs"],
@@ -106,11 +107,11 @@ def main():
         result = az("containerapp", "job", "execution", "show", "--name", job_name, "--resource-group", group, "--job-execution-name", execution)
         status = result["properties"].get("status")
         if status == "Succeeded":
-            print("Order worker schedule preserved/configured: " + cron + "; first execution succeeded")
+            print("Order worker trigger configured: " + ("Manual" if target == "staging" else cron) + "; deployment verification execution succeeded")
             app = az("containerapp", "show", "--name", app_name, "--resource-group", group)
             names = {entry["name"] for container in app["properties"]["template"]["containers"] for entry in container.get("env", [])}
             print("Environment configuration names: " + ", ".join(sorted(names)))
-            print("Verified scheduled worker image, authentication and execution for " + target)
+            print("Verified worker image, authentication and execution for " + target)
             return
         if status in ("Failed", "Canceled", "Cancelled"):
             raise RuntimeError("Staging order worker execution failed; inspect the job logs in Azure")
