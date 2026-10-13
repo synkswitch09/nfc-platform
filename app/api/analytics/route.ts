@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { after, NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getRuntimeConfig } from "@/lib/config";
 import { sha256 } from "@/lib/crypto";
@@ -9,7 +9,7 @@ import { purchaseEligible } from "@/lib/commerce-analytics";
 import { getCurrentStorefront } from "@/lib/storefront";
 import { parseIntegrationConfig } from "@/lib/integration-config";
 import { parsePrivacyPreferences, privacyCookieName } from "@/lib/privacy-preferences";
-import { browserMeasurementSchema, currentMeasurementSession, measurementAvailability, metaCustomData, metaEventName, queueMeasurement } from "@/lib/measurement";
+import { browserMeasurementSchema, currentMeasurementSession, measurementAvailability, metaCustomData, metaEventName, processMeasurementDeliveries, queueMeasurement } from "@/lib/measurement";
 
 export async function POST(request: NextRequest) {
   if (!assertSameOrigin(request)) return jsonError("Invalid request origin", 403);
@@ -62,6 +62,12 @@ export async function POST(request: NextRequest) {
       const claimed = await tx.measurementDelivery.updateMany({ where: { id: row.id, status: "PENDING", targetId: config.metaPixelId }, data: { status: "DISPATCHED", sentAt: new Date() } });
       pixelAllowed = claimed.count === 1;
     }
+  });
+  // Dispatch only after the durable transaction commits and the response is sent.
+  // Per-event filtering avoids an older backlog starving this visitor's events.
+  after(async () => {
+    try { await processMeasurementDeliveries({ storeId: store.id, eventKey }); }
+    catch { /* The durable queue remains available to the scheduled worker. */ }
   });
   const name = metaEventName(event.event);
   return NextResponse.json({ ok: true, ...(pixelAllowed && name ? { pixel: { eventName: name, eventId: eventKey, data: metaCustomData(params) } } : {}) }, { headers: { "cache-control": "no-store" } });
