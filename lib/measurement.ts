@@ -76,9 +76,9 @@ export async function queueOrderMeasurement(tx: Prisma.TransactionClient, orderI
   await queueMeasurement(tx, { storeId: order.storeId, slug: order.store.slug, config, session, eventKey: refund ? `refund:${refund.id}` : `purchase:${order.id}`, name: refund ? "refund" : "purchase", params });
 }
 
-export async function processMeasurementDeliveries() {
+export async function processMeasurementDeliveries(delivery?: { storeId: string; eventKey: string }) {
   if (getRuntimeConfig().appEnv !== "production") return { checked: 0 };
-  const rows = await db.measurementDelivery.findMany({ where: { provider: { in: ["GA4", "META"] }, status: "PENDING", nextAttemptAt: { lte: new Date() }, OR: [{ leaseUntil: null }, { leaseUntil: { lt: new Date() } }] }, orderBy: { nextAttemptAt: "asc" }, take: 5 });
+  const rows = await db.measurementDelivery.findMany({ where: { ...delivery, provider: { in: ["GA4", "META"] }, status: "PENDING", nextAttemptAt: { lte: new Date() }, OR: [{ leaseUntil: null }, { leaseUntil: { lt: new Date() } }] }, orderBy: { nextAttemptAt: "asc" }, take: 5 });
   for (const candidate of rows) {
     const leaseToken = randomUUID();
     const claimed = await db.measurementDelivery.updateMany({ where: { id: candidate.id, status: "PENDING", OR: [{ leaseUntil: null }, { leaseUntil: { lt: new Date() } }] }, data: { leaseToken, leaseUntil: new Date(Date.now() + 60_000), attempts: { increment: 1 } } });
@@ -123,6 +123,6 @@ export async function processMeasurementDeliveries() {
     }
   }
   // Limit retained anonymous data. Order pointers become null; deliveries cascade.
-  await db.measurementSession.deleteMany({ where: { expiresAt: { lt: new Date() } } });
+  if (!delivery) await db.measurementSession.deleteMany({ where: { expiresAt: { lt: new Date() } } });
   return { checked: rows.length };
 }

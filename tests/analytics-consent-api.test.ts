@@ -1,11 +1,12 @@
 import { beforeEach, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
-const m = vi.hoisted(() => ({ store: vi.fn(), config: vi.fn(), limit: vi.fn(), product: vi.fn(), session: vi.fn(), delivery: vi.fn(), variant: vi.fn(), order: vi.fn(), user: vi.fn(), claim: vi.fn() }));
+const m = vi.hoisted(() => ({ store: vi.fn(), config: vi.fn(), limit: vi.fn(), product: vi.fn(), session: vi.fn(), delivery: vi.fn(), variant: vi.fn(), order: vi.fn(), user: vi.fn(), claim: vi.fn(), after: vi.fn(), dispatchRows: vi.fn(), cleanup: vi.fn() }));
+vi.mock("next/server", async importOriginal => ({ ...await importOriginal<typeof import("next/server")>(), after: m.after }));
 vi.mock("@/lib/storefront", () => ({ getCurrentStorefront: m.store }));
 vi.mock("@/lib/config", () => ({ getRuntimeConfig: m.config }));
 vi.mock("@/lib/rate-limit", () => ({ rateLimit: m.limit }));
 vi.mock("@/lib/auth", () => ({ getCurrentUser: m.user }));
-vi.mock("@/lib/db", () => ({ db: { product: { findFirst: m.product }, productVariant: { findMany: m.variant }, order: { findFirst: m.order }, measurementSession: { findFirst: m.session }, $transaction: (fn: (tx: unknown) => unknown) => fn({ measurementDelivery: { upsert: m.delivery, updateMany: m.claim } }) } }));
+vi.mock("@/lib/db", () => ({ db: { product: { findFirst: m.product }, productVariant: { findMany: m.variant }, order: { findFirst: m.order }, measurementDelivery: { findMany: m.dispatchRows }, measurementSession: { findFirst: m.session, deleteMany: m.cleanup }, $transaction: (fn: (tx: unknown) => unknown) => fn({ measurementDelivery: { upsert: m.delivery, updateMany: m.claim } }) } }));
 import { POST } from "@/app/api/analytics/route";
 const productId = "edc19676-41d5-4f57-98f4-6a08d32714d3";
 const variantId = "26d186ad-b40d-43ed-8052-cf9aa84e8f2a";
@@ -18,10 +19,24 @@ beforeEach(() => {
   m.limit.mockResolvedValue({ allowed: true }); m.delivery.mockResolvedValue({ id: "delivery" }); m.claim.mockResolvedValue({ count: 1 });
   m.product.mockResolvedValue({ id: productId, variants: [{ id: variantId, priceCents: 2495 }] });
   m.session.mockResolvedValue({ id: "session-1", storeId: "store-1", analytics: true, advertising: true });
+  m.dispatchRows.mockResolvedValue([]);
 });
 it("does not query customer data without consent, after rejection or another store's consent", async () => {
   for (const cookie of ["", consent("tapkin"), consent("kosykin", false), "privacy-preferences-kosykin=yes"]) expect((await POST(request(cookie))).status).toBe(403);
   expect(m.product).not.toHaveBeenCalled(); expect(m.delivery).not.toHaveBeenCalled();
+  expect(m.after).not.toHaveBeenCalled();
+});
+it("dispatches only the committed store event after the response without blocking checkout", async () => {
+  expect((await POST(request(consent("kosykin")))).status).toBe(200);
+  expect(m.dispatchRows).not.toHaveBeenCalled();
+  await m.after.mock.calls[0][0]();
+  expect(m.dispatchRows.mock.calls[0][0].where).toMatchObject({ storeId: "store-1", eventKey: productId, status: "PENDING" });
+  expect(m.cleanup).not.toHaveBeenCalled();
+});
+it("does not schedule delivery when the durable queue write fails", async () => {
+  m.delivery.mockRejectedValue(new Error("Database unavailable"));
+  await expect(POST(request(consent("kosykin")))).rejects.toThrow("Database unavailable");
+  expect(m.after).not.toHaveBeenCalled();
 });
 it("uses validated server prices, variant catalog IDs and only the consented provider", async () => {
   expect((await POST(request(consent("kosykin")))).status).toBe(200);
