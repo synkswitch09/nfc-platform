@@ -1,12 +1,12 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
-import { privacyEvent, readPrivacyPreferences } from "@/lib/privacy-preferences";
+import { initializePrivacyPreferences, privacyEvent, readPrivacyPreferences } from "@/lib/privacy-preferences";
 import { ensureMeasurementSession, sendCommerceEvent, type CommerceEvent } from "@/lib/measurement-client";
 import { safeShoppingPath } from "@/lib/measurement-paths";
 type Clarity = ((...args: unknown[]) => void) & { q?: unknown[][] };
 declare global { interface Window { clarity?: Clarity } }
-export function StoreMeasurement({ store, production, clarityProjectId, pixelEnabled }: { store: string; production: boolean; clarityProjectId: string; pixelEnabled: boolean }) {
+export function StoreMeasurement({ store, production, clarityProjectId, pixelEnabled, analyticsAvailable, advertisingAvailable }: { store: string; production: boolean; clarityProjectId: string; pixelEnabled: boolean; analyticsAvailable: boolean; advertisingAvailable: boolean }) {
   const path = usePathname();
   const frame = useRef<HTMLIFrameElement>(null);
   const pending = useRef<unknown[]>([]);
@@ -14,6 +14,9 @@ export function StoreMeasurement({ store, production, clarityProjectId, pixelEna
   const [advertising, setAdvertising] = useState(false);
   useEffect(() => {
     if (!production) return;
+    if (safeShoppingPath(window.location.pathname) || window.location.pathname === "/checkout") {
+      initializePrivacyPreferences(store, analyticsAvailable, advertisingAvailable);
+    }
     const refresh = () => {
       const p = readPrivacyPreferences(store);
       setAdvertising(Boolean(pixelEnabled && p?.advertising));
@@ -42,7 +45,7 @@ export function StoreMeasurement({ store, production, clarityProjectId, pixelEna
     };
     window.addEventListener("commerce-measurement", event); window.addEventListener("commerce-pixel", pixel); window.addEventListener("message", ready);
     return () => { window.removeEventListener(privacyEvent, refresh); window.removeEventListener("commerce-measurement", event); window.removeEventListener("commerce-pixel", pixel); window.removeEventListener("message", ready); };
-  }, [production, store, pixelEnabled, clarityProjectId]);
+  }, [production, store, pixelEnabled, clarityProjectId, analyticsAvailable, advertisingAvailable, path]);
   useEffect(() => {
     if (!production || !safeShoppingPath(path)) return;
     const id = crypto.randomUUID();

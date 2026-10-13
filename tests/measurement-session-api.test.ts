@@ -52,3 +52,13 @@ it("never extends an anonymous record beyond 90 days from creation", async () =>
   await POST(request(`${preferences(true, false)}; ${token}`));
   expect(m.update.mock.calls[0][0].data.expiresAt.getTime()).toBe(createdAt.getTime() + 90 * 86400_000);
 });
+
+it("accepts the default-enabled preference record and still revokes it after opt-out", async () => {
+  const raw = { version: 1, analytics: true, advertising: true, savedAt: Date.now(), noticeSeen: false };
+  const response = await POST(request(`privacy-preferences-kosykin=${encodeURIComponent(JSON.stringify(raw))}`));
+  expect(await response.json()).toEqual({ ok: true, enabled: true });
+  expect(m.create.mock.calls[0][0].data).toMatchObject({ analytics: true, advertising: true });
+  m.find.mockResolvedValue({ id: "session", analytics: true, advertising: true });
+  await POST(request(`${preferences(false, false)}; ${token}`));
+  expect(m.update.mock.calls[0][0].data).toMatchObject({ analytics: false, advertising: false, fbp: null, fbc: null });
+});
