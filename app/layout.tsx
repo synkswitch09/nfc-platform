@@ -205,7 +205,7 @@ export default async function RootLayout({
             locale={locale}
             defaultLocale={store.defaultLocale}
           />
-          <StoreMeasurement store={store.slug} production={runtime.appEnv === "production"} clarityProjectId={availability.clarity ? integrations.clarityProjectId : ""} pixelEnabled={availability.pixel} />
+          <StoreMeasurement store={store.slug} production={runtime.appEnv === "production"} clarityProjectId={availability.clarity ? integrations.clarityProjectId : ""} pixelEnabled={availability.pixel} analyticsAvailable={analyticsEnabled} advertisingAvailable={availability.pixel || availability.capi} />
           <PrivacyControls store={store.slug} analyticsAvailable={analyticsEnabled} advertisingAvailable={availability.pixel || availability.capi} rememberEnabled={integrations.rememberCheckoutEnabled} retentionDays={integrations.rememberCheckoutDays} />
         </CartProvider>
       </body>

@@ -38,6 +38,24 @@ async function main() {
       const before = await tx.contentPage.findMany({ where: { storeId: store.id }, include: { sections: { orderBy: { sortOrder: "asc" } } }, orderBy: { slug: "asc" } });
       await tx.$executeRawUnsafe(sql);
       assert.deepEqual(await tx.contentPage.findMany({ where: { storeId: store.id }, include: { sections: { orderBy: { sortOrder: "asc" } } }, orderBy: { slug: "asc" } }), before, "Repeated release must preserve CMS edits and not duplicate sections");
+      const trackingSql = readFileSync("prisma/migrations/20261017000000_tracking_opt_out/migration.sql", "utf8");
+      const otherPrivacy = await tx.contentPage.create({ data: { storeId: other.id, slug: "privacy", name: "Kosykin privacy fixture", kind: "LEGAL", sections: { create: { storeId: other.id, name: "Tracking fixture", type: "RICH_TEXT", content: { headline: "Keep my heading", copy: "Custom prefix. These tools remain inactive when not configured or enabled and require analytics consent. Custom suffix.", sectionWidth: "NARROW" } } } }, include: { sections: true } });
+      const faq = await tx.contentPage.create({ data: { storeId: other.id, slug: "faq", name: "FAQ fixture", kind: "CAMPAIGN", sections: { create: { storeId: other.id, name: "FAQ", type: "FAQ", content: { items: [{ question: "Can I decline analytics and advertising tracking?", answer: "Optional providers run only when enabled and the relevant consent has been given.", id: "keep-id", visible: true }, { question: "Custom question", answer: "Keep custom answer" }] } } } }, include: { sections: true } });
+      await tx.$executeRawUnsafe(trackingSql);
+      const updatedPrivacy = await tx.landingPageSection.findUniqueOrThrow({ where: { id: otherPrivacy.sections[0].id } });
+      const trackingContent = updatedPrivacy.content as { headline: string; copy: string; sectionWidth: string };
+      assert.equal(trackingContent.headline, "Keep my heading"); assert.equal(trackingContent.sectionWidth, "NARROW");
+      assert.ok(trackingContent.copy.startsWith("Custom prefix.")); assert.ok(trackingContent.copy.endsWith("Custom suffix."));
+      assert.ok(trackingContent.copy.includes("active by default")); assert.ok(!trackingContent.copy.includes("require analytics consent"));
+      const updatedFaq = await tx.landingPageSection.findUniqueOrThrow({ where: { id: faq.sections[0].id } });
+      const items = (updatedFaq.content as { items: { question: string; answer: string; id?: string }[] }).items;
+      assert.equal(items[0].id, "keep-id"); assert.ok(items[0].answer.includes("active by default")); assert.deepEqual(items[1], { question: "Custom question", answer: "Keep custom answer" });
+      const retained = await tx.landingPageSection.findUniqueOrThrow({ where: { id: edited.id } });
+      assert.equal((retained.content as { copy: string }).copy, "Authoritative editor change");
+      assert.deepEqual(await tx.contentPage.findUniqueOrThrow({ where: { id: otherPage.id }, include: { sections: true } }), otherPage, "Tracking migration does not change terms");
+      const patched = await tx.landingPageSection.findMany({ where: { storeId: { in: [store.id, other.id] } }, orderBy: { id: "asc" } });
+      await tx.$executeRawUnsafe(trackingSql);
+      assert.deepEqual(await tx.landingPageSection.findMany({ where: { storeId: { in: [store.id, other.id] } }, orderBy: { id: "asc" } }), patched, "Repeated tracking release does not mutate content or timestamps");
       throw rollback;
     }, { timeout: 60000 });
   } catch (error) {
