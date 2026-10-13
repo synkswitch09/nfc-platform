@@ -49,6 +49,15 @@ describe("measurement delivery privacy and idempotency", () => {
     m.fetch.mockRejectedValue(new Error("secret-bearing-url")); await processMeasurementDeliveries();
     expect(m.updateMany.mock.calls.at(-1)![0].data).toMatchObject({ status: "REVIEW_REQUIRED", lastError: "Submission outcome uncertain" });
   });
+  it("bounds immediate delivery to one store event and leaves cleanup to the worker", async () => {
+    await processMeasurementDeliveries({ storeId: "store", eventKey: "purchase:order" });
+    expect(m.findMany.mock.calls[0][0].where).toMatchObject({ storeId: "store", eventKey: "purchase:order", status: "PENDING" });
+    expect(m.fetch).toHaveBeenCalledTimes(1);
+    expect(m.updateMany.mock.calls.at(-1)![0].data.status).toBe("SENT");
+    expect(m.cleanup).not.toHaveBeenCalled();
+    await processMeasurementDeliveries();
+    expect(m.cleanup).toHaveBeenCalledTimes(1);
+  });
   it("sends Meta's shared event ID and public source, without contact details or checkout tokens", async () => {
     m.findUnique.mockResolvedValue(row("META")); await processMeasurementDeliveries();
     const payload = JSON.parse(m.fetch.mock.calls[0][1].body).data[0];
