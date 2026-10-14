@@ -58,8 +58,8 @@ export async function POST(request: NextRequest) {
   await db.$transaction(async tx => {
     await queueMeasurement(tx, { storeId: store.id, slug: store.slug, config, session: consentSession, eventKey, name: event.event, params, eventTime: purchaseTime });
     if (event.event === "purchase" && pixelAllowed) {
-      const row = await tx.measurementDelivery.upsert({ where: { storeId_provider_eventKey: { storeId: store.id, provider: "PIXEL", eventKey } }, create: { storeId: store.id, sessionId: session.id, provider: "PIXEL", targetId: config.metaPixelId, eventKey, eventName: "purchase", payload: {}, eventTime: purchaseTime }, update: {} });
-      const claimed = await tx.measurementDelivery.updateMany({ where: { id: row.id, status: "PENDING", targetId: config.metaPixelId }, data: { status: "DISPATCHED", sentAt: new Date() } });
+      await tx.measurementDelivery.createMany({ data: [{ storeId: store.id, sessionId: session.id, provider: "PIXEL", targetId: config.metaPixelId, eventKey, eventName: "purchase", payload: {}, eventTime: purchaseTime }], skipDuplicates: true });
+      const claimed = await tx.measurementDelivery.updateMany({ where: { storeId: store.id, provider: "PIXEL", eventKey, status: "PENDING", targetId: config.metaPixelId }, data: { status: "DISPATCHED", sentAt: new Date() } });
       pixelAllowed = claimed.count === 1;
     }
   });
