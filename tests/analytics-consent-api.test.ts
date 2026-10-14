@@ -18,7 +18,7 @@ beforeEach(() => {
   m.config.mockReturnValue({ appEnv: "production", analyticsStores: { kosykin: { apiSecret: "private-server-secret", measurementId: "G-CMS1234567" } }, metaStores: { kosykin: { pixelId: "12345678", accessToken: "private-token" } } });
   m.limit.mockResolvedValue({ allowed: true }); m.delivery.mockResolvedValue({ id: "delivery" }); m.claim.mockResolvedValue({ count: 1 });
   m.product.mockResolvedValue({ id: productId, variants: [{ id: variantId, priceCents: 2495 }] });
-  m.session.mockResolvedValue({ id: "session-1", storeId: "store-1", analytics: true, advertising: true });
+  m.session.mockResolvedValue({ consentVersion: 2, id: "session-1", storeId: "store-1", analytics: true, advertising: true });
   m.dispatchRows.mockResolvedValue([]);
 });
 it("does not query customer data without consent, after rejection or another store's consent", async () => {
@@ -59,7 +59,7 @@ it("never measures staging or a CMS-disabled store", async () => {
 it("requires a store-bound session and excludes private paths and arbitrary personalizer values", async () => {
   m.session.mockResolvedValue(null); expect((await POST(request(consent("kosykin")))).status).toBe(403);
   expect(m.session.mock.calls[0][0].where.storeId).toBe("store-1");
-  m.session.mockResolvedValue({ id: "session-1", analytics: true });
+  m.session.mockResolvedValue({ consentVersion: 2, id: "session-1", analytics: true });
   expect((await POST(request(consent("kosykin"), { event: "page_view", eventId: productId, path: "/order/private?token=secret" }))).status).toBe(400);
   await POST(request(consent("kosykin"), { event: "personalizer_interaction", eventId: productId, productId, action: "change", field: "text", value: "Daniel", email: "private@example.com" }));
   expect(JSON.stringify(m.delivery.mock.calls)).not.toMatch(/Daniel|private@example|token=secret/);
@@ -83,5 +83,11 @@ it("does not dispatch a purchase Pixel twice, or replay an old paid order", asyn
   m.delivery.mockClear();
   m.order.mockResolvedValue({ id: productId, status: "PAID", measurementSessionId: "session-1", checkoutEnvironment: "PRODUCTION", createdAt: new Date(0) });
   expect(await (await POST(request(consent("kosykin", true, true), body))).json()).toEqual({ ok: true });
+  expect(m.delivery).not.toHaveBeenCalled();
+});
+
+it("does not accept a stale server grant until the consent session has been renewed", async () => {
+  m.session.mockResolvedValue({ id: "session-1", storeId: "store-1", analytics: true, advertising: true, consentVersion: 1 });
+  expect((await POST(request(consent("kosykin")))).status).toBe(403);
   expect(m.delivery).not.toHaveBeenCalled();
 });

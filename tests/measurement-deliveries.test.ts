@@ -6,7 +6,7 @@ import { measurementAvailability, queueMeasurement, processMeasurementDeliveries
 import { parseIntegrationConfig } from "@/lib/integration-config";
 import type { Prisma, MeasurementSession } from "@prisma/client";
 const config = parseIntegrationConfig({ analyticsEnabled: true, ga4MeasurementId: "G-ABCDEF1234", metaPixelId: "12345678", metaCapiEnabled: true, metaPixelEnabled: true });
-const session = { id: "session", storeId: "store", clientId: "123.456", sessionId: "1700000000", analytics: true, advertising: true, expiresAt: new Date(Date.now() + 3600_000), clientUserAgent: "Mozilla/5.0 TestBrowser", fbp: null, fbc: null } as MeasurementSession;
+const session = { consentVersion: 2, id: "session", storeId: "store", clientId: "123.456", sessionId: "1700000000", analytics: true, advertising: true, expiresAt: new Date(Date.now() + 3600_000), clientUserAgent: "Mozilla/5.0 TestBrowser", fbp: null, fbc: null } as MeasurementSession;
 const row = (provider = "GA4") => ({ id: "delivery", storeId: "store", sessionId: "session", provider, eventKey: "purchase:order", eventName: "purchase", targetId: provider === "GA4" ? config.ga4MeasurementId : config.metaPixelId, eventTime: new Date(), status: "PENDING", attempts: 1, payload: { transaction_id: "order", value: 20, shipping: 9, currency: "AUD", items: [{ item_id: "variant", quantity: 1, price: 20 }] }, session, store: { slug: "kosykin", accountConfig: { integrations: config }, domains: [{ hostname: "kosykin.com.au" }] } });
 beforeEach(() => {
   vi.resetAllMocks(); vi.stubGlobal("fetch", m.fetch);
@@ -76,4 +76,15 @@ describe("measurement delivery privacy and idempotency", () => {
     const data = browserMeasurementSchema.parse({ event: "personalizer_interaction", eventId: "edc19676-41d5-4f57-98f4-6a08d32714d3", productId: "edc19676-41d5-4f57-98f4-6a08d32714d3", action: "change", field: "text", value: "secret" });
     expect(data).not.toHaveProperty("value");
   });
+});
+
+it("never queues or delivers legacy sessions without renewed affirmative consent", async () => {
+  const legacy = { ...session, consentVersion: 1 };
+  const upsert = vi.fn();
+  await queueMeasurement({ measurementDelivery: { upsert } } as unknown as Prisma.TransactionClient, { storeId: "store", slug: "kosykin", config, session: legacy, name: "page_view", eventKey: "legacy", params: {} });
+  expect(upsert).not.toHaveBeenCalled();
+  m.findUnique.mockResolvedValue({ ...row(), session: legacy });
+  await processMeasurementDeliveries();
+  expect(m.fetch).not.toHaveBeenCalled();
+  expect(m.updateMany.mock.calls.some(c => c[0].data.status === "SKIPPED")).toBe(true);
 });
