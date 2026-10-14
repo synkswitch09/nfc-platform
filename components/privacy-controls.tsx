@@ -20,7 +20,7 @@ export function PrivacyControls({ store, analyticsAvailable, advertisingAvailabl
       if (!rememberEnabled) forgetCheckout(localStorage, store);
       else loadCheckout(localStorage, store, retentionDays);
     } catch { /* Browser storage may be unavailable. */ }
-  }, [store, analyticsAvailable, advertisingAvailable = false, rememberEnabled, retentionDays]);
+  }, [store, analyticsAvailable, advertisingAvailable, rememberEnabled, retentionDays]);
   function choose(value: boolean, ads: boolean) {
     savePrivacyPreferences(store, analyticsAvailable && value, advertisingAvailable && ads);
     setAnalytics(analyticsAvailable && value); setAdvertising(advertisingAvailable && ads); setOpen(false);
