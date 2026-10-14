@@ -1,5 +1,5 @@
 import { afterEach, expect, it, vi } from "vitest";
-import { initializePrivacyPreferences, parsePrivacyPreferences, privacyCookieName, readPrivacyPreferences, savePrivacyPreferences } from "@/lib/privacy-preferences";
+import { parsePrivacyPreferences, privacyCookieName, readPrivacyPreferences, savePrivacyPreferences } from "@/lib/privacy-preferences";
 import { parseIntegrationConfig, integrationConfigSchema } from "@/lib/integration-config";
 import { parseRuntimeConfig } from "@/lib/config";
 
@@ -12,7 +12,7 @@ it("defaults to no optional integrations and independently scopes store choices"
 it("requires a valid explicit, current consent rather than trusting old analytics choices", () => {
   const preference = { version: 1, analytics: true, advertising: false, savedAt: 1000 };
   expect(parsePrivacyPreferences(encodeURIComponent(JSON.stringify(preference)), 1001)).toEqual(preference);
-  for (const raw of [undefined, "yes", "bad", JSON.stringify({ ...preference, analytics: "yes" }), JSON.stringify({ ...preference, version: 2 }), JSON.stringify({ ...preference, savedAt: 2000 })]) expect(parsePrivacyPreferences(raw, 1001)).toBeNull();
+  for (const raw of [undefined, "yes", "bad", JSON.stringify({ ...preference, analytics: "yes" }), JSON.stringify({ ...preference, version: 3 }), JSON.stringify({ ...preference, savedAt: 2000 })]) expect(parsePrivacyPreferences(raw, 1001)).toBeNull();
   expect(parsePrivacyPreferences(JSON.stringify(preference), 1000 + 365 * 86_400_000)).toBeNull();
 });
 it("supports an empty Azure variable and rejects malformed private credentials", () => {
@@ -32,29 +32,33 @@ function browser() {
   vi.stubGlobal("sessionStorage", { removeItem: vi.fn() });
   return cookies;
 }
-it("starts configured tracking for new visitors without treating the default as an acknowledged notice", () => {
-  browser();
-  expect(initializePrivacyPreferences("kosykin", true, true)).toMatchObject({ analytics: true, advertising: true, noticeSeen: false });
-  expect(readPrivacyPreferences("kosykin")).toMatchObject({ analytics: true, advertising: true, noticeSeen: false });
-  expect(readPrivacyPreferences("tapkin")).toBeNull();
-});
-it("does not enable an unavailable category or create tracking preferences when all tools are disabled", () => {
-  browser();
-  expect(initializePrivacyPreferences("tapkin", false, false)).toBeNull();
-  expect(initializePrivacyPreferences("kosykin", true, false)).toMatchObject({ analytics: true, advertising: false });
-});
-it("preserves legacy and current opt-outs instead of overriding them with new defaults", () => {
+it("does not create or grant optional consent for a new visitor", () => {
   const cookies = browser();
-  const legacy = { version: 1, analytics: false, advertising: false, savedAt: Date.now() };
-  cookies.set(privacyCookieName("kosykin"), encodeURIComponent(JSON.stringify(legacy)));
-  expect(initializePrivacyPreferences("kosykin", true, true)).toEqual(legacy);
-  savePrivacyPreferences("tapkin", false, true);
-  expect(initializePrivacyPreferences("tapkin", true, true)).toMatchObject({ analytics: false, advertising: true, noticeSeen: true });
+  expect(readPrivacyPreferences("kosykin")).toBeNull();
+  expect(cookies.size).toBe(0);
 });
-it("allows a new visitor to disable both categories and retains that decision on subsequent visits", () => {
+it("rejects automatically enabled and ambiguous opt-out-era permissions", () => {
   browser();
-  initializePrivacyPreferences("kosykin", true, true);
+  for (const noticeSeen of [false, true]) {
+    const raw = JSON.stringify({ version: 1, analytics: true, advertising: true, savedAt: Date.now(), noticeSeen });
+    expect(parsePrivacyPreferences(raw)).toBeNull();
+  }
+  expect(parsePrivacyPreferences(JSON.stringify({ version: 2, analytics: true, advertising: true, savedAt: Date.now(), noticeSeen: false }))).toBeNull();
+});
+it("preserves prior explicit consent and saved refusals", () => {
+  const cookies = browser();
+  const legacy = { version: 1, analytics: true, advertising: false, savedAt: Date.now() };
+  cookies.set(privacyCookieName("kosykin"), encodeURIComponent(JSON.stringify(legacy)));
+  expect(readPrivacyPreferences("kosykin")).toEqual(legacy);
+  const refusal = { version: 1, analytics: false, advertising: false, savedAt: Date.now(), noticeSeen: true };
+  expect(parsePrivacyPreferences(JSON.stringify(refusal))).toEqual(refusal);
+});
+it("saves affirmative choices with a new version and keeps each store separate", () => {
+  browser();
+  expect(savePrivacyPreferences("kosykin", true, false)).toMatchObject({ version: 2, analytics: true, advertising: false });
+  expect(readPrivacyPreferences("kosykin")).toMatchObject({ version: 2, analytics: true, advertising: false });
+  expect(readPrivacyPreferences("tapkin")).toBeNull();
   savePrivacyPreferences("kosykin", false, false);
-  expect(initializePrivacyPreferences("kosykin", true, true)).toMatchObject({ analytics: false, advertising: false, noticeSeen: true });
+  expect(readPrivacyPreferences("kosykin")).toMatchObject({ version: 2, analytics: false, advertising: false });
   expect(sessionStorage.removeItem).toHaveBeenCalledWith("commerce-analytics-client:kosykin");
 });

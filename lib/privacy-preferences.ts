@@ -1,4 +1,4 @@
-export type PrivacyPreferences = { version: 1; analytics: boolean; advertising: boolean; savedAt: number; noticeSeen?: boolean };
+export type PrivacyPreferences = { version: 1 | 2; analytics: boolean; advertising: boolean; savedAt: number; noticeSeen?: boolean };
 export const privacyCookieName = (store: string) => `privacy-preferences-${store}`;
 export const privacyEvent = "store-privacy-preferences";
 const lifetime = 365 * 24 * 60 * 60 * 1000;
@@ -6,8 +6,11 @@ const lifetime = 365 * 24 * 60 * 60 * 1000;
 export function parsePrivacyPreferences(raw: string | undefined | null, now = Date.now()): PrivacyPreferences | null {
   try {
     const value = JSON.parse(decodeURIComponent(raw ?? ""));
-    if (value.version !== 1 || typeof value.analytics !== "boolean" || typeof value.advertising !== "boolean" || !Number.isFinite(value.savedAt) || value.savedAt > now || now - value.savedAt >= lifetime) return null;
-    return { version: 1, analytics: value.analytics, advertising: value.advertising, savedAt: value.savedAt, ...(typeof value.noticeSeen === "boolean" ? { noticeSeen: value.noticeSeen } : {}) };
+    if ((value.version !== 1 && value.version !== 2) || typeof value.analytics !== "boolean" || typeof value.advertising !== "boolean" || !Number.isFinite(value.savedAt) || value.savedAt > now || now - value.savedAt >= lifetime) return null;
+    // Automatic opt-out-era settings are not evidence of an affirmative choice.
+    // Preserve old explicit opt-ins and all saved refusals; renew ambiguous grants.
+    if (value.noticeSeen === false || (value.version === 1 && value.noticeSeen !== undefined && (value.analytics || value.advertising))) return null;
+    return { version: value.version, analytics: value.analytics, advertising: value.advertising, savedAt: value.savedAt, ...(typeof value.noticeSeen === "boolean" ? { noticeSeen: value.noticeSeen } : {}) };
   } catch { return null; }
 }
 
@@ -17,8 +20,8 @@ export function readPrivacyPreferences(store: string): PrivacyPreferences | null
   return parsePrivacyPreferences(document.cookie.split(";").map(item => item.trim()).find(item => item.startsWith(prefix))?.slice(prefix.length));
 }
 
-export function savePrivacyPreferences(store: string, analytics: boolean, advertising: boolean, noticeSeen = true) {
-  const value: PrivacyPreferences = { version: 1, analytics, advertising, savedAt: Date.now(), noticeSeen };
+export function savePrivacyPreferences(store: string, analytics: boolean, advertising: boolean) {
+  const value: PrivacyPreferences = { version: 2, analytics, advertising, savedAt: Date.now() };
   document.cookie = `${privacyCookieName(store)}=${encodeURIComponent(JSON.stringify(value))}; Path=/; Max-Age=${lifetime / 1000}; SameSite=Lax${location.protocol === "https:" ? "; Secure" : ""}`;
   try {
     localStorage.removeItem(`commerce-analytics-consent:${store}`);
@@ -34,9 +37,3 @@ export function savePrivacyPreferences(store: string, analytics: boolean, advert
   return value;
 }
 
-// Defaults apply only to a new preference record. Existing opt-outs are never reset.
-export function initializePrivacyPreferences(store: string, analyticsAvailable: boolean, advertisingAvailable: boolean) {
-  const existing = readPrivacyPreferences(store);
-  if (existing || (!analyticsAvailable && !advertisingAvailable)) return existing;
-  return savePrivacyPreferences(store, analyticsAvailable, advertisingAvailable, false);
-}
