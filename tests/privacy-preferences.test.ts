@@ -37,6 +37,10 @@ it("does not create or grant optional consent for a new visitor", () => {
   expect(readPrivacyPreferences("kosykin")).toBeNull();
   expect(cookies.size).toBe(0);
 });
+it("keeps optional tracking off when the browser denies access to cookies", () => {
+  vi.stubGlobal("document", { get cookie() { throw new Error("Cookie access denied"); } });
+  expect(readPrivacyPreferences("kosykin")).toBeNull();
+});
 it("rejects automatically enabled and ambiguous opt-out-era permissions", () => {
   browser();
   for (const noticeSeen of [false, true]) {
