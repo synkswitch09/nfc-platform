@@ -14,7 +14,6 @@ import type { CSSProperties } from "react";
 import { footerSocialProfiles, type FooterConfig } from "@/lib/site-chrome";
 import { localizedPath, type SystemCopy } from "@/lib/i18n";
 import { typographyStyle } from "@/lib/typography";
-import { PrivacySettingsLink } from "@/components/privacy-settings-link";
 
 const socialIcons = {
   instagram: Camera,
@@ -187,7 +186,6 @@ export function SiteFooter({
               {locale === defaultLocale ? config.privacyLabel : copy.privacy}
             </Link>
           )}
-          <PrivacySettingsLink href={localizedPath("/privacy", locale, defaultLocale)} style={typographyStyle(config.privacyTypography)} />
         </div>
       </div>
     </footer>

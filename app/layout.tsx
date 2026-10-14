@@ -18,6 +18,7 @@ import {
 import { StoreCapability, StoreStatus } from "@prisma/client";
 import { PrivacyControls } from "@/components/privacy-controls";
 import { parseIntegrationConfig } from "@/lib/integration-config";
+import { parseAccountConfig } from "@/lib/account-config";
 import { FormValidationFeedback } from "@/components/form-validation-feedback";
 import { getRequestLocale } from "@/lib/request-locale";
 import {
@@ -174,7 +175,7 @@ export default async function RootLayout({
         }}
       >
         <FormValidationFeedback />
-        <CartProvider storageKey={`commerce-cart:${store.id}:v1:${user?.id??"guest"}`} legacyStorageKey={`commerce-cart:${store.id}:v1`} guestStorageKey={user?`commerce-cart:${store.id}:v1:guest`:undefined}>
+        <CartProvider accountSyncEnabled={Boolean(user) && parseAccountConfig(store.accountConfig).savedCartEnabled} storageKey={`commerce-cart:${store.id}:v1:${user?.id??"guest"}`} legacyStorageKey={`commerce-cart:${store.id}:v1`} guestStorageKey={user?`commerce-cart:${store.id}:v1:guest`:undefined}>
           <SiteHeader
             config={store.slug === "kosykin" ? { ...settings.headerConfig, showCategories: false, customLinks: [] } : settings.headerConfig}
             storeName={settings.storeName}
