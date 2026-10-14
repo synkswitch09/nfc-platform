@@ -6,7 +6,7 @@ vi.mock("@/lib/storefront", () => ({ getCurrentStorefront: m.store }));
 vi.mock("@/lib/config", () => ({ getRuntimeConfig: m.config }));
 vi.mock("@/lib/rate-limit", () => ({ rateLimit: m.limit }));
 vi.mock("@/lib/auth", () => ({ getCurrentUser: m.user }));
-vi.mock("@/lib/db", () => ({ db: { product: { findFirst: m.product }, productVariant: { findMany: m.variant }, order: { findFirst: m.order }, measurementDelivery: { findMany: m.dispatchRows }, measurementSession: { findFirst: m.session, deleteMany: m.cleanup }, $transaction: (fn: (tx: unknown) => unknown) => fn({ measurementDelivery: { upsert: m.delivery, updateMany: m.claim } }) } }));
+vi.mock("@/lib/db", () => ({ db: { product: { findFirst: m.product }, productVariant: { findMany: m.variant }, order: { findFirst: m.order }, measurementDelivery: { findMany: m.dispatchRows }, measurementSession: { findFirst: m.session, deleteMany: m.cleanup }, $transaction: (fn: (tx: unknown) => unknown) => fn({ measurementDelivery: { createMany: m.delivery, updateMany: m.claim } }) } }));
 import { POST } from "@/app/api/analytics/route";
 const productId = "edc19676-41d5-4f57-98f4-6a08d32714d3";
 const variantId = "26d186ad-b40d-43ed-8052-cf9aa84e8f2a";
@@ -42,13 +42,13 @@ it("uses validated server prices, variant catalog IDs and only the consented pro
   expect((await POST(request(consent("kosykin")))).status).toBe(200);
   expect(m.product.mock.calls[0][0].where.storeId).toBe("store-1");
   expect(m.delivery).toHaveBeenCalledTimes(1);
-  expect(m.delivery.mock.calls[0][0].create).toMatchObject({ provider: "GA4", targetId: "G-CMS1234567", payload: { value: 24.95, items: [{ item_id: variantId, price: 24.95 }] } });
+  expect(m.delivery.mock.calls[0][0].data[0]).toMatchObject({ provider: "GA4", targetId: "G-CMS1234567", payload: { value: 24.95, items: [{ item_id: variantId, price: 24.95 }] } });
 });
 it("queues Meta with advertising consent even when analytics is denied and uses the same Pixel event ID", async () => {
   const result = await (await POST(request(consent("kosykin", false, true)))).json();
   expect(m.delivery).toHaveBeenCalledTimes(1);
-  expect(m.delivery.mock.calls[0][0].create.provider).toBe("META");
-  expect(result.pixel.eventId).toBe(m.delivery.mock.calls[0][0].create.eventKey);
+  expect(m.delivery.mock.calls[0][0].data[0].provider).toBe("META");
+  expect(result.pixel.eventId).toBe(m.delivery.mock.calls[0][0].data[0].eventKey);
   expect(result.pixel.data.content_ids).toEqual([variantId]);
 });
 it("never measures staging or a CMS-disabled store", async () => {
@@ -71,7 +71,7 @@ it("requires confirmed ownership and the original checkout session for a purchas
   expect((await POST(request(consent("kosykin"), { event: "purchase", eventId: variantId, orderId: productId }))).status).toBe(409);
   m.order.mockResolvedValue({ id: productId, status: "PAID", measurementSessionId: "session-1", checkoutEnvironment: "PRODUCTION", createdAt: new Date(), currency: "AUD", subtotalCents: 5000, discountCents: 500, shippingCents: 900, items: [{ variantId, quantity: 2, unitPriceCents: 2500 }] });
   await POST(request(consent("kosykin", true, true), { event: "purchase", eventId: variantId, orderId: productId }));
-  expect(m.delivery.mock.calls[0][0].create).toMatchObject({ eventKey: `purchase:${productId}`, payload: { value: 45, shipping: 9 } });
+  expect(m.delivery.mock.calls[0][0].data[0]).toMatchObject({ eventKey: `purchase:${productId}`, payload: { value: 45, shipping: 9 } });
 });
 
 it("does not dispatch a purchase Pixel twice, or replay an old paid order", async () => {

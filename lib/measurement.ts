@@ -53,11 +53,11 @@ export async function queueMeasurement(tx: Prisma.TransactionClient, input: { st
   const providers = [ready.ga4 && input.session.analytics ? "GA4" : null, ready.capi && input.session.advertising && metaEventName(input.name) ? "META" : null].filter(Boolean) as string[];
   for (const provider of providers) {
     // Unique store + provider + event key makes browser retries and webhook replays safe.
-    await tx.measurementDelivery.upsert({ where: { storeId_provider_eventKey: { storeId: input.storeId, provider, eventKey: input.eventKey } }, create: {
+    await tx.measurementDelivery.createMany({ data: [{
       storeId: input.storeId, sessionId: input.session.id, provider,
       targetId: provider === "GA4" ? input.config.ga4MeasurementId : input.config.metaPixelId,
       eventKey: input.eventKey, eventName: input.name, payload: { ...input.params, ...(provider === "GA4" ? { session_id: input.session.sessionId } : {}) } as Prisma.InputJsonValue, eventTime: input.eventTime ?? new Date(),
-    }, update: {} });
+    }], skipDuplicates: true });
   }
 }
 

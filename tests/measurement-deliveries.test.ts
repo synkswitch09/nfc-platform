@@ -21,19 +21,19 @@ describe("measurement delivery privacy and idempotency", () => {
     expect(measurementAvailability("kosykin", config)).toMatchObject({ ga4: false, capi: false, pixel: true });
   });
   it("uses a persistent unique key for both provider queues", async () => {
-    const upsert = vi.fn(); const tx = { measurementDelivery: { upsert } } as unknown as Prisma.TransactionClient;
+    const createMany = vi.fn(); const tx = { measurementDelivery: { createMany } } as unknown as Prisma.TransactionClient;
     await queueMeasurement(tx, { storeId: "store", slug: "kosykin", config, session, name: "purchase", eventKey: "purchase:order", params: { value: 20 } });
-    expect(upsert).toHaveBeenCalledTimes(2);
-    expect(upsert.mock.calls.map(c => c[0].where.storeId_provider_eventKey)).toEqual([{ storeId: "store", provider: "GA4", eventKey: "purchase:order" }, { storeId: "store", provider: "META", eventKey: "purchase:order" }]);
-    expect(upsert.mock.calls.every(c => Object.keys(c[0].update).length === 0)).toBe(true);
+    expect(createMany).toHaveBeenCalledTimes(2);
+    expect(createMany.mock.calls.map(c => ({ storeId: c[0].data[0].storeId, provider: c[0].data[0].provider, eventKey: c[0].data[0].eventKey }))).toEqual([{ storeId: "store", provider: "GA4", eventKey: "purchase:order" }, { storeId: "store", provider: "META", eventKey: "purchase:order" }]);
+    expect(createMany.mock.calls.every(c => c[0].skipDuplicates === true)).toBe(true);
   });
   it("records one purchase or refund from stored payment facts without personal data", async () => {
     const order = { id: "order", storeId: "store", subtotalCents: 2000, discountCents: 200, shippingCents: 900, currency: "AUD", checkoutEnvironment: "PRODUCTION", measurementSession: session, store: { slug: "kosykin", accountConfig: { integrations: config } }, items: [{ variantId: "variant", quantity: 1, unitPriceCents: 2000, personalisation: { name: "Daniel" } }], customerName: "Private person" };
-    const upsert = vi.fn(); const tx = { order: { findUnique: vi.fn().mockResolvedValue(order) }, measurementDelivery: { upsert } } as unknown as Prisma.TransactionClient;
+    const createMany = vi.fn(); const tx = { order: { findUnique: vi.fn().mockResolvedValue(order) }, measurementDelivery: { createMany } } as unknown as Prisma.TransactionClient;
     await queueOrderMeasurement(tx, "order"); await queueOrderMeasurement(tx, "order", { id: "refund1", amountCents: 1200 });
-    expect(upsert).toHaveBeenCalledTimes(3); // GA4 + Meta purchase, GA4 refund only.
-    expect(upsert.mock.calls[2][0].create).toMatchObject({ provider: "GA4", eventName: "refund", eventKey: "refund:refund1", payload: { transaction_id: "order", value: 12 } });
-    expect(JSON.stringify(upsert.mock.calls)).not.toMatch(/Daniel|Private person|personalisation/);
+    expect(createMany).toHaveBeenCalledTimes(3); // GA4 + Meta purchase, GA4 refund only.
+    expect(createMany.mock.calls[2][0].data[0]).toMatchObject({ provider: "GA4", eventName: "refund", eventKey: "refund:refund1", payload: { transaction_id: "order", value: 12 } });
+    expect(JSON.stringify(createMany.mock.calls)).not.toMatch(/Daniel|Private person|personalisation/);
   });
   it("does not send revoked, expired or retargeted queued events", async () => {
     for (const altered of [{ ...row(), session: { ...session, analytics: false } }, { ...row(), session: { ...session, expiresAt: new Date(0) } }, { ...row(), targetId: "G-OTHER12345" }]) {
@@ -80,9 +80,9 @@ describe("measurement delivery privacy and idempotency", () => {
 
 it("never queues or delivers legacy sessions without renewed affirmative consent", async () => {
   const legacy = { ...session, consentVersion: 1 };
-  const upsert = vi.fn();
-  await queueMeasurement({ measurementDelivery: { upsert } } as unknown as Prisma.TransactionClient, { storeId: "store", slug: "kosykin", config, session: legacy, name: "page_view", eventKey: "legacy", params: {} });
-  expect(upsert).not.toHaveBeenCalled();
+  const createMany = vi.fn();
+  await queueMeasurement({ measurementDelivery: { createMany } } as unknown as Prisma.TransactionClient, { storeId: "store", slug: "kosykin", config, session: legacy, name: "page_view", eventKey: "legacy", params: {} });
+  expect(createMany).not.toHaveBeenCalled();
   m.findUnique.mockResolvedValue({ ...row(), session: legacy });
   await processMeasurementDeliveries();
   expect(m.fetch).not.toHaveBeenCalled();
