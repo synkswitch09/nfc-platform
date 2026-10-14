@@ -48,6 +48,7 @@ export function metaCustomData(params: Record<string, unknown>) {
 }
 
 export async function queueMeasurement(tx: Prisma.TransactionClient, input: { storeId: string; slug: string; config: IntegrationConfig; session: MeasurementSession; eventKey: string; name: string; params: Record<string, unknown>; eventTime?: Date }) {
+  if (input.session.consentVersion !== 2) return;
   const ready = measurementAvailability(input.slug, input.config);
   const providers = [ready.ga4 && input.session.analytics ? "GA4" : null, ready.capi && input.session.advertising && metaEventName(input.name) ? "META" : null].filter(Boolean) as string[];
   for (const provider of providers) {
@@ -92,7 +93,7 @@ export async function processMeasurementDeliveries(delivery?: { storeId: string;
     const targetId = ga4 ? config.ga4MeasurementId : config.metaPixelId;
     const finish = (data: Prisma.MeasurementDeliveryUpdateManyMutationInput) => db.measurementDelivery.updateMany({ where: { id: row.id, leaseToken, status: "PENDING" }, data: { ...data, leaseToken: null, leaseUntil: null } });
     // Recheck current consent, store configuration and provider retention on every attempt.
-    if (!consent || row.session.expiresAt <= new Date() || row.session.storeId !== row.storeId || !(ga4 ? ready.ga4 : ready.capi) || row.targetId !== targetId || Date.now() - row.eventTime.getTime() > (ga4 ? 70 : 46) * 3600_000) {
+    if (row.session.consentVersion !== 2 || !consent || row.session.expiresAt <= new Date() || row.session.storeId !== row.storeId || !(ga4 ? ready.ga4 : ready.capi) || row.targetId !== targetId || Date.now() - row.eventTime.getTime() > (ga4 ? 70 : 46) * 3600_000) {
       await finish({ status: "SKIPPED", lastError: "Consent, configuration or delivery window changed" }); continue;
     }
     const params = row.payload as Record<string, unknown>;

@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
   const preferences = parsePrivacyPreferences(request.cookies.get(privacyCookieName(store.slug))?.value);
   if (!preferences?.analytics && !preferences?.advertising) return jsonError("Consent required", 403);
   const session = await currentMeasurementSession(request, store);
-  if (!session) return jsonError("Measurement session required", 403);
+  if (!session || session.consentVersion !== 2) return jsonError("Measurement session required", 403);
   if (!(await rateLimit("analytics", getClientIp(request), 120, 3600_000)).allowed) return jsonError("Too many events", 429);
   const text = await request.text();
   if (text.length > 4096) return jsonError("Event too large", 413);

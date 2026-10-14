@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
   const fbcCookie = request.cookies.get("_fbc")?.value;
   const fbp = schema.shape.fbp.safeParse(fbpCookie);
   const fbc = schema.shape.fbc.safeParse(fbcCookie);
-  const data = { analytics, advertising, expiresAt, clientUserAgent: advertising ? safeAgent : null, fbp: advertising ? (fbp.success ? fbp.data : undefined) ?? parsed.data.fbp ?? existing?.fbp ?? null : null, fbc: advertising ? (fbc.success ? fbc.data : undefined) ?? parsed.data.fbc ?? existing?.fbc ?? null : null };
+  const data = { consentVersion: 2, analytics, advertising, expiresAt, clientUserAgent: advertising ? safeAgent : null, fbp: advertising ? (fbp.success ? fbp.data : undefined) ?? parsed.data.fbp ?? existing?.fbp ?? null : null, fbc: advertising ? (fbc.success ? fbc.data : undefined) ?? parsed.data.fbc ?? existing?.fbc ?? null : null };
   const token = existing ? null : randomBytes(32).toString("hex");
   if (existing) await db.measurementSession.update({ where: { id: existing.id }, data: { ...data, ...(Date.now() - existing.updatedAt.getTime() > 30 * 60_000 ? { sessionId: String(Math.floor(Date.now() / 1000)) } : {}) } });
   else await db.measurementSession.create({ data: { ...data, tokenHash: sha256(token!), storeId: store.id, clientId: parsed.data.clientId, sessionId: String(Math.floor(Date.now() / 1000)) } });

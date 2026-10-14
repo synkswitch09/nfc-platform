@@ -12,9 +12,9 @@ export function PrivacyControls({ store, analyticsAvailable, advertisingAvailabl
   const [notice, setNotice] = useState("");
   useEffect(() => {
     const saved = readPrivacyPreferences(store);
-    setAnalytics(analyticsAvailable && (saved?.analytics ?? true));
-    setAdvertising(advertisingAvailable && (saved?.advertising ?? true));
-    setOpen((analyticsAvailable || advertisingAvailable) && (!saved || saved.noticeSeen === false));
+    setAnalytics(analyticsAvailable && Boolean(saved?.analytics));
+    setAdvertising(advertisingAvailable && Boolean(saved?.advertising));
+    setOpen((analyticsAvailable || advertisingAvailable) && !saved);
     setReady(true);
     try {
       if (!rememberEnabled) forgetCheckout(localStorage, store);
@@ -33,13 +33,13 @@ export function PrivacyControls({ store, analyticsAvailable, advertisingAvailabl
   if (!ready) return null;
   if (!open) return <button className="analytics-settings-link" type="button" onClick={() => { setNotice(""); setOpen(true); }}>Privacy & cookie settings</button>;
   return <aside className="analytics-consent privacy-controls" aria-label="Privacy and cookie settings">
-    <div><h2>Privacy & cookie settings</h2><p>Essential cookies support sign-in, security and checkout. Configured analytics and advertising measurement are active by default for new visitors. You can switch either off below or disable all optional tracking. Analytics helps us understand shopping activity; advertising measurement helps us assess our Meta campaigns. <Link href="/privacy">Privacy policy</Link></p>
+    <div><h2>Privacy choices</h2><p>Essential cookies support sign-in, security and checkout. Optional analytics helps us understand shopping activity. Advertising measurement helps us assess our Meta campaigns. These services stay off until you accept them. <Link href="/privacy">Privacy policy</Link></p>
       <label className="check-field"><input type="checkbox" checked disabled />Essential services (always required)</label>
       <label className="check-field"><input type="checkbox" checked={analytics} disabled={!analyticsAvailable} onChange={event => setAnalytics(event.target.checked)} />Analytics{!analyticsAvailable && " (not active)"}</label>
       <label className="check-field"><input type="checkbox" checked={advertising} disabled={!advertisingAvailable} onChange={event => setAdvertising(event.target.checked)} />Advertising{!advertisingAvailable && " (not active)"}</label>
-      <p className="fine-print">Your existing choices are respected. You can change these settings at any time without affecting shopping or support. Promotional email consent and remembering checkout details are separate choices.</p>
+      <p className="fine-print">You can accept analytics and advertising separately and change your choice here. Promotional email consent and remembering checkout details are separate choices.</p>
       <button className="text-button" type="button" onClick={forget}>Forget checkout details on this device</button>{notice && <p role="status">{notice}</p>}
     </div>
-    <div className="privacy-actions"><button className="button secondary" type="button" onClick={() => choose(false, false)}>Disable optional tracking</button>{(analyticsAvailable || advertisingAvailable) && <button className="button secondary" type="button" onClick={() => choose(true, true)}>Enable optional tracking</button>}<button className="button" type="button" onClick={() => choose(analytics, advertising)}>Save settings</button></div>
+    <div className="privacy-actions"><button className="button secondary" type="button" onClick={() => choose(false, false)}>Reject optional</button>{(analyticsAvailable || advertisingAvailable) && <button className="button secondary" type="button" onClick={() => choose(true, true)}>Accept optional</button>}<button className="button" type="button" onClick={() => choose(analytics, advertising)}>Save choices</button></div>
   </aside>;
 }
