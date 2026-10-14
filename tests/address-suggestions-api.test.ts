@@ -1,10 +1,12 @@
 import { beforeEach, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
-const m = vi.hoisted(() => ({ store: vi.fn(), config: vi.fn(), limit: vi.fn(), suggest: vi.fn() }));
+const m = vi.hoisted(() => ({ store: vi.fn(), config: vi.fn(), limit: vi.fn(), suggest: vi.fn(), log: vi.fn() }));
 vi.mock("@/lib/storefront", () => ({ getCurrentStorefront: m.store }));
 vi.mock("@/lib/config", () => ({ getRuntimeConfig: m.config }));
 vi.mock("@/lib/rate-limit", () => ({ rateLimit: m.limit }));
-vi.mock("@/lib/geoapify", () => ({ suggestAustralianAddresses: m.suggest }));
+vi.mock("@/lib/geoapify", async importOriginal => ({ ...await importOriginal<typeof import("@/lib/geoapify")>(), suggestAustralianAddresses: m.suggest }));
+vi.mock("@/lib/logger", () => ({ logEvent: m.log }));
+import { GeoapifyError } from "@/lib/geoapify";
 import { POST } from "@/app/api/address-suggestions/route";
 const request = (body: unknown, origin = "https://kosykin.test") => new NextRequest("https://kosykin.test/api/address-suggestions", { method: "POST", headers: { origin, host: "kosykin.test" }, body: JSON.stringify(body) });
 beforeEach(() => {
@@ -27,4 +29,16 @@ it("does not use provider credits without same origin, enabled settings, credent
 it("preserves manual entry and returns no upstream keys or address details on provider errors", async () => {
   m.suggest.mockRejectedValue(new Error("https://example?apiKey=private-key")); const result = await POST(request({ text: "12 Example" }));
   expect(result.status).toBe(503); expect(await result.text()).not.toContain("private-key");
+  expect(JSON.stringify(m.log.mock.calls)).not.toContain("private-key");
+  expect(JSON.stringify(m.log.mock.calls)).not.toContain("12 Example");
+});
+it("distinguishes safe timeout and provider rejection diagnostics", async () => {
+  m.suggest.mockRejectedValue(new GeoapifyError("timeout", null, 8000));
+  const timeout = await POST(request({ text: "12 Example" }));
+  expect(timeout.headers.get("X-Address-Suggestions-Error")).toBe("timeout");
+  expect(timeout.headers.get("X-Address-Provider-Status")).toBeNull();
+  m.suggest.mockRejectedValue(new GeoapifyError("http", 403, 250));
+  const rejected = await POST(request({ text: "12 Example" }));
+  expect(rejected.headers.get("X-Address-Provider-Status")).toBe("403");
+  expect(m.log).toHaveBeenLastCalledWith("warn", "address.geoapify_failed", { storeId: "store-1", kind: "http", providerStatus: 403, elapsedMs: 250 });
 });

@@ -4,7 +4,8 @@ import { getCurrentStorefront } from "@/lib/storefront";
 import { getRuntimeConfig } from "@/lib/config";
 import { assertSameOrigin, getClientIp, jsonError } from "@/lib/http";
 import { rateLimit } from "@/lib/rate-limit";
-import { suggestAustralianAddresses } from "@/lib/geoapify";
+import { GeoapifyError, suggestAustralianAddresses } from "@/lib/geoapify";
+import { logEvent } from "@/lib/logger";
 
 const querySchema = z.object({ text: z.string().trim().min(4).max(160) }).strict();
 export async function POST(request: NextRequest) {
@@ -23,5 +24,15 @@ export async function POST(request: NextRequest) {
   if (!budget.allowed) return jsonError("Please enter your address manually", 429);
   try {
     return NextResponse.json({ suggestions: await suggestAustralianAddresses(parsed.data.text, apiKey) }, { headers: { "Cache-Control": "private, no-store" } });
-  } catch { return jsonError("Suggestions are unavailable. Enter your address manually.", 503); }
+  } catch (error) {
+    const failure = error instanceof GeoapifyError ? error : null;
+    const kind = failure?.kind ?? "unknown";
+    // Do not log addresses, credentials, provider URLs or raw exception text.
+    logEvent("warn", "address.geoapify_failed", { storeId: store.id, kind, providerStatus: failure?.status ?? null, elapsedMs: failure?.elapsedMs ?? null });
+    return NextResponse.json({ error: "Suggestions are unavailable. Enter your address manually." }, { status: 503, headers: {
+      "Cache-Control": "private, no-store",
+      "X-Address-Suggestions-Error": kind,
+      ...(failure?.status ? { "X-Address-Provider-Status": String(failure.status) } : {}),
+    } });
+  }
 }

@@ -2,7 +2,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 import type { AustralianAddressSuggestion } from "@/lib/geoapify";
 
-export function AddressSuggestions({ value, onChange, onSelect }: { value: string; onChange: (value: string) => void; onSelect: (value: AustralianAddressSuggestion["address"]) => void }) {
+export function AddressSuggestions({ onSelect }: { onSelect: (value: AustralianAddressSuggestion["address"]) => void }) {
   const id = useId();
   const [query, setQuery] = useState("");
   const [suggestions, setSuggestions] = useState<AustralianAddressSuggestion[]>([]);
@@ -40,19 +40,19 @@ export function AddressSuggestions({ value, onChange, onSelect }: { value: strin
   return <div className="address-suggestions" onBlur={event => {
     if (!event.currentTarget.contains(event.relatedTarget)) { setQuery(""); setSuggestions([]); }
   }}>
-    <label className="field" htmlFor={id}>Street address</label>
-    <input id={id} name="line1" value={value} minLength={3} maxLength={160} required autoComplete="address-line1" role="combobox" aria-autocomplete="list" aria-expanded={suggestions.length > 0} aria-controls={`${id}-options`} aria-describedby={`${id}-help`} aria-activedescendant={active >= 0 && suggestions[active] ? `${id}-option-${active}` : undefined}
-      onChange={event => { onChange(event.target.value); setQuery(event.target.value); setSuggestions([]); setActive(-1); }}
+    <label className="field" htmlFor={id}>Search your address <span className="optional">Optional</span></label>
+    <input id={id} type="search" value={query} maxLength={160} autoComplete="off" spellCheck={false} placeholder="Start typing an Australian address" role="combobox" aria-autocomplete="list" aria-expanded={suggestions.length > 0} aria-controls={`${id}-options`} aria-describedby={`${id}-help`} aria-activedescendant={active >= 0 && suggestions[active] ? `${id}-option-${active}` : undefined}
+      onChange={event => { setQuery(event.target.value); setSuggestions([]); setActive(-1); }}
       onKeyDown={event => {
         if (event.key === "Escape") { setQuery(""); setSuggestions([]); }
+        if (event.key === "Enter") { event.preventDefault(); if (active >= 0 && suggestions[active]) select(suggestions[active]); return; }
         if (!suggestions.length) return;
         if (event.key === "ArrowDown" || event.key === "ArrowUp") { event.preventDefault(); setActive(index => event.key === "ArrowDown" ? (index + 1) % suggestions.length : (index <= 0 ? suggestions.length - 1 : index - 1)); }
-        if (event.key === "Enter" && active >= 0) { event.preventDefault(); select(suggestions[active]); }
       }} />
     <ul id={`${id}-options`} role="listbox" aria-label="Australian address suggestions" hidden={!suggestions.length}>
       {suggestions.map((suggestion, index) => <li key={`${suggestion.id}-${index}`} id={`${id}-option-${index}`} role="option" aria-selected={active === index} onMouseDown={event => event.preventDefault()} onClick={() => select(suggestion)}>{suggestion.label}</li>)}
     </ul>
-    <p className="fine-print" id={`${id}-help`}>Type at least four characters to search Australian addresses. Suggestions send the address you type to Geoapify. You can always edit every field. <a href="https://www.geoapify.com/" target="_blank" rel="noreferrer">Powered by Geoapify</a> · <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">© OpenStreetMap contributors</a></p>
+    <p className="fine-print" id={`${id}-help`}>Search and choose a suggestion to fill the address below, or enter it manually. Type at least four characters. Searches are sent to Geoapify. <a href="https://www.geoapify.com/" target="_blank" rel="noreferrer">Powered by Geoapify</a> · <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">© OpenStreetMap contributors</a></p>
     <span className="fine-print" role="status" aria-live="polite">{status}</span>
   </div>;
 }

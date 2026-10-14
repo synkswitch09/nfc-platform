@@ -19,3 +19,17 @@ it("lets missing address fields remain editable and rejects malformed providers"
   expect(australianSuggestions({ results: [{ country_code: "au", formatted: "Test Street", street: "Test Street", state_code: "AU-SA" }] })[0].address).toMatchObject({ administrativeArea: "SA", postcode: "", locality: "" });
   expect(australianSuggestions({ results: [{ country_code: "au", formatted: 123 }] })).toEqual([]);
 });
+it("classifies failures without including provider URLs, addresses or credentials", async () => {
+  const timeout = vi.spyOn(AbortSignal, "timeout");
+  const fetcher = vi.fn(); vi.stubGlobal("fetch", fetcher);
+  fetcher.mockRejectedValueOnce(new DOMException("private-key 12 Example", "TimeoutError"));
+  await expect(suggestAustralianAddresses("12 Example", "private-key")).rejects.toMatchObject({ kind: "timeout", message: "Address suggestions unavailable", status: null });
+  expect(timeout).toHaveBeenCalledWith(8000);
+  fetcher.mockResolvedValueOnce(new Response("private-key", { status: 429 }));
+  await expect(suggestAustralianAddresses("12 Example", "private-key")).rejects.toMatchObject({ kind: "http", status: 429 });
+  fetcher.mockRejectedValueOnce(new Error("https://example?apiKey=private-key"));
+  await expect(suggestAustralianAddresses("12 Example", "private-key")).rejects.toMatchObject({ kind: "network", message: "Address suggestions unavailable" });
+  fetcher.mockResolvedValueOnce(new Response("not JSON"));
+  await expect(suggestAustralianAddresses("12 Example", "private-key")).rejects.toMatchObject({ kind: "invalid_response" });
+  timeout.mockRestore();
+});
