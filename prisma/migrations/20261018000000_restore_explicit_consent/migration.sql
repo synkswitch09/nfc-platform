@@ -1,4 +1,7 @@
 -- Restore affirmative consent. Existing default grants cannot authorise server deliveries.
+DO $restore_consent$
+DECLARE row_record record; new_copy text; new_items jsonb;
+BEGIN
 ALTER TABLE "MeasurementSession" ADD COLUMN IF NOT EXISTS "consentVersion" INTEGER NOT NULL DEFAULT 1;
 UPDATE "MeasurementSession" session SET analytics = false, advertising = false, fbp = NULL, fbc = NULL, "clientUserAgent" = NULL, "updatedAt" = CURRENT_TIMESTAMP
 FROM "Store" store WHERE session."storeId" = store.id AND store.slug IN ('tapkin', 'kosykin') AND session."consentVersion" < 2
@@ -6,9 +9,6 @@ AND (session.analytics OR session.advertising OR session.fbp IS NOT NULL OR sess
 UPDATE "MeasurementDelivery" delivery SET status = 'SKIPPED', "lastError" = 'Affirmative consent must be renewed', "leaseToken" = NULL, "leaseUntil" = NULL
 FROM "MeasurementSession" session, "Store" store WHERE delivery."sessionId" = session.id AND delivery."storeId" = store.id
 AND store.slug IN ('tapkin', 'kosykin') AND session."consentVersion" < 2 AND delivery.status = 'PENDING' AND delivery.provider IN ('GA4', 'META');
-DO $restore_consent$
-DECLARE row_record record; new_copy text; new_items jsonb;
-BEGIN
   FOR row_record IN SELECT section.id, section.content, page.slug FROM "LandingPageSection" section
     JOIN "ContentPage" page ON page.id = section."pageId" AND page."storeId" = section."storeId"
     JOIN "Store" store ON store.id = section."storeId"
