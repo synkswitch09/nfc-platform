@@ -17,7 +17,9 @@ export function parsePrivacyPreferences(raw: string | undefined | null, now = Da
 export function readPrivacyPreferences(store: string): PrivacyPreferences | null {
   if (typeof document === "undefined") return null;
   const prefix = `${privacyCookieName(store)}=`;
-  return parsePrivacyPreferences(document.cookie.split(";").map(item => item.trim()).find(item => item.startsWith(prefix))?.slice(prefix.length));
+  try {
+    return parsePrivacyPreferences(document.cookie.split(";").map(item => item.trim()).find(item => item.startsWith(prefix))?.slice(prefix.length));
+  } catch { return null; }
 }
 
 export function savePrivacyPreferences(store: string, analytics: boolean, advertising: boolean) {
