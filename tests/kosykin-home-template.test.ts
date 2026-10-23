@@ -7,15 +7,18 @@ import { ModularPageRenderer } from "@/components/landing-section-renderer";
 import type { Prisma } from "@prisma/client";
 
 describe("Kosykin Home design", () => {
-  it("provides the complete editable v3 home without publishing unconfigured offers or example reviews", () => {
+  it("provides the editable home with launch promotion and clearly labelled example reviews", () => {
     const sections = validateLandingSections(kosykinHomeTemplate());
     expect(sections.map((section) => section.type)).toEqual(["HERO", "FEATURE_BADGES", "PRODUCT_SHOWCASE", "CTA_BANNER", "FEATURE_LIST", "MEDIA_CONTENT", "FEATURE_BADGES", "FAQ", "CTA_BANNER"]);
     expect(sections[0].content).toMatchObject({ layoutVariant: "KOSYKIN_WAVY", sideLabel: "Collection" });
     expect(sections[1].content.layoutVariant).toBe("KOSYKIN_CIRCLES");
     const items = sections[1].content.items as Array<{ imageUrl: string; ctaHref: string }>;
     expect(items).toHaveLength(5);
-    expect(sections.find(section => section.content.layoutVariant === "KOSYKIN_REVIEWS")?.visible).toBe(false);
-    expect(sections.find(section => section.content.layoutVariant === "KOSYKIN_PROMOTIONS")?.visible).toBe(false);
+    expect(sections.find(section => section.content.layoutVariant === "KOSYKIN_REVIEWS")?.visible).toBe(true);
+    expect(sections.find(section => section.content.layoutVariant === "KOSYKIN_PROMOTIONS")?.visible).toBe(true);
+    const reviews = sections.find(section => section.content.layoutVariant === "KOSYKIN_REVIEWS");
+    expect(reviews?.content.copy).toContain("not real customer testimonials");
+    expect(reviews?.content.items).toHaveLength(3);
     expect(items.every((item) => item.imageUrl.startsWith("/images/kosykin/") && item.ctaHref.startsWith("/shop"))).toBe(true);
   });
 

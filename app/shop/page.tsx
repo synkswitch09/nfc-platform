@@ -1,3 +1,5 @@
+import { KosykinShop } from "@/components/kosykin-shop";
+import { queryList, shopProductVariants, type ShopQuery } from "@/lib/kosykin-shop";
 import { FavouriteButton } from "@/components/favourite-button";
 import Image from "next/image";
 import Link from "next/link";
@@ -11,7 +13,6 @@ import { canAcceptVariant } from "@/lib/production-capacity";
 import { KEYCHAIN_PREVIEW_NAME, KEYCHAIN_PREVIEW_DESCRIPTION } from "@/lib/keychain-shop-preview";
 import { getRuntimeConfig, searchEnginePolicy } from "@/lib/config";
 
-type ShopQuery = { category?: string | string[]; min?: string; max?: string; availability?: string; sort?: string };
 const categoriesFrom = (query: ShopQuery) => (Array.isArray(query.category) ? query.category : query.category ? [query.category] : []).slice(0, 20);
 
 export async function generateMetadata({ searchParams }: { searchParams: Promise<ShopQuery> }): Promise<Metadata> {
@@ -36,14 +37,31 @@ export default async function ShopPage({ searchParams }: { searchParams: Promise
   const available = (variant: { trackInventory: boolean; backorderPolicy: string; inventory: number; reservedInventory: number; productionMinutes: number | null }) => canAcceptVariant(variant, pool, booked._sum.minutes ?? 0);
   const products = await db.product.findMany({
     where: { storeId: store.id, status: "ACTIVE", shopVisible: true, category: { storeId: store.id, status: "PUBLISHED" }, ...(categoriesFrom(query).length ? { categoryId: { in: selected.map(category => category.id) } } : {}) },
-    include: { category: true, images: { orderBy: [{ isPrimary: "desc" }, { sortOrder: "asc" }] }, variants: { where: { active: true }, orderBy: { priceCents: "asc" } }, options: { where: { type: "COLOUR" }, include: { values: { where: { active: true }, orderBy: { sortOrder: "asc" } } }, take: 1 } },
+    include: { _count: { select: { options: true } }, category: true, images: { orderBy: [{ isPrimary: "desc" }, { sortOrder: "asc" }] }, variants: { where: { active: true }, orderBy: { priceCents: "asc" } }, options: { where: { type: "COLOUR" }, include: { values: { where: { active: true }, orderBy: { sortOrder: "asc" } } }, take: 1 } },
     orderBy: [{ featured: "desc" }, { createdAt: "desc" }],
   });
   const visible = products.filter(product => {
+    if (store.slug === "kosykin") return shopProductVariants(product, query, available).length > 0;
     const cheapest = product.variants[0]?.priceCents;
     const canBuy = product.variants.some(available);
     return cheapest !== undefined && cheapest >= min && cheapest <= max && (query.availability !== "available" || canBuy);
   }).sort((a, b) => query.sort === "price-asc" ? a.variants[0].priceCents - b.variants[0].priceCents : query.sort === "price-desc" ? b.variants[0].priceCents - a.variants[0].priceCents : query.sort === "new" ? b.createdAt.getTime() - a.createdAt.getTime() : Number(b.featured) - Number(a.featured));
+  if (store.slug === "kosykin") {
+    const home = await db.contentPage.findFirst({ where: { storeId: store.id, kind: "HOME", status: "PUBLISHED" }, select: { sections: { where: { visible: true, type: { in: ["CTA_BANNER", "FEATURE_BADGES"] } }, orderBy: { sortOrder: "asc" }, select: { visible: true, content: true } } } });
+    const promotion = home?.sections.find(section => section.content && typeof section.content === "object" && !Array.isArray(section.content) && section.content.layoutVariant === "KOSYKIN_PROMOTIONS") ?? null;
+    const collections = home?.sections.find(section => section.content && typeof section.content === "object" && !Array.isArray(section.content) && section.content.layoutVariant === "KOSYKIN_CIRCLES");
+    const collectionContent = collections?.content as { items?: { title?: string; categorySlug?: string; description?: string; visible?: boolean }[] } | undefined;
+    const tabs = (Array.isArray(collectionContent?.items) ? collectionContent.items : []).filter(item => item.visible !== false && typeof item.categorySlug === "string" && typeof item.title === "string").slice(0, 30).map(item => {
+      const category = categories.find(category => category.slug === item.categorySlug || category.name.toLowerCase() === item.title!.toLowerCase());
+      return category ?? { id: `collection-${item.categorySlug}`, slug: item.categorySlug!, name: item.title!, shortDescription: item.description || null };
+    });
+    for (const category of categories) if (!tabs.some(tab => tab.slug === category.slug)) tabs.push(category);
+    const sorted = [...visible].sort((a, b) => {
+      const lowest = (product: typeof a) => Math.min(...shopProductVariants(product, query, available).map(variant => variant.priceCents));
+      return query.sort === "price-asc" ? lowest(a) - lowest(b) : query.sort === "price-desc" ? lowest(b) - lowest(a) : query.sort === "new" ? b.createdAt.getTime() - a.createdAt.getTime() : Number(b.featured) - Number(a.featured);
+    }).map(product => ({ ...product, sourceVariantCount: product.variants.length, variants: shopProductVariants(product, query, available) }));
+    return <KosykinShop products={sorted} filterProducts={products} categories={tabs} query={{ ...query, category: queryList(query.category) }} promotion={promotion} currency={store.currency} available={available} checkoutEnabled={getRuntimeConfig().checkoutEnabled} />;
+  }
   const showKeychainPreview = store.slug === "kosykin" && !Object.keys(query).length && !products.some(product => product.slug === KEYCHAIN_SLUG);
   return <section className="section"><div className="section-head"><span className="eyebrow">{store.displayName} shop</span><h1 className="page-title">Products made for real life.</h1><p className="lead">Thoughtfully designed and personalised in Adelaide, with clear options and secure checkout.</p></div>
     <form className="shop-filters" action="/shop" method="get"><fieldset><legend>Categories</legend><div className="shop-filter-categories">{categories.map(category => <label key={category.id}><input name="category" type="checkbox" value={category.slug} defaultChecked={selected.some(item => item.id === category.id)} />{category.name}</label>)}</div></fieldset><label>Min price <input name="min" type="number" min="0" step="0.01" defaultValue={query.min ?? ""} /></label><label>Max price <input name="max" type="number" min="0" step="0.01" defaultValue={query.max ?? ""} /></label><label>Availability <select name="availability" defaultValue={query.availability ?? ""}><option value="">All products</option><option value="available">Available to order</option></select></label><label>Sort <select name="sort" defaultValue={query.sort ?? "featured"}><option value="featured">Featured</option><option value="price-asc">Price: low to high</option><option value="price-desc">Price: high to low</option><option value="new">Newest</option></select></label><button className="button" type="submit">Apply filters</button><Link href="/shop">Clear</Link></form>
