@@ -1,6 +1,6 @@
 # Docker Official Image, pinned to the Node 24 Alpine digest validated for this release.
-# ECR Public serves identical bytes without Docker Hub anonymous pull limits.
-FROM public.ecr.aws/docker/library/node:24-alpine@sha256:ebfe2f90462722a7a4de65e91990e97fe0d401c70e0e762c5b53302f905ec1c1 AS dependencies
+# The verified Docker Official Image mirror avoids ECR Public data limits.
+FROM mirror.gcr.io/library/node:24-alpine@sha256:ebfe2f90462722a7a4de65e91990e97fe0d401c70e0e762c5b53302f905ec1c1 AS dependencies
 WORKDIR /app
 RUN apk add --no-cache openssl libc6-compat
 COPY package.json package-lock.json ./
@@ -19,7 +19,7 @@ COPY --chown=node:node tsconfig.json ./tsconfig.json
 USER node
 CMD ["./node_modules/.bin/prisma", "migrate", "deploy"]
 
-FROM public.ecr.aws/docker/library/node:24-alpine@sha256:ebfe2f90462722a7a4de65e91990e97fe0d401c70e0e762c5b53302f905ec1c1 AS runner
+FROM mirror.gcr.io/library/node:24-alpine@sha256:ebfe2f90462722a7a4de65e91990e97fe0d401c70e0e762c5b53302f905ec1c1 AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 ENV HOSTNAME=0.0.0.0
