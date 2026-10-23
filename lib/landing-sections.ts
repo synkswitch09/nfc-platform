@@ -152,7 +152,7 @@ const radius = z
   .enum(["SMALL", "MEDIUM", "LARGE", "EXTRA_LARGE"])
   .default("LARGE");
 const layoutVariant = z
-  .enum(["DEFAULT", "PASTEL_EDITORIAL", "KOSYKIN_WAVY", "KOSYKIN_CIRCLES"])
+  .enum(["DEFAULT", "PASTEL_EDITORIAL", "KOSYKIN_WAVY", "KOSYKIN_CIRCLES", "KOSYKIN_HOME", "KOSYKIN_REVIEWS", "KOSYKIN_PROMOTIONS", "KOSYKIN_SUPPORT"])
   .default("DEFAULT");
 const sectionWidth = z
   .enum(["FULL", "WIDE", "STANDARD", "NARROW"])
@@ -315,6 +315,8 @@ const gridSchema = z.object({
   featuredOnly: z.boolean().default(false),
 });
 
+const bannerSchema = narrativeSchema.extend({ items: z.array(itemSchema).max(8).default([]) });
+
 const contentSchemas: Record<LandingSectionType, z.ZodTypeAny> = {
   HERO: narrativeSchema,
   FEATURE_BADGES: itemsSchema,
@@ -325,7 +327,7 @@ const contentSchemas: Record<LandingSectionType, z.ZodTypeAny> = {
   MEDIA_CONTENT: narrativeSchema,
   STORY_PROCESS: itemsSchema,
   FAQ: faqSchema,
-  CTA_BANNER: narrativeSchema,
+  CTA_BANNER: bannerSchema,
   PRODUCT_GRID: gridSchema,
   CATEGORY_GRID: gridSchema,
   RICH_TEXT: narrativeSchema,
