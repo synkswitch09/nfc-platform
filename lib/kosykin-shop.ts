@@ -11,7 +11,7 @@ export function shopCategoryStyle(category: { slug: string; name: string; shortD
   const style = shopCategoryStyles.find(item => item.slug === category.slug || item.name.toLowerCase() === category.name.toLowerCase());
   return { colour: style?.colour ?? '#243247', description: category.shortDescription || style?.description || 'Find your kind of Kosy' };
 }
-const price = (input: string | undefined) => input?.trim() && Number.isFinite(Number(input)) ? Math.round(Math.max(0, Number(input)) * 100) : undefined;
+const price = (input: string | undefined) => typeof input === 'string' && input.trim() && Number.isFinite(Number(input)) ? Math.round(Math.max(0, Number(input)) * 100) : undefined;
 export function shopPriceRange(query: ShopQuery) {
   const min = price(query.min) ?? 0;
   const max = price(query.max) ?? Infinity;
