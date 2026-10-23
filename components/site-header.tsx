@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Menu, Radio, Shapes, X } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { FavouritesLink } from "@/components/favourites-link";
 import { CartLink } from "@/components/cart-link";
 import { LanguageSelector } from "@/components/language-selector";
 import { localizedPath, type SystemCopy } from "@/lib/i18n";
@@ -55,6 +56,21 @@ export function SiteHeader({
 }) {
   const pathname = usePathname();
   const headerRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const header = headerRef.current;
+    if (!kosykinLayout || !header) return;
+    let frame = 0;
+    const update = () => {
+      frame = 0;
+      const progress = window.matchMedia("(prefers-reduced-motion: reduce)").matches ? (window.scrollY > 80 ? 1 : 0) : Math.min(1, Math.max(0, window.scrollY / 160));
+      header.style.setProperty("--kosy-scroll", String(progress));
+    };
+    const scroll = () => { if (!frame) frame = requestAnimationFrame(update); };
+    update();
+    window.addEventListener("scroll", scroll, { passive: true });
+    window.addEventListener("pageshow", update);
+    return () => { window.removeEventListener("scroll", scroll); window.removeEventListener("pageshow", update); cancelAnimationFrame(frame); };
+  }, [kosykinLayout]);
   const [compact, setCompact] = useState(false);
   useEffect(() => {
     const header = headerRef.current;
@@ -78,8 +94,9 @@ export function SiteHeader({
       const sideWidth = Math.max(0, ...groups.map(group => group.getBoundingClientRect().width));
       probe.remove();
       const padding = window.innerWidth <= 1050 ? 24 : 46;
-      const logoWidth = window.innerWidth <= 1050 ? Math.min(400, window.innerWidth * .4) : Math.min(500, window.innerWidth * .38);
-      setCompact(window.innerWidth <= 950 || 2 * (sideWidth + padding + 16) + logoWidth > header.getBoundingClientRect().width);
+      const logoWidth = window.innerWidth <= 1050 ? Math.min(400, window.innerWidth * .4) : Math.min(420, window.innerWidth * .36);
+      const availableWidth = Math.min(1340, window.innerWidth - (window.innerWidth <= 950 ? 24 : 100));
+      setCompact(window.innerWidth <= 950 || 2 * (sideWidth + padding + 16) + logoWidth > availableWidth);
     };
     const observer = new ResizeObserver(measure);
     observer.observe(header);
@@ -240,6 +257,7 @@ export function SiteHeader({
           ...typographyStyle(config.brandTypography),
         }}
       >
+        {kosykinLayout && <Image className="kosy-scroll-wordmark" src={config.logoUrl || "/images/kosykin/wordmark-navy.webp"} alt="" width={236} height={34} priority /> }
         {kosykinLayout && <Image className="kosy-compact-logo" src={config.compactLogoUrl || logoUrl || "/images/kosykin/logo.png"} alt={storeName} width={64} height={64} priority unoptimized />}
         {logoUrl ? (
           <Image
@@ -301,6 +319,7 @@ export function SiteHeader({
           )}
           {commerce && (
             <>
+              {kosykinLayout && <span className="kosy-nav-favourites" onClick={close}><FavouritesLink href={href("/favourites")} /></span>}
               {kosykinLayout && config.showCart && <span className="kosy-nav-cart" onClick={close}><CartLink label={copy.cart} itemsLabel={copy.items} href={href("/cart")} iconOnly /></span>}
               <Link
                 className="nav-shop"
