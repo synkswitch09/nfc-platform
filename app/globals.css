@@ -5973,3 +5973,18 @@ body[data-store="kosykin"] .modular-landing > .kosy-home-media-content .kosy-sec
 @media (max-width: 650px) { .kosy-support-brand { flex-basis: auto; } }
 body[data-store="kosykin"] .site-header:not(.compact-header) .brand { width: min(420px, 36vw); }
 html:has(body[data-store="kosykin"]) { scroll-padding-top: 120px; }
+/* Compact the bar and its centred logo continuously with the same scroll progress. */
+body[data-store="kosykin"] .site-header,
+body[data-store="kosykin"]:has(.kosy-home-hero) .site-header {
+  min-height: calc(92px - 14px * var(--kosy-scroll));
+  height: calc(92px - 14px * var(--kosy-scroll));
+}
+body[data-store="kosykin"] .site-header:not(.compact-header) .brand {
+  height: calc(86px - 8px * var(--kosy-scroll));
+  padding-bottom: calc(8px * (1 - var(--kosy-scroll)));
+}
+body[data-store="kosykin"] .site-header.compact-header .brand {
+  height: calc(88px - 10px * var(--kosy-scroll));
+  padding-top: calc(8px * (1 - var(--kosy-scroll)));
+  padding-bottom: calc(16px * (1 - var(--kosy-scroll)));
+}

@@ -257,7 +257,7 @@ export function SiteHeader({
           ...typographyStyle(config.brandTypography),
         }}
       >
-        {kosykinLayout && <Image className="kosy-scroll-wordmark" src={config.logoUrl || "/images/kosykin/wordmark-navy.webp"} alt="" width={236} height={34} priority /> }
+        {kosykinLayout && <Image className="kosy-scroll-wordmark" src={config.logoUrl || "/images/kosykin/wordmark-navy.webp"} alt="" width={236} height={34} priority unoptimized /> }
         {kosykinLayout && <Image className="kosy-compact-logo" src={config.compactLogoUrl || logoUrl || "/images/kosykin/logo.png"} alt={storeName} width={64} height={64} priority unoptimized />}
         {logoUrl ? (
           <Image
