@@ -35,6 +35,8 @@ jobs:
         run: node --import tsx scripts/check-kosykin-content-migration.ts
       - name: Verify Tapkin policy publication in disposable database
         run: node --import tsx scripts/check-tapkin-content-migration.ts
+      - name: Verify Kosykin Home upgrade in disposable database
+        run: node --import tsx scripts/check-kosykin-home-migration.ts
       - name: Validate environment worker provisioning
         run: python3 -m unittest discover -s tests -p test_*.py
       - run: npm run lint
