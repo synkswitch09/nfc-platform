@@ -1,3 +1,4 @@
+import { FavouritesProvider } from "@/components/favourites-provider";
 import { StoreMeasurement } from "@/components/store-measurement";
 import { measurementAvailability } from "@/lib/measurement";
 import type { Metadata } from "next";
@@ -176,6 +177,7 @@ export default async function RootLayout({
       >
         <FormValidationFeedback />
         <CartProvider accountSyncEnabled={Boolean(user) && parseAccountConfig(store.accountConfig).savedCartEnabled} storageKey={`commerce-cart:${store.id}:v1:${user?.id??"guest"}`} legacyStorageKey={`commerce-cart:${store.id}:v1`} guestStorageKey={user?`commerce-cart:${store.id}:v1:guest`:undefined}>
+          <FavouritesProvider key={`${store.id}:${user?.id ?? "guest"}`} enabled={parseAccountConfig(store.accountConfig).favouritesEnabled} authenticated={Boolean(user)} accountKey={`${store.id}:${user?.id ?? "guest"}`}>
           <SiteHeader
             config={store.slug === "kosykin" ? { ...settings.headerConfig, showCategories: false, customLinks: [] } : settings.headerConfig}
             storeName={settings.storeName}
@@ -208,6 +210,7 @@ export default async function RootLayout({
           />
           <StoreMeasurement store={store.slug} production={runtime.appEnv === "production"} clarityProjectId={availability.clarity ? integrations.clarityProjectId : ""} pixelEnabled={availability.pixel} />
           <PrivacyControls store={store.slug} analyticsAvailable={analyticsEnabled} advertisingAvailable={availability.pixel || availability.capi} rememberEnabled={integrations.rememberCheckoutEnabled} retentionDays={integrations.rememberCheckoutDays} />
+          </FavouritesProvider>
         </CartProvider>
       </body>
     </html>

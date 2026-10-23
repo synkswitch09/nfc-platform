@@ -52,6 +52,7 @@ export default async function Home() {
             where: { storeId: store.id, status: "ACTIVE", shopVisible: true },
             include: {
               images: { where: { isPrimary: true }, take: 1 },
+              options: { where: { type: "COLOUR" }, take: 1, include: { values: { where: { active: true }, orderBy: { sortOrder: "asc" } } } },
               variants: {
                 where: { active: true },
                 orderBy: { priceCents: "asc" },

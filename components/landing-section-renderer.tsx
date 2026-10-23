@@ -1,3 +1,4 @@
+import { KosykinHomeSection } from "@/components/kosykin-home-section";
 import type { CSSProperties, ReactNode } from "react";
 import Image from "next/image";
 import Link from "next/link";
@@ -81,6 +82,7 @@ type RenderProduct = {
   featured: boolean;
   images: Array<{ url: string; altText: string }>;
   variants: Array<{ priceCents: number }>;
+  options?: Array<{ values: Array<{ id: string; label: string; value: string; swatchHex: string | null }> }>;
 };
 type RenderCategory = {
   id: string;
@@ -187,6 +189,12 @@ export function ModularPageRenderer({
           if (!value) return null;
           const common = readCommon(value, section.name);
           const presentation = sectionPresentation(value);
+          if (["KOSYKIN_HOME", "KOSYKIN_REVIEWS", "KOSYKIN_PROMOTIONS", "KOSYKIN_SUPPORT"].includes(String(value.layoutVariant))) {
+            if (value.layoutVariant === "KOSYKIN_REVIEWS" && !ordered<Item>(value.items).length) return null;
+            return <section key={renderSectionKey(section, sectionIndex)} className={`kosy-home-section kosy-home-${section.type.toLowerCase().replaceAll("_", "-")}`} {...presentation}>
+              <KosykinHomeSection type={section.type} value={value} products={products} currency={store.currency} socials={kosykinSocials} />
+            </section>;
+          }
           if (section.type === "HERO") {
             const features = ordered<Feature>(value.features);
             const textBlocks = ordered<TextBlock>(value.textBlocks);

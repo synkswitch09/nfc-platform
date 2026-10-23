@@ -26,7 +26,7 @@ import {
 } from "@/lib/landing-sections";
 import { fontFamilies, fontWeights, type TypographyOverride } from "@/lib/typography";
 import { petsLandingTemplate } from "@/lib/pets-landing-template";
-import { kosykinHomeTemplate } from "@/lib/kosykin-home-template";
+import { upgradeKosykinHome } from "@/lib/kosykin-home-template";
 
 const itemTypes = new Set<LandingSectionType>([
   "FEATURE_BADGES",
@@ -264,13 +264,13 @@ export function LandingSectionEditor({
         <div className="landing-template-choice">
           <div>
             <strong>Kosykin home design</strong>
-            <p>Load the two completed Zeplin regions. Edit the wording, images, trust messages and collection cards here before publishing.</p>
+            <p>Add the Zeplin v3 sections while keeping your existing content. Launch promotions stay hidden until their offer is configured; add genuine customer stories before showing reviews.</p>
           </div>
           <button className="button secondary" type="button" disabled={pending} onClick={() => {
-            if (sections.length && !window.confirm("Replace this Home's current sections with the Kosykin design? Save sections to publish.")) return;
-            setSections(kosykinHomeTemplate());
+
+            setSections(upgradeKosykinHome(sections));
             setMessage("Kosykin design loaded. Review and save sections to publish.");
-          }}>Use Kosykin design</button>
+          }}>Update Kosykin design</button>
         </div>
       )}
       {!structureLocked && (
@@ -492,7 +492,7 @@ export function LandingSectionEditor({
                 />
               </>
             )}
-            {itemTypes.has(section.type) && (
+            {(itemTypes.has(section.type) || (section.type === "CTA_BANNER" && section.content.layoutVariant === "KOSYKIN_PROMOTIONS")) && (
               <ItemsEditor
                 collectionCategories={kosykinHome && section.type === "FEATURE_BADGES" && section.content.layoutVariant === "KOSYKIN_CIRCLES" ? collectionCategories : undefined}
                 categoryId={categoryId}
@@ -711,6 +711,9 @@ function SectionStyle({
           >
             <option value="DEFAULT">Standard</option>
             <option value="PASTEL_EDITORIAL">Editorial photo and cards</option>
+            <option value="KOSYKIN_HOME">Kosykin · Home editorial</option>
+            {section.type === "FEATURE_BADGES" && <option value="KOSYKIN_REVIEWS">Kosykin · Customer stories</option>}
+            {section.type === "CTA_BANNER" && <><option value="KOSYKIN_PROMOTIONS">Kosykin · Promotion carousel</option><option value="KOSYKIN_SUPPORT">Kosykin · Support panel</option></>}
             {section.type === "HERO" && <option value="KOSYKIN_WAVY">Kosykin · Wavy hero</option>}
             {section.type === "FEATURE_BADGES" && <option value="KOSYKIN_CIRCLES">Kosykin · Circular collections</option>}
           </select>
