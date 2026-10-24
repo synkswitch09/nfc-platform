@@ -7,6 +7,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { FavouritesLink } from "@/components/favourites-link";
 import { CartLink } from "@/components/cart-link";
+import { StorefrontIcon } from '@/components/storefront-icon';
 import { LanguageSelector } from "@/components/language-selector";
 import { localizedPath, type SystemCopy } from "@/lib/i18n";
 import { isNavigationActive, type HeaderConfig } from "@/lib/site-chrome";
@@ -291,7 +292,7 @@ export function SiteHeader({
         aria-controls="main-navigation"
         onClick={() => setOpen((value) => !value)}
       >
-        {open ? <X /> : <Menu />}
+        {open ? <StorefrontIcon name="close" fallback={<X />} /> : <StorefrontIcon name="menu" fallback={<Menu />} />}
       </button>
       <nav
         id="main-navigation"

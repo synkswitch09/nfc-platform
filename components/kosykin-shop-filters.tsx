@@ -1,6 +1,7 @@
 "use client";
 import { useId, useState } from 'react';
 import { SlidersHorizontal, X } from 'lucide-react';
+import { StorefrontIcon } from '@/components/storefront-icon';
 import type { ShopQuery } from '@/lib/kosykin-shop';
 import { queryList } from '@/lib/kosykin-shop';
 type Colour = { value: string; label: string; swatchHex: string | null };
@@ -9,9 +10,9 @@ export function KosykinShopFilters({ query, colours, priceCeiling, currency }: {
   const [minimum, setMinimum] = useState(query.min || '0');
   const [maximum, setMaximum] = useState(query.max || String(priceCeiling));
   return <div className="kosy-shop-filter-control">
-    <button type="button" className="kosy-filter-trigger" popoverTarget={id}><SlidersHorizontal size={16} />Filter & sort</button>
+    <button type="button" className="kosy-filter-trigger" popoverTarget={id}><StorefrontIcon name="filter" size={16} fallback={<SlidersHorizontal size={16} />} />Filter & sort</button>
     <div id={id} popover="auto" className="kosy-shop-filter-panel">
-      <div className="kosy-filter-title"><strong>Filter & sort</strong><button type="button" popoverTarget={id} popoverTargetAction="hide" aria-label="Close filters"><X size={18} /></button></div>
+      <div className="kosy-filter-title"><strong>Filter & sort</strong><button type="button" popoverTarget={id} popoverTargetAction="hide" aria-label="Close filters"><StorefrontIcon name="close" size={18} fallback={<X size={18} />} /></button></div>
       <form action="/shop" method="get" key={JSON.stringify(query)}>
         {queryList(query.category).map(value => <input key={value} type="hidden" name="category" value={value} />)}
         <fieldset><legend>Sort by</legend>{[['featured','Featured'],['new','Newest'],['price-asc','Price: low to high'],['price-desc','Price: high to low']].map(([value,label]) => <label key={value}><input type="radio" name="sort" value={value} defaultChecked={(query.sort || 'featured') === value} />{label}</label>)}</fieldset>

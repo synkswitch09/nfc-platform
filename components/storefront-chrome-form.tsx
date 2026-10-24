@@ -3,6 +3,7 @@
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { MediaUploadField } from "@/components/media-upload-field";
+import { storefrontIconSlots } from "@/lib/storefront-icons";
 import {
   parseFooterLinks,
   footerSocialProfiles,
@@ -32,6 +33,7 @@ export function StorefrontChromeForm({
     area === "header" ? (header?.logoUrl ?? "") : (footer?.logoUrl ?? ""),
   );
   const [compactLogoUrl, setCompactLogoUrl] = useState(header?.compactLogoUrl ?? "");
+  const [iconUrls, setIconUrls] = useState(header?.iconUrls ?? {});
   const [socialProfiles, setSocialProfiles] = useState(footer ? footerSocialProfiles(footer, socialLinks) : []);
 
 
@@ -46,6 +48,7 @@ export function StorefrontChromeForm({
             ...header,
             logoUrl,
             compactLogoUrl,
+            iconUrls,
             homeLabel: form.get("homeLabel"),
             categoriesLabel: form.get("categoriesLabel"),
             faqLabel: form.get("faqLabel"),
@@ -174,7 +177,7 @@ export function StorefrontChromeForm({
           onChange={setCompactLogoUrl}
         />}
         {area === "header" && header ? (
-          <HeaderFields config={header} />
+          <><HeaderFields config={header} /><details className="admin-panel"><summary>Storefront icons (all pages)</summary><p>Upload or select an icon for each control. These settings apply across this store. Empty fields use the brand defaults. Section-specific icon uploads take priority. Footer social profile icons can be overridden in Footer.</p>{Object.entries(storefrontIconSlots).map(([slot, label]) => <MediaUploadField key={slot} uploadEndpoint="/api/admin/settings/images" label={label} name={`icon-${slot}`} value={iconUrls[slot] || ''} onChange={value => setIconUrls(current => ({ ...current, [slot]: value }))} />)}</details></>
         ) : footer ? (
           <FooterFields
             config={footer}

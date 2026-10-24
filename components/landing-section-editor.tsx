@@ -56,6 +56,7 @@ const cardStyleTypes = new Set<LandingSectionType>([
 type SectionItem = {
   id?: string;
   icon?: string;
+  iconUrl?: string;
   title?: string;
   description?: string;
   supportingText?: string;
@@ -92,6 +93,7 @@ type TextBlock = {
 type FeatureItem = {
   id: string;
   icon: string;
+  iconUrl?: string;
   label: string;
   supportingText: string;
   backgroundColour: string;
@@ -1131,6 +1133,7 @@ function NarrativeFields({
         >
           {features.map((feature, index) => (
             <div className="variant-editor" key={feature.id}>
+              <CategoryImageUploadField categoryId={categoryId} uploadEndpoint={mediaUploadEndpoint} label="Feature icon image (overrides icon name)" value={feature.iconUrl ?? ''} onChange={iconUrl => onChange({ features: replace(features, index, { iconUrl }) })} />
               <label className="field">
                 Icon
                 <input
@@ -1343,6 +1346,7 @@ function ItemsEditor({
     >
       {items.map((item, index) => (
         <div className="variant-editor" key={item.id}>
+          <CategoryImageUploadField categoryId={categoryId} uploadEndpoint={mediaUploadEndpoint} label="Icon image (overrides icon name)" value={item.iconUrl ?? ''} onChange={iconUrl => update(index, { iconUrl })} />
           {collectionCategories && <label className="field">Shop category
             <select value={item.categorySlug ?? ""} onChange={(event) => update(index, { categorySlug: event.target.value })}>
               <option value="">Choose category</option>
