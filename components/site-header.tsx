@@ -65,6 +65,7 @@ export function SiteHeader({
       frame = 0;
       const progress = window.matchMedia("(prefers-reduced-motion: reduce)").matches ? (window.scrollY > 80 ? 1 : 0) : Math.min(1, Math.max(0, window.scrollY / 160));
       header.style.setProperty("--kosy-scroll", String(progress));
+      header.style.setProperty("--kosy-logo-light", progress >= .7 ? "1" : "0");
     };
     const scroll = () => { if (!frame) frame = requestAnimationFrame(update); };
     update();

@@ -117,6 +117,8 @@ export function StoreSettingsForm({
               weight: form.get(`type-${role}-weight`),
               italic: form.get(`type-${role}-italic`) === "on",
               sizePx: Number(form.get(`type-${role}-size`)),
+              lineHeight: form.get(`type-${role}-lineHeight`) ? Number(form.get(`type-${role}-lineHeight`)) : undefined,
+              letterSpacingEm: form.get(`type-${role}-letterSpacingEm`) ? Number(form.get(`type-${role}-letterSpacingEm`)) : undefined,
             },
           ]),
         ),
@@ -420,5 +422,5 @@ export function StoreSettingsForm({
 }
 
 function TypographyFields({ label, name, value }: { label: string; name: string; value: Typography }) {
-  return <fieldset className="admin-subpanel"><legend>{label}</legend><div className="field-grid"><label className="field">Typeface<select name={`type-${name}-family`} defaultValue={value.family}>{fontFamilies.map((family) => <option key={family} value={family}>{family === "INTER" ? "Inter" : family[0] + family.slice(1).toLowerCase()}</option>)}</select></label><label className="field">Weight<select name={`type-${name}-weight`} defaultValue={value.weight}>{fontWeights.map((weight) => <option key={weight} value={weight}>{weight[0] + weight.slice(1).toLowerCase()}</option>)}</select></label><label className="field">Size (px)<input name={`type-${name}-size`} type="number" min="8" max="96" defaultValue={value.sizePx} required /></label><label className="check-field"><input name={`type-${name}-italic`} type="checkbox" defaultChecked={value.italic} /><span>Italic</span></label></div></fieldset>;
+  return <fieldset className="admin-subpanel"><legend>{label}</legend><div className="field-grid"><label className="field">Typeface<select name={`type-${name}-family`} defaultValue={value.family}>{fontFamilies.map((family) => <option key={family} value={family}>{family === "INTER" ? "Inter" : family[0] + family.slice(1).toLowerCase()}</option>)}</select></label><label className="field">Weight<select name={`type-${name}-weight`} defaultValue={value.weight}>{fontWeights.map((weight) => <option key={weight} value={weight}>{weight[0] + weight.slice(1).toLowerCase()}</option>)}</select></label><label className="field">Size (px)<input name={`type-${name}-size`} type="number" min="8" max="96" defaultValue={value.sizePx} required /></label><label className="field">Line height<input name={`type-${name}-lineHeight`} type="number" min="0.8" max="3" step="0.05" defaultValue={value.lineHeight ?? ""} placeholder="Default" /></label><label className="field">Letter spacing (em)<input name={`type-${name}-letterSpacingEm`} type="number" min="-0.2" max="0.5" step="0.005" defaultValue={value.letterSpacingEm ?? ""} placeholder="Default" /></label><label className="check-field"><input name={`type-${name}-italic`} type="checkbox" defaultChecked={value.italic} /><span>Italic</span></label></div></fieldset>;
 }
