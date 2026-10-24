@@ -63,8 +63,8 @@ export function kosykinHomeTemplate(): LandingSectionDraft[] {
       content: { layoutVariant: "KOSYKIN_HOME", headline: "Meet your next favourite", limit: 4, featuredOnly: false, columns: 4 },
     },
     {
-      type: "CTA_BANNER", name: "Kosykin · Launch promotions", visible: false,
-      content: { layoutVariant: "KOSYKIN_PROMOTIONS", headline: "Launch gift", copy: "Get a FREE Wavy Mini Tray when you buy any Wavy Stand.", items: [], ctaLabel: "Explore the collection", ctaHref: "/shop", backgroundColour: "#b9afcf" },
+      type: "CTA_BANNER", name: "Kosykin · Launch promotions", visible: true,
+      content: { layoutVariant: "KOSYKIN_PROMOTIONS", headline: "Launch gift", copy: "Get a FREE Wavy Mini Tray when you buy any Wavy Stand.", items: [{ id: crypto.randomUUID(), title: "Launch gift", description: "Get a FREE Wavy Mini Tray when you buy any Wavy Stand.", supportingText: "First 50 qualifying orders. One gift per order, packed with your purchase.", ctaLabel: "Explore the collection", ctaHref: "/shop?category=stands-holders", visible: true, order: 0 }], ctaLabel: "Explore the collection", ctaHref: "/shop", backgroundColour: "#b9afcf" },
     },
     {
       type: "FEATURE_LIST", name: "Kosykin · Why Kosy Kin", visible: true,
@@ -80,8 +80,12 @@ export function kosykinHomeTemplate(): LandingSectionDraft[] {
       content: { layoutVariant: "KOSYKIN_HOME", headline: "Made for the spaces you live in every day.", copy: "We started Kosy Kin with a simple idea: practical things can still have personality.\n\nWe believe the objects around us should do their job, feel good in our space and bring a little joy to everyday routines.\nThat’s why we focus on thoughtful function, playful forms and details worth noticing. We’re here to make everyday spaces feel a little more considered — and a little more yours.", imageUrl: "/images/kosykin/brand-story.webp", imageAlt: "Kosy Kin studio and illustrated maker", layout: "IMAGE_LEFT" },
     },
     {
-      type: "FEATURE_BADGES", name: "Kosykin · Customer stories", visible: false,
-      content: { layoutVariant: "KOSYKIN_REVIEWS", headline: "Made For Real Spaces. Loved In Real Life.", items: [] },
+      type: "FEATURE_BADGES", name: "Kosykin · Customer stories", visible: true,
+      content: { layoutVariant: "KOSYKIN_REVIEWS", headline: "Made For Real Spaces. Loved In Real Life.", copy: "Example reviews for layout preview — these are not real customer testimonials.", items: [
+        { id: crypto.randomUUID(), title: "Example review 01", description: "A playful little detail that makes an everyday desk feel more personal.", supportingText: "Illustrative text · not a customer review", visible: true, order: 0 },
+        { id: crypto.randomUUID(), title: "Example review 02", description: "Practical shapes, soft colours and a cosy spot for the things I use every day.", supportingText: "Illustrative text · not a customer review", visible: true, order: 1 },
+        { id: crypto.randomUUID(), title: "Example review 03", description: "A thoughtful gift idea with room for a personal touch.", supportingText: "Illustrative text · not a customer review", visible: true, order: 2 },
+      ] },
     },
     {
       type: "FAQ", name: "Kosykin · Home questions", visible: true,

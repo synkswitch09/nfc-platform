@@ -257,8 +257,11 @@ export function SiteHeader({
           ...typographyStyle(config.brandTypography),
         }}
       >
-        {kosykinLayout && <Image className="kosy-scroll-wordmark" src={config.logoUrl || "/images/kosykin/wordmark-navy.webp"} alt="" width={236} height={34} priority unoptimized /> }
-        {kosykinLayout && <Image className="kosy-compact-logo" src={config.compactLogoUrl || logoUrl || "/images/kosykin/logo.png"} alt={storeName} width={64} height={64} priority unoptimized />}
+        {kosykinLayout && <span className="kosy-scroll-wordmark" aria-hidden="true">
+          <Image className="kosy-wordmark-dark" src={config.logoUrl || "/images/kosykin/wordmark-navy.webp"} alt="" width={236} height={34} priority unoptimized />
+          <Image className="kosy-wordmark-light" src={config.logoUrl || "/images/kosykin/wordmark-navy.webp"} alt="" width={236} height={34} priority unoptimized />
+          <Image className="kosy-wordmark-star" src={config.logoUrl || "/images/kosykin/wordmark-navy.webp"} alt="" width={236} height={34} priority unoptimized />
+        </span>}
         {logoUrl ? (
           <Image
             className="brand-logo"
