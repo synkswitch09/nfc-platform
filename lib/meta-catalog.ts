@@ -38,8 +38,11 @@ export async function buildMetaCatalog(store: Storefront) {
     const image = [variant.image, ...product.images.filter(i => i.variantId === variant.id), ...product.images].map(i => i && publicCatalogImage(i.url, store.origin)).find(Boolean);
     if (!price || !image || !Number.isFinite(Number(price)) || Number(price) <= 0) { skipped++; continue; }
     const available = getRuntimeConfig().checkoutEnabled && canAcceptVariant(variant, pool, booked._sum.minutes ?? 0);
-    const stock = variant.trackInventory && variant.inventory > variant.reservedInventory;
-    rows.push([variant.id, product.id, `${product.name}${product.variants.length > 1 ? ` — ${variant.name}` : ""}`.slice(0, 200), (product.shortDescription || product.description).replace(/<[^>]*>/g, " ").slice(0, 9999), available ? stock ? "in stock" : "available for order" : "out of stock", "new", `${price} ${store.currency}`, `${store.origin}/products/${product.slug}?variant=${variant.id}`, image, product.brand || store.displayName, variant.colour || "", variant.size || "", variant.material || ""]);
+    // Meta uses a variant title for the group heading. Keep the product name
+    // common and expose variant differences through the colour/size fields.
+    // Availability means purchasable, including made-to-order capacity; it
+    // does not imply physical inventory or change the website fulfilment mode.
+    rows.push([variant.id, product.id, product.name.slice(0, 200), (product.shortDescription || product.description).replace(/<[^>]*>/g, " ").slice(0, 9999), available ? "in stock" : "out of stock", "new", `${price} ${store.currency}`, `${store.origin}/products/${product.slug}?variant=${variant.id}`, image, product.brand || store.displayName, variant.colour || "", variant.size || "", variant.material || ""]);
   }
   return { csv: [catalogColumns.join(","), ...rows.map(row => row.map(csvCell).join(","))].join("\r\n") + "\r\n", count: rows.length, skipped };
 }
