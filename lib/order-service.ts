@@ -18,6 +18,7 @@ import { queueEtsyInventorySync } from "@/lib/etsy";
 import { isKeychainProduct, keychainPaletteFromOptions, validateKeychainOptions } from "@/lib/keychain-order";
 import { ProductionCapacityError, releaseProduction, reserveProduction } from "@/lib/production-capacity";
 import { calculatePromotion } from "@/lib/promotions";
+import { awardOrderGifts } from "@/lib/gift-campaigns";
 
 export type CheckoutItemInput = { variantId: string; quantity: number; personalisationChoice?: "BASIC" | "PERSONALISED"; personalisation?: Record<string, string> };
 export type CheckoutCustomerInput = {
@@ -253,6 +254,7 @@ export async function settleCheckoutEvent(input: { eventId: string; eventType: s
     });
     if (jobs.length) await tx.manufacturingJob.createMany({ data: jobs, skipDuplicates: true });
     await tx.webhookEvent.create({ data: { id: input.eventId, provider: "stripe", eventType: input.eventType } });
+    await awardOrderGifts(tx, payment.orderId, payment.order.storeId);
     await queuePaidOrder(tx, payment.orderId);
     const reward = await tx.store.findUnique({ where: { id: payment.order.storeId }, select: { secondPurchaseRewardEnabled: true, secondPurchaseRewardAmountCents: true, secondPurchaseRewardValidityDays: true, secondPurchaseRewardMinimumCents: true } });
     const email = reward?.secondPurchaseRewardEnabled ? (payment.order.userId ? (await tx.user.findUnique({ where: { id: payment.order.userId }, select: { email: true } }))?.email : payment.order.guestEmail) : null;

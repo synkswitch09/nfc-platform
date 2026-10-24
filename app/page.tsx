@@ -10,6 +10,7 @@ import { StoreUnavailable } from "@/components/store-unavailable";
 import { ModularPageRenderer } from "@/components/landing-section-renderer";
 import { getRequestLocale } from "@/lib/request-locale";
 import { localizeContentPage } from "@/lib/i18n";
+import { prepareExperienceSections } from "@/lib/store-experience";
 
 export default async function Home() {
   const store = await getCurrentStorefront();
@@ -150,7 +151,7 @@ export default async function Home() {
         {structuredData}
         <ModularPageRenderer
           name={localizedHome.name}
-          sections={localizedHome.sections}
+          sections={store.slug === "kosykin" ? await prepareExperienceSections(store.id, localizedHome.sections) : localizedHome.sections}
           products={products}
           categories={categories}
           kosykinCollectionCategories={store.slug === 'kosykin' ? categoryCatalog : undefined}

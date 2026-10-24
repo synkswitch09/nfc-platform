@@ -3,6 +3,7 @@ import { Home, PanelBottom, PanelTop, PawPrint } from "lucide-react";
 import { requireAdminPageContext } from "@/lib/admin";
 
 const areas = [
+  { href: "/admin/storefront/experience", title: "Shared banners, gifts & reviews", description: "Reusable banner groups and placements, limited gift campaigns and verified customer reviews.", icon: Home },
   {
     href: "/admin/storefront/header",
     title: "Header",

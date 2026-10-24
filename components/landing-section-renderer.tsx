@@ -1,4 +1,5 @@
 import { KosykinHomeSection } from "@/components/kosykin-home-section";
+import { SharedBannerReference } from "@/components/shared-banner-reference";
 import { StorefrontIcon } from '@/components/storefront-icon';
 import { kosykinShopCollections, type KosykinCollectionCategory } from "@/lib/kosykin-shop";
 import type { CSSProperties, ReactNode } from "react";
@@ -193,6 +194,7 @@ export function ModularPageRenderer({
         .map((section, sectionIndex) => {
           const value = parseLandingContent(section.type, section.content);
           if (!value) return null;
+          if (section.type === "CTA_BANNER" && value.sharedBlockId) return <SharedBannerReference key={renderSectionKey(section, sectionIndex)} groupId={String(value.sharedBlockId)} />;
           const common = readCommon(value, section.name);
           const presentation = sectionPresentation(value);
           if (["KOSYKIN_HOME", "KOSYKIN_REVIEWS", "KOSYKIN_PROMOTIONS", "KOSYKIN_SUPPORT"].includes(String(value.layoutVariant))) {
