@@ -1,3 +1,5 @@
+import { CategoryIcon } from "@/components/category-icon";
+import type { FooterConfig } from "@/lib/site-chrome";
 import Image from 'next/image';
 import Link from 'next/link';
 import { ShoppingBag } from 'lucide-react';
@@ -11,8 +13,8 @@ import type { CSSProperties } from 'react';
 type Product = Prisma.ProductGetPayload<{ include: { images: true; variants: true; options: { include: { values: true } } } }>;
 type Category = { id: string; slug: string; name: string; shortDescription: string | null };
 type Promotion = { content: Prisma.JsonValue; visible: boolean } | null;
-export function KosykinShop({ products, filterProducts, categories, query, promotion, currency, available, checkoutEnabled }: {
-  products: (Product & { _count: { options: number }; sourceVariantCount: number })[]; filterProducts: Product[]; categories: Category[]; query: ShopQuery; promotion: Promotion; currency: string; checkoutEnabled: boolean; available: (variant: Product['variants'][number]) => boolean;
+export function KosykinShop({ products, filterProducts, categories, query, promotion, support, trust, socials, currency, available, checkoutEnabled }: {
+  products: (Product & { _count: { options: number }; sourceVariantCount: number })[]; filterProducts: Product[]; categories: Category[]; query: ShopQuery; promotion: Promotion; support: Promotion; trust?: Record<string, unknown>; socials: { links: Record<string, string>; icons: FooterConfig["socialIcons"] }; currency: string; checkoutEnabled: boolean; available: (variant: Product['variants'][number]) => boolean;
 }) {
   const selected = categories.filter(category => queryList(query.category).includes(category.slug));
   const label = selected.length === 1 ? selected[0].name : selected.length > 1 ? 'Selected pieces' : 'All Pieces';
@@ -21,6 +23,7 @@ export function KosykinShop({ products, filterProducts, categories, query, promo
   const colours = [...new Map(filterProducts.flatMap(product => product.options.flatMap(option => option.values)).map(value => [value.value, { value: value.value, label: value.label, swatchHex: value.swatchHex }])).values()];
   const priceCeiling = Math.max(50, Math.ceil(Math.max(0, ...filterProducts.flatMap(product => product.variants.map(variant => variant.priceCents))) / 100 / 50) * 50, Number.isFinite(Number(query.max)) ? Math.max(0, Number(query.max)) : 0);
   const activeFilters = Boolean(query.min || query.max || query.colour || query.sale || query.availability || (query.sort && query.sort !== 'featured'));
+  const features = (Array.isArray(trust?.features) ? trust.features as { id?: string; label?: string; supportingText?: string; icon?: string; visible?: boolean }[] : []).filter(feature => feature.visible !== false);
   return <div className="kosy-shop">
     {promotion?.visible && promotion.content && typeof promotion.content === 'object' && !Array.isArray(promotion.content) && <section className="kosy-shop-promotions"><KosykinHomeSection type="CTA_BANNER" value={promotion.content as Record<string, unknown>} products={[]} currency={currency} /></section>}
     <section className="kosy-shop-intro"><h1>Make room for something Kosy.</h1><nav className="kosy-shop-categories" aria-label="Shop categories"><Link href="/shop" aria-current={!queryList(query.category).length ? 'page' : undefined} style={{ '--category-colour': '#243247' } as CSSProperties}>All Pieces</Link>{categories.map(category => <Link key={category.id} href={`/shop?${new URLSearchParams({ category: category.slug })}`} aria-current={selected.some(item => item.id === category.id) ? 'page' : undefined} style={{ '--category-colour': shopCategoryStyle(category).colour } as CSSProperties}>{category.name}</Link>)}</nav></section>
@@ -42,5 +45,7 @@ export function KosykinShop({ products, filterProducts, categories, query, promo
       })}</div>
       {!products.length && <div className="kosy-shop-empty"><ShoppingBag size={32} /><h3>No pieces found</h3><p>Try another category or reset your filters to find your kind of Kosy.</p><Link className="kosy-section-action" href="/shop">See all pieces</Link></div>}
     </section>
+    {features.length > 0 && <div className="kosy-trust-row kosy-shop-trust">{features.map((feature,index) => <div key={feature.id || index}><span className="kosy-trust-icon"><CategoryIcon name={feature.icon} size={28} /></span><span><strong>{feature.label}</strong><small>{feature.supportingText}</small></span></div>)}</div>}
+    {support?.visible && support.content && typeof support.content === 'object' && !Array.isArray(support.content) && <section className="kosy-shop-support kosy-home-section" data-variant="kosykin-support"><KosykinHomeSection type="CTA_BANNER" value={support.content as Record<string, unknown>} products={[]} currency={currency} socials={socials} /></section>}
   </div>;
 }

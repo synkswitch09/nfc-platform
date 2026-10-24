@@ -1,3 +1,4 @@
+import { getStoreSettings } from "@/lib/settings";
 import { KosykinShop } from "@/components/kosykin-shop";
 import { queryList, shopProductVariants, type ShopQuery } from "@/lib/kosykin-shop";
 import { FavouriteButton } from "@/components/favourite-button";
@@ -47,7 +48,7 @@ export default async function ShopPage({ searchParams }: { searchParams: Promise
     return cheapest !== undefined && cheapest >= min && cheapest <= max && (query.availability !== "available" || canBuy);
   }).sort((a, b) => query.sort === "price-asc" ? a.variants[0].priceCents - b.variants[0].priceCents : query.sort === "price-desc" ? b.variants[0].priceCents - a.variants[0].priceCents : query.sort === "new" ? b.createdAt.getTime() - a.createdAt.getTime() : Number(b.featured) - Number(a.featured));
   if (store.slug === "kosykin") {
-    const home = await db.contentPage.findFirst({ where: { storeId: store.id, kind: "HOME", status: "PUBLISHED" }, select: { sections: { where: { visible: true, type: { in: ["CTA_BANNER", "FEATURE_BADGES"] } }, orderBy: { sortOrder: "asc" }, select: { visible: true, content: true } } } });
+    const home = await db.contentPage.findFirst({ where: { storeId: store.id, kind: "HOME", status: "PUBLISHED" }, select: { sections: { where: { visible: true, type: { in: ["CTA_BANNER", "FEATURE_BADGES", "HERO"] } }, orderBy: { sortOrder: "asc" }, select: { visible: true, content: true } } } });
     const promotion = home?.sections.find(section => section.content && typeof section.content === "object" && !Array.isArray(section.content) && section.content.layoutVariant === "KOSYKIN_PROMOTIONS") ?? null;
     const collections = home?.sections.find(section => section.content && typeof section.content === "object" && !Array.isArray(section.content) && section.content.layoutVariant === "KOSYKIN_CIRCLES");
     const collectionContent = collections?.content as { items?: { title?: string; categorySlug?: string; description?: string; visible?: boolean }[] } | undefined;
@@ -56,11 +57,14 @@ export default async function ShopPage({ searchParams }: { searchParams: Promise
       return category ?? { id: `collection-${item.categorySlug}`, slug: item.categorySlug!, name: item.title!, shortDescription: item.description || null };
     });
     for (const category of categories) if (!tabs.some(tab => tab.slug === category.slug)) tabs.push(category);
+    const support = home?.sections.find(section => section.content && typeof section.content === "object" && !Array.isArray(section.content) && section.content.layoutVariant === "KOSYKIN_SUPPORT") ?? null;
+    const trust = home?.sections.find(section => section.content && typeof section.content === "object" && !Array.isArray(section.content) && section.content.layoutVariant === "KOSYKIN_WAVY")?.content as Record<string, unknown> | undefined;
+    const settings = await getStoreSettings(store);
     const sorted = [...visible].sort((a, b) => {
       const lowest = (product: typeof a) => Math.min(...shopProductVariants(product, query, available).map(variant => variant.priceCents));
       return query.sort === "price-asc" ? lowest(a) - lowest(b) : query.sort === "price-desc" ? lowest(b) - lowest(a) : query.sort === "new" ? b.createdAt.getTime() - a.createdAt.getTime() : Number(b.featured) - Number(a.featured);
     }).map(product => ({ ...product, sourceVariantCount: product.variants.length, variants: shopProductVariants(product, query, available) }));
-    return <KosykinShop products={sorted} filterProducts={products} categories={tabs} query={{ ...query, category: queryList(query.category) }} promotion={promotion} currency={store.currency} available={available} checkoutEnabled={getRuntimeConfig().checkoutEnabled} />;
+    return <KosykinShop products={sorted} filterProducts={products} categories={tabs} query={{ ...query, category: queryList(query.category) }} promotion={promotion} support={support} trust={trust} socials={{ links: settings.socialLinks, icons: settings.footerConfig.socialIcons }} currency={store.currency} available={available} checkoutEnabled={getRuntimeConfig().checkoutEnabled} />;
   }
   const showKeychainPreview = store.slug === "kosykin" && !Object.keys(query).length && !products.some(product => product.slug === KEYCHAIN_SLUG);
   return <section className="section"><div className="section-head"><span className="eyebrow">{store.displayName} shop</span><h1 className="page-title">Products made for real life.</h1><p className="lead">Thoughtfully designed and personalised in Adelaide, with clear options and secure checkout.</p></div>
