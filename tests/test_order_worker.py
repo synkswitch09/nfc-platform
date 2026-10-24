@@ -7,22 +7,27 @@ from pathlib import Path
 import unittest
 from unittest.mock import patch
 
-spec = importlib.util.spec_from_file_location("order_worker", Path(__file__).parents[1] / "scripts/ensure-order-worker.py")
+spec = importlib.util.spec_from_file_location("scripts.order_worker", Path(__file__).parents[1] / "scripts/ensure-order-worker.py")
 worker = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(worker)
 
 class OrderWorkerTests(unittest.TestCase):
     def test_both_environments_create_or_update_isolated_worker(self):
-        for target, existing_cron in [("staging", None), ("production", None), ("staging", "0 */6 * * *"), ("production", "15 * * * *")]:
+        for target, existing_cron, enabled in [("staging", None, False), ("production", None, False), ("staging", "0 */6 * * *", False), ("production", "15 * * * *", False), ("production", "15 * * * *", True)]:
             with self.subTest(target=target):
                 calls = []
                 body = {}
                 app = {"id": "/subscriptions/test/resourceGroups/group/providers/Microsoft.App/containerApps/app", "location": "australiaeast", "properties": {"environmentId": "env-" + target, "configuration": {"registries": []}, "template": {"containers": [{"env": [{"name": "APP_ENV", "value": target}, {"name": "PRODUCTION_CHECKOUT_ENABLED", "value": "false"}]}]}}}
+                if enabled:
+                    env=app['properties']['template']['containers'][0]['env']
+                    env[1]['value']='true'
+                    for name in ('STRIPE_SECRET_KEY','NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY','STRIPE_WEBHOOK_SECRET'):
+                        env.append({'name':name,'secretRef':name.lower()})
                 def az(*args):
                     calls.append(args)
                     if args[:2] == ("containerapp", "show"): return app
                     if args[:3] == ("containerapp", "job", "list"): return [{"name": "app-orders", "tags": {"managed-by": "staging-order-worker"}, "properties": {"configuration": {"scheduleTriggerConfig": {"cronExpression": existing_cron} if existing_cron else None}}}]
-                    if args[:3] == ("containerapp", "secret", "list"): return []
+                    if args[:3] == ("containerapp", "secret", "list"): return [{'name':name.lower(),'value':prefix+'private'} for name,prefix in {'STRIPE_SECRET_KEY':'sk_live_', 'NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY':'pk_live_', 'STRIPE_WEBHOOK_SECRET':'whsec_'}.items()] if enabled else []
                     if args[:1] == ("rest",):
                         body.update(json.loads(Path(args[args.index("--body") + 1][1:]).read_text()))
                     if args[:3] == ("containerapp", "job", "show"): return {"properties": {"provisioningState": "Succeeded"}}
@@ -46,14 +51,17 @@ class OrderWorkerTests(unittest.TestCase):
                 token = props["configuration"]["secrets"][0]["value"]
                 self.assertGreaterEqual(len(token), 32)
                 self.assertNotIn(token, output.getvalue())
+                for value in ('sk_live_private','pk_live_private','whsec_private'):
+                    self.assertNotIn(value, output.getvalue())
                 self.assertTrue(any("TRUST_PROXY=true" in call for call in calls))
 
-    def test_refuses_wrong_environment_or_enabled_production_checkout(self):
+    def test_refuses_wrong_environment_or_incomplete_production_checkout(self):
         for app_env, enabled in [("staging", "false"), ("production", "true")]:
             app = {"id": "app", "properties": {"template": {"containers": [{"env": [{"name": "APP_ENV", "value": app_env}, {"name": "PRODUCTION_CHECKOUT_ENABLED", "value": enabled}]}]}}}
             def az(*args):
                 if args[:2] == ("containerapp", "show"): return app
                 if args[:3] == ("containerapp", "job", "list"): return []
+                if args[:3] == ("containerapp", "secret", "list"): return []
                 raise AssertionError("Must not mutate resources after safety check failure")
             with patch.dict(os.environ, {"TARGET_ENVIRONMENT": "production", "AZURE_RESOURCE_GROUP": "group", "AZURE_CONTAINER_APP": "app", "APP_URL": "https://example"}), patch.object(worker, "az", az):
                 with self.assertRaises(RuntimeError): worker.main()

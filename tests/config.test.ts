@@ -93,6 +93,14 @@ describe("runtime configuration", () => {
     expect(parseRuntimeConfig(closed).checkoutEnabled).toBe(false);
     expect(searchEnginePolicy("production", parseRuntimeConfig(closed).previewMode).index).toBe(true);
     expect(() => parseRuntimeConfig({ ...closed, PRODUCTION_CHECKOUT_ENABLED: "true" })).toThrow("Stripe live secret key");
+    try {
+      parseRuntimeConfig({ ...closed, PRODUCTION_CHECKOUT_ENABLED: "true" });
+      throw new Error("Incomplete checkout configuration must be rejected");
+    } catch (error) {
+      expect(String(error)).toContain("STRIPE_SECRET_KEY");
+      expect(String(error)).toContain("NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY");
+      expect(String(error)).toContain("STRIPE_WEBHOOK_SECRET");
+    }
     expect(parseRuntimeConfig({ ...live, PRODUCTION_CHECKOUT_ENABLED: "true" }).checkoutEnabled).toBe(true);
     expect(() => parseRuntimeConfig({ ...closed, STRIPE_SECRET_KEY: live.STRIPE_SECRET_KEY })).toThrow("leave Stripe credentials unset");
   });

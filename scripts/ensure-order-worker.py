@@ -5,6 +5,10 @@ import secrets as secure_random
 import subprocess
 import tempfile
 import time
+if __package__:
+    from .checkout_policy import validate_production_checkout
+else:
+    from checkout_policy import validate_production_checkout
 
 
 def az(*args):
@@ -44,10 +48,11 @@ def main():
     env = {entry["name"]: entry for entry in app["properties"]["template"]["containers"][0].get("env", [])}
     if env.get("APP_ENV", {}).get("value") != target:
         raise RuntimeError("Application environment does not match the worker target")
-    if target == "production" and env.get("PRODUCTION_CHECKOUT_ENABLED", {}).get("value") != "false":
-        raise RuntimeError("This rollout requires production checkout to remain explicitly disabled")
     reconcile = env.get("CHECKOUT_RECONCILE_SECRET", {})
     secret_values = {entry["name"]: entry.get("value") for entry in az("containerapp", "secret", "list", "--name", app_name, "--resource-group", group, "--show-values")}
+    if target == "production":
+        values = {name: secret_values.get(entry["secretRef"]) if entry.get("secretRef") else entry.get("value") for name, entry in env.items()}
+        validate_production_checkout(values)
     token = reconcile.get("value") or secret_values.get(reconcile.get("secretRef"))
     changes = []
     if not token:
