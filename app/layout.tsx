@@ -7,6 +7,7 @@ import { Inter, Bebas_Neue, Caveat } from "next/font/google";
 import { getCurrentUser } from "@/lib/auth";
 import { CartProvider } from "@/components/cart-provider";
 import { SiteHeader } from "@/components/site-header";
+import { KosykinFooterSupport } from "@/components/kosykin-footer-support";
 import { SiteFooter } from "@/components/site-footer";
 import { getStoreSettings } from "@/lib/settings";
 import { db } from "@/lib/db";
@@ -201,6 +202,7 @@ export default async function RootLayout({
             defaultLocale={store.defaultLocale}
           />
           <main className="storefront-main">{children}</main>
+          <KosykinFooterSupport storeId={store.id} locale={locale} defaultLocale={store.defaultLocale} enabled={store.slug === "kosykin" && store.status === StoreStatus.ACTIVE} />
           <SiteFooter
             config={settings.footerConfig}
             storeName={settings.storeName}

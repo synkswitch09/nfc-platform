@@ -1,6 +1,5 @@
 import { CategoryIcon } from "@/components/category-icon";
 import { StorefrontIcon } from '@/components/storefront-icon';
-import type { FooterConfig } from "@/lib/site-chrome";
 import Image from 'next/image';
 import Link from 'next/link';
 import { ShoppingBag } from 'lucide-react';
@@ -16,9 +15,9 @@ import type { CSSProperties } from 'react';
 type Product = Prisma.ProductGetPayload<{ include: { images: true; variants: true; options: { include: { values: true } } } }>;
 type Category = { id: string; slug: string; name: string; shortDescription: string | null; highlightColour?: string };
 type Promotion = { content: Prisma.JsonValue; visible: boolean } | null;
-export function KosykinShop({ products, filterProducts, categories, query, promotion, support, trust, socials, currency, available, checkoutEnabled, bannerGroups = [] }: {
+export function KosykinShop({ products, filterProducts, categories, query, promotion, trust, currency, available, checkoutEnabled, bannerGroups = [] }: {
   bannerGroups?: BannerGroup[];
-  products: (Product & { _count: { options: number }; sourceVariantCount: number })[]; filterProducts: Product[]; categories: Category[]; query: ShopQuery; promotion: Promotion; support: Promotion; trust?: Record<string, unknown>; socials: { links: Record<string, string>; icons: FooterConfig["socialIcons"] }; currency: string; checkoutEnabled: boolean; available: (variant: Product['variants'][number]) => boolean;
+  products: (Product & { _count: { options: number }; sourceVariantCount: number })[]; filterProducts: Product[]; categories: Category[]; query: ShopQuery; promotion: Promotion; trust?: Record<string, unknown>; currency: string; checkoutEnabled: boolean; available: (variant: Product['variants'][number]) => boolean;
 }) {
   const selected = categories.filter(category => queryList(query.category).includes(category.slug));
   const label = selected.length === 1 ? selected[0].name : selected.length > 1 ? 'Selected pieces' : 'All Pieces';
@@ -46,14 +45,14 @@ export function KosykinShop({ products, filterProducts, categories, query, promo
           <Link className="kosy-product-name" href={`/products/${product.slug}`}><h3>{product.name}</h3></Link><p>{product.shortDescription ?? product.description}</p>
           <div className="kosy-product-price"><strong>{product.sourceVariantCount > 1 || product.personalisationMode !== 'NONE' || product._count.options > 0 ? 'From ' : ''}{money.format(variant.priceCents / 100)}</strong><div className="kosy-product-swatches">{swatches.slice(0,3).map(value => <Link key={value.id} href={`/products/${product.slug}?colour=${encodeURIComponent(value.value)}`} style={{ background: value.swatchHex || '#ddd' }} title={value.label} aria-label={`View ${product.name} in ${value.label}`} />)}{swatches.length > 3 && <span>+{swatches.length - 3}</span>}</div></div>
           {!canBuy && <p className="kosy-product-unavailable">Currently unavailable</p>}
-          <div className="kosy-product-actions">{simple && canBuy ? <ShopAddButton variantId={variant.id} productName={product.name} variantName={variant.name} unitPriceCents={variant.priceCents} /> : <Link className="kosy-section-action" href={`/products/${product.slug}`}><StorefrontIcon name="cart" size={20} fallback={<ShoppingBag size={15} />} />{canBuy ? 'Choose options' : 'View product'}</Link>}<FavouriteButton slug={product.slug} iconOnly /></div>
+          <div className="kosy-product-actions">{simple && canBuy ? <ShopAddButton variantId={variant.id} productName={product.name} variantName={variant.name} unitPriceCents={variant.priceCents} /> : <Link className="kosy-section-action" href={`/products/${product.slug}`}><StorefrontIcon name="cart" size={20} fallback={<ShoppingBag size={15} />} />{canBuy ? 'Add to cart' : 'View product'}</Link>}<FavouriteButton slug={product.slug} iconOnly /></div>
         </article>;
       })}</div>
       {!products.length && <div className="kosy-shop-empty"><ShoppingBag size={32} /><h3>No pieces found</h3><p>Try another category or reset your filters to find your kind of Kosy.</p><Link className="kosy-section-action" href="/shop">See all pieces</Link></div>}
     </section>
     <SharedBanners groups={bannerGroups} position="AFTER_PRODUCTS" />
     {features.length > 0 && <div className="kosy-trust-row kosy-shop-trust">{features.map((feature,index) => <div key={feature.id || index}><span className="kosy-trust-icon"><StorefrontIcon name={feature.icon === 'shield-check' ? 'secureCheckout' : feature.icon === 'package' ? 'shipping' : 'madeToOrder'} imageUrl={feature.iconUrl} size={28} fallback={<CategoryIcon name={feature.icon} size={28} />} /></span><span><strong>{feature.label}</strong><small>{feature.supportingText}</small></span></div>)}</div>}
-    {support?.visible && support.content && typeof support.content === 'object' && !Array.isArray(support.content) && <section className="kosy-shop-support kosy-home-section" data-variant="kosykin-support"><KosykinHomeSection type="CTA_BANNER" value={support.content as Record<string, unknown>} products={[]} currency={currency} socials={socials} /></section>}
+
     <SharedBanners groups={bannerGroups} position="BOTTOM" />
   </div>;
 }
