@@ -1247,7 +1247,7 @@ h3 {
   align-items: center;
   gap: 7px;
 }
-.cart-link span {
+.cart-link span:not(.storefront-icon):not(.sr-only) {
   min-width: 22px;
   height: 22px;
   display: grid;
@@ -5284,7 +5284,7 @@ body[data-store="tapkin"] .footer-links {
 .kosy-hero-bottom { position: absolute; z-index: 3; left: 6%; bottom: 10%; width: min(365px, 40%); }
 .kosy-hero-bottom p { margin: 0 0 22px; font-size: 1rem; line-height: 1.4; }
 .kosy-hero-cta { display: inline-flex; gap: 22px; align-items: center; min-height: 46px; padding: 5px 5px 5px 22px; background: #fff; color: #24334b; border-radius: 99px; font-weight: 800; text-decoration: none; transition: transform .2s ease, box-shadow .2s ease; }
-.kosy-hero-cta span { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 50%; background: #24334b; color: #fff; }
+.kosy-hero-cta > span { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 50%; background: #24334b; color: #fff; }
 .kosy-hero-cta:hover { transform: translateY(-3px); box-shadow: 0 10px 22px #18253a88; }
 .kosy-hero-cta:focus-visible { outline: 3px solid #fff; outline-offset: 4px; }
 .kosy-hero-down { position: absolute; z-index: 4; left: 50%; bottom: -21px; display: grid; place-items: start center; width: 90px; height: 45px; transform: translateX(-50%); border-radius: 50% 50% 0 0; background: #fff; color: #24334b; font-size: 2rem; text-decoration: none; }
@@ -5465,9 +5465,9 @@ body[data-store="kosykin"]:has(.kosy-home-hero) .site-header .nav-account {
   line-height: 1;
 }
 .kosy-nav-cart .cart-link svg { display: block; flex: none; width: 20px; height: 20px; }
-.kosy-nav-cart .cart-link span:not(.sr-only) { position: absolute; right: -4px; top: -4px; font-size: 10px; }
+.kosy-nav-cart .cart-link > span:not(.sr-only):not(.storefront-icon) { position: absolute; right: -4px; top: -4px; font-size: 10px; }
 .kosy-hero-socials { position: absolute; z-index: 4; right: 35px; bottom: 30px; display: flex; gap: 14px; }
-.kosy-hero-socials a, .kosy-hero-socials span { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; background: #778498; color: white; }
+.kosy-hero-socials > a, .kosy-hero-socials > span { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; background: #778498; color: white; }
 .kosy-hero-socials img { width: 20px; height: 20px; object-fit: contain; }
 body[data-store="kosykin"] .modular-landing > .kosy-home-hero { max-width: 1440px; padding: 0 50px; }
 .kosy-hero-panel { min-height: 688px; background: linear-gradient(160deg, #233147 37%, #3b5072 100%); }
@@ -5548,7 +5548,7 @@ body[data-store="kosykin"] .modular-landing > .kosy-home-hero { max-width: 1440p
   .kosy-hero-bottom { width: 82%; bottom: 11%; }
   .kosy-hero-bottom p { font-size: 1rem; }
   .kosy-hero-socials { right: 20px; bottom: 22px; gap: 8px; }
-  .kosy-hero-socials a, .kosy-hero-socials span { width: 32px; height: 32px; }
+  .kosy-hero-socials > a, .kosy-hero-socials > span { width: 32px; height: 32px; }
 }
 
 /* Kosykin's brand palette applies to the shared shopping flow. Section colours
@@ -5954,7 +5954,7 @@ body[data-store="kosykin"] .modular-landing > .kosy-home-media-content { padding
 .kosy-home-faq .kosy-section-action { margin-top: 30px; }
 .kosy-faq-list details { border-top: 1px solid #24324730; padding: 16px 0; }.kosy-faq-list details:last-child { border-bottom: 1px solid #24324730; }
 .kosy-faq-list summary { display: flex; justify-content: space-between; align-items: center; gap: 20px; cursor: pointer; list-style: none; font-size: .95rem; }.kosy-faq-list summary::-webkit-details-marker { display: none; }
-.kosy-faq-list summary span { display: grid; place-items: center; width: 20px; height: 20px; flex: 0 0 20px; border-radius: 50%; background: #243247; color: white; }.kosy-faq-list details[open] summary span { transform: rotate(45deg); }.kosy-faq-list details p { font-size: .9rem; line-height: 1.5; }
+.kosy-faq-list summary > span { display: grid; place-items: center; width: 20px; height: 20px; flex: 0 0 20px; border-radius: 50%; background: #243247; color: white; }.kosy-faq-list details[open] summary > span { transform: rotate(45deg); }.kosy-faq-list details p { font-size: .9rem; line-height: 1.5; }
 .kosy-review-grid { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(250px, 32%); gap: 24px; overflow-x: auto; scroll-snap-type: x mandatory; padding-bottom: 20px; }
 .kosy-review-grid figure { margin: 0; padding: 24px; background: #fafafa; border-radius: 12px; scroll-snap-align: start; }.kosy-review-grid blockquote { margin: 12px 0; line-height: 1.6; }.kosy-review-grid figcaption span { display: block; margin-top: 8px; font-size: .85rem; }.kosy-review-grid img { border-radius: 50%; object-fit: cover; }
 [data-variant="kosykin-support"] { display: flex; align-items: center; justify-content: space-between; gap: 30px; }

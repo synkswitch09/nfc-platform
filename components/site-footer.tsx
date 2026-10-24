@@ -1,4 +1,5 @@
 import Image from "next/image";
+import { StorefrontIcon } from '@/components/storefront-icon';
 import Link from "next/link";
 import {
   BriefcaseBusiness,
@@ -133,7 +134,7 @@ export function SiteFooter({
                   height={20}
                   unoptimized
                 />
-              ) : <Icon size={19} />;
+              ) : <StorefrontIcon name={profile.label.toLowerCase() === 'instagram' ? 'instagramFooter' : profile.label.toLowerCase() === 'facebook' ? 'facebookFooter' : undefined} size={20} fallback={<Icon size={19} />} />;
               const href = profile.href;
               return href ? (
                 <a href={href} target="_blank" rel="noopener noreferrer" aria-label={profile.label} key={profile.id}>

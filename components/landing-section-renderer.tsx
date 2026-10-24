@@ -1,4 +1,5 @@
 import { KosykinHomeSection } from "@/components/kosykin-home-section";
+import { StorefrontIcon } from '@/components/storefront-icon';
 import { kosykinShopCollections, type KosykinCollectionCategory } from "@/lib/kosykin-shop";
 import type { CSSProperties, ReactNode } from "react";
 import Image from "next/image";
@@ -24,6 +25,7 @@ import type { LandingSectionType, Prisma } from "@prisma/client";
 type Item = {
   id: string;
   icon?: string;
+  iconUrl?: string;
   title?: string;
   description?: string;
   supportingText?: string;
@@ -46,6 +48,7 @@ type Item = {
 type Feature = {
   id: string;
   icon?: string;
+  iconUrl?: string;
   label?: string;
   supportingText?: string;
   backgroundColour?: string;
@@ -211,22 +214,22 @@ export function ModularPageRenderer({
                   <div className="kosy-hero-bottom">
                     <p>{common.copy || fallbackCopy}</p>
                     {value.ctaVisible !== false && text(value.ctaLabel) && <Link className="kosy-hero-cta" href={text(value.ctaHref) || shopHref} style={buttonStyle(value, "cta")}>
-                      {text(value.ctaLabel)} <span aria-hidden="true"><ArrowRight size={19} /></span>
+                      {text(value.ctaLabel)} <span aria-hidden="true"><StorefrontIcon name="arrowRight" size={36} fallback={<ArrowRight size={19} />} /></span>
                     </Link>}
                   </div>
-                  <a className="kosy-hero-down" href="#kosy-collections" aria-label="Explore collections"><ArrowRight size={27} aria-hidden="true" /></a>
+                  <a className="kosy-hero-down" href="#kosy-collections" aria-label="Explore collections"><StorefrontIcon name="chevronDown" size={27} fallback={<ArrowRight size={27} aria-hidden="true" />} /></a>
                   {kosykinSocials && <div className="kosy-hero-socials" aria-label="Social media">
                     {(["instagram", "facebook"] as const).map((platform) => {
                       const destination = kosykinSocials.links[platform];
                       const icon = kosykinSocials.icons[platform];
-                      const contents = icon ? <Image src={icon} alt="" width={20} height={20} unoptimized /> : platform === "instagram" ? <Camera size={20} aria-hidden="true" /> : <b className="kosy-facebook-glyph" aria-hidden="true">f</b>;
+                      const contents = <StorefrontIcon name={platform === 'instagram' ? 'instagramFooter' : 'facebookFooter'} imageUrl={icon} size={20} fallback={platform === "instagram" ? <Camera size={20} aria-hidden="true" /> : <b className="kosy-facebook-glyph" aria-hidden="true">f</b>} />;
                       return destination ? <a key={platform} href={destination} target="_blank" rel="noopener noreferrer" aria-label={platform}>{contents}</a> : <span key={platform} aria-hidden="true">{contents}</span>;
                     })}
                   </div>}
                 </div>
                 {features.length > 0 && <div className="kosy-trust-row">
                   {features.map((feature, index) => <div key={collectionKey("trust", feature, index)}>
-                    <span className="kosy-trust-icon"><CategoryIcon name={feature.icon} size={28} /></span>
+                    <span className="kosy-trust-icon"><StorefrontIcon name={feature.icon === 'shield-check' ? 'secureCheckout' : feature.icon === 'package' ? 'shipping' : 'madeToOrder'} imageUrl={feature.iconUrl} size={28} fallback={<CategoryIcon name={feature.icon} size={28} />} /></span>
                     <span><strong>{feature.label}</strong><small>{feature.supportingText}</small></span>
                   </div>)}
                 </div>}
@@ -255,7 +258,7 @@ export function ModularPageRenderer({
                               color: colour(feature.iconColour),
                             }}
                           >
-                            <CategoryIcon name={feature.icon} size={20} />
+                            <CategoryIcon name={feature.icon} imageUrl={feature.iconUrl} size={20} />
                           </span>
                           <small>{feature.label}</small>
                           {feature.supportingText && (
@@ -376,7 +379,7 @@ export function ModularPageRenderer({
                               color: colour(item.iconColour),
                             }}
                           >
-                            <CategoryIcon name={item.icon} />
+                            <CategoryIcon name={item.icon} imageUrl={item.iconUrl} />
                           </span>
                         )}
                         <div>
@@ -419,7 +422,7 @@ export function ModularPageRenderer({
                 <div className="kosy-collection-grid">
                   {kosykinShopCollections(kosykinCollectionCategories ?? categories, Array.isArray(value.items) ? value.items as Item[] : [], 'home').map(item => <Link key={item.id} href={`/shop?category=${encodeURIComponent(item.slug)}`} className="kosy-collection-card">
                     <span className="kosy-collection-orb" style={{ backgroundColor: item.highlightColour }}>
-                      {item.imageUrl ? <Image src={item.imageUrl} alt="" width={190} height={190} unoptimized /> : <CategoryIcon name={item.icon} size={64} />}
+                      {item.imageUrl ? <Image src={item.imageUrl} alt="" width={190} height={190} unoptimized /> : <CategoryIcon name={item.icon} imageUrl={item.iconUrl} size={64} />}
                     </span>
                     <strong>{item.name}</strong>
                     {item.shortDescription && <span>{item.shortDescription}</span>}
@@ -481,7 +484,7 @@ export function ModularPageRenderer({
                         {section.type === "STEPS" ? (
                           index + 1
                         ) : (
-                          <CategoryIcon name={item.icon} />
+                          <CategoryIcon name={item.icon} imageUrl={item.iconUrl} />
                         )}
                       </span>
                       <div>

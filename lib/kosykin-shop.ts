@@ -11,7 +11,7 @@ export const shopCategoryStyles = [
 export function kosykinCollectionSlug(slug: string) {
   return ['personalised-3d-prints', 'personalized-3d-prints', 'tags'].includes(slug) ? 'personalised-pieces' : slug;
 }
-type CollectionItem = { title?: string; categorySlug?: string; description?: string; visible?: boolean; iconBackgroundColour?: string; imageUrl?: string; icon?: string };
+type CollectionItem = { title?: string; categorySlug?: string; description?: string; visible?: boolean; iconBackgroundColour?: string; imageUrl?: string; icon?: string; iconUrl?: string };
 export type KosykinCollectionCategory = { id: string; slug: string; name: string; shortDescription?: string | null; status?: string; showOnHomepage?: boolean; showInShop?: boolean; cardTitle?: string | null; cardText?: string | null; cardImageUrl?: string | null; icon?: string | null };
 export function kosykinShopCollections(categories: KosykinCollectionCategory[], items: CollectionItem[] = [], surface: 'home' | 'shop' = 'shop') {
   const slugs = [...new Set(categories.map(category => kosykinCollectionSlug(category.slug)))];
@@ -22,7 +22,7 @@ export function kosykinShopCollections(categories: KosykinCollectionCategory[], 
     const item = items.find(item => item.categorySlug === slug) ?? items.find(item => item.categorySlug && kosykinCollectionSlug(item.categorySlug) === slug) ?? items.find(item => item.title?.toLowerCase() === category.name.toLowerCase());
     if ((category.status && category.status !== 'PUBLISHED') || category.showInShop === false || (surface === 'home' && category.showOnHomepage === false) || item?.visible === false) return [];
     const highlightColour = /^#[\da-f]{6}$/i.test(item?.iconBackgroundColour ?? '') ? item!.iconBackgroundColour! : style?.colour ?? '#243247';
-    return [{ id: category.id, slug, name: item?.title || (category.slug === slug ? category.cardTitle || category.name : style?.name || category.name), shortDescription: item?.description || category.cardText || category.shortDescription || style?.description || null, highlightColour, imageUrl: item?.imageUrl || category.cardImageUrl || '', icon: item?.icon || category.icon || 'shapes', categoryIds: members.filter(member => !member.status || member.status === 'PUBLISHED').map(member => member.id) }];
+    return [{ id: category.id, slug, name: item?.title || (category.slug === slug ? category.cardTitle || category.name : style?.name || category.name), shortDescription: item?.description || category.cardText || category.shortDescription || style?.description || null, highlightColour, imageUrl: item?.imageUrl || category.cardImageUrl || '', icon: item?.icon || category.icon || 'shapes', iconUrl: item?.iconUrl || '', categoryIds: members.filter(member => !member.status || member.status === 'PUBLISHED').map(member => member.id) }];
   });
 }
 export function shopCategoryStyle(category: { slug: string; name: string; shortDescription?: string | null; highlightColour?: string }) {
