@@ -34,6 +34,7 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ ord
   const money = new Intl.NumberFormat("en-AU", { style: "currency", currency: order.currency });
   const shipment = order.shipments[0];
   const issues = preparationIssues(order.items, store.id);
+  if (await db.orderGift.count({ where: { orderId: order.id, packedAt: null } })) issues.push("Complimentary gifts must be packed");
   return <div>
     <Link href="/admin/orders" className="admin-back">← Orders</Link>
     <div className="admin-heading"><div><p className="admin-kicker">{order.createdAt.toLocaleString("en-AU")}</p><h1>{order.orderNumber}</h1><p>{order.customerName ?? "Customer"} · {order.user?.email ?? order.guestEmail}</p></div><span className={`admin-status large ${order.status}`}>{order.status.replaceAll("_", " ")}</span></div>

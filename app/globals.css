@@ -6095,6 +6095,11 @@ body[data-store="kosykin"] .site-header .brand { overflow: visible; }
 .product-reviews { scroll-margin-top: 125px; }
 .product-reviews figure { margin: 0; overflow-wrap: anywhere; }
 .order-gifts { border: 2px solid #e3bf5d; margin-block: 24px; }
+@media(max-width:950px) {
+  /* Match the compact state before hydration, avoiding a full-width logo flash. */
+  body[data-store="kosykin"] .site-header .kosy-scroll-wordmark { width: min(160px, 100%); }
+  body[data-store="kosykin"] .site-header .brand::before { background-image: url("/images/kosykin/header-cutout-compact.svg"); }
+}
 @media(max-width:650px) {
   .kosy-promotion-slide { grid-template-columns: 1fr; gap: 22px; }
   .kosy-promotion-carousel { padding: 32px 24px; }
