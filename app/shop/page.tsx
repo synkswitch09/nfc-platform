@@ -1,4 +1,3 @@
-import { getStoreSettings } from "@/lib/settings";
 import { KosykinShop } from "@/components/kosykin-shop";
 import { kosykinCollectionSlug, kosykinShopCollections, queryList, shopProductVariants, type ShopQuery } from "@/lib/kosykin-shop";
 import { FavouriteButton } from "@/components/favourite-button";
@@ -58,14 +57,12 @@ export default async function ShopPage({ searchParams }: { searchParams: Promise
     const experience = await getExperience(store.id);
     const bannerGroups = await publicBannerGroups(store.id);
     const promotion = experience.configured ? null : home?.sections.find(section => section.content && typeof section.content === "object" && !Array.isArray(section.content) && section.content.layoutVariant === "KOSYKIN_PROMOTIONS") ?? null;
-    const support = home?.sections.find(section => section.content && typeof section.content === "object" && !Array.isArray(section.content) && section.content.layoutVariant === "KOSYKIN_SUPPORT") ?? null;
     const trust = home?.sections.find(section => section.content && typeof section.content === "object" && !Array.isArray(section.content) && section.content.layoutVariant === "KOSYKIN_WAVY")?.content as Record<string, unknown> | undefined;
-    const settings = await getStoreSettings(store);
     const sorted = [...visible].sort((a, b) => {
       const lowest = (product: typeof a) => Math.min(...shopProductVariants(product, query, available).map(variant => variant.priceCents));
       return query.sort === "price-asc" ? lowest(a) - lowest(b) : query.sort === "price-desc" ? lowest(b) - lowest(a) : query.sort === "new" ? b.createdAt.getTime() - a.createdAt.getTime() : Number(b.featured) - Number(a.featured);
     }).map(product => ({ ...product, sourceVariantCount: product.variants.length, variants: shopProductVariants(product, query, available) }));
-    return <KosykinShop bannerGroups={bannerGroups} products={sorted} filterProducts={products} categories={tabs} query={{ ...query, category: queryList(query.category) }} promotion={promotion} support={support} trust={trust} socials={{ links: settings.socialLinks, icons: settings.footerConfig.socialIcons }} currency={store.currency} available={available} checkoutEnabled={getRuntimeConfig().checkoutEnabled} />;
+    return <KosykinShop bannerGroups={bannerGroups} products={sorted} filterProducts={products} categories={tabs} query={{ ...query, category: queryList(query.category) }} promotion={promotion} trust={trust} currency={store.currency} available={available} checkoutEnabled={getRuntimeConfig().checkoutEnabled} />;
   }
   const showKeychainPreview = store.slug === "kosykin" && !Object.keys(query).length && !products.some(product => product.slug === KEYCHAIN_SLUG);
   return <section className="section"><div className="section-head"><span className="eyebrow">{store.displayName} shop</span><h1 className="page-title">Products made for real life.</h1><p className="lead">Thoughtfully designed and personalised in Adelaide, with clear options and secure checkout.</p></div>
