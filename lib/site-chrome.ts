@@ -107,6 +107,7 @@ const footerLinkSchema = z.object({
 });
 
 export const footerConfigSchema = z.object({
+  logoTreatment: z.enum(["ORIGINAL", "CREAM"]).default("ORIGINAL"),
   logoUrl: optionalImage.default(""),
   copyright: z.string().trim().max(160).default(""),
   tagline: z

@@ -35,12 +35,16 @@ body {
   font-size: var(--store-body-size, 16px);
   font-weight: var(--store-body-weight, 400);
   font-style: var(--store-body-style, normal);
+  line-height: var(--store-body-line-height, 1.5);
+  letter-spacing: var(--store-body-letter-spacing, normal);
 }
 .storefront-main :where(h1, h2, h3) {
   font-family: var(--store-heading-family, inherit);
   font-size: var(--store-heading-size, inherit);
   font-weight: var(--store-heading-weight, 700);
   font-style: var(--store-heading-style, normal);
+  line-height: var(--store-heading-line-height, 1.2);
+  letter-spacing: var(--store-heading-letter-spacing, normal);
 }
 .storefront-main .eyebrow {
   font-family: var(--store-eyebrow-family, inherit);
@@ -65,24 +69,32 @@ body {
   font-size: var(--section-headline-type-size, var(--store-heading-size, inherit)) !important;
   font-weight: var(--section-headline-type-weight, var(--store-heading-weight, 700)) !important;
   font-style: var(--section-headline-type-style, var(--store-heading-style, normal)) !important;
+  line-height: var(--section-headline-type-line-height, var(--store-heading-line-height, 1.15)) !important;
+  letter-spacing: var(--section-headline-type-letter-spacing, var(--store-heading-letter-spacing, normal)) !important;
 }
 .modular-landing > section :where(.section-head p, .category-hero-copy .lead, .category-hero-copy .hero-supporting) {
   font-family: var(--section-copy-type-family, var(--store-body-family, inherit)) !important;
   font-size: var(--section-copy-type-size, var(--store-body-size, inherit)) !important;
   font-weight: var(--section-copy-type-weight, var(--store-body-weight, 400)) !important;
   font-style: var(--section-copy-type-style, var(--store-body-style, normal)) !important;
+  line-height: var(--section-copy-type-line-height, var(--store-body-line-height, 1.5)) !important;
+  letter-spacing: var(--section-copy-type-letter-spacing, var(--store-body-letter-spacing, normal)) !important;
 }
 .modular-landing > section :where(.actions .button, .item-cta) {
   font-family: var(--section-button-type-family, var(--store-button-family, inherit)) !important;
   font-size: var(--section-button-type-size, var(--store-button-size, inherit)) !important;
   font-weight: var(--section-button-type-weight, var(--store-button-weight, 500)) !important;
   font-style: var(--section-button-type-style, var(--store-button-style, normal)) !important;
+  line-height: var(--section-button-type-line-height, var(--store-button-line-height, 1.2)) !important;
+  letter-spacing: var(--section-button-type-letter-spacing, var(--store-button-letter-spacing, normal)) !important;
 }
 .modular-landing > section :where(.benefit-grid article, .step-grid article, .story-process-items article, .modular-faq-grid, .category-card-grid) {
   font-family: var(--section-card-type-family, var(--store-card-family, inherit)) !important;
   font-size: var(--section-card-type-size, var(--store-card-size, inherit)) !important;
   font-weight: var(--section-card-type-weight, var(--store-card-weight, 400)) !important;
   font-style: var(--section-card-type-style, var(--store-card-style, normal)) !important;
+  line-height: var(--section-card-type-line-height, var(--store-card-line-height, 1.4)) !important;
+  letter-spacing: var(--section-card-type-letter-spacing, var(--store-card-letter-spacing, normal)) !important;
 }
 a {
   color: inherit;
@@ -5402,12 +5414,12 @@ body[data-store="kosykin"] .site-header {
   margin-top: 46px;
   padding-inline: 46px;
   border-radius: 28px 28px 0 0;
-  background: #233147;
+  background: var(--header-background, #243247);
   color: #fbf6ed;
 }
 body[data-store="kosykin"]:has(.kosy-home-hero) .site-header {
   margin-bottom: -92px;
-  background: #233147;
+  background: var(--header-background, #243247);
 }
 body[data-store="kosykin"] .site-header .brand {
   position: absolute;
@@ -5535,7 +5547,7 @@ body[data-store="kosykin"] .modular-landing > .kosy-home-hero { max-width: 1440p
     padding: 18px;
     border: 1px solid #3b5072;
     border-radius: 18px;
-    background: #233147;
+    background: var(--header-background, #243247);
     color: white;
     box-shadow: var(--shadow);
   }
@@ -5598,14 +5610,15 @@ body[data-store="kosykin"] .storefront-main .button.lime {
 }
 body[data-store="kosykin"] .site-footer {
   border-color: var(--line);
-  background: #fdfaf6;
-  color: var(--kosy-navy);
+  background: var(--footer-background, var(--kosy-navy));
+  color: var(--footer-text, #fbf6ed);
 }
 body[data-store="kosykin"] .site-footer .footer-socials :is(a, .footer-social-preview) {
   background: #778498;
   border-radius: 50%;
   color: white;
 }
+body[data-store="kosykin"] .site-footer .footer-links a { color: var(--footer-link, inherit); }
 body[data-store="kosykin"] .site-footer .footer-socials a:hover {
   background: var(--kosy-navy);
   color: white;
@@ -5835,13 +5848,13 @@ body[data-store="kosykin"] .site-header {
   position: sticky;
   top: calc(46px * (1 - var(--kosy-scroll)));
   z-index: 60;
-  width: calc(100% - 2 * var(--kosy-frame-gutter) * (1 - var(--kosy-scroll)));
-  max-width: calc(1340px + 100px * var(--kosy-scroll));
+  width: calc(100% - 2 * var(--kosy-frame-gutter));
+  max-width: 1340px;
   box-shadow: 0 8px 24px rgb(18 30 47 / calc(.12 * var(--kosy-scroll)));
 }
 body[data-store="kosykin"]:has(.kosy-home-hero) .site-header {
-  border-bottom-left-radius: calc(var(--kosy-header-radius) * var(--kosy-scroll));
-  border-bottom-right-radius: calc(var(--kosy-header-radius) * var(--kosy-scroll));
+  border-bottom-left-radius: var(--kosy-header-radius);
+  border-bottom-right-radius: var(--kosy-header-radius);
 }
 body[data-store="kosykin"] .site-header .brand {
   top: calc(-46px * (1 - var(--kosy-scroll)));
@@ -5855,8 +5868,10 @@ body[data-store="kosykin"] .site-header .brand::before {
   inset: 0;
   z-index: -1;
   background: url("/images/kosykin/header-cutout.svg") center / 100% 100% no-repeat;
-  /* Retreat as one opaque shape: a fading cutout exposed a seam through the logo. */
-  transform: translateY(calc(-100px * var(--kosy-scroll)));
+  /* Keep the tab silhouette intact until the logo approaches its compact
+     position, then dissolve it without moving an edge across the lettering. */
+  transform: none;
+  opacity: clamp(0, calc(4 - 5 * var(--kosy-scroll)), 1);
   pointer-events: none;
 }
 .kosy-scroll-wordmark { display: none; }
@@ -5869,16 +5884,16 @@ body[data-store="kosykin"] .site-header .kosy-scroll-wordmark {
   max-width: 100%;
 }
 body[data-store="kosykin"] .site-header .kosy-scroll-wordmark img { display: block; width: 100%; height: auto; }
-/* The dark logo travels with its white tab; the light logo enters below it.
-   Neither wordmark crosses the moving edge of the tab. */
+/* The two colour treatments share identical coordinates: one visible wordmark
+   changes colour instead of two separate logos moving across the header. */
 body[data-store="kosykin"] .site-header .kosy-wordmark-dark {
-  transform: translateY(calc(-100px * var(--kosy-scroll)));
-  opacity: calc(1 - var(--kosy-scroll));
+  transform: none;
+  opacity: calc(1 - var(--kosy-logo-light, 0));
 }
 body[data-store="kosykin"] .site-header .kosy-scroll-wordmark :is(.kosy-wordmark-light,.kosy-wordmark-star) {
   position: absolute; inset: 0;
-  transform: translateY(calc(64px * (1 - var(--kosy-scroll))));
-  opacity: clamp(0, calc(2 * var(--kosy-scroll)), 1);
+  transform: none;
+  opacity: var(--kosy-logo-light, 0);
 }
 body[data-store="kosykin"] .site-header .kosy-wordmark-light {
   filter: brightness(0) invert(1); clip-path: inset(0 11% 0 0);
@@ -5898,7 +5913,7 @@ body[data-store="kosykin"] .site-header.compact-header .brand::before {
 body[data-store="kosykin"] .site-header .mobile-nav-toggle { color: #233147; background: #fff; }
 body[data-store="kosykin"] .site-header nav.is-open { max-height: calc(100dvh - 110px); }
 .favourites-link { position: relative; display: grid; place-items: center; width: 42px; height: 42px; background: white; color: #243247; border-radius: 50%; flex: none; }
-.favourites-count { position: absolute; top: -5px; right: -6px; display: grid; place-items: center; min-width: 19px; height: 19px; padding: 0 4px; border-radius: 10px; background: #e3bf5d; color: #243247; font-size: 11px; }
+.favourites-dot { position: absolute; top: 0; right: 0; width: 9px; height: 9px; border: 2px solid white; border-radius: 50%; background: var(--kosy-gold, #e3bf5d); }
 .favourite-icon-button { display: grid; place-items: center; min-width: 42px; min-height: 42px; border: 0; border-radius: 10px; background: #f9f3e9; color: #243247; }
 .favourite-icon-button:disabled { opacity: .55; cursor: wait; }
 .favourite-control .text-button { display: inline-flex; align-items: center; gap: 8px; }
@@ -5977,12 +5992,7 @@ body[data-store="kosykin"] .modular-landing > .kosy-home-media-content { padding
 }
 .kosy-support-brand { flex: 0 0 150px; }.kosy-support-brand > img { width: 150px; height: auto; }
 .kosy-support-socials { display: flex; gap: 16px; margin-top: 24px; }.kosy-support-socials a { display: grid; place-items: center; min-width: 32px; min-height: 32px; color: #243247; }
-body[data-store="kosykin"]:has([data-variant="kosykin-support"]) .site-footer { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; padding: 26px 46px; background: #243247; color: #fbf6ed; }
-body[data-store="kosykin"]:has([data-variant="kosykin-support"]) .site-footer .footer-brand,
-body[data-store="kosykin"]:has([data-variant="kosykin-support"]) .site-footer .footer-socials { display: none; }
-body[data-store="kosykin"]:has([data-variant="kosykin-support"]) .site-footer .footer-copyright { font-size: .75rem; }
-body[data-store="kosykin"]:has([data-variant="kosykin-support"]) .site-footer .footer-links { font-size: .75rem; }
-body[data-store="kosykin"]:has([data-variant="kosykin-support"]) .site-footer .footer-links a { color: #fbf6ed; }
+/* A page section must never change the shared footer's identity or layout. */
 body[data-store="kosykin"] .modular-landing > .kosy-home-section .kosy-section-heading h2 { color: var(--section-headline, #243247); font-family: var(--section-headline-type-family, var(--store-heading-family, inherit)); font-weight: var(--section-headline-type-weight, 850); }
 body[data-store="kosykin"] .modular-landing > .kosy-home-media-content .kosy-section-heading h2 { color: var(--section-headline, #fbf6ed); }
 @media (max-width: 650px) { .kosy-support-brand { flex-basis: auto; } }
@@ -6059,7 +6069,8 @@ body[data-store="kosykin"] .site-header .brand { overflow: visible; }
 .kosy-shop :is(a,button,input):focus-visible { outline: 3px solid #3b6a9a; outline-offset: 3px; }
 .kosy-product-actions button.kosy-section-action { border: 0; }
 .kosy-product-actions button.kosy-section-action:disabled { opacity: .6; }
-.kosy-promotion-slide h2 { font-stretch: condensed; letter-spacing: -.045em; font-weight: 900; }
+.kosy-promotion-slide h2 { font-family: var(--promo-title-font, var(--font-bebas)); letter-spacing: -.015em; font-weight: 400; }
+.kosy-promotion-slide p { font-family: var(--promo-copy-font, var(--font-caveat)); font-weight: 700; font-size: clamp(1.25rem, 2.3vw, 2rem); }
 .kosy-review-grid figure { position: relative; }
 @media(max-width: 1050px) { .kosy-shop-grid { grid-template-columns: repeat(3,minmax(0,1fr)); } .kosy-shop-categories a { padding: 14px; } }
 @media(max-width: 800px) { .kosy-shop-grid { grid-template-columns: repeat(2,minmax(0,1fr)); } .kosy-shop-intro { padding: 20px 0 34px; } .kosy-shop-intro h1 { margin-bottom: 28px; } .kosy-shop-categories { display: flex; text-align: left; } .kosy-shop-results { padding: 24px 12px 40px; } .kosy-shop-toolbar { align-items: flex-start; gap: 12px; margin-inline: 0; } .kosy-shop-toolbar h2 { font-size: 1rem; } .kosy-shop-toolbar p { font-size: .85rem; } .kosy-filter-trigger { padding: 9px; font-size: .8rem; } .kosy-shop-grid .kosy-product-card { padding: 12px; } }
@@ -6068,3 +6079,30 @@ body[data-store="kosykin"] .site-header .brand { overflow: visible; }
 .kosy-shop-trust { padding: 56px 46px; }
 .kosy-shop-support { padding: 60px 46px; background: #f9f3e9; }
 @media(max-width:650px) { .kosy-shop-trust, .kosy-shop-support { padding: 38px 20px; } }
+
+/* Shared content keeps the same geometry wherever it is placed. */
+.shared-banner-group { margin-block: 28px; min-width: 0; }
+.kosy-promotion-carousel { background: var(--promo-background, #b9afcf); color: var(--promo-text, #243247); }
+.kosy-promotion-slide.has-artwork { display: block; margin: -50px -65px; }
+.kosy-promotion-slide.has-artwork img { display: block; width: 100%; height: auto; border-radius: 24px; }
+.kosy-promo-prev, .kosy-promo-next { z-index: 2; }
+.kosy-promo-dots { z-index: 2; }
+.kosy-promo-dots button { position: relative; }
+.kosy-promo-dots button::after { content: ""; position: absolute; inset: -10px -5px; }
+.kosy-promotion-carousel :is(a,button):focus-visible { outline: 3px solid #243247; outline-offset: 4px; }
+.cream-logo { filter: brightness(0) invert(97%) sepia(10%) saturate(350%) hue-rotate(335deg); }
+.review-form { max-width: 680px; margin-top: 30px; display: grid; gap: 14px; }
+.product-reviews { scroll-margin-top: 125px; }
+.product-reviews figure { margin: 0; overflow-wrap: anywhere; }
+.order-gifts { border: 2px solid #e3bf5d; margin-block: 24px; }
+@media(max-width:950px) {
+  /* Match the compact state before hydration, avoiding a full-width logo flash. */
+  body[data-store="kosykin"] .site-header .kosy-scroll-wordmark { width: min(160px, 100%); }
+  body[data-store="kosykin"] .site-header .brand::before { background-image: url("/images/kosykin/header-cutout-compact.svg"); }
+}
+@media(max-width:650px) {
+  .kosy-promotion-slide { grid-template-columns: 1fr; gap: 22px; }
+  .kosy-promotion-carousel { padding: 32px 24px; }
+  .kosy-promotion-slide.has-artwork { margin: -32px -24px; }
+  .kosy-promo-prev { left: -10px; } .kosy-promo-next { right: -10px; }
+}

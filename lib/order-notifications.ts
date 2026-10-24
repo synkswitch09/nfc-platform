@@ -17,7 +17,7 @@ export async function queueOrderNotice(tx: Prisma.TransactionClient, orderId: st
 }
 
 export async function queuePaidOrder(tx: Prisma.TransactionClient, orderId: string) {
-  await queueOrderNotice(tx, orderId, `paid:${orderId}`, "Payment confirmed", "Payment has been received. We will let you know when your order progresses.", true);
+  await queueOrderNotice(tx, orderId, `paid:${orderId}`, "Payment confirmed", "Payment has been received. We will let you know when your order progresses. You can leave a review from the purchased product page after signing in or verifying your purchase email through Help & requests.", true);
 }
 
 export async function processOrderNotifications(orderId?: string) {

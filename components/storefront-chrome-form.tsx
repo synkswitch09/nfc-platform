@@ -99,6 +99,7 @@ export function StorefrontChromeForm({
         : footer
           ? {
               ...footer,
+              logoTreatment: form.get("logoTreatment") ?? footer.logoTreatment,
               logoUrl,
               copyright: form.get("copyright"),
               tagline: form.get("tagline"),
@@ -413,6 +414,7 @@ function FooterFields({
   return (
     <>
       <div className="field-grid">
+        <Select name="logoTreatment" label="Logo treatment" value={config.logoTreatment} options={[["ORIGINAL", "Original uploaded colours"], ["CREAM", "Cream silhouette"]]} />
         <Text name="copyright" label="Copyright" value={config.copyright} />
         <Text name="termsLabel" label="Terms label" value={config.termsLabel} />
         <Text
@@ -528,6 +530,8 @@ function typographyFromForm(
     family: String(form.get(`${prefix}-family`) ?? fallback.family) as TypographyOverride["family"],
     weight: String(form.get(`${prefix}-weight`) ?? fallback.weight) as TypographyOverride["weight"],
     italic: String(form.get(`${prefix}-italic`) ?? fallback.italic) as TypographyOverride["italic"],
+    lineHeight: form.get(`${prefix}-lineHeight`) ? Number(form.get(`${prefix}-lineHeight`)) : undefined,
+    letterSpacingEm: form.get(`${prefix}-letterSpacingEm`) ? Number(form.get(`${prefix}-letterSpacingEm`)) : undefined,
     sizePx: form.get(`${prefix}-size`) === "" ? null : Number(form.get(`${prefix}-size`) ?? fallback.sizePx),
   };
 }
@@ -576,6 +580,7 @@ function TypographyOverrideFields({
           ["SYSTEM", "System"],
           ["SERIF", "Serif"],
           ["MONO", "Monospace"],
+          ["BEBAS_NEUE", "Bebas Neue"], ["CAVEAT", "Caveat"],
         ]}
       />
       <Select
@@ -613,6 +618,8 @@ function TypographyOverrideFields({
           placeholder="Inherit"
         />
       </label>
+      <label className="field">Line height<input name={`${prefix}-lineHeight`} type="number" min="0.8" max="3" step="0.05" defaultValue={value.lineHeight ?? ""} placeholder="Inherit" /></label>
+      <label className="field">Letter spacing (em)<input name={`${prefix}-letterSpacingEm`} type="number" min="-0.2" max="0.5" step="0.005" defaultValue={value.letterSpacingEm ?? ""} placeholder="Inherit" /></label>
     </div>
   );
 }

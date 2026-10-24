@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => {
-  const model = () => ({ findUnique: vi.fn(), create: vi.fn(), update: vi.fn(), updateMany: vi.fn(), groupBy: vi.fn(), createMany: vi.fn(), count: vi.fn() });
-  return { tx: { order: model(), payment: model(), productVariant: model(), productionBooking: model(), inventoryMovement: model(), orderStatusHistory: model(), auditLog: model(), webhookEvent: model(), manufacturingJob: model(), store: model(), user: model(), promotion: model() }, transaction: vi.fn(), notify: vi.fn(), notice: vi.fn() };
+  const model = () => ({ findMany: vi.fn(), findUnique: vi.fn(), create: vi.fn(), update: vi.fn(), updateMany: vi.fn(), groupBy: vi.fn(), createMany: vi.fn(), count: vi.fn() });
+  return { tx: { order: model(), payment: model(), productVariant: model(), productionBooking: model(), inventoryMovement: model(), orderStatusHistory: model(), auditLog: model(), webhookEvent: model(), manufacturingJob: model(), store: model(), user: model(), promotion: model(), giftCampaign: model() }, transaction: vi.fn(), notify: vi.fn(), notice: vi.fn() };
 });
 vi.mock("@/lib/db", () => ({ db: { $transaction: mocks.transaction } }));
 vi.mock("@/lib/etsy", () => ({ queueEtsyInventorySync: vi.fn() }));
@@ -14,6 +14,7 @@ const order = { id: "o", storeId: "s", status: "PAYMENT_PENDING", store: { capab
 const event = { eventId: "evt", eventType: "checkout.session.completed", providerSessionId: "cs", orderId: "o", storeId: "s", amountCents: 100, currency: "AUD" };
 beforeEach(() => {
   vi.resetAllMocks();
+  mocks.tx.giftCampaign.findMany.mockResolvedValue([]);
   mocks.transaction.mockImplementation(callback => callback(mocks.tx));
   mocks.tx.order.findUnique.mockResolvedValue(order);
   mocks.tx.store.findUnique.mockResolvedValue({ secondPurchaseRewardEnabled: false });
