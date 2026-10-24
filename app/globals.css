@@ -5856,7 +5856,7 @@ body[data-store="kosykin"] .site-header .brand::before {
   z-index: -1;
   background: url("/images/kosykin/header-cutout.svg") center / 100% 100% no-repeat;
   /* Retreat as one opaque shape: a fading cutout exposed a seam through the logo. */
-  transform: translateY(calc(-110% * var(--kosy-scroll)));
+  transform: translateY(calc(-100px * var(--kosy-scroll)));
   pointer-events: none;
 }
 .kosy-scroll-wordmark { display: none; }
@@ -5869,11 +5869,21 @@ body[data-store="kosykin"] .site-header .kosy-scroll-wordmark {
   max-width: 100%;
 }
 body[data-store="kosykin"] .site-header .kosy-scroll-wordmark img { display: block; width: 100%; height: auto; }
-body[data-store="kosykin"] .site-header .kosy-scroll-wordmark .kosy-wordmark-light {
-  position: absolute; inset: 0; filter: brightness(0) invert(1);
-  /* Recolour the lettering only. The original yellow star stays visible. */
-  clip-path: inset(0 11% 0 0); opacity: var(--kosy-scroll);
+/* The dark logo travels with its white tab; the light logo enters below it.
+   Neither wordmark crosses the moving edge of the tab. */
+body[data-store="kosykin"] .site-header .kosy-wordmark-dark {
+  transform: translateY(calc(-100px * var(--kosy-scroll)));
+  opacity: calc(1 - var(--kosy-scroll));
 }
+body[data-store="kosykin"] .site-header .kosy-scroll-wordmark :is(.kosy-wordmark-light,.kosy-wordmark-star) {
+  position: absolute; inset: 0;
+  transform: translateY(calc(64px * (1 - var(--kosy-scroll))));
+  opacity: clamp(0, calc(2 * var(--kosy-scroll)), 1);
+}
+body[data-store="kosykin"] .site-header .kosy-wordmark-light {
+  filter: brightness(0) invert(1); clip-path: inset(0 11% 0 0);
+}
+body[data-store="kosykin"] .site-header .kosy-wordmark-star { clip-path: inset(0 0 0 89%); }
 body[data-store="kosykin"] .site-header.compact-header {
   top: calc(36px * (1 - var(--kosy-scroll)));
 }
@@ -6012,8 +6022,8 @@ body[data-store="kosykin"] .site-header .brand { overflow: visible; }
 .kosy-shop-toolbar h2 { font-size: 1.2rem; margin: 0; }
 .kosy-shop-toolbar p { margin: 0; font-size: .95rem; }
 .kosy-filter-trigger { anchor-name: --kosy-filter; display: inline-flex; gap: 8px; align-items: center; min-height: 44px; border: 1px solid #243247; background: white; color: #243247; border-radius: 9px; padding: 10px 16px; white-space: nowrap; }
-.kosy-shop-filter-panel { position: fixed; inset: 110px 24px auto auto; margin: 0; width: min(360px, calc(100vw - 32px)); padding: 22px; border: 1px solid #e5e5e5; border-radius: 10px; background: white; color: #243247; box-shadow: 0 6px 20px #24324724; max-height: calc(100dvh - 140px); overflow-y: auto; }
-@supports (top: anchor(bottom)) { .kosy-shop-filter-panel { position-anchor: --kosy-filter; top: anchor(bottom); right: anchor(right); margin-top: 10px; position-try-fallbacks: flip-block; } }
+.kosy-shop-filter-panel { position: fixed; inset: 110px 24px auto auto; margin: 0; width: min(360px, calc(100vw - 32px)); padding: 22px; border: 1px solid #e5e5e5; border-radius: 10px; background: white; color: #243247; box-shadow: 0 6px 20px #24324724; max-height: min(680px, calc(100dvh - 140px)); overflow-y: auto; }
+@supports (top: anchor(bottom)) { .kosy-shop-filter-panel { position-anchor: --kosy-filter; top: clamp(96px, anchor(bottom), calc(100dvh - min(680px, calc(100dvh - 140px)) - 20px)); right: anchor(right); margin-top: 0; } }
 .kosy-filter-title { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; padding-bottom: 18px; }
 .kosy-filter-title button { display: grid; place-items: center; border: 0; background: transparent; color: #243247; min-width: 36px; min-height: 36px; }
 .kosy-shop-filter-panel fieldset { padding: 0; border: 0; margin: 22px 0; min-width: 0; }

@@ -258,8 +258,9 @@ export function SiteHeader({
         }}
       >
         {kosykinLayout && <span className="kosy-scroll-wordmark" aria-hidden="true">
-          <Image src={config.logoUrl || "/images/kosykin/wordmark-navy.webp"} alt="" width={236} height={34} priority unoptimized />
+          <Image className="kosy-wordmark-dark" src={config.logoUrl || "/images/kosykin/wordmark-navy.webp"} alt="" width={236} height={34} priority unoptimized />
           <Image className="kosy-wordmark-light" src={config.logoUrl || "/images/kosykin/wordmark-navy.webp"} alt="" width={236} height={34} priority unoptimized />
+          <Image className="kosy-wordmark-star" src={config.logoUrl || "/images/kosykin/wordmark-navy.webp"} alt="" width={236} height={34} priority unoptimized />
         </span>}
         {logoUrl ? (
           <Image
