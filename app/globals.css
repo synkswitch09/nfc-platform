@@ -6106,3 +6106,86 @@ body[data-store="kosykin"] .site-header .brand { overflow: visible; }
   .kosy-promotion-slide.has-artwork { margin: -32px -24px; }
   .kosy-promo-prev { left: -10px; } .kosy-promo-next { right: -10px; }
 }
+
+
+/* Shared Kosykin chrome: one silhouette and one connected footer on every route. */
+body[data-store="kosykin"] .site-header,
+body[data-store="kosykin"]:has(.kosy-home-hero) .site-header {
+  border-radius: var(--kosy-header-radius);
+}
+body[data-store="kosykin"] .site-header .brand,
+body[data-store="kosykin"] .site-header.compact-header .brand {
+  top: calc(-12px * (1 - var(--kosy-scroll)));
+  padding-top: 0;
+  padding-bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+body[data-store="kosykin"] .site-header .brand::before {
+  /* Rounded inset tab; no projecting shoulders at the centre of the bar. */
+  background: #fff;
+  border-radius: 0 0 28px 28px;
+  inset: 0 10%;
+}
+body[data-store="kosykin"] .kosy-footer-support {
+  width: calc(100% - 2 * var(--kosy-frame-gutter));
+  max-width: 1340px;
+  margin: 64px auto 0;
+  padding: 52px 46px;
+  background: var(--support-background, #f9f3e9);
+  color: var(--support-text, #243247);
+  border-radius: var(--kosy-header-radius) var(--kosy-header-radius) 0 0;
+}
+body[data-store="kosykin"] .kosy-footer-support .kosy-section-heading h2 { margin-top: 0; }
+body[data-store="kosykin"] .kosy-footer-support .kosy-section-heading p { margin-bottom: 0; }
+body[data-store="kosykin"] .site-footer {
+  margin-top: 64px;
+  margin-bottom: 24px;
+  border-radius: var(--kosy-header-radius);
+}
+body[data-store="kosykin"] .kosy-footer-support + .site-footer {
+  margin-top: 0;
+  border-top: 0;
+  border-radius: 0 0 var(--kosy-header-radius) var(--kosy-header-radius);
+}
+body[data-store="kosykin"] .product-layout .product-gallery { top: 110px; }
+@media (max-width: 800px) {
+  /* A single column needs normal document flow, not a floating image panel. */
+  .product-layout .product-gallery {
+    position: static;
+    top: auto;
+    z-index: auto;
+    max-height: none;
+    overflow: visible;
+    background: transparent;
+  }
+  .purchase-panel .purchase-button { position: static; z-index: auto; }
+  body[data-store="kosykin"] .kosy-footer-support { padding: 38px 24px; }
+}
+
+body[data-store="kosykin"] .kosy-footer-support .kosy-section-heading h2 {
+  color: var(--section-headline, #243247);
+  font-family: var(--section-headline-type-family, var(--store-heading-family, inherit));
+  font-size: var(--section-headline-type-size, clamp(1.6rem, 2.7vw, 2.6rem));
+  font-weight: var(--section-headline-type-weight, 850);
+  font-style: var(--section-headline-type-style, normal);
+  line-height: var(--section-headline-type-line-height, 1.15);
+  letter-spacing: var(--section-headline-type-letter-spacing, -.035em);
+}
+body[data-store="kosykin"] .kosy-footer-support .kosy-section-heading p {
+  font-family: var(--section-copy-type-family, var(--store-body-family, inherit));
+  font-size: var(--section-copy-type-size, inherit);
+  font-weight: var(--section-copy-type-weight, 400);
+  font-style: var(--section-copy-type-style, normal);
+  line-height: var(--section-copy-type-line-height, 1.5);
+  letter-spacing: var(--section-copy-type-letter-spacing, normal);
+}
+body[data-store="kosykin"] .kosy-footer-support .kosy-section-action {
+  font-family: var(--section-button-type-family, var(--store-button-family, inherit));
+  font-size: var(--section-button-type-size, inherit);
+  font-weight: var(--section-button-type-weight, 600);
+  font-style: var(--section-button-type-style, normal);
+  line-height: var(--section-button-type-line-height, 1.2);
+  letter-spacing: var(--section-button-type-letter-spacing, normal);
+}

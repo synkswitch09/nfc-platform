@@ -194,6 +194,8 @@ export function ModularPageRenderer({
         .map((section, sectionIndex) => {
           const value = parseLandingContent(section.type, section.content);
           if (!value) return null;
+          // The support panel belongs to the shared footer, once per page.
+          if (value.layoutVariant === "KOSYKIN_SUPPORT") return null;
           if (section.type === "CTA_BANNER" && value.sharedBlockId) return <SharedBannerReference key={renderSectionKey(section, sectionIndex)} groupId={String(value.sharedBlockId)} />;
           const common = readCommon(value, section.name);
           const presentation = sectionPresentation(value);
