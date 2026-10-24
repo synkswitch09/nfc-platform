@@ -20,8 +20,38 @@ it("does not serve staging catalogs and omits variants without usable public ima
 });
 it("respects stock, made-to-order capacity and paused manufacturing", async () => {
   m.products.mockResolvedValue([{ ...product, variants: [{ ...product.variants[0], inventory: 0, trackInventory: false }] }]);
-  expect((await buildMetaCatalog(store))?.csv).toContain('"available for order"');
+  expect((await buildMetaCatalog(store))?.csv).toContain('"in stock"');
   m.pool.mockResolvedValue({ paused: true, weeklyCapacityMinutes: 360, maxBusinessDays: 10 }); expect((await buildMetaCatalog(store))?.csv).toContain('"out of stock"');
+});
+it("uses the product name for every grouped variant and retains colour and variant links", async () => {
+  m.products.mockResolvedValue([{ ...product, variants: [
+    { ...product.variants[0], colour: "Baby Blue" },
+    { ...product.variants[0], id: "variant2", name: "Pink", colour: "Milky Pink" },
+  ] }]);
+  const feed = await buildMetaCatalog(store);
+  expect(feed?.count).toBe(2);
+  for (const id of ["variant1", "variant2"]) {
+    expect(feed?.csv).toContain(`"${id}","product1","Stand, ""cosy"""`);
+    expect(feed?.csv).toContain(`/products/stand?variant=${id}`);
+  }
+  expect(feed?.csv).toContain('"Baby Blue"');
+  expect(feed?.csv).toContain('"Milky Pink"');
+  expect(feed?.csv).not.toContain(" — ");
+});
+it("keeps made-to-order items unavailable when capacity is full or checkout is closed", async () => {
+  m.products.mockResolvedValue([{ ...product, variants: [{ ...product.variants[0], inventory: 0, trackInventory: false }] }]);
+  m.booked.mockResolvedValue({ _sum: { minutes: 720 } });
+  expect((await buildMetaCatalog(store))?.csv).toContain('"out of stock"');
+  m.booked.mockResolvedValue({ _sum: { minutes: 0 } });
+  m.config.mockReturnValue({ appEnv: "production", checkoutEnabled: false });
+  expect((await buildMetaCatalog(store))?.csv).toContain('"out of stock"');
+});
+it("exports permitted backorders as available but does not bypass tracked stock limits", async () => {
+  const variant = { ...product.variants[0], inventory: 0 };
+  m.products.mockResolvedValue([{ ...product, variants: [variant] }]);
+  expect((await buildMetaCatalog(store))?.csv).toContain('"out of stock"');
+  m.products.mockResolvedValue([{ ...product, variants: [{ ...variant, backorderPolicy: "ALLOW" }] }]);
+  expect((await buildMetaCatalog(store))?.csv).toContain('"in stock"');
 });
 it("rejects private, credential-bearing and non-HTTPS images, and neutralises CSV formulas", () => {
   for (const path of ["/api/support/ticket/photos/0", "data:image/png,private", "https://user:pass@example.com/image.jpg", "https://blob.test/image?sig=private", "http://example.com/image.jpg"]) expect(publicCatalogImage(path, store.origin)).toBeNull();
