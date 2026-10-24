@@ -6,6 +6,10 @@ import re
 import subprocess
 import time
 import tempfile
+if __package__:
+    from .checkout_policy import validate_production_checkout
+else:
+    from checkout_policy import validate_production_checkout
 
 
 def az(*args):
@@ -88,8 +92,7 @@ def main():
     if target == "production":
         defaults["EMAIL_WEBHOOK_URL"] = "https://api.resend.com/emails"
         # Never open or close sales as part of configuration cleanup.
-        if values.get("PRODUCTION_CHECKOUT_ENABLED") != "false" or values.get("PRODUCTION_PREVIEW_MODE", "false") != "false":
-            raise RuntimeError("Production launch flags changed; manual reconciliation required")
+        validate_production_checkout(values)
     else:
         if not re.fullmatch(r"https://sandbox\.api\.mailtrap\.io/api/send/[1-9][0-9]*", values.get("EMAIL_WEBHOOK_URL", "")):
             raise RuntimeError("Staging needs its existing Mailtrap inbox URL")
@@ -149,7 +152,7 @@ def main():
         print("Application configuration changes verified")
     required = {"DATABASE_URL", "DATABASE_EXPECTED_NAME", "SESSION_SECRET", "ACTIVATION_PEPPER", "AZURE_STORAGE_CONTAINER_URL", "AZURE_STORAGE_SAS_TOKEN", "CHECKOUT_RECONCILE_SECRET", "SHIPPIT_" + target.upper() + "_API_SECRET", "SHIPPIT_" + target.upper() + "_WEBHOOK_SECRET"}
     required.add("EMAIL_WEBHOOK_SECRET" if target == "staging" else "EMAIL_RESEND_STORES")
-    if target == "staging":
+    if target == "staging" or (target == "production" and values.get("PRODUCTION_CHECKOUT_ENABLED") == "true"):
         required |= {"STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET", "NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY"}
     print("Configuration inventory (no values):")
     for key in sorted(env):

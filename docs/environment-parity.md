@@ -2,7 +2,7 @@
 
 Application code, schema migrations and background order processing are identical on develop, staging and main. Environment values, databases, uploads and provider credentials remain separate. Scheduled Azure jobs use the current immutable application image every five minutes, with 0.25 CPU and 0.5 GiB; they have no database credentials. Each app and its worker share a distinct CHECKOUT_RECONCILE_SECRET within the environment. Deployment verifies its first execution.
 
-Both Azure apps use TRUST_PROXY=true behind their managed ingress. The deployment checks APP_ENV against its target before provisioning. This rollout requires PRODUCTION_CHECKOUT_ENABLED=false, preserving closed production sales. Order notices, refunds and paid-order Shippit preparation continue independently; checkout reconciliation returns checkout_disabled when checkout is closed.
+Both Azure apps use TRUST_PROXY=true behind their managed ingress. The deployment checks APP_ENV against its target before provisioning. Production deployments preserve the operator's explicit PRODUCTION_CHECKOUT_ENABLED value. Closed sales require Stripe credentials to be unset; open sales require live secret/public keys and the webhook signing secret, matching runtime validation. Preview mode remains false. Order notices, refunds and paid-order Shippit preparation continue independently; checkout reconciliation returns checkout_disabled when checkout is closed.
 
 Google Search Console HTML verification is editable per store in Store settings > Search defaults. Paste the content token, not a full HTML tag. Production renders only the current store's token. Staging and development remain noindex and do not render production verification. Verification is read exclusively from the CMS. Deployment migrates old GOOGLE_SITE_VERIFICATION_<STORE_SLUG> values into null CMS fields before removing the environment variables; existing CMS values are never overwritten. DNS-verified Domain properties need no meta tag. Verification does not guarantee indexing.
 
@@ -15,7 +15,7 @@ Expected configuration differences:
 | EMAIL_MODE / EMAIL_PROVIDER | sandbox / mailtrap-sandbox | live / resend |
 | Email credentials | EMAIL_WEBHOOK_SECRET for Mailtrap | EMAIL_RESEND_STORES map in one Azure secret |
 | Stripe keys | test keys and test webhook | absent while checkout closed; live keys required to open sales |
-| PRODUCTION_CHECKOUT_ENABLED | not used to enable staging | false for this rollout |
+| PRODUCTION_CHECKOUT_ENABLED | not used to enable staging | explicit false (closed) or true with valid live Stripe configuration |
 | PRODUCTION_PREVIEW_MODE | false/default | false for official production |
 | Shippit API and webhook credentials | SHIPPIT_STAGING_* | SHIPPIT_PRODUCTION_* |
 | GOOGLE_OAUTH_STORES | separate test projects per brand | separate live projects per brand |
