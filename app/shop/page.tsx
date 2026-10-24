@@ -31,14 +31,19 @@ export default async function ShopPage({ searchParams }: { searchParams: Promise
   const params = await searchParams;
   const query = store.slug === "kosykin" ? { ...params, category: queryList(params.category).map(kosykinCollectionSlug) } : params;
   const money = new Intl.NumberFormat("en-AU", { style: "currency", currency: store.currency });
-  const categories = await db.productCategory.findMany({ where: { storeId: store.id, status: "PUBLISHED", showInShop: true }, orderBy: [{ sortOrder: "asc" }, { name: "asc" }] });
-  const selected = categories.filter(category => categoriesFrom(query).includes(store.slug === "kosykin" ? kosykinCollectionSlug(category.slug) : category.slug));
+  const categories = await db.productCategory.findMany({ where: { storeId: store.id, ...(store.slug === "kosykin" ? {} : { status: "PUBLISHED", showInShop: true }) }, orderBy: [{ sortOrder: "asc" }, { name: "asc" }] });
+  const home = store.slug === "kosykin" ? await db.contentPage.findFirst({ where: { storeId: store.id, kind: "HOME", status: "PUBLISHED" }, select: { sections: { where: { type: { in: ["CTA_BANNER", "FEATURE_BADGES", "HERO"] } }, orderBy: { sortOrder: "asc" }, select: { visible: true, content: true } } } }) : null;
+  const collections = home?.sections.find(section => section.content && typeof section.content === "object" && !Array.isArray(section.content) && section.content.layoutVariant === "KOSYKIN_CIRCLES");
+  const collectionContent = collections?.content as { items?: Parameters<typeof kosykinShopCollections>[1] } | undefined;
+  const tabs = kosykinShopCollections(categories, Array.isArray(collectionContent?.items) ? collectionContent.items : []);
+  const selected = categories.filter(category => categoriesFrom(query).includes(category.slug));
+  const selectedIds = store.slug === "kosykin" ? tabs.filter(tab => categoriesFrom(query).includes(tab.slug)).flatMap(tab => tab.categoryIds) : selected.map(category => category.id);
   const min = query.min && Number.isFinite(Number(query.min)) ? Math.max(0, Number(query.min)) * 100 : 0;
   const max = query.max && Number.isFinite(Number(query.max)) ? Math.max(0, Number(query.max)) * 100 : Infinity;
   const [pool, booked] = await Promise.all([db.productionPool.findUnique({ where: { environment: store.environment } }), db.productionBooking.aggregate({ where: { environment: store.environment, releasedAt: null }, _sum: { minutes: true } })]);
   const available = (variant: { trackInventory: boolean; backorderPolicy: string; inventory: number; reservedInventory: number; productionMinutes: number | null }) => canAcceptVariant(variant, pool, booked._sum.minutes ?? 0);
   const products = await db.product.findMany({
-    where: { storeId: store.id, status: "ACTIVE", shopVisible: true, category: { storeId: store.id, status: "PUBLISHED" }, ...(categoriesFrom(query).length ? { categoryId: { in: selected.map(category => category.id) } } : {}) },
+    where: { storeId: store.id, status: "ACTIVE", shopVisible: true, category: { storeId: store.id, status: "PUBLISHED" }, ...(categoriesFrom(query).length ? { categoryId: { in: selectedIds } } : {}) },
     include: { _count: { select: { options: true } }, category: true, images: { orderBy: [{ isPrimary: "desc" }, { sortOrder: "asc" }] }, variants: { where: { active: true }, orderBy: { priceCents: "asc" } }, options: { where: { type: "COLOUR" }, include: { values: { where: { active: true }, orderBy: { sortOrder: "asc" } } }, take: 1 } },
     orderBy: [{ featured: "desc" }, { createdAt: "desc" }],
   });
@@ -49,11 +54,7 @@ export default async function ShopPage({ searchParams }: { searchParams: Promise
     return cheapest !== undefined && cheapest >= min && cheapest <= max && (query.availability !== "available" || canBuy);
   }).sort((a, b) => query.sort === "price-asc" ? a.variants[0].priceCents - b.variants[0].priceCents : query.sort === "price-desc" ? b.variants[0].priceCents - a.variants[0].priceCents : query.sort === "new" ? b.createdAt.getTime() - a.createdAt.getTime() : Number(b.featured) - Number(a.featured));
   if (store.slug === "kosykin") {
-    const home = await db.contentPage.findFirst({ where: { storeId: store.id, kind: "HOME", status: "PUBLISHED" }, select: { sections: { where: { visible: true, type: { in: ["CTA_BANNER", "FEATURE_BADGES", "HERO"] } }, orderBy: { sortOrder: "asc" }, select: { visible: true, content: true } } } });
     const promotion = home?.sections.find(section => section.content && typeof section.content === "object" && !Array.isArray(section.content) && section.content.layoutVariant === "KOSYKIN_PROMOTIONS") ?? null;
-    const collections = home?.sections.find(section => section.content && typeof section.content === "object" && !Array.isArray(section.content) && section.content.layoutVariant === "KOSYKIN_CIRCLES");
-    const collectionContent = collections?.content as { items?: { title?: string; categorySlug?: string; description?: string; visible?: boolean }[] } | undefined;
-    const tabs = kosykinShopCollections(Array.isArray(collectionContent?.items) ? collectionContent.items : []);
     const support = home?.sections.find(section => section.content && typeof section.content === "object" && !Array.isArray(section.content) && section.content.layoutVariant === "KOSYKIN_SUPPORT") ?? null;
     const trust = home?.sections.find(section => section.content && typeof section.content === "object" && !Array.isArray(section.content) && section.content.layoutVariant === "KOSYKIN_WAVY")?.content as Record<string, unknown> | undefined;
     const settings = await getStoreSettings(store);

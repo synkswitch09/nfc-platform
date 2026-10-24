@@ -11,7 +11,7 @@ import { ShopAddButton } from '@/components/shop-add-button';
 import { queryList, shopCategoryStyle, type ShopQuery } from '@/lib/kosykin-shop';
 import type { CSSProperties } from 'react';
 type Product = Prisma.ProductGetPayload<{ include: { images: true; variants: true; options: { include: { values: true } } } }>;
-type Category = { id: string; slug: string; name: string; shortDescription: string | null };
+type Category = { id: string; slug: string; name: string; shortDescription: string | null; highlightColour?: string };
 type Promotion = { content: Prisma.JsonValue; visible: boolean } | null;
 export function KosykinShop({ products, filterProducts, categories, query, promotion, support, trust, socials, currency, available, checkoutEnabled }: {
   products: (Product & { _count: { options: number }; sourceVariantCount: number })[]; filterProducts: Product[]; categories: Category[]; query: ShopQuery; promotion: Promotion; support: Promotion; trust?: Record<string, unknown>; socials: { links: Record<string, string>; icons: FooterConfig["socialIcons"] }; currency: string; checkoutEnabled: boolean; available: (variant: Product['variants'][number]) => boolean;

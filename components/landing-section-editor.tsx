@@ -1348,7 +1348,7 @@ function ItemsEditor({
               <option value="">Choose category</option>
               {collectionCategories.map((category) => <option key={category.slug} value={category.slug}>{category.name}</option>)}
             </select>
-            <small>Visitors see this category selected in Shop. Hidden categories will not appear in Shop.</small>
+            <small>Shared Home and Shop collection settings. Categories must be Published with Shop enabled; Home also requires Home enabled in Categories. A hidden collection card hides it from both surfaces. Category order follows Categories.</small>
           </label>}
           <label className="field">
             Icon
@@ -1416,7 +1416,7 @@ function ItemsEditor({
             onChange={(textColour) => update(index, { textColour })}
           />
           <ColourField
-            label="Icon background override"
+            label={collectionCategories ? "Category highlight colour (Home and Shop)" : "Icon background override"}
             value={item.iconBackgroundColour ?? ""}
             onChange={(iconBackgroundColour) =>
               update(index, { iconBackgroundColour })
