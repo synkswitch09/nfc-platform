@@ -11,17 +11,23 @@ export const shopCategoryStyles = [
 export function kosykinCollectionSlug(slug: string) {
   return ['personalised-3d-prints', 'personalized-3d-prints', 'tags'].includes(slug) ? 'personalised-pieces' : slug;
 }
-type CollectionItem = { title?: string; categorySlug?: string; description?: string; visible?: boolean };
-export function kosykinShopCollections(items: CollectionItem[] = []) {
-  return shopCategoryStyles.flatMap(style => {
-    const item = items.find(item => item.categorySlug === style.slug);
-    if (item?.visible === false) return [];
-    return [{ id: `collection-${style.slug}`, slug: style.slug, name: item?.title || style.name, shortDescription: item?.description || style.description }];
+type CollectionItem = { title?: string; categorySlug?: string; description?: string; visible?: boolean; iconBackgroundColour?: string; imageUrl?: string; icon?: string };
+export type KosykinCollectionCategory = { id: string; slug: string; name: string; shortDescription?: string | null; status?: string; showOnHomepage?: boolean; showInShop?: boolean; cardTitle?: string | null; cardText?: string | null; cardImageUrl?: string | null; icon?: string | null };
+export function kosykinShopCollections(categories: KosykinCollectionCategory[], items: CollectionItem[] = [], surface: 'home' | 'shop' = 'shop') {
+  const slugs = [...new Set(categories.map(category => kosykinCollectionSlug(category.slug)))];
+  return slugs.flatMap(slug => {
+    const members = categories.filter(category => kosykinCollectionSlug(category.slug) === slug);
+    const category = members.find(category => category.slug === slug) ?? members.find(category => (!category.status || category.status === 'PUBLISHED') && category.showInShop !== false && (surface !== 'home' || category.showOnHomepage !== false)) ?? members[0];
+    const style = shopCategoryStyles.find(style => style.slug === slug);
+    const item = items.find(item => item.categorySlug === slug) ?? items.find(item => item.categorySlug && kosykinCollectionSlug(item.categorySlug) === slug) ?? items.find(item => item.title?.toLowerCase() === category.name.toLowerCase());
+    if ((category.status && category.status !== 'PUBLISHED') || category.showInShop === false || (surface === 'home' && category.showOnHomepage === false) || item?.visible === false) return [];
+    const highlightColour = /^#[\da-f]{6}$/i.test(item?.iconBackgroundColour ?? '') ? item!.iconBackgroundColour! : style?.colour ?? '#243247';
+    return [{ id: category.id, slug, name: item?.title || (category.slug === slug ? category.cardTitle || category.name : style?.name || category.name), shortDescription: item?.description || category.cardText || category.shortDescription || style?.description || null, highlightColour, imageUrl: item?.imageUrl || category.cardImageUrl || '', icon: item?.icon || category.icon || 'shapes', categoryIds: members.filter(member => !member.status || member.status === 'PUBLISHED').map(member => member.id) }];
   });
 }
-export function shopCategoryStyle(category: { slug: string; name: string; shortDescription?: string | null }) {
+export function shopCategoryStyle(category: { slug: string; name: string; shortDescription?: string | null; highlightColour?: string }) {
   const style = shopCategoryStyles.find(item => item.slug === category.slug || item.name.toLowerCase() === category.name.toLowerCase());
-  return { colour: style?.colour ?? '#243247', description: category.shortDescription || style?.description || 'Find your kind of Kosy' };
+  return { colour: category.highlightColour || style?.colour || '#243247', description: category.shortDescription || style?.description || 'Find your kind of Kosy' };
 }
 const price = (input: string | undefined) => typeof input === 'string' && input.trim() && Number.isFinite(Number(input)) ? Math.round(Math.max(0, Number(input)) * 100) : undefined;
 export function shopPriceRange(query: ShopQuery) {

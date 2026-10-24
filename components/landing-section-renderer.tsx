@@ -1,4 +1,5 @@
 import { KosykinHomeSection } from "@/components/kosykin-home-section";
+import { kosykinShopCollections, type KosykinCollectionCategory } from "@/lib/kosykin-shop";
 import type { CSSProperties, ReactNode } from "react";
 import Image from "next/image";
 import Link from "next/link";
@@ -84,7 +85,7 @@ type RenderProduct = {
   variants: Array<{ priceCents: number }>;
   options?: Array<{ values: Array<{ id: string; label: string; value: string; swatchHex: string | null }> }>;
 };
-type RenderCategory = {
+type RenderCategory = KosykinCollectionCategory & {
   id: string;
   slug: string;
   name: string;
@@ -101,6 +102,7 @@ type ModularPageProps = {
   sections: RenderSection[];
   products: RenderProduct[];
   categories: RenderCategory[];
+  kosykinCollectionCategories?: RenderCategory[];
   store: { displayName: string; currency: string; nfcEnabled: boolean };
   kosykinSocials?: { links: Record<string, string>; icons: FooterConfig["socialIcons"] };
   shopHref?: string;
@@ -144,6 +146,7 @@ export function ModularPageRenderer({
   sections,
   products,
   categories,
+  kosykinCollectionCategories,
   store,
   kosykinSocials,
   shopHref = "/shop",
@@ -414,12 +417,12 @@ export function ModularPageRenderer({
               <section key={renderSectionKey(section, sectionIndex)} className="kosy-collections" {...presentation} id={text(value.anchorId) || "kosy-collections"}>
                 <Heading eyebrow={common.eyebrow} headline={common.headline} copy={common.copy} />
                 <div className="kosy-collection-grid">
-                  {items.filter((item) => !item.categorySlug || Boolean(kosyCategoryFor(item, categories))).map((item, index) => <Link key={collectionKey("kosy-category", item, index)} href={kosyCollectionHref(item, categories, shopHref)} className="kosy-collection-card">
-                    <span className="kosy-collection-orb" style={{ backgroundColor: colour(item.iconBackgroundColour) || "#dce5e9" }}>
+                  {kosykinShopCollections(kosykinCollectionCategories ?? categories, Array.isArray(value.items) ? value.items as Item[] : [], 'home').map(item => <Link key={item.id} href={`/shop?category=${encodeURIComponent(item.slug)}`} className="kosy-collection-card">
+                    <span className="kosy-collection-orb" style={{ backgroundColor: item.highlightColour }}>
                       {item.imageUrl ? <Image src={item.imageUrl} alt="" width={190} height={190} unoptimized /> : <CategoryIcon name={item.icon} size={64} />}
                     </span>
-                    <strong>{item.title}</strong>
-                    {item.description && <span>{item.description}</span>}
+                    <strong>{item.name}</strong>
+                    {item.shortDescription && <span>{item.shortDescription}</span>}
                   </Link>)}
                 </div>
               </section>
@@ -906,18 +909,6 @@ function PagePlaceholder({
 
 function breadcrumbKey(item: { label: string; href?: string }, index: number) {
   return `breadcrumb:${item.href || item.label}:${index}`;
-}
-
-function kosyCollectionHref(item: Item, categories: RenderCategory[], shopHref: string) {
-  const category = kosyCategoryFor(item, categories);
-  if (category) return `/shop?category=${encodeURIComponent(category.slug)}`;
-  if (item.ctaHref && item.ctaHref !== "/shop") return item.ctaHref;
-  return shopHref;
-}
-
-function kosyCategoryFor(item: Item, categories: RenderCategory[]) {
-  return categories.find((candidate) => candidate.slug === item.categorySlug) ??
-    categories.find((candidate) => candidate.name.toLocaleLowerCase() === item.title?.toLocaleLowerCase());
 }
 
 function renderSectionKey(section: RenderSection, index: number) {
