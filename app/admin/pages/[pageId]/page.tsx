@@ -16,6 +16,7 @@ import { PageTranslationEditor } from "@/components/page-translation-editor";
 import { StoreCapability, CategoryStatus, LandingSectionType } from "@prisma/client";
 import { allCategoryFaq } from "@/lib/category-content";
 import { modularFaq } from "@/lib/landing-sections";
+import { kosykinCollectionSlug, shopCategoryStyles } from "@/lib/kosykin-shop";
 
 export default async function EditContentPage({
   params,
@@ -38,7 +39,8 @@ export default async function EditContentPage({
   });
   if (!page) notFound();
   const isFaqPage = page.slug === "faq";
-  const collectionCategories = page.kind === "HOME" && store.slug === "kosykin" ? await db.productCategory.findMany({ where: { storeId: store.id }, select: { name: true, slug: true }, orderBy: [{ sortOrder: "asc" }, { name: "asc" }] }) : [];
+  const categoryOptions = page.kind === "HOME" && store.slug === "kosykin" ? await db.productCategory.findMany({ where: { storeId: store.id }, select: { name: true, slug: true }, orderBy: [{ sortOrder: "asc" }, { name: "asc" }] }) : [];
+  const collectionCategories = [...new Set(categoryOptions.map(category => kosykinCollectionSlug(category.slug)))].map(slug => ({ slug, name: categoryOptions.find(category => category.slug === slug)?.name || shopCategoryStyles.find(style => style.slug === slug)?.name || categoryOptions.find(category => kosykinCollectionSlug(category.slug) === slug)!.name }));
   const fromStorefront =
     (await searchParams).from === "storefront" || page.kind === "HOME";
   const initial: ContentPageEditorInitial = {

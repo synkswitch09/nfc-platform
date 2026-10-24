@@ -16,18 +16,17 @@ export default async function Home() {
   if (store.status !== StoreStatus.ACTIVE)
     return <StoreUnavailable store={store} />;
   const locale = await getRequestLocale(store);
-  const [settings, categories, modularHome, products] = await Promise.all([
+  const [settings, categoryCatalog, modularHome, products] = await Promise.all([
     getStoreSettings(store),
     process.env.DATABASE_URL
       ? db.productCategory
           .findMany({
             where: {
               storeId: store.id,
-              status: "PUBLISHED",
-              showOnHomepage: true,
+              ...(store.slug === "kosykin" ? {} : { status: "PUBLISHED", showOnHomepage: true }),
             },
             orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
-            take: 8,
+            ...(store.slug === "kosykin" ? {} : { take: 8 }),
           })
           .catch(() => [])
       : [],
@@ -65,6 +64,7 @@ export default async function Home() {
           .catch(() => [])
       : [],
   ]);
+  const categories = categoryCatalog.filter(category => category.status === 'PUBLISHED' && category.showOnHomepage);
   const origin = store.origin;
   const nfcEnabled = hasStoreCapability(store, StoreCapability.NFC);
   const story = nfcEnabled
@@ -153,6 +153,7 @@ export default async function Home() {
           sections={localizedHome.sections}
           products={products}
           categories={categories}
+          kosykinCollectionCategories={store.slug === 'kosykin' ? categoryCatalog : undefined}
           store={{
             displayName: store.displayName,
             currency: store.currency,

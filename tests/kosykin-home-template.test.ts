@@ -7,6 +7,21 @@ import { ModularPageRenderer } from "@/components/landing-section-renderer";
 import type { Prisma } from "@prisma/client";
 
 describe("Kosykin Home design", () => {
+  it("renders CMS-enabled categories with the shared highlight colour and hides disabled categories", () => {
+    const section = validateLandingSections(kosykinHomeTemplate())[1];
+    const base = { shortDescription: null, cardTitle: null, cardText: null, cardImageUrl: null, cardImageAlt: null, icon: null, status: 'PUBLISHED', showInShop: true, showOnHomepage: true };
+    const html = renderToStaticMarkup(createElement(ModularPageRenderer, {
+      name: 'Home', sections: [{ id: 'collections', type: section.type, name: section.name, visible: true, content: { ...section.content, items: [{ id: '11111111-1111-4111-8111-111111111111', categorySlug: 'personalised-pieces', title: 'Custom collection', iconBackgroundColour: '#123abc' }] } as Prisma.JsonValue }], products: [],
+      categories: [{ ...base, id: 'legacy', slug: 'personalised-3d-prints', name: 'Personalised 3D prints' }, { ...base, id: 'hidden', slug: 'stands-holders', name: 'Hidden stands', showOnHomepage: false }, { ...base, id: 'new', slug: 'new-pieces', name: 'New pieces' }],
+      store: { displayName: 'Kosykin', currency: 'AUD', nfcEnabled: false },
+    }));
+    expect(html).toContain('/shop?category=personalised-pieces');
+    expect(html).toContain('background-color:#123abc');
+    expect(html).toContain('Custom collection');
+    expect(html).toContain('New pieces');
+    expect(html).not.toContain('Hidden stands');
+    expect(html).not.toContain('Planters &amp; Vases');
+  });
   it("provides the editable home with launch promotion and clearly labelled example reviews", () => {
     const sections = validateLandingSections(kosykinHomeTemplate());
     expect(sections.map((section) => section.type)).toEqual(["HERO", "FEATURE_BADGES", "PRODUCT_SHOWCASE", "CTA_BANNER", "FEATURE_LIST", "MEDIA_CONTENT", "FEATURE_BADGES", "FAQ", "CTA_BANNER"]);
