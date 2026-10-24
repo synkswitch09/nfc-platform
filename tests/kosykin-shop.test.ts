@@ -1,5 +1,21 @@
 import { describe, it, expect } from 'vitest';
-import { shopPriceRange, shopVariantMatches, shopProductVariants, queryList } from '@/lib/kosykin-shop';
+import { kosykinCollectionSlug, kosykinShopCollections, shopPriceRange, shopVariantMatches, shopProductVariants, queryList } from '@/lib/kosykin-shop';
+describe('Kosykin design collections', () => {
+ it('shows only the five design collections despite legacy CMS groups', () => {
+  const collections = kosykinShopCollections([{ categorySlug: 'tags', title: 'Tags' }, { categorySlug: 'personalised-3d-prints', title: 'Personalised 3D prints' }]);
+  expect(collections.map(item => item.slug)).toEqual(['stands-holders', 'planters-vases', 'home-lighting', 'personalised-pieces', 'seasonal-specials']);
+ });
+ it('includes legacy personalised and tag products in Personalised Pieces', () => {
+  const categories = ['personalised-pieces', 'personalised-3d-prints', 'tags', 'stands-holders'];
+  expect(categories.filter(slug => kosykinCollectionSlug(slug) === 'personalised-pieces')).toEqual(categories.slice(0, 3));
+  expect(kosykinCollectionSlug('personalized-3d-prints')).toBe('personalised-pieces');
+ });
+ it('preserves authored collection copy and visibility', () => {
+  const collections = kosykinShopCollections([{ categorySlug: 'stands-holders', visible: false }, { categorySlug: 'personalised-pieces', title: 'Personalised Pieces', description: 'Your own touch' }]);
+  expect(collections).toHaveLength(4);
+  expect(collections.find(item => item.slug === 'personalised-pieces')?.shortDescription).toBe('Your own touch');
+ });
+});
 describe('Shop variant filters', () => {
  it('combines price, colour and sale on the same variant', () => {
   const query = { min: '20', max: '40', colour: ['blue'], sale: '1' };

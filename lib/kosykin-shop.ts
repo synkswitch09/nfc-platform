@@ -7,6 +7,18 @@ export const shopCategoryStyles = [
   { slug: 'personalised-pieces', name: 'Personalised Pieces', description: 'Made with your personal twist', colour: '#d4a6a9' },
   { slug: 'seasonal-specials', name: 'Seasonal Specials', description: 'A little Kosy for every occasion', colour: '#a9c2cc' },
 ];
+/** Legacy catalogue groups belong to the single personalised collection. */
+export function kosykinCollectionSlug(slug: string) {
+  return ['personalised-3d-prints', 'personalized-3d-prints', 'tags'].includes(slug) ? 'personalised-pieces' : slug;
+}
+type CollectionItem = { title?: string; categorySlug?: string; description?: string; visible?: boolean };
+export function kosykinShopCollections(items: CollectionItem[] = []) {
+  return shopCategoryStyles.flatMap(style => {
+    const item = items.find(item => item.categorySlug === style.slug);
+    if (item?.visible === false) return [];
+    return [{ id: `collection-${style.slug}`, slug: style.slug, name: item?.title || style.name, shortDescription: item?.description || style.description }];
+  });
+}
 export function shopCategoryStyle(category: { slug: string; name: string; shortDescription?: string | null }) {
   const style = shopCategoryStyles.find(item => item.slug === category.slug || item.name.toLowerCase() === category.name.toLowerCase());
   return { colour: style?.colour ?? '#243247', description: category.shortDescription || style?.description || 'Find your kind of Kosy' };
