@@ -39,6 +39,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       if (parsed.data.status === "READY_TO_SHIP") {
         const items = await tx.orderItem.findMany({ where: { orderId, order: { storeId: store.id } }, include: { manufacturingJobs: { select: { status: true, quantity: true, requiresNfc: true } }, tags: { select: { storeId: true, manufacturingStatus: true, status: true } } } });
         const issues = preparationIssues(items, store.id);
+        if (await tx.orderGift.count({ where: { orderId, packedAt: null } })) issues.push("Complimentary gifts must be packed");
         if (issues.length && !parsed.data.overridePreparation) throw new Error(`PREPARATION:${issues.join("; ")}`);
         if (issues.length) await tx.auditLog.create({ data: { actorId: user.id, storeId: store.id, action: "ORDER_PREPARATION_OVERRIDE", entityType: "Order", entityId: orderId, metadata: { reason: parsed.data.note, issues } } });
       }

@@ -91,7 +91,7 @@ export function SiteFooter({
         <Link href={localizedPath("/", locale, defaultLocale)} aria-label={`${storeName} ${copy.home}`}>
           {logoUrl ? (
             <Image
-              className="brand-logo"
+              className={config.logoTreatment === "CREAM" ? "brand-logo cream-logo" : "brand-logo"}
               src={logoUrl}
               alt={storeName}
               width={168}

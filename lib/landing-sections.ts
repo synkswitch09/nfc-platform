@@ -208,6 +208,7 @@ const featureSchema = z.object({
   order,
 });
 const baseCopy = {
+  sharedBlockId: z.string().uuid().or(z.literal("")).default(""),
   hideBreadcrumbs: z.boolean().default(false),
   eyebrow: z.string().trim().max(100).default(""),
   eyebrowColour: colour,
@@ -270,12 +271,14 @@ const narrativeSchema = z.object({
   contentPosition: z.enum(["LEFT", "CENTRE", "RIGHT"]).default("LEFT"),
 });
 const itemSchema = z.object({
+  titleFont: z.enum(["INTER", "BEBAS_NEUE", "CAVEAT"]).optional(),
+  copyFont: z.enum(["INTER", "BEBAS_NEUE", "CAVEAT"]).optional(),
   id: contentItemId,
   icon: z.string().trim().max(40).default("sparkles"),
   iconUrl: imageUrl,
   title: z.string().trim().min(1).max(120),
-  description: z.string().trim().max(700).default(""),
-  supportingText: z.string().trim().max(200).default(""),
+  description: z.string().trim().max(2000).default(""),
+  supportingText: z.string().trim().max(400).default(""),
   imageUrl,
   imageAlt: z.string().trim().max(180).default(""),
   ctaLabel: z.string().trim().max(60).default(""),
@@ -317,7 +320,7 @@ const gridSchema = z.object({
   featuredOnly: z.boolean().default(false),
 });
 
-const bannerSchema = narrativeSchema.extend({ items: z.array(itemSchema).max(8).default([]) });
+const bannerSchema = narrativeSchema.extend({ items: z.array(itemSchema).max(20).default([]) });
 
 const contentSchemas: Record<LandingSectionType, z.ZodTypeAny> = {
   HERO: narrativeSchema,

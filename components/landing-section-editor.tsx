@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { SharedBlockPicker } from "@/components/shared-block-picker";
 import {
   ChevronDown,
   ChevronUp,
@@ -494,6 +495,7 @@ export function LandingSectionEditor({
                 />
               </>
             )}
+            {section.type === "CTA_BANNER" && <SharedBlockPicker value={String(section.content.sharedBlockId || "")} onChange={sharedBlockId => content(index, { sharedBlockId })} />}
             {(itemTypes.has(section.type) || (section.type === "CTA_BANNER" && section.content.layoutVariant === "KOSYKIN_PROMOTIONS")) && (
               <ItemsEditor
                 collectionCategories={kosykinHome && section.type === "FEATURE_BADGES" && section.content.layoutVariant === "KOSYKIN_CIRCLES" ? collectionCategories : undefined}
@@ -925,6 +927,8 @@ function TypographyControls({
           }
         />
       </label>
+      <label className="field">Line height<input type="number" min="0.8" max="3" step="0.05" value={value.lineHeight ?? ""} placeholder="Inherit" onChange={e => onChange({ ...value, lineHeight: e.target.value ? Number(e.target.value) : undefined })} /></label>
+      <label className="field">Letter spacing (em)<input type="number" min="-0.2" max="0.5" step="0.005" value={value.letterSpacingEm ?? ""} placeholder="Inherit" onChange={e => onChange({ ...value, letterSpacingEm: e.target.value ? Number(e.target.value) : undefined })} /></label>
     </div>
   );
 }

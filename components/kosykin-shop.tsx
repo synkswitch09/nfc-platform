@@ -7,6 +7,8 @@ import { ShoppingBag } from 'lucide-react';
 import type { Prisma } from '@prisma/client';
 import { FavouriteButton } from '@/components/favourite-button';
 import { KosykinHomeSection } from '@/components/kosykin-home-section';
+import { SharedBanners } from '@/components/shared-banners';
+import type { BannerGroup } from '@/lib/store-experience';
 import { KosykinShopFilters } from '@/components/kosykin-shop-filters';
 import { ShopAddButton } from '@/components/shop-add-button';
 import { queryList, shopCategoryStyle, type ShopQuery } from '@/lib/kosykin-shop';
@@ -14,7 +16,8 @@ import type { CSSProperties } from 'react';
 type Product = Prisma.ProductGetPayload<{ include: { images: true; variants: true; options: { include: { values: true } } } }>;
 type Category = { id: string; slug: string; name: string; shortDescription: string | null; highlightColour?: string };
 type Promotion = { content: Prisma.JsonValue; visible: boolean } | null;
-export function KosykinShop({ products, filterProducts, categories, query, promotion, support, trust, socials, currency, available, checkoutEnabled }: {
+export function KosykinShop({ products, filterProducts, categories, query, promotion, support, trust, socials, currency, available, checkoutEnabled, bannerGroups = [] }: {
+  bannerGroups?: BannerGroup[];
   products: (Product & { _count: { options: number }; sourceVariantCount: number })[]; filterProducts: Product[]; categories: Category[]; query: ShopQuery; promotion: Promotion; support: Promotion; trust?: Record<string, unknown>; socials: { links: Record<string, string>; icons: FooterConfig["socialIcons"] }; currency: string; checkoutEnabled: boolean; available: (variant: Product['variants'][number]) => boolean;
 }) {
   const selected = categories.filter(category => queryList(query.category).includes(category.slug));
@@ -26,8 +29,10 @@ export function KosykinShop({ products, filterProducts, categories, query, promo
   const activeFilters = Boolean(query.min || query.max || query.colour || query.sale || query.availability || (query.sort && query.sort !== 'featured'));
   const features = (Array.isArray(trust?.features) ? trust.features as { id?: string; label?: string; supportingText?: string; icon?: string; iconUrl?: string; visible?: boolean }[] : []).filter(feature => feature.visible !== false);
   return <div className="kosy-shop">
+    <SharedBanners groups={bannerGroups} position="TOP" />
     {promotion?.visible && promotion.content && typeof promotion.content === 'object' && !Array.isArray(promotion.content) && <section className="kosy-shop-promotions"><KosykinHomeSection type="CTA_BANNER" value={promotion.content as Record<string, unknown>} products={[]} currency={currency} /></section>}
     <section className="kosy-shop-intro"><h1>Make room for something Kosy.</h1><nav className="kosy-shop-categories" aria-label="Shop categories"><Link href="/shop" aria-current={!queryList(query.category).length ? 'page' : undefined} style={{ '--category-colour': '#243247' } as CSSProperties}>All Pieces</Link>{categories.map(category => <Link key={category.id} href={`/shop?${new URLSearchParams({ category: category.slug })}`} aria-current={selected.some(item => item.id === category.id) ? 'page' : undefined} style={{ '--category-colour': shopCategoryStyle(category).colour } as CSSProperties}>{category.name}</Link>)}</nav></section>
+    <SharedBanners groups={bannerGroups} position="BEFORE_PRODUCTS" />
     <section className="kosy-shop-results" aria-labelledby="kosy-shop-results-title"><div className="kosy-shop-toolbar"><div><h2 id="kosy-shop-results-title">{label}</h2><p>{description}</p></div><KosykinShopFilters key={JSON.stringify(query)} query={query} colours={colours} priceCeiling={priceCeiling} currency={currency} /></div>
       {activeFilters && <p className="kosy-filter-summary" role="status">{products.length} {products.length === 1 ? 'piece' : 'pieces'} found with your filters. <Link href={selected.length ? `/shop?${new URLSearchParams(selected.map(category => ['category', category.slug]))}` : '/shop'}>Clear filters</Link></p>}
       <div className="kosy-shop-grid">{products.map(product => {
@@ -46,7 +51,9 @@ export function KosykinShop({ products, filterProducts, categories, query, promo
       })}</div>
       {!products.length && <div className="kosy-shop-empty"><ShoppingBag size={32} /><h3>No pieces found</h3><p>Try another category or reset your filters to find your kind of Kosy.</p><Link className="kosy-section-action" href="/shop">See all pieces</Link></div>}
     </section>
+    <SharedBanners groups={bannerGroups} position="AFTER_PRODUCTS" />
     {features.length > 0 && <div className="kosy-trust-row kosy-shop-trust">{features.map((feature,index) => <div key={feature.id || index}><span className="kosy-trust-icon"><StorefrontIcon name={feature.icon === 'shield-check' ? 'secureCheckout' : feature.icon === 'package' ? 'shipping' : 'madeToOrder'} imageUrl={feature.iconUrl} size={28} fallback={<CategoryIcon name={feature.icon} size={28} />} /></span><span><strong>{feature.label}</strong><small>{feature.supportingText}</small></span></div>)}</div>}
     {support?.visible && support.content && typeof support.content === 'object' && !Array.isArray(support.content) && <section className="kosy-shop-support kosy-home-section" data-variant="kosykin-support"><KosykinHomeSection type="CTA_BANNER" value={support.content as Record<string, unknown>} products={[]} currency={currency} socials={socials} /></section>}
+    <SharedBanners groups={bannerGroups} position="BOTTOM" />
   </div>;
 }

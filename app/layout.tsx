@@ -3,7 +3,7 @@ import { StorefrontIconsProvider } from "@/components/storefront-icon";
 import { StoreMeasurement } from "@/components/store-measurement";
 import { measurementAvailability } from "@/lib/measurement";
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Inter, Bebas_Neue, Caveat } from "next/font/google";
 import { getCurrentUser } from "@/lib/auth";
 import { CartProvider } from "@/components/cart-provider";
 import { SiteHeader } from "@/components/site-header";
@@ -37,6 +37,8 @@ const inter = Inter({
   variable: "--font-inter",
   display: "swap",
 });
+const bebas = Bebas_Neue({ subsets: ["latin"], weight: "400", variable: "--font-bebas", display: "swap" });
+const caveat = Caveat({ subsets: ["latin"], weight: ["400", "700"], variable: "--font-caveat", display: "swap" });
 
 export async function generateMetadata(): Promise<Metadata> {
   const store = await getCurrentStorefront();
@@ -162,7 +164,7 @@ export default async function RootLayout({
   return (
     <html lang={locale}>
       <body
-        className={inter.variable}
+        className={`${inter.variable} ${bebas.variable} ${caveat.variable}`}
         data-clarity-mask="true"
         data-store={store.slug}
         data-theme-style={store.theme.fontStyle}

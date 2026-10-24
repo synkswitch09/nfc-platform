@@ -4,6 +4,7 @@ import Link from "next/link";
 import { notFound, permanentRedirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { ProductPurchase } from "@/components/product-purchase";
+import { ProductReviews } from "@/components/product-reviews";
 import { CommerceAnalyticsEvent } from "@/components/commerce-analytics";
 import { getRuntimeConfig, searchEnginePolicy } from "@/lib/config";
 import { getCurrentStorefront, hasStoreCapability } from "@/lib/storefront";
@@ -82,5 +83,6 @@ export default async function ProductPage({ params, searchParams }: { params: Pr
       <ProductPurchase productId={product.id} initialColour={initialColour} initialVariantId={initialVariantId} checkoutEnabled={checkoutEnabled} productName={product.name} productSlug={product.slug} storeSlug={store.slug} description={product.shortDescription ?? product.description} categoryName={product.category?.name ?? null} storeName={store.displayName} currency={store.currency} connected={connected} personalisationMode={product.personalisationMode} variants={product.variants.map(variant => ({ id: variant.id, name: variant.name, priceCents: variant.priceCents, inventory: variant.inventory, reservedInventory: variant.reservedInventory, trackInventory: variant.trackInventory, backorderPolicy: variant.backorderPolicy, isDefault: variant.isDefault, optionSelection: variant.optionSelection as Record<string, string>, imageId: variant.imageId, modelUrl: variant.modelStorageKey && product.slug !== KEYCHAIN_SLUG ? `/api/media/${variant.modelStorageKey}` : null, canOrder: canAcceptVariant(variant, pool, booked?._sum.minutes ?? 0) }))} options={product.options} images={product.images.map(image => ({ id: image.id, url: image.url, altText: image.altText, isPrimary: image.isPrimary, optionValueId: image.optionValueId, variantId: image.variantId }))} videos={product.videos.map(video => ({ id: video.id, variantId: video.variantId, url: `/api/media/${video.storageKey}`, caption: video.caption }))} />
       <div className="product-story"><div><p className="eyebrow">How it works</p><h2>{connected ? "One physical product. A profile you control." : "Thoughtfully designed. Made for your space."}</h2></div><div><p>{product.fullDescription ?? product.description}</p>{connected && <p>The NFC chip and printed QR code open the same secure {store.displayName} address. Your personal details live in your account, so you can update or disable them without replacing the product.</p>}</div></div>
     </section>
+    <ProductReviews store={store} productId={product.id} />
   </>;
 }
