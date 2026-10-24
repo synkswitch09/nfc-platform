@@ -86,6 +86,20 @@ font or pixel measurements were verified**. The incomplete Zeplin extraction is
 still a limit on an exact site-wide design-parity claim. Uploaded banner artwork
 can preserve the final designer-approved composition exactly.
 
+## Shared support/footer placement
+
+The first published Home CTA with `KOSYKIN_SUPPORT` is the single support source
+for every Kosykin route. Edit its text, image, CTA, colours and typography in the
+existing Home section editor. Its visibility switch hides it everywhere. The
+root layout places it directly against the shared footer, with rounded outer
+corners and a straight joined seam. Home and Shop do not render extra copies.
+No separate per-page support blocks or migration are required.
+
+Mobile product images and the purchase button follow the document flow so that
+variant/personalisation controls never scroll behind a floating gallery. Desktop
+images remain sticky below the header. Product cards use “Add to cart”; products
+requiring options still open their product page before adding anything.
+
 ## Validation and deployment
 
 Unit tests cover gift boundaries/idempotency, campaign visibility, real/example
