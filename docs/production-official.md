@@ -20,4 +20,10 @@ Do not run the development seed in production. Keep the production GitHub enviro
 - Product pages show orders are closed, structured offers say `OutOfStock`, and `POST /api/checkout` returns 503 before creating an order, even for untracked or backorderable variants.
 - Confirm backups and restore procedures, monitoring, legal/privacy content and mobile layout before inviting traffic. Search indexing is controlled by crawlers and can take time after the site becomes accessible.
 
-Opening sales later is a separate release: configure production Stripe keys and webhook, verify inventory and shipping, then explicitly set `PRODUCTION_CHECKOUT_ENABLED=true` and deploy.
+## Opening sales
+
+Production deployment and worker provisioning accept either explicitly closed checkout or fully configured live checkout. They validate the selected state and preserve the operator's flag; they never open or close sales automatically.
+
+Prepare live Stripe secrets in Azure first, without referencing them in the running app's environment yet. Configure the real Stripe webhook at `/api/stripe/webhook`, and review shipping, stock and production capacity for both stores. Then save all four environment changes together in one new Container App revision: `STRIPE_SECRET_KEY` (`sk_live_`), `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` (`pk_live_`), `STRIPE_WEBHOOK_SECRET` (`whsec_`), and `PRODUCTION_CHECKOUT_ENABLED=true`. Keep `PRODUCTION_PREVIEW_MODE=false`. This shared app setting opens checkout for both Tapkin and Kosykin.
+
+Do not enable the flag alone or attach the Stripe environment references while checkout is still closed: either inconsistent combination fails runtime validation and can make the storefront return HTTP 500. To return to the closed state, unset all three Stripe environment entries and set the flag to false together, retaining the Azure secrets for a later launch. Verify both production domains and readiness endpoints before routing traffic to a new revision. A valid credential prefix does not verify Stripe account access or webhook delivery; verify those separately before opening sales. No real charge is needed for the deployment checks.
