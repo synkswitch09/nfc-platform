@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { isSafeImageSource } from "@/lib/image-source";
 import { typographyOverrideSchema } from "@/lib/typography";
+import { storefrontIconSlots } from "@/lib/storefront-icons";
 
 const internalHref = z
   .string()
@@ -46,6 +47,7 @@ const navLinkSchema = z.object({
 });
 
 export const headerConfigSchema = z.object({
+  iconUrls: z.record(z.string(), optionalImage).refine(icons => Object.keys(icons).every(key => Object.hasOwn(storefrontIconSlots, key)), 'Unknown storefront icon').default({}),
   logoUrl: optionalImage.default(""),
   compactLogoUrl: optionalImage.default(""),
   homeLabel: z.string().trim().min(1).max(40).default("Home"),

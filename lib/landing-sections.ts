@@ -199,6 +199,7 @@ const textBlockSchema = z.object({
 const featureSchema = z.object({
   id: contentItemId,
   icon: z.string().trim().max(40).default("sparkles"),
+  iconUrl: imageUrl,
   label: z.string().trim().min(1).max(100),
   supportingText: z.string().trim().max(200).default(""),
   backgroundColour: colour,
@@ -271,6 +272,7 @@ const narrativeSchema = z.object({
 const itemSchema = z.object({
   id: contentItemId,
   icon: z.string().trim().max(40).default("sparkles"),
+  iconUrl: imageUrl,
   title: z.string().trim().min(1).max(120),
   description: z.string().trim().max(700).default(""),
   supportingText: z.string().trim().max(200).default(""),

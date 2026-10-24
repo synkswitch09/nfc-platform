@@ -1,4 +1,5 @@
 import { FavouritesProvider } from "@/components/favourites-provider";
+import { StorefrontIconsProvider } from "@/components/storefront-icon";
 import { StoreMeasurement } from "@/components/store-measurement";
 import { measurementAvailability } from "@/lib/measurement";
 import type { Metadata } from "next";
@@ -176,6 +177,7 @@ export default async function RootLayout({
         }}
       >
         <FormValidationFeedback />
+        <StorefrontIconsProvider overrides={settings.headerConfig.iconUrls} kosykin={store.slug === 'kosykin'}>
         <CartProvider accountSyncEnabled={Boolean(user) && parseAccountConfig(store.accountConfig).savedCartEnabled} storageKey={`commerce-cart:${store.id}:v1:${user?.id??"guest"}`} legacyStorageKey={`commerce-cart:${store.id}:v1`} guestStorageKey={user?`commerce-cart:${store.id}:v1:guest`:undefined}>
           <FavouritesProvider key={`${store.id}:${user?.id ?? "guest"}`} enabled={parseAccountConfig(store.accountConfig).favouritesEnabled} authenticated={Boolean(user)} accountKey={`${store.id}:${user?.id ?? "guest"}`}>
           <SiteHeader
@@ -212,6 +214,7 @@ export default async function RootLayout({
           <PrivacyControls store={store.slug} analyticsAvailable={analyticsEnabled} advertisingAvailable={availability.pixel || availability.capi} rememberEnabled={integrations.rememberCheckoutEnabled} retentionDays={integrations.rememberCheckoutDays} />
           </FavouritesProvider>
         </CartProvider>
+        </StorefrontIconsProvider>
       </body>
     </html>
   );

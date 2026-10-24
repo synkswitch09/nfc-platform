@@ -4,6 +4,7 @@ import Link from "next/link";
 import { ShoppingCart } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useCart } from "@/components/cart-provider";
+import { StorefrontIcon } from '@/components/storefront-icon';
 
 export function CartLink({
   label = "Cart",
@@ -27,7 +28,7 @@ export function CartLink({
       aria-current={active ? "page" : undefined}
       aria-label={`${label}: ${count} ${itemsLabel}`}
     >
-      <ShoppingCart size={18} aria-hidden="true" /> {iconOnly ? <span className="sr-only">{label}</span> : label}
+      <StorefrontIcon name="cart" size={iconOnly ? 30 : 18} fallback={<ShoppingCart size={18} aria-hidden="true" />} /> {iconOnly ? <span className="sr-only">{label}</span> : label}
       {count > 0 && <span>{count}</span>}
     </Link>
   );
