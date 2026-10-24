@@ -6,7 +6,7 @@ from pathlib import Path
 import unittest
 from unittest.mock import patch
 
-spec = importlib.util.spec_from_file_location('environment_config', Path(__file__).parents[1] / 'scripts/maintain-azure-env.py')
+spec = importlib.util.spec_from_file_location('scripts.environment_config', Path(__file__).parents[1] / 'scripts/maintain-azure-env.py')
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
 
@@ -17,9 +17,15 @@ class EnvironmentConfigTests(unittest.TestCase):
         if target == 'staging': refs |= {'STRIPE_SECRET_KEY','STRIPE_WEBHOOK_SECRET','NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY'}
         env = [{'name':key,'value':value} for key,value in values.items()] + [{'name':key,'secretRef':key.lower()} for key in refs]
         return {'properties':{'provisioningState':'Succeeded','template':{'containers':[{'env':env}]}}}, [{'name':key.lower(),'value':'private-'+key} for key in refs]
-    def test_normalizes_both_preserves_refs_and_does_not_log_values(self):
-        for target in ('staging','production'):
+    def test_normalizes_both_preserves_sales_choice_refs_and_does_not_log_values(self):
+        for target, enabled in (('staging',False),('production',False),('production',True)):
             app, secrets = self.app(target)
+            if enabled:
+                env = app['properties']['template']['containers'][0]['env']
+                next(entry for entry in env if entry['name']=='PRODUCTION_CHECKOUT_ENABLED')['value']='true'
+                for name,value in {'STRIPE_SECRET_KEY':'sk_live_private','NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY':'pk_live_private','STRIPE_WEBHOOK_SECRET':'whsec_private'}.items():
+                    env.append({'name':name,'secretRef':name.lower()})
+                    secrets.append({'name':name.lower(),'value':value})
             calls = []
             def az(*args):
                 calls.append(args)
@@ -38,6 +44,7 @@ class EnvironmentConfigTests(unittest.TestCase):
             env={item['name']:item for item in app['properties']['template']['containers'][0]['env']}
             self.assertEqual(env['DATABASE_URL']['secretRef'],'database_url')
             self.assertEqual(env['CUSTOM_INFRA_VAR']['value'],'preserve-me')
+            if target=='production': self.assertEqual(env['PRODUCTION_CHECKOUT_ENABLED']['value'],'true' if enabled else 'false')
             self.assertEqual(env['GOOGLE_OAUTH_STORES']['value'],'')
             self.assertEqual(env['GEOAPIFY_STORES'], {'name':'GEOAPIFY_STORES','value':''})
             self.assertNotIn('EMAIL_FROM_ADDRESS',env)
