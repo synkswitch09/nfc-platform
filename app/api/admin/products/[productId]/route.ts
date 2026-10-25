@@ -11,6 +11,12 @@ import { queueEtsyInventorySync } from "@/lib/etsy";
 import { productValidationFeedback } from "@/lib/product-validation-feedback";
 import { validCanonicalOverride } from "@/lib/seo";
 
+class StockFulfilmentConflict extends Error {
+  constructor(readonly variantIndex: number, sku: string, inventory: number, reserved: number) {
+    super(`${sku} is currently in stock with ${inventory} units on hand and ${reserved} reserved. Adjust on-hand stock to zero in Catalog → Inventory and let reserved orders complete before changing the fulfilment method to made to order.`);
+  }
+}
+
 export async function POST(request: NextRequest, { params }: { params: Promise<{ productId: string }> }) {
   if (!assertSameOrigin(request)) return jsonError("Invalid request origin", 403);
   const context = await getAdminApiContext(); if (!context) return jsonError("Forbidden", 403);
@@ -57,9 +63,12 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       if (packagingIds.length && await tx.packaging.count({ where: { id: { in: packagingIds }, storeId: store.id } }) !== packagingIds.length) throw new Error("INVALID_PACKAGING");
       await tx.product.update({ where: { id: productId }, data: { name: data.name, slug: data.slug, legacySlugs: data.slug === existing.slug ? existing.legacySlugs : [...new Set([...existing.legacySlugs, existing.slug])].filter(slug => slug !== data.slug), description: data.description, shortDescription: data.description, fullDescription: data.fullDescription || null, categoryId: data.categoryId || null, type: data.type, status: data.status, featured: data.featured, shopVisible: data.shopVisible, brand: data.brand, gstInclusive: data.gstInclusive, personalisationMode: data.personalisationMode, weightGrams: data.weightGrams, lengthMm: data.lengthMm, widthMm: data.widthMm, heightMm: data.heightMm, defaultPackagingId: data.defaultPackagingId, shipsSeparately: data.shipsSeparately, shippingPackageType: data.shippingPackageType, specialHandling: data.specialHandling || null, countryOfOrigin: data.countryOfOrigin || null, customsDescription: data.customsDescription || null, hsCode: data.hsCode || null, customsValueCents: data.customsValueCents, dutiesHandling: data.dutiesHandling, restrictedItem: data.restrictedItem, seoTitle: data.seoTitle || null, seoDescription: data.seoDescription || null, ogImageUrl: data.ogImageUrl || null, canonicalUrl: data.canonicalUrl || null, indexable: data.indexable } });
       const variantIds = data.variants.flatMap(variant => variant.id ? [variant.id] : []);
-      for (const variant of data.variants) if (variant.id && !variant.trackInventory) {
-        const current = await tx.productVariant.findFirst({ where: { id: variant.id, productId }, select: { inventory: true, reservedInventory: true } });
-        if (current && (current.inventory > 0 || current.reservedInventory > 0)) throw new Error("STOCK_REMAINING");
+      for (const [index, variant] of data.variants.entries()) if (variant.id && !variant.trackInventory) {
+        const current = await tx.productVariant.findFirst({ where: { id: variant.id, productId }, select: { trackInventory: true, inventory: true, reservedInventory: true } });
+        // This protects a fulfilment-mode transition. Editing an existing made-to-order
+        // variant must not be blocked by legacy counters that its policy ignores.
+        // Neither stock nor reservations are changed by this product update.
+        if (current?.trackInventory && (current.inventory > 0 || current.reservedInventory > 0)) throw new StockFulfilmentConflict(index, variant.sku, current.inventory, current.reservedInventory);
       }
       await tx.productVariant.updateMany({ where: { productId, id: { notIn: variantIds } }, data: { active: false } });
       for (const variant of data.variants) {
@@ -94,7 +103,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     return NextResponse.json({ ok: true });
   } catch (error) {
     if (error instanceof Error && error.message === "INVALID_CATEGORY") return jsonError("Category does not belong to this store", 409);
-    if (error instanceof Error && error.message === "STOCK_REMAINING") return jsonError("Adjust stock to zero and let reserved orders complete before switching to made to order", 409);
+    if (error instanceof StockFulfilmentConflict) return NextResponse.json({ error: error.message, issues: productValidationFeedback([{ code: "custom", path: ["variants", error.variantIndex, "trackInventory"], message: error.message }]) }, { status: 409 });
     if (error instanceof Error && error.message === "INVALID_PACKAGING") return jsonError("Packaging does not belong to this store", 409);
     if (error instanceof Error && error.message === "INVALID_OPTION_VALUE") return jsonError("Option choice does not belong to this product", 409);
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") return jsonError("Slug, SKU or option code is already in use", 409);
