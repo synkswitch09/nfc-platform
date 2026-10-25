@@ -6123,10 +6123,19 @@ body[data-store="kosykin"] .site-header.compact-header .brand {
   justify-content: center;
 }
 body[data-store="kosykin"] .site-header .brand::before {
-  /* Rounded inset tab; no projecting shoulders at the centre of the bar. */
-  background: #fff;
-  border-radius: 0 0 28px 28px;
-  inset: 0 10%;
+  /* S-curves meet both horizontal edges tangentially, like a soft wave.
+     Keep the upper shoulders aligned with the bar throughout the scroll. */
+  background: var(--kosy-cutout-image, url("/images/kosykin/header-cutout.svg")) center / 100% 100% no-repeat;
+  border-radius: 0;
+  inset: calc(12px * (1 - var(--kosy-scroll))) 0 0;
+}
+body[data-store="kosykin"] .site-header.compact-header {
+  --kosy-cutout-image: url("/images/kosykin/header-cutout-compact.svg");
+}
+@media (max-width: 950px) {
+  body[data-store="kosykin"] .site-header {
+    --kosy-cutout-image: url("/images/kosykin/header-cutout-compact.svg");
+  }
 }
 body[data-store="kosykin"] .kosy-footer-support {
   width: calc(100% - 2 * var(--kosy-frame-gutter));
