@@ -164,6 +164,23 @@ export function footerSocialProfiles(config: FooterConfig, links: Record<string,
     .map((platform, order) => ({ id: `00000000-0000-4000-8000-${String(order + 1).padStart(12, "0")}`, label: platform[0].toUpperCase() + platform.slice(1), href: links[platform] ?? "", iconUrl: config.socialIcons[platform], visible: true, order }));
 }
 
+// Use the footer's managed profiles everywhere; an empty/hidden profile must
+// never resurrect a stale destination from the legacy social-links object.
+export function storefrontSocialChannels(config: FooterConfig, links: Record<string, string | null>) {
+  const profiles = footerSocialProfiles(config, links).filter(profile => profile.visible).sort((a, b) => a.order - b.order);
+  const destinations: Record<string, string> = {};
+  const icons = { instagram: "", tumblr: "", facebook: "", tiktok: "", linkedin: "" };
+  const platforms: string[] = [];
+  for (const profile of profiles) {
+    const platform = profile.label.trim().toLowerCase();
+    if (!Object.hasOwn(icons, platform) || platforms.includes(platform)) continue;
+    platforms.push(platform);
+    destinations[platform] = profile.href;
+    icons[platform as keyof typeof icons] = profile.iconUrl;
+  }
+  return { links: destinations, icons, platforms };
+}
+
 export function parseHeaderConfig(value: unknown): HeaderConfig {
   const config: Record<string, unknown> | null =
     value && typeof value === "object" && !Array.isArray(value)

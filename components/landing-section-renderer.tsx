@@ -108,7 +108,7 @@ type ModularPageProps = {
   categories: RenderCategory[];
   kosykinCollectionCategories?: RenderCategory[];
   store: { displayName: string; currency: string; nfcEnabled: boolean };
-  kosykinSocials?: { links: Record<string, string>; icons: FooterConfig["socialIcons"] };
+  kosykinSocials?: { links: Record<string, string>; icons: FooterConfig["socialIcons"]; platforms: string[] };
   shopHref?: string;
   theme?: string;
   fallbackHeadline?: string;
@@ -223,7 +223,7 @@ export function ModularPageRenderer({
                   </div>
                   <a className="kosy-hero-down" href="#kosy-collections" aria-label="Explore collections"><StorefrontIcon name="chevronDown" size={27} fallback={<ArrowRight size={27} aria-hidden="true" />} /></a>
                   {kosykinSocials && <div className="kosy-hero-socials" aria-label="Social media">
-                    {(["instagram", "facebook"] as const).map((platform) => {
+                    {(["instagram", "facebook"] as const).filter(platform => kosykinSocials.platforms.includes(platform)).map((platform) => {
                       const destination = kosykinSocials.links[platform];
                       const icon = kosykinSocials.icons[platform];
                       const contents = <StorefrontIcon name={platform === 'instagram' ? 'instagramFooter' : 'facebookFooter'} imageUrl={icon} size={20} fallback={platform === "instagram" ? <Camera size={20} aria-hidden="true" /> : <b className="kosy-facebook-glyph" aria-hidden="true">f</b>} />;

@@ -3,6 +3,7 @@ import {
   isNavigationActive,
   parseFooterConfig,
   footerSocialProfiles,
+  storefrontSocialChannels,
   parseFooterLinks,
   parseHeaderConfig,
   parseHeaderLinks,
@@ -145,4 +146,17 @@ describe("site chrome configuration", () => {
     expect(isNavigationActive("/faq/shipping", "/faq")).toBe(true);
     expect(isNavigationActive("/guides", "/faq")).toBe(false);
   });
+});
+
+it("uses managed social destinations/icons for Home and never revives hidden, removed or empty links", () => {
+  const legacy = { instagram: "https://instagram.com/stale", facebook: "https://facebook.com/stale" };
+  const id = "ba364e87-d62d-40d8-8f89-2933cdcc6c1a";
+  const profile = { id, label: "Instagram", href: "https://instagram.com/current", iconUrl: "/images/kosykin/logo.png" };
+  expect(storefrontSocialChannels(parseFooterConfig({ socialProfiles: [profile] }), legacy)).toMatchObject({ links: { instagram: profile.href }, icons: { instagram: profile.iconUrl }, platforms: ["instagram"] });
+  expect(storefrontSocialChannels(parseFooterConfig({ socialProfiles: [{ ...profile, href: "" }] }), legacy).links.instagram).toBe("");
+  for (const profiles of [[], [{ ...profile, visible: false }]]) {
+    expect(storefrontSocialChannels(parseFooterConfig({ socialProfiles: profiles }), legacy).platforms).toEqual([]);
+    expect(storefrontSocialChannels(parseFooterConfig({ socialProfiles: profiles }), legacy).links).toEqual({});
+  }
+  expect(storefrontSocialChannels(parseFooterConfig({}), legacy).links).toEqual(legacy);
 });
