@@ -21,6 +21,16 @@ export function validationIssues(error: z.ZodError): AdminFieldIssue[] {
     } else if (issue.code === "invalid_type") correction = issue.expected === "number" ? "Enter a valid number." : issue.expected === "int" ? "Enter a whole number." : "Enter or select a valid value.";
     else if (issue.code === "invalid_value") correction = "Select one of the available options.";
     else if (issue.code === "custom") correction = issue.message;
+    const field = String(issue.path.at(-1) ?? "");
+    if (issue.code === "invalid_format" && issue.format === "regex") {
+      if (/colou?r|hex/i.test(field)) correction = "Use a six-digit colour such as #243247, or clear an optional override to inherit.";
+      else if (/slug/.test(field)) correction = "Use lowercase letters and numbers separated by single hyphens.";
+      else if (field === "ga4MeasurementId") correction = "Enter the Google Analytics measurement ID beginning with G-.";
+      else if (/^meta.*Id$/.test(field)) correction = "Enter the numeric Meta identifier, or clear it when the integration is off.";
+      else if (/country/i.test(field)) correction = "Use a two-letter country code, such as AU.";
+      else if (field === "currency") correction = "Use a three-letter currency code, such as AUD.";
+    }
+    if (issue.message && !/^(Invalid|Too (small|big)|Unrecognized)/i.test(issue.message)) correction = issue.message;
     return [{ path, message: `${label}: ${correction}` }];
   });
 }

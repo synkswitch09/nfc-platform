@@ -11,7 +11,7 @@ const aliases: Record<string, string[]> = {
 };
 type Control = HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement;
 function controls(root: HTMLElement) {
-  return [...root.querySelectorAll<Control>("input, textarea, select")].filter(input => !(input instanceof HTMLInputElement && input.type === "hidden") && !input.disabled);
+  return [...root.querySelectorAll<Control>("input, textarea, select")].filter(input => !(input instanceof HTMLInputElement && input.type === "hidden"));
 }
 export function findAdminIssueControl(root: HTMLElement, issue: AdminFieldIssue): Control | undefined {
   const inputs = controls(root);

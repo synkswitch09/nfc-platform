@@ -37,3 +37,10 @@ it("keeps every landing row index and field when multiple sections fail", () => 
     expect(issues.map(issue => issue.path)).toEqual(expect.arrayContaining(["0.content.headlineTypography.sizePx", "1.content.headlineTypography.sizePx"]));
   }
 });
+it("explains formats and preserves explicit domain-specific corrections", () => {
+  const parsed = z.object({ accentColour: z.string().regex(/^#[0-9a-f]{6}$/i), hsCode: z.string().regex(/^[0-9]{4,10}$/, "Use a 4–10 digit HS code") }).safeParse({ accentColour: "pink", hsCode: "x" });
+  if (parsed.success) throw new Error("Expected invalid formats");
+  const issues = validationIssues(parsed.error);
+  expect(issues[0].message).toContain("#243247");
+  expect(issues[1].message).toContain("4–10 digit HS code");
+});
