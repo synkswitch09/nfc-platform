@@ -47,7 +47,7 @@ export function productValidationFeedback(issues: ZodIssue[]): ProductValidation
     const key = path.join(".");
     if (path[0] === "variants") {
       const number = Number(path[1]) + 1;
-      const label = path[2] === "optionSelection" ? "product choices" : path[2] === "sku" ? "SKU" : path[2] === "name" ? "name" : path[2] === "inventory" ? "stock" : path[2] === "priceCents" ? "price" : String(path[2] ?? "details");
+      const label = path[2] === "trackInventory" ? "fulfilment method" : path[2] === "productionMinutes" ? "production minutes per item" : path[2] === "optionSelection" ? "product choices" : path[2] === "sku" ? "SKU" : path[2] === "name" ? "name" : path[2] === "inventory" ? "stock" : path[2] === "priceCents" ? "price" : String(path[2] ?? "details");
       const field = `Variant ${number} — ${label}`;
       return { path: key, field, section: "variants", message: issueText(issue, field) };
     }

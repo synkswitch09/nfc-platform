@@ -244,7 +244,8 @@ export function AdminProductForm({
     setPending(true);
     setMessage("");
     setValidationIssues([]);
-    const form = new FormData(event.currentTarget);
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
     const payload = {
       name: form.get("name"),
       slug: form.get("slug"),
@@ -321,7 +322,11 @@ export function AdminProductForm({
       const firstSection = issues[0]?.section;
       if (firstSection)
         window.setTimeout(
-          () => document.getElementById(firstSection)?.scrollIntoView({ behavior: "smooth", block: "start" }),
+          () => {
+            const field = [...formElement.querySelectorAll<HTMLElement>("[data-validation-path]")].find(input => input.dataset.validationPath === issues[0]?.path);
+            if (field) { field.focus(); field.scrollIntoView({ behavior: "smooth", block: "center" }); }
+            else document.getElementById(firstSection)?.scrollIntoView({ behavior: "smooth", block: "start" });
+          },
           0,
         );
       return;
@@ -749,7 +754,7 @@ export function AdminProductForm({
         {simpleVariant ? <><div className="field-grid three">
           <label className="field">SKU<input value={variants[0].sku} onChange={event => updateVariant(setVariants, 0, "sku", event.target.value.toUpperCase())} required /></label>
           <label className="field">Material<input value={variants[0].material} onChange={event => updateVariant(setVariants, 0, "material", event.target.value)} /></label>
-          <FulfilmentFields variant={variants[0]} onChange={patch => setVariants(current => current.map((item, i) => i === 0 ? { ...item, ...patch } : item))} />
+          <FulfilmentFields index={0} issues={validationIssues} variant={variants[0]} onChange={patch => setVariants(current => current.map((item, i) => i === 0 ? { ...item, ...patch } : item))} />
           <label className="field">Base price AUD<input inputMode="decimal" value={variants[0].price} onChange={event => updateVariant(setVariants, 0, "price", event.target.value)} required /></label>
 
         </div><VariantMediaEditor productId={initial.id} variantId={variants[0].id} media={variants[0].id ? variantMedia[variants[0].id] : undefined} generated3d={isKeychain} /></> : <div className="admin-stack">
@@ -819,7 +824,7 @@ export function AdminProductForm({
                     }
                   />
                 </label>
-                <FulfilmentFields variant={variant} onChange={patch => setVariants(current => current.map((item, i) => i === index ? { ...item, ...patch } : item))} />
+                <FulfilmentFields index={index} issues={validationIssues} variant={variant} onChange={patch => setVariants(current => current.map((item, i) => i === index ? { ...item, ...patch } : item))} />
                 <label className="field">
                   Price AUD
                   <input
@@ -1334,16 +1339,21 @@ function optionalNumber(value: FormDataEntryValue | null) {
   return raw ? Number(raw) : null;
 }
 
-function FulfilmentFields({ variant, onChange }: { variant: VariantForm; onChange: (patch: Partial<VariantForm>) => void }) {
+function FulfilmentFields({ index, issues, variant, onChange }: { index: number; issues: ProductValidationIssue[]; variant: VariantForm; onChange: (patch: Partial<VariantForm>) => void }) {
+  const errorFor = (field: string) => issues.find(issue => issue.path === `variants.${index}.${field}`)?.message;
+  const feedback = (field: string) => errorFor(field) && <small id={`variant-${index}-${field}-error`} className="form-error">{errorFor(field)}</small>;
+  const attrs = (field: string) => ({ "data-validation-path": `variants.${index}.${field}`, "aria-invalid": Boolean(errorFor(field)), "aria-describedby": errorFor(field) ? `variant-${index}-${field}-error` : undefined });
   const made = madeToOrder(variant);
   return <>
-    <label className="field">Fulfilment method
-      <select value={made ? "made" : "stock"} onChange={event => onChange(event.target.value === "made" ? { trackInventory: false, productionMinutes: null, inventory: variant.id ? variant.inventory : 0, lowStockThreshold: 0, backorderPolicy: "DENY" } : { trackInventory: true, productionMinutes: null, backorderPolicy: "DENY" })}>
+    <label className={errorFor("trackInventory") ? "field field-invalid" : "field"}>Fulfilment method
+      <select {...attrs("trackInventory")} value={made ? "made" : "stock"} onChange={event => onChange(event.target.value === "made" ? { trackInventory: false, productionMinutes: null, inventory: variant.id ? variant.inventory : 0, lowStockThreshold: 0, backorderPolicy: "DENY" } : { trackInventory: true, productionMinutes: null, backorderPolicy: "DENY" })}>
         <option value="stock">In stock</option><option value="made">Made to order</option>
       </select>
+      {feedback("trackInventory")}
     </label>
     {made ? <label className="field">Production minutes per item
-      <input type="number" min="1" max="10080" required value={variant.productionMinutes ?? ""} onChange={event => onChange({ productionMinutes: event.target.value ? Number(event.target.value) : null })} />
+      <input {...attrs("productionMinutes")} type="number" min="1" max="10080" required value={variant.productionMinutes ?? ""} onChange={event => onChange({ productionMinutes: event.target.value ? Number(event.target.value) : null })} />
+      {feedback("productionMinutes")}
       <small>Reserves time in the shared production queue for every item ordered.</small>
     </label> : <>
       <label className="field">{variant.id ? "Stock" : "Initial stock"}
