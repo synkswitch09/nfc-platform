@@ -278,6 +278,10 @@ export function hasStoreCapability(
   return store.capabilities.includes(capability);
 }
 
+export function supportsPetProfiles(store: Pick<Storefront, "capabilities">) {
+  return hasStoreCapability(store, StoreCapability.NFC) && hasStoreCapability(store, StoreCapability.PET_PROFILE);
+}
+
 export function storeDomainOrigin(domain: {
   protocol: string;
   hostname: string;

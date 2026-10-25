@@ -112,3 +112,16 @@ Deploy the code and both migrations together through the existing production
 workflow. Production deployment still requires manual workflow dispatch and
 the protected environment approval. A successful push validation is not itself
 a production deployment. No live store has been modified by the local fixtures.
+
+## Social links and optional pet module
+
+Storefront → Footer → Social networks is the shared source for Home and footer
+Instagram/Facebook buttons. Keep those network names as Instagram and Facebook;
+edit Destination URL, icon and Visible there. An empty URL is a decorative
+preview; hidden or removed networks do not fall back to older saved URLs. Stores
+that still have legacy social configuration retain their existing destinations.
+
+The Pet profile tile, editor and settings API require both NFC and PET_PROFILE
+capabilities on the current store. Tapkin keeps its pet-profile editor; commerce
+stores such as Kosykin do not expose it and cannot save pet settings by direct URL
+or API request. No migration or deletion of saved store data is involved.

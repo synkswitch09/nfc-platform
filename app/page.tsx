@@ -128,7 +128,7 @@ export default async function Home() {
               name: settings.businessName ?? settings.storeName,
               url: origin,
               contactPoint: { "@type": "ContactPoint", contactType: "customer support", url: `${origin}/dashboard/help` },
-              sameAs: Object.values(settings.socialLinks),
+              sameAs: Object.values(settings.socialLinks).filter(Boolean),
             },
             {
               "@type": "WebSite",
@@ -160,7 +160,7 @@ export default async function Home() {
             currency: store.currency,
             nfcEnabled,
           }}
-          kosykinSocials={store.slug === "kosykin" ? { links: settings.socialLinks, icons: settings.footerConfig.socialIcons } : undefined}
+          kosykinSocials={store.slug === "kosykin" ? settings.socialChannels : undefined}
           theme={localizedHome.visualTheme.toLowerCase()}
           fallbackHeadline={settings.homepage.heroHeadline}
           fallbackCopy={settings.homepage.heroDescription}

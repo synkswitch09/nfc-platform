@@ -1,3 +1,4 @@
+import { supportsPetProfiles } from "@/lib/storefront";
 import { revalidatePath } from "next/cache";
 import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
@@ -45,6 +46,9 @@ export async function PATCH(request: NextRequest) {
     );
   }
   const value = parsed.data;
+  if (value.area === "pet-profile" && !supportsPetProfiles(context.store)) {
+    return jsonError("Pet profiles are not available for this store", 404);
+  }
   const storefrontData =
     value.area === "header"
       ? { headerConfig: value.config }
