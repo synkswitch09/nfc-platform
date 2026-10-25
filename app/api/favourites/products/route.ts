@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
   if (!parsed.success) return jsonError("Invalid favourites");
   const products = await db.product.findMany({
     where: { storeId: store.id, status: "ACTIVE", shopVisible: true, slug: { in: parsed.data.slugs } },
-    select: { slug: true, name: true, shortDescription: true, images: { where: { isPrimary: true }, take: 1, select: { url: true, altText: true } }, variants: { where: { active: true }, orderBy: { priceCents: "asc" }, take: 1, select: { priceCents: true } } },
+    select: { slug: true, name: true, shortDescription: true, personalisationMode: true, options: { where: { active: true }, include: { values: { where: { active: true } } } }, images: { where: { isPrimary: true }, take: 1, select: { url: true, altText: true } }, variants: { where: { active: true }, orderBy: { priceCents: "asc" }, select: { priceCents: true, optionSelection: true } } },
   });
   return NextResponse.json({ products }, { headers: { "Cache-Control": "no-store" } });
 }
