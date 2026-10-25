@@ -88,12 +88,17 @@ can preserve the final designer-approved composition exactly.
 
 ## Shared support/footer placement
 
-The first published Home CTA with `KOSYKIN_SUPPORT` is the single support source
-for every Kosykin route. Edit its text, image, CTA, colours and typography in the
-existing Home section editor. Its visibility switch hides it everywhere. The
-root layout places it directly against the shared footer, with rounded outer
-corners and a straight joined seam. Home and Shop do not render extra copies.
-No separate per-page support blocks or migration are required.
+Both Kosykin footer bands are children of one shared footer on every route.
+The cream area contains one stacked brand mark, social profiles, support copy,
+reply time and two actions. The navy area contains copyright and legal links.
+Rounded corners belong to the complete outer frame; the internal seam is joined.
+
+Edit everything under Storefront → Footer. The support panel has text, colour,
+visibility and typography controls. Contact us always links to the localized
+Help & requests page (`/support`). Instagram message destination URL is independent
+of the Instagram profile URL; an empty destination is a non-clickable preview.
+The old Home `KOSYKIN_SUPPORT` section is retained as legacy content but no longer
+supplies the footer. No data migration is required; missing settings use defaults.
 
 Mobile product images and the purchase button follow the document flow so that
 variant/personalisation controls never scroll behind a floating gallery. Desktop
