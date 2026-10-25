@@ -944,6 +944,9 @@ model Order {
   claimTokenHash             String?               @unique
   claimExpiresAt             DateTime?
   claimedAt                  DateTime?
+  deliveryMethod             String                @default("DELIVERY")
+  pickupSnapshot             Json?
+  collectedAt                DateTime?
   shippingAddressId          String?               @db.Uuid
   shippingName               String?
   shippingCompany            String?

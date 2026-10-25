@@ -10,6 +10,18 @@ export const orderTransitions: Partial<Record<OrderStatus, OrderStatus[]>> = {
   DELIVERED: ["COMPLETED"],
 };
 
-export function canTransitionOrder(from: OrderStatus, to: OrderStatus) {
-  return orderTransitions[from]?.includes(to) ?? false;
+export function operationalOrderTransitions(from: OrderStatus, deliveryMethod = "DELIVERY"): OrderStatus[] {
+  if (deliveryMethod === "PICKUP") {
+    if (from === "READY_TO_SHIP") return ["COMPLETED"];
+    if (["SHIPPED", "DELIVERED"].includes(from)) return [];
+  }
+  return orderTransitions[from] ?? [];
+}
+export function canTransitionOrder(from: OrderStatus, to: OrderStatus, deliveryMethod = "DELIVERY") {
+  return operationalOrderTransitions(from, deliveryMethod).includes(to);
+}
+export function orderStatusLabel(status: string, deliveryMethod = "DELIVERY") {
+  if (deliveryMethod === "PICKUP" && status === "READY_TO_SHIP") return "Ready for pickup";
+  if (deliveryMethod === "PICKUP" && status === "COMPLETED") return "Collected";
+  return status.replaceAll("_", " ");
 }
