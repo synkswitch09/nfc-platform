@@ -17,6 +17,7 @@ export class FulfilmentError extends Error {
 export async function createShipmentLabel(orderId: string, store: Storefront, actorId: string) {
   const order = await db.order.findFirst({ where: { id: orderId, storeId: store.id }, include: { shipments: { where: { status: { not: "CANCELLED" } }, orderBy: { createdAt: "desc" } } } });
   if (!order) throw new FulfilmentError("Order not found", 404);
+  if (order.deliveryMethod === "PICKUP") throw new FulfilmentError("Pickup orders do not require a shipping label", 409);
   const existing = order.shipments.find(shipment => shipment.labelStorageKey);
   if (existing) return { shipment: existing, created: false };
   if (order.status !== "READY_TO_SHIP") throw new FulfilmentError("The order must be ready to ship before creating a label", 409);

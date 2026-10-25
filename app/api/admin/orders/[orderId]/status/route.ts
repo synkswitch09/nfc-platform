@@ -1,3 +1,4 @@
+import { pickupReadyText } from "@/lib/local-pickup";
 import { jsonValidationError } from "@/lib/admin-validation-feedback";
 import { assertNoSupportHold } from "@/lib/support-access";
 import { NextRequest, NextResponse } from "next/server";
@@ -18,14 +19,21 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   if (!assertSameOrigin(request)) return jsonError("Invalid request origin", 403);
   const context = await getAdminApiContext(); if (!context) return jsonError("Forbidden", 403);
   const { user, store } = context;
+  if (!hasPermission(context, "orders.write")) return jsonError("Order management permission required", 403);
   const parsed = schema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return jsonValidationError(parsed.error);
 if(parsed.data.status==="CANCELLED" && !hasPermission(context,"orders.cancel")) return jsonError("Cancellation permission required",403);
   const { orderId } = await params;
-  const order = await db.order.findFirst({ where: { id: orderId, storeId: store.id }, select: { status: true, payments: { select: { status: true } }, shipments: { select: { idempotencyKey: true, bookedAt: true, trackingNumber: true, serviceName: true } } } });
+  const order = await db.order.findFirst({ where: { id: orderId, storeId: store.id }, select: { status: true, deliveryMethod: true, pickupSnapshot: true, orderNumber: true, payments: { select: { status: true } }, shipments: { select: { idempotencyKey: true, bookedAt: true, trackingNumber: true, serviceName: true } } } });
   if (!order) return jsonError("Order not found", 404);
   if (order.payments.some(payment => payment.status === "REFUNDED")) return jsonError("This order is refunded. Review fulfilment before proceeding.", 409);
-  if (!canTransitionOrder(order.status, parsed.data.status)) return jsonError(`Cannot change ${order.status} to ${parsed.data.status}`, 409);
+  if (!canTransitionOrder(order.status, parsed.data.status, order.deliveryMethod)) return jsonError(`Cannot change ${order.status} to ${parsed.data.status}`, 409);
+  const pickup = order.deliveryMethod === "PICKUP";
+  let pickupNotice = "";
+  if (pickup && parsed.data.status === "READY_TO_SHIP") {
+    try { pickupNotice = pickupReadyText(order.pickupSnapshot, order.orderNumber); }
+    catch (error) { return jsonError(error instanceof Error ? error.message : "Pickup instructions are missing", 409); }
+  }
   const shippitParcels = order.shipments.filter(shipment => shipment.idempotencyKey.startsWith("shippit:"));
   if (shippitParcels.length && ["SHIPPED", "DELIVERED"].includes(parsed.data.status)) return jsonError("Shippit updates shipped and delivered automatically through its webhook", 409);
   if (parsed.data.overridePreparation && (parsed.data.status !== "READY_TO_SHIP" || !context.isPlatformAdmin || (parsed.data.note?.length ?? 0) < 10)) return jsonError("Manager override requires a reason of at least 10 characters", 403);
@@ -35,7 +43,7 @@ if(parsed.data.status==="CANCELLED" && !hasPermission(context,"orders.cancel")) 
   } else {
     const changed = await db.$transaction(async tx => {
       const changedAt = new Date();
-      if (["PROCESSING", "READY_TO_SHIP", "SHIPPED"].includes(parsed.data.status)) await assertNoSupportHold(tx, orderId, store.id);
+      if (["PROCESSING", "READY_TO_SHIP", "SHIPPED"].includes(parsed.data.status) || (pickup && parsed.data.status === "COMPLETED")) await assertNoSupportHold(tx, orderId, store.id);
       if (await tx.payment.count({ where: { orderId, status: "REFUNDED" } })) throw new Error("REFUNDED_ORDER");
       if (parsed.data.status === "READY_TO_SHIP") {
         const items = await tx.orderItem.findMany({ where: { orderId, order: { storeId: store.id } }, include: { manufacturingJobs: { select: { status: true, quantity: true, requiresNfc: true } }, tags: { select: { storeId: true, manufacturingStatus: true, status: true } } } });
@@ -44,8 +52,9 @@ if(parsed.data.status==="CANCELLED" && !hasPermission(context,"orders.cancel")) 
         if (issues.length && !parsed.data.overridePreparation) throw new Error(`PREPARATION:${issues.join("; ")}`);
         if (issues.length) await tx.auditLog.create({ data: { actorId: user.id, storeId: store.id, action: "ORDER_PREPARATION_OVERRIDE", entityType: "Order", entityId: orderId, metadata: { reason: parsed.data.note, issues } } });
       }
-      const updated = await tx.order.updateMany({ where: { id: orderId, storeId: store.id, status: order.status }, data: { status: parsed.data.status, ...(parsed.data.status === "PROCESSING" ? { preparationStartedAt: changedAt } : {}), ...(parsed.data.status === "SHIPPED" ? { shippingCarrier: shippitParcels.length ? shippitParcels[0].serviceName : parsed.data.carrier, trackingNumber: shippitParcels.length ? shippitParcels[0].trackingNumber : parsed.data.trackingNumber, shippedAt: changedAt } : {}) } });
+      const updated = await tx.order.updateMany({ where: { id: orderId, storeId: store.id, status: order.status }, data: { status: parsed.data.status, ...(pickup && parsed.data.status === "COMPLETED" ? { collectedAt: changedAt } : {}), ...(parsed.data.status === "PROCESSING" ? { preparationStartedAt: changedAt } : {}), ...(parsed.data.status === "SHIPPED" ? { shippingCarrier: shippitParcels.length ? shippitParcels[0].serviceName : parsed.data.carrier, trackingNumber: shippitParcels.length ? shippitParcels[0].trackingNumber : parsed.data.trackingNumber, shippedAt: changedAt } : {}) } });
       if (!updated.count) return false;
+      if (pickup && parsed.data.status === "READY_TO_SHIP") await releaseProduction(tx, orderId);
       if (parsed.data.status === "SHIPPED") {
         await releaseProduction(tx, orderId);
         await tx.shipment.updateMany({
@@ -60,6 +69,8 @@ if(parsed.data.status==="CANCELLED" && !hasPermission(context,"orders.cancel")) 
       }
       const history = await tx.orderStatusHistory.create({ data: { orderId, fromStatus: order.status, toStatus: parsed.data.status, actorId: user.id, note: parsed.data.note || null } });
       await tx.auditLog.create({ data: { actorId: user.id, storeId: store.id, action: "ORDER_STATUS_CHANGED", entityType: "Order", entityId: orderId, metadata: { from: order.status, to: parsed.data.status } } });
+      if (pickup && parsed.data.status === "READY_TO_SHIP") await queueOrderNotice(tx, orderId, `pickup-ready:${history.id}`, "Your order is ready for pickup", pickupNotice);
+      if (pickup && parsed.data.status === "COMPLETED") await queueOrderNotice(tx, orderId, `pickup-collected:${history.id}`, "Your order has been collected", `Order ${order.orderNumber} has been collected. Thank you for shopping with us. If you need help, use Help & requests.`);
       if (parsed.data.status === "SHIPPED") await queueOrderNotice(tx, orderId, `status:${history.id}`, "Your order has shipped", shippitParcels.length ? `Your order has shipped. Parcels: ${shippitParcels.map(item => `${item.serviceName}: ${item.trackingNumber}`).join("; ")}.` : `Your order has shipped. Carrier: ${parsed.data.carrier}. Tracking: ${parsed.data.trackingNumber}.`);
       if (parsed.data.status === "DELIVERED") await queueOrderNotice(tx, orderId, `delivered:${history.id}`, "Your order has been delivered", "Your order has been marked as delivered. If you need help, open a ticket under Help & requests in your account.");
       return true;

@@ -1,10 +1,11 @@
 "use client";
+import { orderStatusLabel } from "@/lib/order-status";
 import { useAdminRequest } from "@/components/admin-form-feedback";
 
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 
-export function OrderStatusForm({ orderId, options, shipping, canOverride = false }: { orderId: string; options: string[]; shipping?: { carrier: string | null; trackingNumber: string | null }; canOverride?: boolean }) {
+export function OrderStatusForm({ orderId, options, shipping, canOverride = false, deliveryMethod = "DELIVERY" }: { orderId: string; options: string[]; shipping?: { carrier: string | null; trackingNumber: string | null }; canOverride?: boolean; deliveryMethod?: string }) {
   const { request: adminRequest, feedbackRef, feedback } = useAdminRequest();
 
   const router = useRouter(); const [message, setMessage] = useState(""); const [pending, setPending] = useState(false); const [selected, setSelected] = useState(options[0] ?? "");
@@ -18,5 +19,5 @@ export function OrderStatusForm({ orderId, options, shipping, canOverride = fals
     if (!response.ok) return setMessage(result.error ?? "Order could not be updated");
     router.refresh();
   }
-  return <form ref={node => { feedbackRef.current = node; }} className="status-update" onSubmit={submit}>{feedback}<select name="status" aria-label="Next status" value={selected} onChange={event => setSelected(event.target.value)}>{options.map(option => <option key={option}>{option}</option>)}</select>{selected === "SHIPPED" && <><input name="carrier" placeholder="Carrier" maxLength={80} defaultValue={shipping?.carrier ?? ""} required /><input name="trackingNumber" placeholder="Tracking number" maxLength={100} defaultValue={shipping?.trackingNumber ?? ""} required /></>}{selected === "READY_TO_SHIP" && canOverride && <label><input type="checkbox" name="overridePreparation" /> Manager exception (requires reason)</label>}<input name="note" placeholder="Internal note / exception reason" maxLength={500} /><button className="button" disabled={pending}>{pending ? "Updating…" : "Update status"}</button>{message && <span className="form-error">{message}</span>}</form>;
+  return <form ref={node => { feedbackRef.current = node; }} className="status-update" onSubmit={submit}>{feedback}<select name="status" aria-label="Next status" value={selected} onChange={event => setSelected(event.target.value)}>{options.map(option => <option key={option} value={option}>{orderStatusLabel(option, deliveryMethod)}</option>)}</select>{selected === "SHIPPED" && <><input name="carrier" placeholder="Carrier" maxLength={80} defaultValue={shipping?.carrier ?? ""} required /><input name="trackingNumber" placeholder="Tracking number" maxLength={100} defaultValue={shipping?.trackingNumber ?? ""} required /></>}{selected === "READY_TO_SHIP" && canOverride && <label><input type="checkbox" name="overridePreparation" /> Manager exception (requires reason)</label>}<input name="note" placeholder="Internal note / exception reason" maxLength={500} /><button className="button" disabled={pending}>{pending ? "Updating…" : "Update status"}</button>{message && <span className="form-error">{message}</span>}</form>;
 }

@@ -11,6 +11,7 @@ import { assertShippitConfigured, downloadShippitLabel, parseShippitLabel, parse
 // parcel_attributes by default, so a multi-parcel order cannot guarantee one label per box.
 export async function createShippitParcel(orderId: string, storeId: string, actorId: string | undefined, parcel: ParcelDimensions, service: "standard" | "express", requestId: string) {
   const order = await db.order.findFirst({ where: { id: orderId, storeId }, include: { user: { select: { email: true } }, payments: { select: { status: true, refundedAmountCents: true } } } });
+  if (order?.deliveryMethod === "PICKUP") throw new FulfilmentError("Pickup orders cannot be sent to Shippit", 409);
   if (!order || !["PAID", "PROCESSING", "READY_TO_SHIP"].includes(order.status)) throw new FulfilmentError("A paid order is required", 409);
   if (!order.payments.some(payment => payment.status === "SUCCEEDED") || order.payments.some(payment => payment.status === "REFUNDED" || payment.refundedAmountCents > 0)) throw new FulfilmentError("A paid, unrefunded order is required", 409);
   if (order.shippingCountry !== "AU") throw new FulfilmentError("Shippit domestic labels currently require an Australian destination", 409);
@@ -67,6 +68,7 @@ export async function refreshShippitLabel(shipmentId: string, storeId: string, a
 
 export async function bookShippitParcel(shipmentId: string, storeId: string, actorId: string | undefined) {
   const shipment = await db.shipment.findFirst({ where: { id: shipmentId, storeId, idempotencyKey: { startsWith: "shippit:" } }, include: { order: { include: { shippitPreparation: true, payments: { select: { status: true, refundedAmountCents: true } } } } } });
+  if (shipment?.order.deliveryMethod === "PICKUP") throw new FulfilmentError("Pickup orders cannot be booked with a carrier", 409);
   if (!shipment?.trackingNumber || !shipment.labelStorageKey || shipment.order.status !== "READY_TO_SHIP") throw new FulfilmentError("A ready order with a label is required", 409);
   if (shipment.order.shippitPreparation && shipment.order.shippitPreparation.status !== "COMPLETE") throw new FulfilmentError("Wait until all checkout labels are ready", 409);
   if (!shipment.order.payments.some(payment => payment.status === "SUCCEEDED") || shipment.order.payments.some(payment => payment.status === "REFUNDED" || payment.refundedAmountCents > 0)) throw new FulfilmentError("Refunded orders require review before booking", 409);

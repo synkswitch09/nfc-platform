@@ -27,14 +27,14 @@ export async function POST(request: NextRequest) {
   const [user, store] = await Promise.all([getCurrentUser(), getCurrentStorefront()]);
   if (!isStoreCommerceAvailable(store)) return jsonError("This store is not accepting orders", 409);
   if (!parsed.data.customer) return jsonError("Contact and shipping details are required");
-  const customer = {...parsed.data.customer,...(user?{email:user.email}:{})};
-  if(user && parsed.data.saveAddress){const fields=addressDatabaseFields({...customer.shipping,recipient:customer.name});await db.$transaction(async tx=>{await tx.user.update({where:{id:user.id},data:{updatedAt:new Date()}});const duplicate=await tx.address.findFirst({where:{userId:user.id,line1:fields.line1,line2:fields.line2,locality:fields.locality,postcode:fields.postcode,country:fields.country,recipient:fields.recipient}});const count=await tx.address.count({where:{userId:user.id}});if(!duplicate&&count<10)await tx.address.create({data:{userId:user.id,...fields,isDefault:count===0}});});}
+  const customer = {...parsed.data.customer, shipping: parsed.data.deliveryMethod === "PICKUP" ? undefined : parsed.data.customer.shipping, ...(user?{email:user.email}:{})};
+  if(user && parsed.data.saveAddress && parsed.data.deliveryMethod === "DELIVERY" && customer.shipping){const fields=addressDatabaseFields({...customer.shipping,recipient:customer.name});await db.$transaction(async tx=>{await tx.user.update({where:{id:user.id},data:{updatedAt:new Date()}});const duplicate=await tx.address.findFirst({where:{userId:user.id,line1:fields.line1,line2:fields.line2,locality:fields.locality,postcode:fields.postcode,country:fields.country,recipient:fields.recipient}});const count=await tx.address.count({where:{userId:user.id}});if(!duplicate&&count<10)await tx.address.create({data:{userId:user.id,...fields,isDefault:count===0}});});}
 
   let checkout;
   try {
     const consent = parsePrivacyPreferences(request.cookies.get(privacyCookieName(store.slug))?.value);
     const measurement = getRuntimeConfig().appEnv === "production" && (consent?.analytics || consent?.advertising) ? await currentMeasurementSession(request, store) : null;
-    checkout = await createPendingOrder(parsed.data.items, { ...customer, userId: user?.id, ...(measurement ? { measurementSessionId: measurement.id } : {}) }, store, parsed.data.shippingQuoteToken, parsed.data.promotionCode, parsed.data.pointsToRedeem);
+    checkout = await createPendingOrder(parsed.data.items, { ...customer, deliveryMethod: parsed.data.deliveryMethod, userId: user?.id, ...(measurement ? { measurementSessionId: measurement.id } : {}) }, store, parsed.data.shippingQuoteToken, parsed.data.promotionCode, parsed.data.pointsToRedeem);
   } catch (error) {
     if (error instanceof LoyaltyError) return jsonError(error.message, 409);
     if (error instanceof CheckoutError) return jsonError(error.message, error.status);

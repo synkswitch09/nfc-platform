@@ -1,3 +1,4 @@
+import { parsePickupConfig } from "@/lib/local-pickup";
 import { parseIntegrationConfig, type IntegrationConfig } from "@/lib/integration-config";
 import { parseAccountConfig, type AccountConfig } from "@/lib/account-config";
 import { cache } from "react";
@@ -84,7 +85,7 @@ export type Storefront = {
   socialImageUrl: string | null;
   organization: Record<string, unknown>;
   socialLinks: Record<string, string>;
-  shippingConfig: { flatRateCents: number; freeOverCents: number };
+  shippingConfig: { flatRateCents: number; freeOverCents: number; pickup?: import("@/lib/local-pickup").PickupConfig };
   headerConfig: HeaderConfig;
   footerConfig: FooterConfig;
   accountConfig?: AccountConfig;
@@ -168,6 +169,7 @@ function mapStorefront(
     organization: asObject(row.organization),
     socialLinks: asObject(row.socialLinks) as Record<string, string>,
     shippingConfig: {
+      pickup: parsePickupConfig(shipping.pickup),
       flatRateCents:
         typeof shipping.flatRateCents === "number"
           ? shipping.flatRateCents
