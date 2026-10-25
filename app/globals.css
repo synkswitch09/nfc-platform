@@ -6127,7 +6127,8 @@ body[data-store="kosykin"] .site-header .brand::before {
      Keep the upper shoulders aligned with the bar throughout the scroll. */
   background: var(--kosy-cutout-image, url("/images/kosykin/header-cutout.svg")) center / 100% 100% no-repeat;
   border-radius: 0;
-  inset: calc(12px * (1 - var(--kosy-scroll))) 0 0;
+  /* Overlap the top edge to avoid a navy hairline at fractional zoom/DPR. */
+  inset: calc(12px * (1 - var(--kosy-scroll)) - 2px) 0 0;
 }
 body[data-store="kosykin"] .site-header.compact-header {
   --kosy-cutout-image: url("/images/kosykin/header-cutout-compact.svg");
