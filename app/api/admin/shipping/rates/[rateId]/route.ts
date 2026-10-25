@@ -1,3 +1,4 @@
+import { jsonValidationError } from "@/lib/admin-validation-feedback";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { canManageStore, getAdminApiContext } from "@/lib/admin";
@@ -10,8 +11,8 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   const context = await getAdminApiContext();
   if (!canManageStore(context)) return jsonError("Forbidden", 403);
   const parsed = schema.safeParse(await request.json().catch(() => null));
-  if (!parsed.success) return jsonError(parsed.error.issues[0]?.message ?? "Invalid rate", 400);
-  const { rateId } = await params;
+  if (!parsed.success) return jsonValidationError(parsed.error);
+const { rateId } = await params;
   const changed = await db.shippingRate.updateMany({ where: { id: rateId, storeId: context!.store.id }, data: parsed.data });
   if (!changed.count) return jsonError("Shipping rate not found", 404);
   await db.auditLog.create({ data: { actorId: context!.user.id, storeId: context!.store.id, action: "SHIPPING_RATE_UPDATED", entityType: "ShippingRate", entityId: rateId } });

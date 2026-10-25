@@ -2,18 +2,19 @@
 
 import { useEffect } from "react";
 
-type FieldIssue = { path: string; message: string };
+type FieldIssue = { path: string; field?: string; message: string };
 
 export function showFormIssues(form: HTMLFormElement, issues: FieldIssue[] | undefined) {
   if (!issues?.length) return false;
   let first: HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement | null = null;
   for (const issue of issues) {
-    const name = issue.path.split(".").at(-1) ?? "";
+    const name = issue.field ?? issue.path.split(".").at(-1) ?? "";
     const input = form.elements.namedItem(name);
     if (!(input instanceof HTMLInputElement || input instanceof HTMLSelectElement || input instanceof HTMLTextAreaElement)) continue;
     const label = input.closest("label")?.childNodes[0]?.textContent?.trim() || name;
     const message = /^(Too small|Too big|Invalid input|Invalid string)/i.test(issue.message)
       ? `Check ${label.toLowerCase()} and try again.` : issue.message;
+    for (let parent = input.parentElement; parent; parent = parent.parentElement) if (parent instanceof HTMLDetailsElement) parent.open = true;
     input.setCustomValidity(message);
     first ??= input;
   }
@@ -42,7 +43,7 @@ export function FormValidationFeedback() {
     }
     function show(input: HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement, message: string) {
       const field = fieldFor(input);
-      if (!field || !input.form) return;
+      if (!field) return;
       if (!input.dataset.validationId) input.dataset.validationId = `field-validation-${++nextId}`;
       let help = field.querySelector<HTMLElement>(`[data-validation-for="${input.dataset.validationId}"]`);
       if (!help) {
@@ -74,17 +75,21 @@ export function FormValidationFeedback() {
       if (input.validity.patternMismatch) return input.name === "postcode" ? "Check the postcode format for the selected country." : `Check the format of ${name.toLowerCase()}.`;
       if (input.validity.tooShort && !(input instanceof HTMLSelectElement)) return `${name} needs at least ${input.minLength} characters.`;
       if (input.validity.tooLong && !(input instanceof HTMLSelectElement)) return `${name} must be ${input.maxLength} characters or fewer.`;
-      if (input.validity.rangeUnderflow || input.validity.rangeOverflow) return `Check the allowed range for ${name.toLowerCase()}.`;
+      if (input instanceof HTMLInputElement && input.validity.rangeUnderflow) return `${name} must be at least ${input.min}.`;
+      if (input instanceof HTMLInputElement && input.validity.rangeOverflow) return `${name} must be no greater than ${input.max}.`;
+      if (input.validity.stepMismatch) return `Enter a valid increment for ${name.toLowerCase()}.`;
       return input.validationMessage || `Check ${name.toLowerCase()} and try again.`;
     }
     function onInvalid(event: Event) {
       const input = event.target;
       if (!(input instanceof HTMLInputElement || input instanceof HTMLSelectElement || input instanceof HTMLTextAreaElement)) return;
       event.preventDefault();
+      for (let parent = input.parentElement; parent; parent = parent.parentElement) if (parent instanceof HTMLDetailsElement) parent.open = true;
       show(input, describe(input));
-      if (!input.form?.dataset.validationFocusQueued) {
-        if (input.form) input.form.dataset.validationFocusQueued = "true";
-        window.setTimeout(() => { input.focus(); input.scrollIntoView({ block: "center", behavior: "smooth" }); if (input.form) delete input.form.dataset.validationFocusQueued; }, 0);
+      const scope = input.form ?? input.closest<HTMLElement>("[data-admin-feedback]");
+      if (!scope?.dataset.validationFocusQueued) {
+        if (scope) scope.dataset.validationFocusQueued = "true";
+        window.setTimeout(() => { input.focus(); input.scrollIntoView({ block: "center", behavior: "smooth" }); if (scope) delete scope.dataset.validationFocusQueued; }, 0);
       }
     }
     function onEdit(event: Event) {

@@ -1,20 +1,23 @@
 "use client";
+import { useAdminRequest } from "@/components/admin-form-feedback";
 
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { PetProfileConfig } from "@/lib/pet-profile-cms";
 
 export function PetProfileCmsForm({ config }: { config: PetProfileConfig }) {
+  const { request: adminRequest, feedbackRef, feedback } = useAdminRequest();
+
   const router = useRouter(); const [pending, setPending] = useState(false); const [message, setMessage] = useState("");
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); setPending(true); setMessage(""); const form = new FormData(event.currentTarget);
     const body = Object.fromEntries([...form.entries()].map(([key, value]) => [key, key.endsWith("Px") ? globalThis.Number(value) : value]));
-    const response = await fetch("/api/admin/storefront", { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ area: "pet-profile", config: body }) });
+    const response = await adminRequest("/api/admin/storefront", { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ area: "pet-profile", config: body }) });
     const result = await response.json().catch(() => ({})); setPending(false);
     if (!response.ok) return setMessage(result.error ?? "Pet profile settings could not be saved");
     setMessage("Pet profile template saved"); router.refresh();
   }
-  return <form className="admin-form" onSubmit={save}>
+  return <form ref={node => { feedbackRef.current = node; }} className="admin-form" onSubmit={save}>{feedback}
     <section className="admin-panel"><div className="panel-heading"><div><h2>What a finder sees</h2><p>These are shared labels and visual settings. Each owner still manages their pet’s name, photo, details, contacts and lost status in My account.</p></div></div><div className="field-grid three"><Text name="brandLabel" label="Top label" value={config.brandLabel} /><Text name="profileLabel" label="Normal status label" value={config.profileLabel} /><Text name="greeting" label="Normal greeting" value={config.greeting} /><Text name="lostGreeting" label="Lost greeting" value={config.lostGreeting} /><Text name="lostStatusLabel" label="Lost status label" value={config.lostStatusLabel} /><Text name="lostMessage" label="Lost message" value={config.lostMessage} wide /></div></section>
     <section className="admin-panel"><div className="panel-heading"><div><h2>Contact and care labels</h2><p>Keep these short so they remain clear on a phone screen.</p></div></div><div className="field-grid three"><Text name="contactEyebrow" label="Contact eyebrow" value={config.contactEyebrow} /><Text name="contactHeading" label="Contact heading" value={config.contactHeading} /><Text name="primaryContactLabel" label="Primary contact label" value={config.primaryContactLabel} /><Text name="careHeading" label="Care information heading" value={config.careHeading} /><Text name="aboutLabel" label="About label" value={config.aboutLabel} /><Text name="approachHeading" label="Approach heading" value={config.approachHeading} /><Text name="veterinarianHeading" label="Veterinarian heading" value={config.veterinarianHeading} /><Text name="gpsDisclaimer" label="Footer privacy notice" value={config.gpsDisclaimer} wide /></div></section>
     <section className="admin-panel"><div className="panel-heading"><div><h2>Colours and type size</h2><p>Choose from the full browser colour palette or paste an exact hex colour.</p></div></div><div className="field-grid three"><Colour name="heroStartColour" label="Hero start" value={config.heroStartColour} /><Colour name="heroEndColour" label="Hero end" value={config.heroEndColour} /><Colour name="pageBackgroundColour" label="Page background" value={config.pageBackgroundColour} /><Colour name="cardBackgroundColour" label="Card background" value={config.cardBackgroundColour} /><Colour name="contactBackgroundColour" label="Contact card" value={config.contactBackgroundColour} /><Colour name="accentColour" label="Status accent" value={config.accentColour} /><Colour name="lostBackgroundColour" label="Lost alert" value={config.lostBackgroundColour} /><NumberField name="nameSizePx" label="Pet name size (px)" value={config.nameSizePx} min={24} max={72} /><NumberField name="bodySizePx" label="Body text size (px)" value={config.bodySizePx} min={12} max={24} /></div></section>

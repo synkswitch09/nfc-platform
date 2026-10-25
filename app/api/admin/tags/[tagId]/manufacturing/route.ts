@@ -1,3 +1,4 @@
+import { jsonValidationError } from "@/lib/admin-validation-feedback";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { getAdminApiContext } from "@/lib/admin";
@@ -13,8 +14,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   if (!assertSameOrigin(request)) return jsonError("Invalid request origin", 403);
   const context = await getAdminApiContext(); if (!context) return jsonError("Forbidden", 403); const { user, store } = context;
   if (!hasStoreCapability(store, StoreCapability.NFC)) return jsonError("NFC is not enabled for this store", 404);
-  const parsed = schema.safeParse(await request.json().catch(() => null)); if (!parsed.success) return jsonError("Invalid manufacturing status");
-  const { tagId } = await params;
+  const parsed = schema.safeParse(await request.json().catch(() => null)); if (!parsed.success) return jsonValidationError(parsed.error);
+const { tagId } = await params;
   const tag = await db.nFCTag.findFirst({ where: { id: tagId, storeId: store.id }, select: { manufacturingStatus: true, manufacturingBatchId: true } });
   if (!tag) return jsonError("Tag not found", 404);
   if (!canTransitionManufacturing(tag.manufacturingStatus, parsed.data.status)) return jsonError(`Cannot change ${tag.manufacturingStatus} to ${parsed.data.status}`, 409);

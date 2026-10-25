@@ -1,3 +1,4 @@
+import { jsonValidationError } from "@/lib/admin-validation-feedback";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { getAdminApiContext } from "@/lib/admin";
@@ -9,8 +10,8 @@ const schema = z.object({ status: z.enum(["DRAFT", "ACTIVE", "HIDDEN", "OUT_OF_S
 export async function POST(request: NextRequest, { params }: { params: Promise<{ productId: string }> }) {
   if (!assertSameOrigin(request)) return jsonError("Invalid request origin", 403);
   const context = await getAdminApiContext(); if (!context) return jsonError("Forbidden", 403); const { user, store } = context;
-  const parsed = schema.safeParse(await request.json().catch(() => null)); if (!parsed.success) return jsonError(parsed.error.issues[0]?.message ?? "Invalid product status");
-  const { productId } = await params;
+  const parsed = schema.safeParse(await request.json().catch(() => null)); if (!parsed.success) return jsonValidationError(parsed.error);
+const { productId } = await params;
   const product = await db.product.findFirst({ where: { id: productId, storeId: store.id }, select: { status: true, slug: true, variants: { select: { priceCents: true } } } }); if (!product) return jsonError("Product not found", 404);
   if (store.slug === "kosykin" && product.slug === "custom-name-keychain" && parsed.data.status === "ACTIVE" && product.variants.some(variant => variant.priceCents <= 0)) return jsonError("Set a keychain price before publishing", 409);
   await db.$transaction([

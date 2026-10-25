@@ -1,3 +1,4 @@
+import { jsonValidationError } from "@/lib/admin-validation-feedback";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { canManageStore, getAdminApiContext } from "@/lib/admin";
@@ -19,8 +20,8 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   const context = await getAdminApiContext();
   if (!canManageStore(context)) return jsonError("Forbidden", 403);
   const parsed = schema.safeParse(await request.json().catch(() => null));
-  if (!parsed.success) return jsonError(parsed.error.issues[0]?.message ?? "Invalid origin", 400);
-  const { originId } = await params;
+  if (!parsed.success) return jsonValidationError(parsed.error);
+const { originId } = await params;
   const origin = await db.shippingOrigin.findFirst({ where: { id: originId, storeId: context!.store.id } });
   if (!origin) return jsonError("Origin not found", 404);
   if (parsed.data.isDefault && !parsed.data.active) return jsonError("The default origin must stay active", 400);

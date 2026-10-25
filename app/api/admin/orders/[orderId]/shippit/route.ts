@@ -1,3 +1,4 @@
+import { jsonValidationError } from "@/lib/admin-validation-feedback";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { getAdminApiContext } from "@/lib/admin";
@@ -13,8 +14,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   if (!assertSameOrigin(request)) return jsonError("Invalid request origin", 403);
   const context = await getAdminApiContext(); if (!context) return jsonError("Forbidden", 403);
   const parsed = schema.safeParse(await request.json().catch(() => null));
-  if (!parsed.success) return jsonError(parsed.error.issues[0]?.message ?? "Invalid parcel");
-  try {
+  if (!parsed.success) return jsonValidationError(parsed.error);
+try {
     const orderId = (await params).orderId;
     const job = await db.shippitPreparation.findFirst({ where: { orderId, order: { storeId: context.store.id } } });
     if (!job) return jsonError("Automatic shipping preparation not found", 404);

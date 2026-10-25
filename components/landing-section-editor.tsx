@@ -1,4 +1,5 @@
 "use client";
+import { useAdminRequest } from "@/components/admin-form-feedback";
 
 import { useEffect, useRef, useState } from "react";
 import { SharedBlockPicker } from "@/components/shared-block-picker";
@@ -146,6 +147,8 @@ export function LandingSectionEditor({
   structureLocked?: boolean;
   anchorId?: string;
 }) {
+  const { request: adminRequest, feedbackRef, feedback } = useAdminRequest();
+
   const router = useRouter();
   const listRef = useRef<HTMLDivElement>(null);
   const [sections, setSections] = useState<LandingSectionDraft[]>(() =>
@@ -156,7 +159,7 @@ export function LandingSectionEditor({
   const [message, setMessage] = useState("");
   const [linkTargets, setLinkTargets] = useState<Array<{ href: string; label: string }>>([]);
   useEffect(() => {
-    fetch("/api/admin/link-targets")
+    adminRequest("/api/admin/link-targets")
       .then((response) => (response.ok ? response.json() : null))
       .then((result) => setLinkTargets(Array.isArray(result?.targets) ? result.targets : []))
       .catch(() => undefined);
@@ -181,7 +184,7 @@ export function LandingSectionEditor({
     if (!endpoint && !categoryId) return;
     setPending(true);
     setMessage("");
-    const response = await fetch(
+    const response = await adminRequest(
       endpoint ?? `/api/admin/categories/${categoryId}/sections`,
       {
         method: "PUT",
@@ -215,7 +218,7 @@ export function LandingSectionEditor({
     "Conversion",
   ] as const;
   return (
-    <section className="admin-panel landing-builder" id={anchorId}>
+    <section ref={node => { feedbackRef.current = node; }} className="admin-panel landing-builder" id={anchorId}>{feedback}
       <datalist id="landing-link-targets">
         {linkTargets.map((target) => <option key={target.href} value={target.href}>{target.label}</option>)}
       </datalist>
@@ -323,6 +326,7 @@ export function LandingSectionEditor({
       <div className="landing-builder-list" ref={listRef}>
         {sections.map((section, index) => (
           <article
+            data-validation-scope={index}
             className={`landing-builder-section${section.visible ? "" : " is-hidden"}`}
             key={section.id ?? section.clientKey}
           >
@@ -389,7 +393,7 @@ export function LandingSectionEditor({
               <div className="field-grid">
                 <label className="field">
                   Admin name
-                  <input
+                  <input name="name"
                     value={section.name}
                     maxLength={100}
                     onChange={(event) =>
@@ -399,7 +403,7 @@ export function LandingSectionEditor({
                 </label>
                 <label className="field">
                   Type
-                  <select
+                  <select name="type"
                     value={section.type}
                     onChange={(event) => {
                       const type = event.target.value as LandingSectionType;
@@ -443,7 +447,7 @@ export function LandingSectionEditor({
                 <div className="field-grid">
                   <label className="field">
                     Maximum items
-                    <input
+                    <input name="content.limit"
                       type="number"
                       min="1"
                       max="24"
@@ -471,7 +475,7 @@ export function LandingSectionEditor({
                 <details className="admin-subpanel">
                   <summary>Supporting image</summary>
                   <div className="field-grid">
-                    <CategoryImageUploadField
+                    <CategoryImageUploadField name="content.imageUrl"
                       categoryId={categoryId}
                       uploadEndpoint={mediaUploadEndpoint}
                       label="Supporting image"
@@ -480,7 +484,7 @@ export function LandingSectionEditor({
                     />
                     <label className="field">
                       Supporting image alt text
-                      <input
+                      <input name="content.imageAlt"
                         value={string(section.content.imageAlt)}
                         onChange={(event) =>
                           content(index, { imageAlt: event.target.value })
@@ -550,7 +554,7 @@ function CommonCopy({
       <div className="field-grid">
         <label className="field">
           Section anchor
-          <input
+          <input name="content.anchorId"
             value={string(section.content.anchorId)}
             placeholder="how-it-works"
             pattern="[a-z][a-z0-9-]*"
@@ -562,7 +566,7 @@ function CommonCopy({
         Each text element keeps its content, typography and colour together.
         Leave typography inherited to use the Storefront Typography. Sizes are exact pixels.
       </p>
-      <TextElementEditor
+      <TextElementEditor name="content.eyebrow"
         label="Eyebrow"
         value={string(section.content.eyebrow)}
         maxLength={100}
@@ -572,7 +576,7 @@ function CommonCopy({
         onTypographyChange={(value) => onChange({ eyebrowTypography: value })}
         onColourChange={(value) => onChange({ eyebrowColour: value })}
       />
-      <TextElementEditor
+      <TextElementEditor name="content.headline"
         label="Headline"
         value={string(section.content.headline)}
         maxLength={180}
@@ -582,7 +586,7 @@ function CommonCopy({
         onTypographyChange={(value) => onChange({ headlineTypography: value })}
         onColourChange={(value) => onChange({ headlineColour: value })}
       />
-      <TextElementEditor
+      <TextElementEditor name="content.copy"
         label="Body copy"
         value={string(section.content.copy)}
         maxLength={3000}
@@ -598,6 +602,7 @@ function CommonCopy({
 }
 
 function TextElementEditor({
+  name,
   label,
   value,
   maxLength,
@@ -608,6 +613,7 @@ function TextElementEditor({
   onTypographyChange,
   onColourChange,
 }: {
+  name?: string;
   label: string;
   value: string;
   maxLength: number;
@@ -624,21 +630,21 @@ function TextElementEditor({
       <label className="field wide">
         Content
         {multiline ? (
-          <textarea
+          <textarea name={name}
             value={value}
             maxLength={maxLength}
             onChange={(event) => onChange(event.target.value)}
           />
         ) : (
-          <input
+          <input name={name}
             value={value}
             maxLength={maxLength}
             onChange={(event) => onChange(event.target.value)}
           />
         )}
       </label>
-      <TypographyControls value={typography} onChange={onTypographyChange} />
-      <ColourField label="Colour" value={colour} onChange={onColourChange} />
+      <TypographyControls name={`${name}Typography`} value={typography} onChange={onTypographyChange} />
+      <ColourField name={`${name}Colour`} label="Colour" value={colour} onChange={onColourChange} />
     </fieldset>
   );
 }
@@ -694,7 +700,7 @@ function SectionStyle({
       <div className="field-grid">
         <label className="field">
           Colour theme
-          <select
+          <select name="content.colourTheme"
             value={string(section.content.colourTheme, "INHERIT")}
             onChange={(event) => onChange({ colourTheme: event.target.value })}
           >
@@ -707,7 +713,7 @@ function SectionStyle({
         </label>
         <label className="field">
           Layout style
-          <select
+          <select name="content.layoutVariant"
             value={string(section.content.layoutVariant, "DEFAULT")}
             onChange={(event) =>
               onChange({ layoutVariant: event.target.value })
@@ -724,7 +730,7 @@ function SectionStyle({
         </label>
         <label className="field">
           Section width
-          <select
+          <select name="content.sectionWidth"
             value={string(section.content.sectionWidth, "STANDARD")}
             onChange={(event) => onChange({ sectionWidth: event.target.value })}
           >
@@ -735,7 +741,7 @@ function SectionStyle({
         </label>
         <label className="field">
           Vertical spacing
-          <select
+          <select name="content.spacing"
             value={string(section.content.spacing, "STANDARD")}
             onChange={(event) => onChange({ spacing: event.target.value })}
           >
@@ -746,7 +752,7 @@ function SectionStyle({
         </label>
         <label className="field">
           Heading size
-          <select
+          <select name="content.headingScale"
             value={string(section.content.headingScale, "STANDARD")}
             onChange={(event) => onChange({ headingScale: event.target.value })}
           >
@@ -757,7 +763,7 @@ function SectionStyle({
         </label>
         <label className="field">
           Columns
-          <select
+          <select name="content.columns"
             value={number(section.content.columns, 3)}
             onChange={(event) =>
               onChange({ columns: Number(event.target.value) })
@@ -772,7 +778,7 @@ function SectionStyle({
         </label>
         <label className="field">
           Image fit
-          <select
+          <select name="content.imageFit"
             value={string(section.content.imageFit, "COVER")}
             onChange={(event) => onChange({ imageFit: event.target.value })}
           >
@@ -782,7 +788,7 @@ function SectionStyle({
         </label>
         <label className="field">
           Corner radius
-          <select
+          <select name="content.radius"
             value={string(section.content.radius, "LARGE")}
             onChange={(event) => onChange({ radius: event.target.value })}
           >
@@ -791,7 +797,7 @@ function SectionStyle({
             ))}
           </select>
         </label>
-        <ColourField
+        <ColourField name="content.backgroundColour"
           label="Section background override"
           value={string(section.content.backgroundColour)}
           onChange={(backgroundColour) => onChange({ backgroundColour })}
@@ -812,22 +818,22 @@ function CardStyle({
     <details className="admin-subpanel">
       <summary>Card and FAQ appearance</summary>
       <div className="field-grid">
-        <ColourField
+        <ColourField name="content.cardBackgroundColour"
           label="Card background"
           value={string(section.content.cardBackgroundColour)}
           onChange={(cardBackgroundColour) => onChange({ cardBackgroundColour })}
         />
-        <ColourField
+        <ColourField name="content.cardTextColour"
           label="Card text"
           value={string(section.content.cardTextColour)}
           onChange={(cardTextColour) => onChange({ cardTextColour })}
         />
-        <ColourField
+        <ColourField name="content.cardBorderColour"
           label="Card border"
           value={string(section.content.cardBorderColour)}
           onChange={(cardBorderColour) => onChange({ cardBorderColour })}
         />
-        <TypographyOverrideFields
+        <TypographyOverrideFields name="content.cardTypography"
           label="Cards and FAQs"
           value={typographyOverride(section.content.cardTypography)}
           onChange={(value) => onChange({ cardTypography: value })}
@@ -837,19 +843,21 @@ function CardStyle({
   );
 }
 
-function TypographyOverrideFields({ label, value, onChange }: { label: string; value: TypographyOverride; onChange: (value: TypographyOverride) => void }) {
+function TypographyOverrideFields({ label, value, onChange, name }: { name?: string; label: string; value: TypographyOverride; onChange: (value: TypographyOverride) => void }) {
   return (
     <fieldset className="admin-subpanel">
       <legend>{label}</legend>
-      <TypographyControls value={value} onChange={onChange} />
+      <TypographyControls name={name} value={value} onChange={onChange} />
     </fieldset>
   );
 }
 
 function TypographyControls({
+  name,
   value,
   onChange,
 }: {
+  name?: string;
   value: TypographyOverride;
   onChange: (value: TypographyOverride) => void;
 }) {
@@ -858,7 +866,7 @@ function TypographyControls({
       <label className="field">
         Typeface
         <select
-          value={value.family}
+          name={name ? `${name}.family` : undefined} value={value.family}
           onChange={(event) =>
             onChange({
               ...value,
@@ -879,7 +887,7 @@ function TypographyControls({
       <label className="field">
         Weight
         <select
-          value={value.weight}
+          name={name ? `${name}.weight` : undefined} value={value.weight}
           onChange={(event) =>
             onChange({
               ...value,
@@ -898,7 +906,7 @@ function TypographyControls({
       <label className="field">
         Style
         <select
-          value={value.italic}
+          name={name ? `${name}.italic` : undefined} value={value.italic}
           onChange={(event) =>
             onChange({
               ...value,
@@ -917,7 +925,7 @@ function TypographyControls({
           type="number"
           min="8"
           max="96"
-          value={value.sizePx ?? ""}
+          name={name ? `${name}.sizePx` : undefined} value={value.sizePx ?? ""}
           placeholder="Inherit"
           onChange={(event) =>
             onChange({
@@ -927,8 +935,8 @@ function TypographyControls({
           }
         />
       </label>
-      <label className="field">Line height<input type="number" min="0.8" max="3" step="0.05" value={value.lineHeight ?? ""} placeholder="Inherit" onChange={e => onChange({ ...value, lineHeight: e.target.value ? Number(e.target.value) : undefined })} /></label>
-      <label className="field">Letter spacing (em)<input type="number" min="-0.2" max="0.5" step="0.005" value={value.letterSpacingEm ?? ""} placeholder="Inherit" onChange={e => onChange({ ...value, letterSpacingEm: e.target.value ? Number(e.target.value) : undefined })} /></label>
+      <label className="field">Line height<input type="number" min="0.8" max="3" step="0.05" name={name ? `${name}.lineHeight` : undefined} value={value.lineHeight ?? ""} placeholder="Inherit" onChange={e => onChange({ ...value, lineHeight: e.target.value ? Number(e.target.value) : undefined })} /></label>
+      <label className="field">Letter spacing (em)<input type="number" min="-0.2" max="0.5" step="0.005" name={name ? `${name}.letterSpacingEm` : undefined} value={value.letterSpacingEm ?? ""} placeholder="Inherit" onChange={e => onChange({ ...value, letterSpacingEm: e.target.value ? Number(e.target.value) : undefined })} /></label>
     </div>
   );
 }
@@ -954,16 +962,16 @@ function NarrativeFields({
         {section.type === "HERO" && section.content.layoutVariant === "KOSYKIN_WAVY" && (
           <>
             <label className="field">Side title (e.g. Collection)
-              <input maxLength={60} value={string(section.content.sideLabel)} onChange={(event) => onChange({ sideLabel: event.target.value })} />
+              <input name="content.sideLabel" maxLength={60} value={string(section.content.sideLabel)} onChange={(event) => onChange({ sideLabel: event.target.value })} />
             </label>
-            <CategoryImageUploadField categoryId={categoryId} uploadEndpoint={mediaUploadEndpoint}
+            <CategoryImageUploadField name="content.artworkUrl" categoryId={categoryId} uploadEndpoint={mediaUploadEndpoint}
               label="Complete hero artwork (headline and product)" value={string(section.content.artworkUrl)}
               onChange={(artworkUrl) => onChange({ artworkUrl })} />
           </>
         )}
         <label className="field">
           Layout
-          <select
+          <select name="content.layout"
             value={string(section.content.layout, "IMAGE_RIGHT")}
             onChange={(event) => onChange({ layout: event.target.value })}
           >
@@ -976,7 +984,7 @@ function NarrativeFields({
         </label>
         <label className="field">
           Image focus
-          <select
+          <select name="content.imagePosition"
             value={string(section.content.imagePosition, "CENTRE")}
             onChange={(event) =>
               onChange({ imagePosition: event.target.value })
@@ -987,7 +995,7 @@ function NarrativeFields({
             ))}
           </select>
         </label>
-        <CategoryImageUploadField
+        <CategoryImageUploadField name="content.imageUrl"
           categoryId={categoryId}
           uploadEndpoint={mediaUploadEndpoint}
           label="Section image"
@@ -996,14 +1004,14 @@ function NarrativeFields({
         />
         <label className="field">
           Image alt text
-          <input
+          <input name="content.imageAlt"
             value={string(section.content.imageAlt)}
             onChange={(event) => onChange({ imageAlt: event.target.value })}
           />
         </label>
         {section.type === "CTA_BANNER" && (
           <>
-            <CategoryImageUploadField
+            <CategoryImageUploadField name="content.mobileImageUrl"
               categoryId={categoryId}
               uploadEndpoint={mediaUploadEndpoint}
               label="Mobile image"
@@ -1012,7 +1020,7 @@ function NarrativeFields({
             />
             <label className="field">
               Text position
-              <select
+              <select name="content.contentPosition"
                 value={string(section.content.contentPosition, "LEFT")}
                 onChange={(event) =>
                   onChange({ contentPosition: event.target.value })
@@ -1025,7 +1033,7 @@ function NarrativeFields({
             </label>
             <label className="field">
               Image overlay
-              <select
+              <select name="content.overlay"
                 value={string(section.content.overlay, "NONE")}
                 onChange={(event) => onChange({ overlay: event.target.value })}
               >
@@ -1060,7 +1068,7 @@ function NarrativeFields({
             <div className="variant-editor" key={block.id}>
               <label className="field">
                 Text type
-                <select
+                <select name={`content.textBlocks.${index}.type`}
                   value={block.type}
                   onChange={(event) =>
                     onChange({
@@ -1083,7 +1091,7 @@ function NarrativeFields({
               </label>
               <label className="field wide">
                 Text
-                <textarea
+                <textarea name={`content.textBlocks.${index}.text`}
                   value={block.text}
                   onChange={(event) =>
                     onChange({
@@ -1137,10 +1145,10 @@ function NarrativeFields({
         >
           {features.map((feature, index) => (
             <div className="variant-editor" key={feature.id}>
-              <CategoryImageUploadField categoryId={categoryId} uploadEndpoint={mediaUploadEndpoint} label="Feature icon image (overrides icon name)" value={feature.iconUrl ?? ''} onChange={iconUrl => onChange({ features: replace(features, index, { iconUrl }) })} />
+              <CategoryImageUploadField name={`content.features.${index}.iconUrl`} categoryId={categoryId} uploadEndpoint={mediaUploadEndpoint} label="Feature icon image (overrides icon name)" value={feature.iconUrl ?? ''} onChange={iconUrl => onChange({ features: replace(features, index, { iconUrl }) })} />
               <label className="field">
                 Icon
-                <input
+                <input name={`content.features.${index}.icon`}
                   value={feature.icon}
                   onChange={(event) =>
                     onChange({
@@ -1153,7 +1161,7 @@ function NarrativeFields({
               </label>
               <label className="field">
                 Label
-                <input
+                <input name={`content.features.${index}.label`}
                   value={feature.label}
                   onChange={(event) =>
                     onChange({
@@ -1166,7 +1174,7 @@ function NarrativeFields({
               </label>
               <label className="field">
                 Supporting text
-                <input
+                <input name={`content.features.${index}.supportingText`}
                   value={feature.supportingText}
                   onChange={(event) =>
                     onChange({
@@ -1177,7 +1185,7 @@ function NarrativeFields({
                   }
                 />
               </label>
-              <ColourField
+              <ColourField name={`content.features.${index}.backgroundColour`}
                 label="Circle colour"
                 value={feature.backgroundColour}
                 onChange={(backgroundColour) =>
@@ -1186,7 +1194,7 @@ function NarrativeFields({
                   })
                 }
               />
-              <ColourField
+              <ColourField name={`content.features.${index}.iconColour`}
                 label="Icon colour"
                 value={feature.iconColour}
                 onChange={(iconColour) =>
@@ -1218,7 +1226,7 @@ function NarrativeFields({
         <summary>Checklist</summary>
         <label className="field wide">
           Bullets, one per line
-          <textarea
+          <textarea name="content.bullets"
             value={array<string>(section.content.bullets).join("\n")}
             onChange={(event) =>
               onChange({
@@ -1250,14 +1258,14 @@ function CtaFields({
         <div className="field-grid">
           <label className="field">
             Label
-            <input
+            <input name="content.ctaLabel"
               value={string(section.content.ctaLabel)}
               onChange={(event) => onChange({ ctaLabel: event.target.value })}
             />
           </label>
           <label className="field">
             Destination
-            <input
+            <input name="content.ctaHref"
               value={string(section.content.ctaHref)}
               list="landing-link-targets"
               placeholder="Choose a page or enter a safe internal path"
@@ -1272,9 +1280,9 @@ function CtaFields({
             />
             <span>Show primary button</span>
           </label>
-          <ColourField label="Background" value={string(section.content.ctaBackground)} onChange={(ctaBackground) => onChange({ ctaBackground })} />
-          <ColourField label="Text" value={string(section.content.ctaTextColour)} onChange={(ctaTextColour) => onChange({ ctaTextColour })} />
-          <ColourField label="Border" value={string(section.content.ctaBorderColour)} onChange={(ctaBorderColour) => onChange({ ctaBorderColour })} />
+          <ColourField name="content.ctaBackground" label="Background" value={string(section.content.ctaBackground)} onChange={(ctaBackground) => onChange({ ctaBackground })} />
+          <ColourField name="content.ctaTextColour" label="Text" value={string(section.content.ctaTextColour)} onChange={(ctaTextColour) => onChange({ ctaTextColour })} />
+          <ColourField name="content.ctaBorderColour" label="Border" value={string(section.content.ctaBorderColour)} onChange={(ctaBorderColour) => onChange({ ctaBorderColour })} />
         </div>
       </fieldset>
       <fieldset className="admin-subpanel">
@@ -1282,14 +1290,14 @@ function CtaFields({
         <div className="field-grid">
           <label className="field">
             Label
-            <input
+            <input name="content.secondaryCtaLabel"
               value={string(section.content.secondaryCtaLabel)}
               onChange={(event) => onChange({ secondaryCtaLabel: event.target.value })}
             />
           </label>
           <label className="field">
             Destination
-            <input
+            <input name="content.secondaryCtaHref"
               value={string(section.content.secondaryCtaHref)}
               list="landing-link-targets"
               placeholder="Choose a page or enter a safe internal path"
@@ -1304,12 +1312,12 @@ function CtaFields({
             />
             <span>Show secondary button</span>
           </label>
-          <ColourField label="Background" value={string(section.content.secondaryCtaBackground)} onChange={(secondaryCtaBackground) => onChange({ secondaryCtaBackground })} />
-          <ColourField label="Text" value={string(section.content.secondaryCtaTextColour)} onChange={(secondaryCtaTextColour) => onChange({ secondaryCtaTextColour })} />
-          <ColourField label="Border" value={string(section.content.secondaryCtaBorderColour)} onChange={(secondaryCtaBorderColour) => onChange({ secondaryCtaBorderColour })} />
+          <ColourField name="content.secondaryCtaBackground" label="Background" value={string(section.content.secondaryCtaBackground)} onChange={(secondaryCtaBackground) => onChange({ secondaryCtaBackground })} />
+          <ColourField name="content.secondaryCtaTextColour" label="Text" value={string(section.content.secondaryCtaTextColour)} onChange={(secondaryCtaTextColour) => onChange({ secondaryCtaTextColour })} />
+          <ColourField name="content.secondaryCtaBorderColour" label="Border" value={string(section.content.secondaryCtaBorderColour)} onChange={(secondaryCtaBorderColour) => onChange({ secondaryCtaBorderColour })} />
         </div>
       </fieldset>
-      <TypographyOverrideFields
+      <TypographyOverrideFields name="content.buttonTypography"
         label="Button text style"
         value={typographyOverride(section.content.buttonTypography)}
         onChange={(value) => onChange({ buttonTypography: value })}
@@ -1350,9 +1358,9 @@ function ItemsEditor({
     >
       {items.map((item, index) => (
         <div className="variant-editor" key={item.id}>
-          <CategoryImageUploadField categoryId={categoryId} uploadEndpoint={mediaUploadEndpoint} label="Icon image (overrides icon name)" value={item.iconUrl ?? ''} onChange={iconUrl => update(index, { iconUrl })} />
+          <CategoryImageUploadField name={`content.items.${index}.iconUrl`} categoryId={categoryId} uploadEndpoint={mediaUploadEndpoint} label="Icon image (overrides icon name)" value={item.iconUrl ?? ''} onChange={iconUrl => update(index, { iconUrl })} />
           {collectionCategories && <label className="field">Shop category
-            <select value={item.categorySlug ?? ""} onChange={(event) => update(index, { categorySlug: event.target.value })}>
+            <select name={`content.items.${index}.categorySlug`} value={item.categorySlug ?? ""} onChange={(event) => update(index, { categorySlug: event.target.value })}>
               <option value="">Choose category</option>
               {collectionCategories.map((category) => <option key={category.slug} value={category.slug}>{category.name}</option>)}
             </select>
@@ -1360,28 +1368,28 @@ function ItemsEditor({
           </label>}
           <label className="field">
             Icon
-            <input
+            <input name={`content.items.${index}.icon`}
               value={item.icon ?? "sparkles"}
               onChange={(event) => update(index, { icon: event.target.value })}
             />
           </label>
           <label className="field">
             Title
-            <input
+            <input name={`content.items.${index}.title`}
               value={item.title ?? ""}
               onChange={(event) => update(index, { title: event.target.value })}
             />
           </label>
           <label className="field wide">
             Description
-            <textarea
+            <textarea name={`content.items.${index}.description`}
               value={item.description ?? ""}
               onChange={(event) =>
                 update(index, { description: event.target.value })
               }
             />
           </label>
-          <CategoryImageUploadField
+          <CategoryImageUploadField name={`content.items.${index}.imageUrl`}
             categoryId={categoryId}
             uploadEndpoint={mediaUploadEndpoint}
             label="Item image"
@@ -1390,7 +1398,7 @@ function ItemsEditor({
           />
           <label className="field">
             Image alt text
-            <input
+            <input name={`content.items.${index}.imageAlt`}
               value={item.imageAlt ?? ""}
               onChange={(event) =>
                 update(index, { imageAlt: event.target.value })
@@ -1399,7 +1407,7 @@ function ItemsEditor({
           </label>
           <label className="field">
             Image vertical offset
-            <input
+            <input name={`content.items.${index}.imagePosition`}
               type="number"
               min="-20"
               max="20"
@@ -1409,7 +1417,7 @@ function ItemsEditor({
               }
             />
           </label>
-          <ColourField
+          <ColourField name={`content.items.${index}.backgroundColour`}
             label={
               sectionType === "STEPS"
                 ? "Card background override"
@@ -1418,26 +1426,26 @@ function ItemsEditor({
             value={item.backgroundColour ?? ""}
             onChange={(backgroundColour) => update(index, { backgroundColour })}
           />
-          <ColourField
+          <ColourField name={`content.items.${index}.textColour`}
             label="Card text override"
             value={item.textColour ?? ""}
             onChange={(textColour) => update(index, { textColour })}
           />
-          <ColourField
+          <ColourField name={`content.items.${index}.iconBackgroundColour`}
             label={collectionCategories ? "Category highlight colour (Home and Shop)" : "Icon background override"}
             value={item.iconBackgroundColour ?? ""}
             onChange={(iconBackgroundColour) =>
               update(index, { iconBackgroundColour })
             }
           />
-          <ColourField
+          <ColourField name={`content.items.${index}.iconColour`}
             label="Icon colour override"
             value={item.iconColour ?? ""}
             onChange={(iconColour) => update(index, { iconColour })}
           />
           <label className="field">
             Card CTA label
-            <input
+            <input name={`content.items.${index}.ctaLabel`}
               value={item.ctaLabel ?? ""}
               onChange={(event) =>
                 update(index, { ctaLabel: event.target.value })
@@ -1446,7 +1454,7 @@ function ItemsEditor({
           </label>
           <label className="field">
             Card CTA destination
-            <input
+            <input name={`content.items.${index}.ctaHref`}
               value={item.ctaHref ?? ""}
               list="landing-link-targets"
               placeholder="/shop"
@@ -1455,17 +1463,17 @@ function ItemsEditor({
               }
             />
           </label>
-          <ColourField
+          <ColourField name={`content.items.${index}.ctaBackground`}
             label="Card CTA background"
             value={item.ctaBackground ?? ""}
             onChange={(ctaBackground) => update(index, { ctaBackground })}
           />
-          <ColourField
+          <ColourField name={`content.items.${index}.ctaTextColour`}
             label="Card CTA text"
             value={item.ctaTextColour ?? ""}
             onChange={(ctaTextColour) => update(index, { ctaTextColour })}
           />
-          <ColourField
+          <ColourField name={`content.items.${index}.ctaBorderColour`}
             label="Card CTA border"
             value={item.ctaBorderColour ?? ""}
             onChange={(ctaBorderColour) => update(index, { ctaBorderColour })}
@@ -1512,7 +1520,7 @@ function FaqEditor({
         <div className="variant-editor" key={item.id}>
           <label className="field">
             Question
-            <input
+            <input name={`content.items.${index}.question`}
               value={item.question ?? ""}
               onChange={(event) =>
                 update(index, { question: event.target.value })
@@ -1521,7 +1529,7 @@ function FaqEditor({
           </label>
           <label className="field wide">
             Answer
-            <textarea
+            <textarea name={`content.items.${index}.answer`}
               value={item.answer ?? ""}
               onChange={(event) =>
                 update(index, { answer: event.target.value })

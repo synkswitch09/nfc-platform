@@ -1,3 +1,4 @@
+import { jsonValidationError } from "@/lib/admin-validation-feedback";
 import { assertNoSupportHold } from "@/lib/support-access";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
@@ -13,8 +14,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const context = await getAdminApiContext();
   if (!context) return jsonError("Forbidden", 403);
   const parsed = schema.safeParse(await request.json().catch(() => null));
-  if (!parsed.success) return jsonError("Invalid production update", 400);
-  const { jobId } = await params;
+  if (!parsed.success) return jsonValidationError(parsed.error);
+const { jobId } = await params;
   const { status, reason } = parsed.data;
   const job = await db.manufacturingJob.findFirst({ where: { id: jobId, storeId: context.store.id }, include: { orderItem: { select: { order: { select: { id: true, status: true, storeId: true } } } } } });
   if (!job) return jsonError("Job not found", 404);

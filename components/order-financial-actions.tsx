@@ -1,10 +1,13 @@
 "use client";
+import { useAdminRequest } from "@/components/admin-form-feedback";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
 export function OrderFinancialActions({ orderId, orderNumber, amountCents, currency, canRefund, canRestock, refundId, notificationId }: {
   orderId: string; orderNumber: string; amountCents: number; currency: string; canRefund?: boolean; canRestock?: boolean; refundId?: string; notificationId?: string;
 }) {
+  const { request: adminRequest, feedbackRef, feedback } = useAdminRequest();
+
   const router = useRouter();
   const [reason, setReason] = useState("");
   const [pending, setPending] = useState(false);
@@ -20,7 +23,7 @@ export function OrderFinancialActions({ orderId, orderNumber, amountCents, curre
     if (confirmation && !window.confirm(confirmation)) return;
     setPending(true); setMessage("");
     try {
-      const response = await fetch(`/api/admin/orders/${orderId}/operations`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action, confirmed: true, reason, orderNumber, amountCents, refundId, notificationId, requestId }) });
+      const response = await adminRequest(`/api/admin/orders/${orderId}/operations`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action, confirmed: true, reason, orderNumber, amountCents, refundId, notificationId, requestId }) });
       const data = await response.json();
       if (!response.ok) { setMessage(data.error ?? "Operation failed"); return; }
       setRequestId(crypto.randomUUID());
@@ -29,7 +32,7 @@ export function OrderFinancialActions({ orderId, orderNumber, amountCents, curre
     } catch { setMessage("Response uncertain. Refresh and inspect the status before retrying."); }
     finally { setPending(false); }
   }
-  return <div className="admin-stack">
+  return <div ref={node => { feedbackRef.current = node; }} className="admin-stack">{feedback}
     {(canRefund || canRestock) && <label className="field">Reason<input value={reason} onChange={event => setReason(event.target.value)} maxLength={500} /></label>}
     {canRefund && <button type="button" className="button secondary" disabled={pending} onClick={() => run("refund")}>Refund {amount}</button>}
     {canRestock && <button type="button" className="button secondary" disabled={pending} onClick={() => run("restock")}>Return sold stock</button>}

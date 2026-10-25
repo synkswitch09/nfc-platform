@@ -1,3 +1,4 @@
+import { jsonValidationError } from "@/lib/admin-validation-feedback";
 import { Prisma } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
@@ -14,9 +15,8 @@ export async function POST(request: NextRequest) {
   if (!context?.isPlatformAdmin) return jsonError("Platform administrator access required", 403);
 
   const parsed = createStoreSchema.safeParse(await request.json().catch(() => null));
-  if (!parsed.success) return jsonError(parsed.error.issues[0]?.message ?? "Invalid store", 400);
-
-  try {
+  if (!parsed.success) return jsonValidationError(parsed.error);
+try {
     const store = await db.$transaction(async (tx) => {
       const created = await tx.store.create({
         data: newStoreData(parsed.data, deploymentEnvironment(currentAppEnvironment())),

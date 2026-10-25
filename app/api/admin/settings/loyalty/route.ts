@@ -1,3 +1,4 @@
+import { jsonValidationError } from "@/lib/admin-validation-feedback";
 import { NextRequest, NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
@@ -12,8 +13,8 @@ export async function PATCH(request: NextRequest) {
   if (!context) return jsonError("Forbidden", 403);
   if (Number(request.headers.get("content-length") ?? 0) > 4096) return jsonError("Request too large", 413);
   const parsed = loyaltyConfigSchema.safeParse(await request.json().catch(() => null));
-  if (!parsed.success) return jsonError("Check the points rules. Minimum redemption must be a multiple of its unit");
-  if (parsed.data.enabled && context.store.currency !== "AUD") return jsonError("This points programme supports AUD stores only");
+  if (!parsed.success) return jsonValidationError(parsed.error);
+if (parsed.data.enabled && context.store.currency !== "AUD") return jsonError("This points programme supports AUD stores only");
   await db.$transaction(async tx => {
     const row = await tx.store.update({ where: { id: context.store.id }, data: { updatedAt: new Date() }, select: { accountConfig: true } });
     const previous = row.accountConfig && typeof row.accountConfig === "object" && !Array.isArray(row.accountConfig) ? row.accountConfig as Record<string, unknown> : {};
@@ -30,8 +31,8 @@ export async function POST(request: NextRequest) {
   if (!context) return jsonError("Forbidden", 403);
   if (Number(request.headers.get("content-length") ?? 0) > 4096) return jsonError("Request too large", 413);
   const parsed = adjustment.safeParse(await request.json().catch(() => null));
-  if (!parsed.success) return jsonError("Choose a points account, a non-zero adjustment and a reason of at least 10 characters");
-  try {
+  if (!parsed.success) return jsonValidationError(parsed.error);
+try {
     const result = await adjustLoyalty({ ...parsed.data, storeId: context.store.id, actorId: context.user.id, config: parseLoyaltyConfig(context.store.accountConfig) });
     revalidatePath("/admin/settings/loyalty"); revalidatePath("/dashboard/points");
     return NextResponse.json({ ok: true, ...result });

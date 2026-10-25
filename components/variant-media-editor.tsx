@@ -1,4 +1,5 @@
 "use client";
+import { useAdminRequest } from "@/components/admin-form-feedback";
 
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -12,6 +13,8 @@ export type VariantMedia = {
 };
 
 export function VariantMediaEditor({ productId, variantId, media, generated3d = false }: { productId?: string; variantId?: string; media?: VariantMedia; generated3d?: boolean }) {
+  const { request: adminRequest, feedbackRef, feedback } = useAdminRequest();
+
   const router = useRouter();
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
@@ -34,7 +37,7 @@ export function VariantMediaEditor({ productId, variantId, media, generated3d = 
     if (kind === "video") form.set("caption", videoCaption);
     const url = kind === "image" ? `/api/admin/products/${productId}/images` : `${base}/videos`;
     try {
-      const response = await fetch(url, { method: "POST", body: form });
+      const response = await adminRequest(url, { method: "POST", body: form });
       const body = await response.json().catch(() => ({}));
       if (!response.ok) { setError(body.error ?? "Upload failed"); return; }
       if (kind === "image") { setImageFile(null); setImageAlt(""); }
@@ -49,7 +52,7 @@ export function VariantMediaEditor({ productId, variantId, media, generated3d = 
     setBusy("model"); setError("");
     const form = new FormData(); form.set("file", file);
     try {
-      const response = await fetch(`${base}/model`, { method: "POST", body: form });
+      const response = await adminRequest(`${base}/model`, { method: "POST", body: form });
       const body = await response.json().catch(() => ({}));
       if (!response.ok) { setError(body.error ?? "GLB upload failed"); return; }
       setUploadSequence(current => current + 1);
@@ -63,7 +66,7 @@ export function VariantMediaEditor({ productId, variantId, media, generated3d = 
     setBusy(id ?? kind); setError("");
     const url = kind === "image" ? `/api/admin/products/${productId}/images/${id}` : kind === "video" ? `${base}/videos/${id}` : `${base}/model`;
     try {
-      const response = await fetch(url, { method: "DELETE" });
+      const response = await adminRequest(url, { method: "DELETE" });
       if (!response.ok) { const body = await response.json().catch(() => ({})); setError(body.error ?? "Could not remove media"); return; }
       router.refresh();
     } catch { setError("Could not remove media. Please try again."); }
@@ -72,7 +75,7 @@ export function VariantMediaEditor({ productId, variantId, media, generated3d = 
 
   async function updateImage(image: VariantMedia["images"][number], changes: Partial<VariantMedia["images"][number]>, refresh = true) {
     if (!productId) return false;
-    const response = await fetch(`/api/admin/products/${productId}/images/${image.id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ altText: image.altText, isPrimary: image.isPrimary, sortOrder: image.sortOrder, optionValueId: image.optionValueId, variantId: image.variantId, ...changes }) });
+    const response = await adminRequest(`/api/admin/products/${productId}/images/${image.id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ altText: image.altText, isPrimary: image.isPrimary, sortOrder: image.sortOrder, optionValueId: image.optionValueId, variantId: image.variantId, ...changes }) });
     if (!response.ok) { setError("Could not update the photo"); return false; }
     if (refresh) router.refresh();
     return true;
@@ -86,7 +89,7 @@ export function VariantMediaEditor({ productId, variantId, media, generated3d = 
     setBusy(""); if (second) router.refresh();
   }
 
-  return <div className="variant-media" onClick={event => event.stopPropagation()}>
+  return <div ref={node => { feedbackRef.current = node; }} className="variant-media" onClick={event => event.stopPropagation()}>{feedback}
     <h3>Photos, video and 3D</h3>
     {!productId || !variantId ? <p className="muted">Save the product first. Then upload media here for this variant.</p> : <>
       <div className="variant-media-grid">

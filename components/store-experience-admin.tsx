@@ -1,4 +1,5 @@
 "use client";
+import { useAdminRequest } from "@/components/admin-form-feedback";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { MediaUploadField } from "@/components/media-upload-field";
@@ -31,6 +32,8 @@ export function StoreExperienceAdmin({
   categories: { id: string; name: string }[];
   reviews: Review[];
 }) {
+  const { request: adminRequest, feedbackRef, feedback } = useAdminRequest();
+
   const [config, setConfig] = useState(initial);
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
@@ -45,7 +48,7 @@ export function StoreExperienceAdmin({
     setBusy(true);
     setMessage("");
     try {
-      const response = await fetch(url, {
+      const response = await adminRequest(url, {
         method,
         headers: { "content-type": "application/json" },
         body: JSON.stringify(body),
@@ -86,7 +89,7 @@ export function StoreExperienceAdmin({
     }));
   }
   return (
-    <>
+    <div ref={node => { feedbackRef.current = node; }} style={{ display: "contents" }}>{feedback}
       <p role="status">{message}</p>
       <section className="admin-panel">
         <h2>Shared banner groups</h2>
@@ -97,14 +100,14 @@ export function StoreExperienceAdmin({
           selector. Arrows and dots appear when more than one active slide
           remains.
         </p>
-        {config.groups.map((group) => (
+        {config.groups.map((group, groupIndex) => (
           <details key={group.id} className="admin-panel" open>
             <summary>{group.name}</summary>
             <div className="field-grid three">
               <label className="field">
                 Group name
                 <input
-                  value={group.name}
+                  name={`groups.${groupIndex}.name`} value={group.name}
                   maxLength={100}
                   onChange={(e) =>
                     groupChange(group.id, { name: e.target.value })
@@ -137,7 +140,7 @@ export function StoreExperienceAdmin({
                   type="number"
                   min={0}
                   max={100}
-                  value={group.homePosition}
+                  name={`groups.${groupIndex}.homePosition`} value={group.homePosition}
                   onChange={(e) =>
                     groupChange(group.id, {
                       homePosition: Number(e.target.value),
@@ -158,7 +161,7 @@ export function StoreExperienceAdmin({
               <label className="field">
                 Shop position
                 <select
-                  value={group.shopPosition}
+                  name={`groups.${groupIndex}.shopPosition`} value={group.shopPosition}
                   onChange={(e) =>
                     groupChange(group.id, {
                       shopPosition: e.target
@@ -196,7 +199,7 @@ export function StoreExperienceAdmin({
                     <label className="field">
                       Title
                       <input
-                        value={slide.title}
+                        name={`groups.${groupIndex}.slides.${index}.title`} value={slide.title}
                         maxLength={120}
                         onChange={(e) => change({ title: e.target.value })}
                       />
@@ -204,7 +207,7 @@ export function StoreExperienceAdmin({
                     <label className="field">
                       Description
                       <textarea
-                        value={slide.description}
+                        name={`groups.${groupIndex}.slides.${index}.description`} value={slide.description}
                         maxLength={1000}
                         onChange={(e) =>
                           change({ description: e.target.value })
@@ -214,7 +217,7 @@ export function StoreExperienceAdmin({
                     <label className="field">
                       Small print
                       <textarea
-                        value={slide.supportingText}
+                        name={`groups.${groupIndex}.slides.${index}.supportingText`} value={slide.supportingText}
                         maxLength={400}
                         onChange={(e) =>
                           change({ supportingText: e.target.value })
@@ -224,7 +227,7 @@ export function StoreExperienceAdmin({
                     <label className="field">
                       Title font
                       <select
-                        value={slide.titleFont}
+                        name={`groups.${groupIndex}.slides.${index}.titleFont`} value={slide.titleFont}
                         onChange={(e) =>
                           change({
                             titleFont: e.target.value as typeof slide.titleFont,
@@ -239,7 +242,7 @@ export function StoreExperienceAdmin({
                     <label className="field">
                       Description font
                       <select
-                        value={slide.copyFont}
+                        name={`groups.${groupIndex}.slides.${index}.copyFont`} value={slide.copyFont}
                         onChange={(e) =>
                           change({
                             copyFont: e.target.value as typeof slide.copyFont,
@@ -255,7 +258,7 @@ export function StoreExperienceAdmin({
                       Background
                       <input
                         type="color"
-                        value={slide.backgroundColour}
+                        name={`groups.${groupIndex}.slides.${index}.backgroundColour`} value={slide.backgroundColour}
                         onChange={(e) =>
                           change({ backgroundColour: e.target.value })
                         }
@@ -265,14 +268,14 @@ export function StoreExperienceAdmin({
                       Text
                       <input
                         type="color"
-                        value={slide.textColour}
+                        name={`groups.${groupIndex}.slides.${index}.textColour`} value={slide.textColour}
                         onChange={(e) => change({ textColour: e.target.value })}
                       />
                     </label>
                     <label className="field">
                       Button label
                       <input
-                        value={slide.ctaLabel}
+                        name={`groups.${groupIndex}.slides.${index}.ctaLabel`} value={slide.ctaLabel}
                         maxLength={60}
                         onChange={(e) => change({ ctaLabel: e.target.value })}
                       />
@@ -280,7 +283,7 @@ export function StoreExperienceAdmin({
                     <label className="field">
                       Internal link
                       <input
-                        value={slide.ctaHref}
+                        name={`groups.${groupIndex}.slides.${index}.ctaHref`} value={slide.ctaHref}
                         onChange={(e) => change({ ctaHref: e.target.value })}
                         placeholder="/shop"
                       />
@@ -288,7 +291,7 @@ export function StoreExperienceAdmin({
                     <label className="field">
                       Campaign visibility
                       <select
-                        value={slide.campaignKey}
+                        name={`groups.${groupIndex}.slides.${index}.campaignKey`} value={slide.campaignKey}
                         onChange={(e) =>
                           change({ campaignKey: e.target.value })
                         }
@@ -302,7 +305,7 @@ export function StoreExperienceAdmin({
                     <label className="field">
                       Image alternative text
                       <input
-                        value={slide.imageAlt}
+                        name={`groups.${groupIndex}.slides.${index}.imageAlt`} value={slide.imageAlt}
                         maxLength={180}
                         onChange={(e) => change({ imageAlt: e.target.value })}
                       />
@@ -311,7 +314,7 @@ export function StoreExperienceAdmin({
                   <MediaUploadField
                     uploadEndpoint="/api/admin/settings/images"
                     label="Banner artwork (optional; replaces banner text visually)"
-                    value={slide.imageUrl}
+                    name={`groups.${groupIndex}.slides.${index}.imageUrl`} value={slide.imageUrl}
                     onChange={(imageUrl) => change({ imageUrl })}
                   />
                   <button
@@ -431,7 +434,7 @@ export function StoreExperienceAdmin({
             type="number"
             min={1}
             max={12}
-            value={config.reviewsLimit}
+            name="reviewsLimit" value={config.reviewsLimit}
             onChange={(e) =>
               setConfig({ ...config, reviewsLimit: Number(e.target.value) })
             }
@@ -467,7 +470,7 @@ export function StoreExperienceAdmin({
           <label className="field">
             Eligible category
             <select
-              value={gift.categoryId}
+              name="categoryId" value={gift.categoryId}
               onChange={(e) => setGift({ ...gift, categoryId: e.target.value })}
             >
               {categories.map((c) => (
@@ -480,7 +483,7 @@ export function StoreExperienceAdmin({
           <label className="field">
             Complimentary gift
             <input
-              value={gift.giftName}
+              name="giftName" value={gift.giftName}
               maxLength={120}
               onChange={(e) => setGift({ ...gift, giftName: e.target.value })}
             />
@@ -491,7 +494,7 @@ export function StoreExperienceAdmin({
               type="number"
               min={1}
               max={100000}
-              value={gift.limit}
+              name="limit" value={gift.limit}
               onChange={(e) =>
                 setGift({ ...gift, limit: Number(e.target.value) })
               }
@@ -585,6 +588,6 @@ export function StoreExperienceAdmin({
           </article>
         ))}
       </section>
-    </>
+    </div>
   );
 }

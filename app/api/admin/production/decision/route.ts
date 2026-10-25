@@ -1,3 +1,4 @@
+import { jsonValidationError } from "@/lib/admin-validation-feedback";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { getAdminApiContext,hasPermission } from "@/lib/admin";
@@ -10,8 +11,8 @@ const schema = z.object({ decision: z.enum(["KEEP", "UPDATE_AND_NOTIFY"]), expec
 export async function POST(request: NextRequest) {
   if (!assertSameOrigin(request)) return jsonError("Invalid request origin", 403);
   const context = await getAdminApiContext(); if (!context || !hasPermission(context,"production.shared")) return jsonError("Forbidden", 403);
-  const parsed = schema.safeParse(await request.json().catch(() => null)); if (!parsed.success) return jsonError("Invalid decision", 400);
-  const environment = context.store.environment;
+  const parsed = schema.safeParse(await request.json().catch(() => null)); if (!parsed.success) return jsonValidationError(parsed.error);
+const environment = context.store.environment;
   try {
     const result = await db.$transaction(async tx => {
       const pool = await tx.productionPool.findUnique({ where: { environment } });

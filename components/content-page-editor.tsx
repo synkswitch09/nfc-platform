@@ -1,4 +1,5 @@
 "use client";
+import { useAdminRequest } from "@/components/admin-form-feedback";
 
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -30,6 +31,8 @@ export function ContentPageEditor({
 }: {
   initial: ContentPageEditorInitial;
 }) {
+  const { request: adminRequest, feedbackRef, feedback } = useAdminRequest();
+
   const router = useRouter();
   const initialPageType = initial.legalPreset
     ? `LEGAL_${initial.legalPreset.toUpperCase()}`
@@ -66,7 +69,7 @@ export function ContentPageEditor({
       canonicalUrl: form.get("canonicalUrl"),
       indexable: form.get("indexable") === "on",
     };
-    const response = await fetch(
+    const response = await adminRequest(
       initial.id ? `/api/admin/pages/${initial.id}` : "/api/admin/pages",
       {
         method: initial.id ? "PATCH" : "POST",
@@ -90,7 +93,7 @@ export function ContentPageEditor({
       return;
     setPending(true);
     setMessage("");
-    const response = await fetch(`/api/admin/pages/${initial.id}`, {
+    const response = await adminRequest(`/api/admin/pages/${initial.id}`, {
       method: "DELETE",
     });
     const result = await response.json().catch(() => ({}));
@@ -120,7 +123,7 @@ export function ContentPageEditor({
   const isLegalPreset =
     pageType === "LEGAL_TERMS" || pageType === "LEGAL_PRIVACY";
   return (
-    <form className="admin-form" onSubmit={save}>
+    <form ref={node => { feedbackRef.current = node; }} className="admin-form" onSubmit={save}>{feedback}
       <section className="admin-panel" id="general">
         <div className="panel-heading">
           <div>

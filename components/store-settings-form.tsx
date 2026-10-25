@@ -1,4 +1,5 @@
 "use client";
+import { useAdminRequest } from "@/components/admin-form-feedback";
 
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -65,6 +66,8 @@ export function StoreSettingsForm({
   platformAdmin: boolean;
   availableCapabilities: string[];
 }) {
+  const { request: adminRequest, feedbackRef, feedback } = useAdminRequest();
+
   const router = useRouter();
   const [message, setMessage] = useState("");
   const [logoUrl, setLogoUrl] = useState(settings.logoUrl ?? "");
@@ -92,11 +95,6 @@ export function StoreSettingsForm({
       siteDescription: form.get("siteDescription"),
       googleSiteVerification: form.get("googleSiteVerification"),
       defaultSocialImageUrl: form.get("defaultSocialImageUrl"),
-      instagram: settings.socialLinks.instagram ?? "",
-      tumblr: settings.socialLinks.tumblr ?? "",
-      facebook: settings.socialLinks.facebook ?? "",
-      tiktok: settings.socialLinks.tiktok ?? "",
-      linkedin: settings.socialLinks.linkedin ?? "",
       flatRateCents: Math.round(Number(form.get("flatRate")) * 100),
       freeOverCents: Math.round(Number(form.get("freeOver")) * 100),
       theme: {
@@ -124,9 +122,6 @@ export function StoreSettingsForm({
         ),
         pageThemes: defaultStoreThemePalettes,
       },
-      homepage: settings.homepage,
-      headerConfig: settings.headerConfig,
-      footerConfig: settings.footerConfig,
       ...(platformAdmin
         ? {
             status: form.get("status"),
@@ -134,7 +129,7 @@ export function StoreSettingsForm({
           }
         : {}),
     };
-    const response = await fetch("/api/admin/settings", {
+    const response = await adminRequest("/api/admin/settings", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify(payload),
@@ -146,7 +141,7 @@ export function StoreSettingsForm({
     router.refresh();
   }
   return (
-    <form className="admin-form" onSubmit={submit}>
+    <form ref={node => { feedbackRef.current = node; }} className="admin-form" onSubmit={submit}>{feedback}
       <section className="admin-panel">
         <div className="panel-heading">
           <div>
