@@ -202,8 +202,9 @@ export default async function RootLayout({
             defaultLocale={store.defaultLocale}
           />
           <main className="storefront-main">{children}</main>
-          <KosykinFooterSupport storeId={store.id} locale={locale} defaultLocale={store.defaultLocale} enabled={store.slug === "kosykin" && store.status === StoreStatus.ACTIVE} />
           <SiteFooter
+            kosykinLayout={store.slug === "kosykin"}
+            support={store.slug === "kosykin" && store.status === StoreStatus.ACTIVE ? <KosykinFooterSupport config={settings.footerConfig} socialLinks={settings.socialLinks} storeName={settings.storeName} locale={locale} defaultLocale={store.defaultLocale} /> : undefined}
             config={settings.footerConfig}
             storeName={settings.storeName}
             storeLogoUrl={store.logoUrl || (store.slug === "kosykin" ? "/images/kosykin/logo.png" : null)}

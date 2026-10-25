@@ -106,7 +106,24 @@ const footerLinkSchema = z.object({
   order: z.number().int().min(0).max(100).default(0),
 });
 
+export const footerSupportSchema = z.object({
+  enabled: z.boolean().default(true),
+  headline: z.string().trim().min(1).max(120).default("Need a hand?"),
+  copy: z.string().trim().max(500).default("Questions about a product or your order?\nWe’re here to help."),
+  responseText: z.string().trim().max(160).default("We reply within 1 day."),
+  contactLabel: z.string().trim().min(1).max(60).default("Contact us"),
+  instagramLabel: z.string().trim().min(1).max(60).default("Message us on Instagram"),
+  instagramHref: httpsHref.or(z.literal("")).default(""),
+  instagramVisible: z.boolean().default(true),
+  backgroundColour: optionalColour.default(""),
+  textColour: optionalColour.default(""),
+  headlineTypography: individualTypography,
+  copyTypography: individualTypography,
+  buttonTypography: individualTypography,
+});
+
 export const footerConfigSchema = z.object({
+  support: footerSupportSchema.prefault({}),
   logoTreatment: z.enum(["ORIGINAL", "CREAM"]).default("ORIGINAL"),
   logoUrl: optionalImage.default(""),
   copyright: z.string().trim().max(160).default(""),

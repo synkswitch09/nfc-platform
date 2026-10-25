@@ -24,6 +24,6 @@ it("allows the enabled Tapkin module and scopes its update and audit to the curr
 });
 it("keeps ordinary Kosykin footer editing available without NFC capabilities", async () => {
   m.context.mockResolvedValue({ store: { id: "kosykin", capabilities: [StoreCapability.COMMERCE, StoreCapability.PRINT_3D] }, user: { id: "admin" } });
-  expect((await PATCH(request({ area: "footer", config: {}, socialLinks: { instagram: "", facebook: "", tiktok: "", linkedin: "" } }))).status).toBe(200);
-  expect(m.update).toHaveBeenCalledWith(expect.objectContaining({ where: { id: "kosykin" }, data: expect.objectContaining({ footerConfig: expect.any(Object) }) }));
+  expect((await PATCH(request({ area: "footer", config: { support: { instagramHref: "https://ig.me/m/example", responseText: "We reply within 2 days." } }, socialLinks: { instagram: "", facebook: "", tiktok: "", linkedin: "" } }))).status).toBe(200);
+  expect(m.update).toHaveBeenCalledWith(expect.objectContaining({ where: { id: "kosykin" }, data: expect.objectContaining({ footerConfig: expect.objectContaining({ support: expect.objectContaining({ instagramHref: "https://ig.me/m/example", responseText: "We reply within 2 days." }) }) }) }));
 });
