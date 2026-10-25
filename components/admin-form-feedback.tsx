@@ -49,7 +49,12 @@ export function useAdminRequest() {
     function edited(event: Event) {
       const target = event.target;
       if (!(target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement)) return;
-      setIssues(current => current.filter(issue => findAdminIssueControl(issueRoot.current ?? root!, issue) !== target));
+      // Native listeners run before React's delegated onChange handler. Updating
+      // here can restore a controlled input's old value before onChange reads it.
+      queueMicrotask(() => setIssues(current => {
+        const next = current.filter(issue => findAdminIssueControl(issueRoot.current ?? root!, issue) !== target);
+        return next.length === current.length ? current : next;
+      }));
     }
     root.addEventListener("input", edited);
     root.addEventListener("change", edited);
