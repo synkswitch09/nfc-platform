@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Home, PanelBottom, PanelTop, PawPrint } from "lucide-react";
+import { supportsPetProfiles } from "@/lib/storefront";
 import { requireAdminPageContext } from "@/lib/admin";
 
 const areas = [
@@ -34,7 +35,7 @@ const areas = [
 ];
 
 export default async function AdminStorefrontPage() {
-  await requireAdminPageContext();
+  const context = await requireAdminPageContext();
   return (
     <div>
       <div className="admin-heading">
@@ -48,7 +49,7 @@ export default async function AdminStorefrontPage() {
         </div>
       </div>
       <section className="admin-card-grid">
-        {areas.map(({ href, title, description, icon: Icon }) => (
+        {areas.filter(area => area.href !== "/admin/storefront/pet-profile" || supportsPetProfiles(context.store)).map(({ href, title, description, icon: Icon }) => (
           <Link className="admin-action-card" href={href} key={href}>
             <Icon size={24} />
             <strong>{title}</strong>

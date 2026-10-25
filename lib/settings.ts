@@ -1,8 +1,10 @@
+import { storefrontSocialChannels } from "@/lib/site-chrome";
 import { storeGoogleVerification } from "@/lib/site-verification";
 import { getCurrentStorefront, type Storefront } from "@/lib/storefront";
 
 export async function getStoreSettings(storefront?: Storefront) {
   const store = storefront ?? await getCurrentStorefront();
+  const socialChannels = storefrontSocialChannels(store.footerConfig, store.socialLinks);
   return {
     id: store.id,
     slug: store.slug,
@@ -22,7 +24,8 @@ export async function getStoreSettings(storefront?: Storefront) {
     siteDescription: store.seoDescription,
     googleSiteVerification: storeGoogleVerification(store) ?? "",
     defaultSocialImageUrl: store.socialImageUrl,
-    socialLinks: store.socialLinks,
+    socialLinks: socialChannels.links,
+    socialChannels,
     shippingConfig: store.shippingConfig,
     headerConfig: store.headerConfig,
     footerConfig: store.footerConfig,
