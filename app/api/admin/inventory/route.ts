@@ -1,3 +1,4 @@
+import { jsonValidationError } from "@/lib/admin-validation-feedback";
 import { adjustStock, InventoryConflict } from "@/lib/inventory-service";
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminApiContext } from "@/lib/admin";
@@ -11,8 +12,8 @@ export async function POST(request: NextRequest) {
   const context = await getAdminApiContext(); if (!context) return jsonError("Forbidden", 403);
   const { user, store } = context;
   const parsed = inventoryAdjustmentSchema.safeParse(await request.json().catch(() => null));
-  if (!parsed.success) return jsonError(parsed.error.issues[0]?.message ?? "Invalid adjustment");
-  try {
+  if (!parsed.success) return jsonValidationError(parsed.error);
+try {
     const result = await db.$transaction(async tx => {
       const adjusted = await adjustStock(tx, { ...parsed.data, storeId: store.id, actorId: user.id });
       if (adjusted) await queueEtsyInventorySync(tx, store.id, adjusted.productId);

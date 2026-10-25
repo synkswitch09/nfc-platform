@@ -359,13 +359,13 @@ export type LandingSectionDraft = {
 
 export function validateLandingSections(value: unknown): LandingSectionDraft[] {
   const rows = z.array(sectionSchema).max(30).parse(value);
-  const sections = rows.map((row) => ({
-    ...row,
-    content: contentSchemas[row.type].parse(row.content) as Record<
-      string,
-      unknown
-    >,
-  }));
+  const issues: z.core.$ZodIssue[] = [];
+  const sections = rows.map((row, index) => {
+    const parsed = contentSchemas[row.type].safeParse(row.content);
+    if (!parsed.success) issues.push(...parsed.error.issues.map(issue => ({ ...issue, path: [index, "content", ...issue.path] })));
+    return { ...row, content: (parsed.success ? parsed.data : row.content) as Record<string, unknown> };
+  });
+  if (issues.length) throw new z.ZodError(issues);
   if (
     sections.filter((section) => section.visible && section.type === "HERO")
       .length > 1

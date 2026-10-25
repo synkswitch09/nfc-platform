@@ -1,3 +1,4 @@
+import { jsonValidationError } from "@/lib/admin-validation-feedback";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { canManageStore, getAdminApiContext } from "@/lib/admin";
@@ -12,8 +13,8 @@ export const promotionSchema = z.object({ name: z.string().trim().min(3).max(100
 export async function POST(request: NextRequest) {
   if (!assertSameOrigin(request)) return jsonError("Invalid request origin", 403);
   const context = await getAdminApiContext(); if (!canManageStore(context)) return jsonError("Forbidden", 403);
-  const parsed = promotionSchema.safeParse(await request.json().catch(() => null)); if (!parsed.success) return jsonError(parsed.error.issues[0]?.message ?? "Invalid promotion", 400);
-  if (parsed.data.productId && !await db.product.count({ where: { id: parsed.data.productId, storeId: context!.store.id } })) return jsonError("Product belongs to another store", 409);
+  const parsed = promotionSchema.safeParse(await request.json().catch(() => null)); if (!parsed.success) return jsonValidationError(parsed.error);
+if (parsed.data.productId && !await db.product.count({ where: { id: parsed.data.productId, storeId: context!.store.id } })) return jsonError("Product belongs to another store", 409);
   try {
     const promotion = await db.promotion.create({ data: { ...parsed.data, storeId: context!.store.id } });
     return NextResponse.json({ promotion }, { status: 201 });

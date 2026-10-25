@@ -1,3 +1,4 @@
+import { jsonValidationError } from "@/lib/admin-validation-feedback";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { canManageStore, getAdminApiContext } from "@/lib/admin";
@@ -11,8 +12,8 @@ export async function POST(request: NextRequest) {
   const context = await getAdminApiContext();
   if (!canManageStore(context)) return jsonError("Administrator access is required", 403);
   const parsed = schema.safeParse(await request.json().catch(() => null));
-  if (!parsed.success) return jsonError(parsed.error.issues[0]?.message ?? "Invalid print agent");
-  try {
+  if (!parsed.success) return jsonValidationError(parsed.error);
+try {
     const result = await registerPrintAgent(context!.store.id, parsed.data.name, parsed.data.printerName, context!.user.id);
     return NextResponse.json({ agent: result.agent, token: result.token }, { status: 201 });
   } catch {

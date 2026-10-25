@@ -1,3 +1,4 @@
+import { jsonValidationError } from "@/lib/admin-validation-feedback";
 import { assertNoSupportHold } from "@/lib/support-access";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
@@ -18,8 +19,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const context = await getAdminApiContext(); if (!context) return jsonError("Forbidden", 403);
   const { user, store } = context;
   const parsed = schema.safeParse(await request.json().catch(() => null));
-  if (!parsed.success) return jsonError(parsed.error.issues[0]?.message ?? "Invalid order update");
-  if(parsed.data.status==="CANCELLED" && !hasPermission(context,"orders.cancel")) return jsonError("Cancellation permission required",403);
+  if (!parsed.success) return jsonValidationError(parsed.error);
+if(parsed.data.status==="CANCELLED" && !hasPermission(context,"orders.cancel")) return jsonError("Cancellation permission required",403);
   const { orderId } = await params;
   const order = await db.order.findFirst({ where: { id: orderId, storeId: store.id }, select: { status: true, payments: { select: { status: true } }, shipments: { select: { idempotencyKey: true, bookedAt: true, trackingNumber: true, serviceName: true } } } });
   if (!order) return jsonError("Order not found", 404);

@@ -1,3 +1,4 @@
+import { jsonValidationError } from "@/lib/admin-validation-feedback";
 import { NextRequest, NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { getAdminApiContext } from "@/lib/admin";
@@ -9,8 +10,8 @@ export async function PATCH(request: NextRequest) {
   const context = await getAdminApiContext("settings.write");
   if (!context) return jsonError("Forbidden", 403);
   const parsed = supportConfigSchema.safeParse(await request.json().catch(() => null));
-  if (!parsed.success) return jsonError(parsed.error.issues[0]?.message ?? "Invalid support settings", 400);
-  await db.$transaction(async tx => {
+  if (!parsed.success) return jsonValidationError(parsed.error);
+await db.$transaction(async tx => {
     const store = await tx.store.update({ where: { id: context.store.id }, data: { updatedAt: new Date() }, select: { accountConfig: true } });
     const previous = store.accountConfig && typeof store.accountConfig === "object" && !Array.isArray(store.accountConfig) ? store.accountConfig as Record<string, unknown> : {};
     await tx.store.update({ where: { id: context.store.id }, data: { accountConfig: { ...previous, support: parsed.data } } });

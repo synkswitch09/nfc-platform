@@ -1,3 +1,4 @@
+import { jsonValidationError } from "@/lib/admin-validation-feedback";
 import { randomUUID } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import QRCode from "qrcode";
@@ -16,8 +17,8 @@ export async function POST(request: NextRequest) {
   const context = await getAdminApiContext(); if (!context) return jsonError("Forbidden", 403);
   const { user, store } = context;
   if (!hasStoreCapability(store, StoreCapability.NFC)) return jsonError("NFC manufacturing is not enabled for this store", 404);
-  const parsed = schema.safeParse(await request.json().catch(() => null)); if (!parsed.success) return jsonError(parsed.error.issues[0]?.message ?? "Invalid batch request");
-  const product = await db.product.findFirst({ where: { id: parsed.data.productId, storeId: store.id }, include: { variants: { where: { active: true } } } });
+  const parsed = schema.safeParse(await request.json().catch(() => null)); if (!parsed.success) return jsonValidationError(parsed.error);
+const product = await db.product.findFirst({ where: { id: parsed.data.productId, storeId: store.id }, include: { variants: { where: { active: true } } } });
   if (!product) return jsonError("Product not found", 404);
   const variant = parsed.data.productVariantId ? product.variants.find(item => item.id === parsed.data.productVariantId) : null;
   if (parsed.data.productVariantId && !variant) return jsonError("Variant does not belong to product");

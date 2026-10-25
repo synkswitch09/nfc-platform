@@ -1,3 +1,4 @@
+import { jsonValidationError } from "@/lib/admin-validation-feedback";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { getAdminApiContext, hasPermission } from "@/lib/admin";
@@ -18,8 +19,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const context = await getAdminApiContext();
   if (!context) return jsonError("Store administrator required", 403);
   const parsed = schema.safeParse(await request.json().catch(() => null));
-  if (!parsed.success) return jsonError("Confirm the action and provide a reason of at least 3 characters", 400);
-  if (!hasPermission(context, parsed.data.action === "resend" ? "support.write" : parsed.data.action === "restock" ? "catalog.write" : "finance.refund")) return jsonError("This action requires additional permission",403);
+  if (!parsed.success) return jsonValidationError(parsed.error);
+if (!hasPermission(context, parsed.data.action === "resend" ? "support.write" : parsed.data.action === "restock" ? "catalog.write" : "finance.refund")) return jsonError("This action requires additional permission",403);
   const { orderId } = await params;
   if (!await db.order.findFirst({ where: { id: orderId, storeId: context.store.id }, select: { id: true } })) return jsonError("Order not found", 404);
   const input = parsed.data;

@@ -1,3 +1,4 @@
+import { jsonValidationError } from "@/lib/admin-validation-feedback";
 import { NextRequest, NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { Prisma } from "@prisma/client";
@@ -10,7 +11,7 @@ import { validateLandingSections } from "@/lib/landing-sections";
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ pageId: string }> }) {
   if (!assertSameOrigin(request)) return jsonError("Invalid request origin", 403);
   const context = await getAdminApiContext(); if (!context) return jsonError("Forbidden", 403);
-  let sections; try { sections = validateLandingSections((await request.json()).sections); } catch (error) { return jsonError(sectionValidationMessage(error)); }
+  let sections; try { sections = validateLandingSections((await request.json()).sections); } catch (error) { return error instanceof z.ZodError ? jsonValidationError(error) : jsonError(sectionValidationMessage(error)); }
   const { pageId } = await params; const page = await db.contentPage.findFirst({ where: { id: pageId, storeId: context.store.id, categoryId: null }, select: { id: true, slug: true, kind: true } }); if (!page) return jsonError("Page not found", 404);
   try {
     const savedSections = await db.$transaction(async tx => {
@@ -57,8 +58,8 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   if (!assertSameOrigin(request)) return jsonError("Invalid request origin", 403);
   const context = await getAdminApiContext(); if (!context) return jsonError("Forbidden", 403);
   const parsed = faqUpdate.safeParse(await request.json().catch(() => null));
-  if (!parsed.success) return jsonError("Invalid FAQ content", 400);
-  const { pageId } = await params;
+  if (!parsed.success) return jsonValidationError(parsed.error);
+const { pageId } = await params;
   try {
     const section = await db.$transaction(async (tx) => {
       const page = await tx.contentPage.findFirst({ where: { id: pageId, storeId: context.store.id, categoryId: null, slug: "faq" }, select: { id: true } });

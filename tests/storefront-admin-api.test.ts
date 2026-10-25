@@ -27,3 +27,20 @@ it("keeps ordinary Kosykin footer editing available without NFC capabilities", a
   expect((await PATCH(request({ area: "footer", config: { support: { instagramHref: "https://ig.me/m/example", responseText: "We reply within 2 days." } }, socialLinks: { instagram: "", facebook: "", tiktok: "", linkedin: "" } }))).status).toBe(200);
   expect(m.update).toHaveBeenCalledWith(expect.objectContaining({ where: { id: "kosykin" }, data: expect.objectContaining({ footerConfig: expect.objectContaining({ support: expect.objectContaining({ instagramHref: "https://ig.me/m/example", responseText: "We reply within 2 days." }) }) }) }));
 });
+it("returns all validation paths and actionable corrections without saving invalid footer settings", async () => {
+  m.context.mockResolvedValue({ store: { id: "kosykin", capabilities: [StoreCapability.COMMERCE] }, user: { id: "admin" } });
+  const response = await PATCH(request({ area: "footer", config: { textSizePx: 0, support: { headlineTypography: { sizePx: 7 } } }, socialLinks: { instagram: "", facebook: "", tiktok: "", linkedin: "" } }));
+  expect(response.status).toBe(400);
+  expect(await response.json()).toEqual({ error: "Check the highlighted fields before saving.", issues: expect.arrayContaining([
+    expect.objectContaining({ path: "config.textSizePx", field: "textSizePx", message: expect.stringContaining("at least 8") }),
+    expect.objectContaining({ path: "config.support.headlineTypography.sizePx", field: "supportHeadlineTypography-size", message: expect.stringContaining("at least 8") }),
+  ]) });
+  expect(m.transaction).not.toHaveBeenCalled();
+  expect(m.update).not.toHaveBeenCalled();
+});
+it("saves unchanged footer defaults without requiring hidden legacy social URLs", async () => {
+  m.context.mockResolvedValue({ store: { id: "kosykin", capabilities: [StoreCapability.COMMERCE] }, user: { id: "admin" } });
+  const response = await PATCH(request({ area: "footer", config: {} }));
+  expect(response.status).toBe(200);
+  expect(m.update.mock.calls[0][0].data).not.toHaveProperty("socialLinks");
+});

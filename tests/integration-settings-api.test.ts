@@ -29,3 +29,9 @@ it("rejects duplicate store identifiers and enabled integrations without IDs", a
   expect((await PATCH(request({ metaPixelId: "123456" }))).status).toBe(400);
   expect(m.update).not.toHaveBeenCalled();
 });
+it("points to the exact provider ID when enabling an integration and accepts unchanged disabled settings", async () => {
+  const response = await PATCH(request({ metaCatalogEnabled: true }));
+  expect(response.status).toBe(400);
+  expect((await response.json()).issues).toEqual([expect.objectContaining({ path: "metaCatalogId", message: expect.stringContaining("turn it off") })]);
+  expect((await PATCH(request({ metaCatalogEnabled: false, metaCatalogId: "" }))).status).toBe(200);
+});

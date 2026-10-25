@@ -1,9 +1,12 @@
 "use client";
+import { useAdminRequest } from "@/components/admin-form-feedback";
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import type { IntegrationConfig } from "@/lib/integration-config";
 
 export function IntegrationSettingsForm({ config, geoapifyReady, analyticsReady, metaReady, production, origin }: { config: IntegrationConfig; geoapifyReady: boolean; analyticsReady: boolean; metaReady: boolean; production: boolean; origin: string }) {
+  const { request: adminRequest, feedbackRef, feedback } = useAdminRequest();
+
   const router = useRouter();
   const [message, setMessage] = useState("");
   const [pending, setPending] = useState(false);
@@ -12,14 +15,14 @@ export function IntegrationSettingsForm({ config, geoapifyReady, analyticsReady,
     const data = new FormData(event.currentTarget);
     const payload = { ...Object.fromEntries(["geoapifyEnabled", "rememberCheckoutEnabled", "analyticsEnabled", "clarityEnabled", "metaPixelEnabled", "metaCapiEnabled", "metaCatalogEnabled"].map(key => [key, data.get(key) === "on"])), rememberCheckoutDays: Number(data.get("rememberCheckoutDays")), ...Object.fromEntries(["ga4MeasurementId", "clarityProjectId", "metaPixelId", "metaCatalogId"].map(key => [key, String(data.get(key) ?? "").trim()])) };
     try {
-      const response = await fetch("/api/admin/settings/integrations", { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify(payload) });
+      const response = await adminRequest("/api/admin/settings/integrations", { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify(payload) });
       const result = await response.json();
       setMessage(response.ok ? "Integration settings saved for this store" : result.error);
       if (response.ok) router.refresh();
     } catch { setMessage("Settings could not be saved. Please try again."); }
     finally { setPending(false); }
   }
-  return <form className="admin-panel form" onSubmit={submit}>
+  return <form ref={node => { feedbackRef.current = node; }} className="admin-panel form" onSubmit={submit}>{feedback}
     <h2>Checkout, privacy & integrations</h2><p>Settings apply only to this store. Credentials stay in the secure server configuration.</p>
     <fieldset><legend>Australian address suggestions</legend>
       <label className="check-field"><input type="checkbox" name="geoapifyEnabled" defaultChecked={config.geoapifyEnabled} />Enable Geoapify suggestions</label>

@@ -8,6 +8,7 @@ import { db } from "@/lib/db";
 import { assertSameOrigin, jsonError } from "@/lib/http";
 import { footerConfigSchema, headerConfigSchema } from "@/lib/site-chrome";
 import { petProfileConfigSchema } from "@/lib/pet-profile-cms";
+import { storefrontValidationIssues } from "@/lib/storefront-form-validation";
 
 const httpsUrl = z
   .string()
@@ -28,7 +29,7 @@ const schema = z.discriminatedUnion("area", [
   z.object({
     area: z.literal("footer"),
     config: footerConfigSchema,
-    socialLinks: socialLinksSchema,
+    socialLinks: socialLinksSchema.optional(),
   }),
 ]);
 
@@ -41,9 +42,8 @@ export async function PATCH(request: NextRequest) {
   }
   const parsed = schema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) {
-    return jsonError(
-      parsed.error.issues[0]?.message ?? "Invalid storefront settings",
-    );
+    const issues = storefrontValidationIssues(parsed.error);
+    return NextResponse.json({ error: "Check the highlighted fields before saving.", issues }, { status: 400 });
   }
   const value = parsed.data;
   if (value.area === "pet-profile" && !supportsPetProfiles(context.store)) {
@@ -54,7 +54,7 @@ export async function PATCH(request: NextRequest) {
       ? { headerConfig: value.config }
       : value.area === "pet-profile"
         ? { petProfileConfig: value.config }
-        : { footerConfig: value.config, socialLinks: value.socialLinks };
+        : { footerConfig: value.config, ...(value.socialLinks !== undefined ? { socialLinks: value.socialLinks } : {}) };
   await db.$transaction([
     db.store.update({
       where: { id: context.store.id },

@@ -1,4 +1,5 @@
 "use client";
+import { useAdminRequest } from "@/components/admin-form-feedback";
 
 import { useState } from "react";
 import {
@@ -43,6 +44,8 @@ export function GeneralFaqEditor({
   nfcEnabled: boolean;
   print3dEnabled: boolean;
 }) {
+  const { request: adminRequest, feedbackRef, feedback } = useAdminRequest();
+
   const router = useRouter();
   const [items, setItems] = useState(() => ordered(initialItems));
   const [sectionId, setSectionId] = useState(initialSectionId);
@@ -96,7 +99,7 @@ export function GeneralFaqEditor({
   async function save() {
     setPending(true);
     setMessage("");
-    const response = await fetch(`/api/admin/pages/${pageId}/sections`, {
+    const response = await adminRequest(`/api/admin/pages/${pageId}/sections`, {
       method: "PATCH",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
@@ -118,7 +121,7 @@ export function GeneralFaqEditor({
   }
 
   return (
-    <section className="admin-panel" id="faqs">
+    <section ref={node => { feedbackRef.current = node; }} className="admin-panel" id="faqs">{feedback}
       <div className="panel-heading">
         <div>
           <h2>General FAQs</h2>
@@ -163,7 +166,7 @@ export function GeneralFaqEditor({
                 <label className="field wide">
                   Question
                   <input
-                    value={item.question}
+                    name={`items.${index}.question`} value={item.question}
                     onChange={(event) =>
                       update(index, { question: event.target.value })
                     }
@@ -172,7 +175,7 @@ export function GeneralFaqEditor({
                 <label className="field wide">
                   Answer
                   <textarea
-                    value={item.answer}
+                    name={`items.${index}.answer`} value={item.answer}
                     onChange={(event) =>
                       update(index, { answer: event.target.value })
                     }

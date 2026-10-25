@@ -1,4 +1,5 @@
 "use client";
+import { useAdminRequest } from "@/components/admin-form-feedback";
 
 import Image from "next/image";
 import { FormEvent, useState } from "react";
@@ -19,6 +20,8 @@ type ProductImage = {
 type Choice = { id: string; label: string };
 
 export function ProductImageManager({ productId, images, optionValues, variants }: { productId: string; images: ProductImage[]; optionValues: Choice[]; variants: Choice[] }) {
+  const { request: adminRequest, feedbackRef, feedback } = useAdminRequest();
+
   const router = useRouter();
   const [message, setMessage] = useState("");
   const [pending, setPending] = useState(false);
@@ -29,7 +32,7 @@ export function ProductImageManager({ productId, images, optionValues, variants 
     setMessage("");
     const form = new FormData(event.currentTarget);
     form.set("isPrimary", String(images.length === 0));
-    const response = await fetch(`/api/admin/products/${productId}/images`, { method: "POST", body: form });
+    const response = await adminRequest(`/api/admin/products/${productId}/images`, { method: "POST", body: form });
     const result = await response.json().catch(() => ({}));
     setPending(false);
     if (!response.ok) return setMessage(result.error ?? "Image could not be uploaded");
@@ -39,7 +42,7 @@ export function ProductImageManager({ productId, images, optionValues, variants 
 
   async function update(image: ProductImage, changes: Partial<ProductImage>, refresh = true) {
     setMessage("");
-    const response = await fetch(`/api/admin/products/${productId}/images/${image.id}`, {
+    const response = await adminRequest(`/api/admin/products/${productId}/images/${image.id}`, {
       method: "PATCH",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ altText: image.altText, sortOrder: image.sortOrder, isPrimary: image.isPrimary, optionValueId: image.optionValueId, variantId: image.variantId, ...changes }),
@@ -60,12 +63,12 @@ export function ProductImageManager({ productId, images, optionValues, variants 
 
   async function remove(image: ProductImage) {
     if (!window.confirm("Delete this product image?")) return;
-    const response = await fetch(`/api/admin/products/${productId}/images/${image.id}`, { method: "DELETE" });
+    const response = await adminRequest(`/api/admin/products/${productId}/images/${image.id}`, { method: "DELETE" });
     if (!response.ok) return setMessage("Image could not be deleted");
     router.refresh();
   }
 
-  return <section className="admin-panel" id="product-images">
+  return <section ref={node => { feedbackRef.current = node; }} className="admin-panel" id="product-images">{feedback}
     <div className="panel-heading"><div><h2>Shared product photos</h2><p>These photos appear across variants. Add photos specific to a colour or size inside that variant above.</p></div></div>
     {images.length > 0 && <div className="admin-image-grid">{images.map((image, index) => <article key={image.id}>
       <Image src={image.url} alt={image.altText} width={320} height={320} unoptimized />

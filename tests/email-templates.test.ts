@@ -66,3 +66,8 @@ describe("store email templates", () => {
     expect(orderNoticeTemplate("paid:o", "Paid", true)).toBe("operations");
   });
 });
+it("identifies every email field with an invalid dynamic value", () => {
+  const result = validateEmailTemplate("payment", { ...defaultEmailTemplate("payment"), subject: "{{unsupported}}", blocks: [{ type: "button", text: "{{unknown}}", url: "https://example.com" }] });
+  expect(result.success).toBe(false);
+  if (!result.success) expect(result.issues.map(issue => issue.path)).toEqual(["subject", "blocks.0.text"]);
+});

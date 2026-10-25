@@ -1,3 +1,4 @@
+import { jsonValidationError } from "@/lib/admin-validation-feedback";
 import { NextRequest, NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { canManageStore, getAdminApiContext } from "@/lib/admin";
@@ -16,9 +17,8 @@ export async function POST(request: NextRequest) {
   const parsed = storeResetSchema.safeParse(
     await request.json().catch(() => null),
   );
-  if (!parsed.success)
-    return jsonError(parsed.error.issues[0]?.message ?? "Invalid reset request");
-  try {
+  if (!parsed.success) return jsonValidationError(parsed.error);
+try {
     const result = await resetStoreToPetsBaseline({
       storeId: context.store.id,
       actorId: context.user.id,

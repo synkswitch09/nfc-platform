@@ -1,3 +1,4 @@
+import { jsonValidationError } from "@/lib/admin-validation-feedback";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { getAdminApiContext,hasPermission } from "@/lib/admin";
@@ -10,8 +11,8 @@ export async function PATCH(request: NextRequest) {
   const context = await getAdminApiContext();
   if (!context || !hasPermission(context,"production.shared")) return jsonError("Forbidden", 403);
   const parsed = schema.safeParse(await request.json().catch(() => null));
-  if (!parsed.success) return jsonError("Invalid production settings", 400);
-  const environment = context.store.environment;
+  if (!parsed.success) return jsonValidationError(parsed.error);
+const environment = context.store.environment;
   const pool = await db.productionPool.upsert({ where: { environment }, create: { environment, ...parsed.data }, update: { ...parsed.data, reviewedAt: null, version: { increment: 1 } } });
   await db.auditLog.create({ data: { actorId: context.user.id, storeId: context.store.id, action: "PRODUCTION_CAPACITY_CHANGED", entityType: "ProductionPool", entityId: context.store.id, metadata: { environment, ...parsed.data } } });
   return NextResponse.json({ pool });

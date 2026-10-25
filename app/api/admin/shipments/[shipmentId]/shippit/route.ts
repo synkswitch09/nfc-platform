@@ -1,3 +1,4 @@
+import { jsonValidationError } from "@/lib/admin-validation-feedback";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { getAdminApiContext } from "@/lib/admin";
@@ -10,8 +11,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   if (!assertSameOrigin(request)) return jsonError("Invalid request origin", 403);
   const context = await getAdminApiContext(); if (!context) return jsonError("Forbidden", 403);
   const parsed = z.object({ action: z.enum(["label", "book"]) }).safeParse(await request.json().catch(() => null));
-  if (!parsed.success) return jsonError("Invalid shipment action");
-  try {
+  if (!parsed.success) return jsonValidationError(parsed.error);
+try {
     const shipment = parsed.data.action === "label" ? await refreshShippitLabel((await params).shipmentId, context.store.id, context.user.id) : await bookShippitParcel((await params).shipmentId, context.store.id, context.user.id);
     return NextResponse.json({ shipment });
   } catch (error) {

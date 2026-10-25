@@ -1,3 +1,5 @@
+import { z } from "zod";
+import { jsonValidationError } from "@/lib/admin-validation-feedback";
 import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { getAdminApiContext } from "@/lib/admin";
@@ -9,7 +11,7 @@ import { validateLandingSections } from "@/lib/landing-sections";
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ pageId: string; locale: string }> }) {
   if (!assertSameOrigin(request)) return jsonError("Invalid request origin", 403);
   const context = await getAdminApiContext(); if (!context) return jsonError("Forbidden", 403);
-  let sections; try { sections = validateLandingSections((await request.json()).sections); } catch { return jsonError("One or more localized sections are invalid"); }
+  let sections; try { sections = validateLandingSections((await request.json()).sections); } catch (error) { return error instanceof z.ZodError ? jsonValidationError(error) : jsonError(error instanceof Error ? error.message : "One or more localized sections are invalid"); }
   const { pageId, locale: requestedLocale } = await params; const locale = resolveLocale(requestedLocale, context.store.enabledLocales, context.store.defaultLocale);
   if (locale !== requestedLocale || locale === context.store.defaultLocale) return jsonError("Locale is not enabled for translation", 409);
   const base = await db.landingPageSection.findMany({ where: { pageId, storeId: context.store.id }, select: { id: true, type: true }, orderBy: { sortOrder: "asc" } });
