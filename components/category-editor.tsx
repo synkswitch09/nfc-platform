@@ -1,4 +1,5 @@
 "use client";
+import { useAdminRequest } from "@/components/admin-form-feedback";
 
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -100,6 +101,8 @@ export function CategoryEditor({
 }: {
   initial: CategoryEditorInitial;
 }) {
+  const { request: adminRequest, feedbackRef, feedback } = useAdminRequest();
+
   const router = useRouter();
   const [message, setMessage] = useState("");
   const [pending, setPending] = useState(false);
@@ -157,7 +160,7 @@ export function CategoryEditor({
       contentSections: initial.contentSections,
       faq: initial.faq,
     };
-    const response = await fetch(
+    const response = await adminRequest(
       initial.id
         ? `/api/admin/categories/${initial.id}`
         : "/api/admin/categories",
@@ -177,7 +180,7 @@ export function CategoryEditor({
   }
 
   return (
-    <form className="admin-form" onSubmit={save}>
+    <form ref={node => { feedbackRef.current = node; }} className="admin-form" onSubmit={save}>{feedback}
       <section className="admin-panel" id="general">
         <div className="panel-heading">
           <div>

@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { MediaUploadField } from "@/components/media-upload-field";
 import { storefrontIconSlots } from "@/lib/storefront-icons";
 import {
+  footerConfigSchema,
+  headerConfigSchema,
   parseFooterLinks,
   footerSocialProfiles,
   parseHeaderLinks,
@@ -12,6 +14,9 @@ import {
   type HeaderConfig,
 } from "@/lib/site-chrome";
 import { type TypographyOverride } from "@/lib/typography";
+
+import { typographyFromForm, storefrontValidationIssues, type StorefrontFieldIssue } from "@/lib/storefront-form-validation";
+import { showFormIssues } from "@/components/form-validation-feedback";
 
 type SocialLinks = Record<string, string | null>;
 
@@ -30,6 +35,7 @@ export function StorefrontChromeForm({
 }) {
   const router = useRouter();
   const [message, setMessage] = useState("");
+  const [issues, setIssues] = useState<StorefrontFieldIssue[]>([]);
   const [pending, setPending] = useState(false);
   const [logoUrl, setLogoUrl] = useState(
     area === "header" ? (header?.logoUrl ?? "") : (footer?.logoUrl ?? ""),
@@ -43,7 +49,9 @@ export function StorefrontChromeForm({
     event.preventDefault();
     setPending(true);
     setMessage("");
-    const form = new FormData(event.currentTarget);
+    setIssues([]);
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
     const config =
       area === "header" && header
         ? {
@@ -147,15 +155,24 @@ export function StorefrontChromeForm({
               socialProfiles: socialProfiles.map((row, order) => ({ ...row, order })),
             }
           : null;
+    const validated = (area === "header" ? headerConfigSchema : footerConfigSchema).safeParse(config);
+    function displayIssues(nextIssues: StorefrontFieldIssue[]) {
+      const mapped = nextIssues.map(issue => ({ ...issue, field: area === "header" && issue.field === "customFooterLinks" ? "customHeaderLinks" : issue.field }));
+      setIssues(mapped);
+      setMessage("Check the highlighted fields before saving.");
+      showFormIssues(formElement, mapped);
+    }
+    if (!validated.success) {
+      setPending(false);
+      displayIssues(storefrontValidationIssues(validated.error));
+      return;
+    }
     const payload = {
       area,
       config,
-      ...(area === "footer"
-        ? {
-            socialLinks: Object.fromEntries(["instagram", "tumblr", "facebook", "tiktok", "linkedin"].map(platform => [platform, socialLinks[platform] ?? ""])),
-          }
-        : {}),
+
     };
+    try {
     const response = await fetch("/api/admin/storefront", {
       method: "PATCH",
       headers: { "content-type": "application/json" },
@@ -164,11 +181,17 @@ export function StorefrontChromeForm({
     const result = await response.json().catch(() => ({}));
     setPending(false);
     if (!response.ok) {
-      setMessage(result.error ?? "Storefront settings could not be saved");
+      if (result.issues?.length) displayIssues(result.issues);
+      else setMessage(result.error ?? "Storefront settings could not be saved. Please try again.");
       return;
     }
     setMessage("Changes saved");
     router.refresh();
+    } catch {
+      setMessage("The settings could not be saved. Check your connection and try again.");
+    } finally {
+      setPending(false);
+    }
   }
 
   return (
@@ -212,6 +235,15 @@ export function StorefrontChromeForm({
           role="status"
         >
           {message}
+          {issues.length > 0 && <ul>{issues.map((issue, index) => <li key={`${issue.path}-${index}`}><button type="button" className="text-button" onClick={event => {
+            const form = event.currentTarget.form;
+            const input = form?.elements.namedItem(issue.field);
+            if (input instanceof HTMLElement) {
+              for (let parent = input.parentElement; parent; parent = parent.parentElement) if (parent instanceof HTMLDetailsElement) parent.open = true;
+              input.focus();
+              input.scrollIntoView({ block: "center", behavior: "smooth" });
+            }
+          }}>{issue.message}</button></li>)}</ul>}
         </div>
       )}
       <div className="admin-form-actions">
@@ -500,10 +532,10 @@ function FooterFields({
           const move = (offset: number) => { const rows = [...socialProfiles]; [rows[index], rows[index + offset]] = [rows[index + offset], rows[index]]; onSocialProfilesChange(rows); };
           return <section className="admin-panel" key={row.id} aria-label={`Social network ${index + 1}`}>
             <div className="field-grid">
-              <label className="field">Network name<input aria-label={`Network ${index + 1} name`} value={row.label} maxLength={60} required onChange={e => update({ label: e.target.value })} /></label>
-              <label className="field">Destination URL<input aria-label={`Network ${index + 1} URL`} type="url" value={row.href} onChange={e => update({ href: e.target.value })} /></label>
+              <label className="field">Network name<input name={`socialProfiles-${index}-label`} aria-label={`Network ${index + 1} name`} value={row.label} maxLength={60} required onChange={e => update({ label: e.target.value })} /></label>
+              <label className="field">Destination URL<input name={`socialProfiles-${index}-href`} aria-label={`Network ${index + 1} URL`} type="url" value={row.href} onChange={e => update({ href: e.target.value })} /></label>
             </div>
-            <MediaUploadField uploadEndpoint="/api/admin/settings/images" label={`${row.label} icon`} name={`social-${row.id}`} value={row.iconUrl} onChange={iconUrl => update({ iconUrl })} />
+            <MediaUploadField uploadEndpoint="/api/admin/settings/images" label={`${row.label} icon`} name={`socialProfiles-${index}-iconUrl`} value={row.iconUrl} onChange={iconUrl => update({ iconUrl })} />
             <div className="check-row"><label><input type="checkbox" checked={row.visible} onChange={e => update({ visible: e.target.checked })} /> Visible</label>
               <button type="button" className="button secondary" disabled={index === 0} onClick={() => move(-1)}>Move earlier</button>
               <button type="button" className="button secondary" disabled={index === socialProfiles.length - 1} onClick={() => move(1)}>Move later</button>
@@ -558,21 +590,6 @@ function FooterFields({
       />
     </>
   );
-}
-
-function typographyFromForm(
-  form: FormData,
-  prefix: string,
-  fallback: TypographyOverride,
-): TypographyOverride {
-  return {
-    family: String(form.get(`${prefix}-family`) ?? fallback.family) as TypographyOverride["family"],
-    weight: String(form.get(`${prefix}-weight`) ?? fallback.weight) as TypographyOverride["weight"],
-    italic: String(form.get(`${prefix}-italic`) ?? fallback.italic) as TypographyOverride["italic"],
-    lineHeight: form.get(`${prefix}-lineHeight`) ? Number(form.get(`${prefix}-lineHeight`)) : undefined,
-    letterSpacingEm: form.get(`${prefix}-letterSpacingEm`) ? Number(form.get(`${prefix}-letterSpacingEm`)) : undefined,
-    sizePx: form.get(`${prefix}-size`) === "" ? null : Number(form.get(`${prefix}-size`) ?? fallback.sizePx),
-  };
 }
 
 function IndividualTypographyPanel({
@@ -694,7 +711,7 @@ function NumberField({
   return (
     <label className="field">
       {label}
-      <input name={name} type="number" min="0" max={name === "textSizePx" ? "96" : "100"} defaultValue={value} />
+      <input name={name} type="number" min={name === "textSizePx" ? "8" : "0"} max={name === "textSizePx" ? "96" : "100"} defaultValue={value} />
     </label>
   );
 }

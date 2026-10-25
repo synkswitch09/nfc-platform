@@ -1,3 +1,4 @@
+import { validationIssues, type AdminFieldIssue } from "@/lib/validation-issues";
 import { z } from "zod";
 import { isSafeImageSource } from "@/lib/image-source";
 import { ticketSupportFooter } from "@/lib/email-senders";
@@ -43,15 +44,25 @@ export function safeEmailUrl(value: string, origin?: string) {
 }
 export function validateEmailTemplate(key: EmailTemplateKey, input: unknown) {
   const parsed = emailTemplateSchema.safeParse(input);
-  if (!parsed.success) return { success: false as const, error: parsed.error.issues[0]?.message ?? "Invalid template" };
-  const template = parsed.data;
-  const strings = [template.subject, template.preheader, ...template.blocks.flatMap(block => block.type === "divider" ? [] : block.type === "image" ? [block.alt] : block.type === "button" ? [block.text, block.url] : [block.text])];
-  const allowed = templateTokens(key);
-  for (const value of strings) {
-    const tokens = [...value.matchAll(/{{\s*([^{}]+?)\s*}}/g)];
-    if (tokens.some(token => !allowed.includes(token[1].trim())) || /[{}]/.test(value.replace(/{{\s*([^{}]+?)\s*}}/g, ""))) return { success: false as const, error: "Unknown or incomplete dynamic field. Use the fields listed for this template." };
+  if (!parsed.success) {
+    const issues = validationIssues(parsed.error);
+    return { success: false as const, error: issues.map(issue => issue.message).join("\n"), issues };
   }
-  if (template.blocks.some(block => block.type === "button" && !safeEmailUrl(block.url) && !["{{store.url}}", "{{store.helpUrl}}", ...(["password-reset", "team-invitation"].includes(key) ? ["{{account.actionUrl}}"] : [])].includes(block.url))) return { success: false as const, error: "Buttons need an HTTPS URL or a listed URL field." };
+  const template = parsed.data;
+  const strings = [
+    { path: "subject", value: template.subject }, { path: "preheader", value: template.preheader },
+    ...template.blocks.flatMap((block, index) => block.type === "divider" ? [] : block.type === "image" ? [{ path: `blocks.${index}.alt`, value: block.alt }] : block.type === "button" ? [{ path: `blocks.${index}.text`, value: block.text }, { path: `blocks.${index}.url`, value: block.url }] : [{ path: `blocks.${index}.text`, value: block.text }]),
+  ];
+  const allowed = templateTokens(key);
+  const issues: AdminFieldIssue[] = [];
+  for (const { path, value } of strings) {
+    const tokens = [...value.matchAll(/{{\s*([^{}]+?)\s*}}/g)];
+    if (tokens.some(token => !allowed.includes(token[1].trim())) || /[{}]/.test(value.replace(/{{\s*([^{}]+?)\s*}}/g, ""))) issues.push({ path, message: `${path}: Unknown or incomplete dynamic field. Use the fields listed for this template.` });
+  }
+  template.blocks.forEach((block, index) => {
+    if (block.type === "button" && !safeEmailUrl(block.url) && !["{{store.url}}", "{{store.helpUrl}}", ...(["password-reset", "team-invitation"].includes(key) ? ["{{account.actionUrl}}"] : [])].includes(block.url)) issues.push({ path: `blocks.${index}.url`, message: `Button ${index + 1}: Enter an HTTPS URL or a listed URL field.` });
+  });
+  if (issues.length) return { success: false as const, error: issues.map(issue => issue.message).join("\n"), issues };
   return { success: true as const, data: template };
 }
 export function defaultEmailTemplate(key: EmailTemplateKey): EmailTemplate {

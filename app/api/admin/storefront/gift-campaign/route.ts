@@ -1,3 +1,4 @@
+import { jsonValidationError } from "@/lib/admin-validation-feedback";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { Prisma } from "@prisma/client";
@@ -19,9 +20,8 @@ export async function PUT(request: NextRequest) {
   const context = await getAdminApiContext("content.write");
   if (!canManageStore(context)) return jsonError("Forbidden", 403);
   const parsed = schema.safeParse(await request.json().catch(() => null));
-  if (!parsed.success)
-    return jsonError("Choose a category, gift and order limit", 400);
-  if (
+  if (!parsed.success) return jsonValidationError(parsed.error);
+if (
     !(await db.productCategory.count({
       where: { id: parsed.data.categoryId, storeId: context!.store.id },
     }))

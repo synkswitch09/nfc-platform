@@ -1,3 +1,4 @@
+import { jsonValidationError, jsonFieldError } from "@/lib/admin-validation-feedback";
 import { NextRequest, NextResponse } from "next/server";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
@@ -11,11 +12,11 @@ export async function POST(request: NextRequest) {
   const context = await getAdminApiContext();
   if (!canManageStore(context)) return jsonError("Forbidden", 403);
   const parsed = packageFields.extend({ type: z.enum(["BOX", "MAILER"]) }).safeParse(await request.json().catch(() => null));
-  if (!parsed.success) return jsonError(parsed.error.issues[0]?.message ?? "Invalid packaging", 400);
-  const { type, ...fields } = parsed.data;
-  if (type === "BOX" && fields.heightMm === 0) return jsonError("A box needs a height", 400);
-  if (type === "MAILER" && fields.heightMm !== 0) return jsonError("A mailer uses the product thickness as its height", 400);
-  if (fields.maxWeightGrams !== null && fields.maxWeightGrams <= fields.emptyWeightGrams) return jsonError("Maximum weight must exceed the empty package weight", 400);
+  if (!parsed.success) return jsonValidationError(parsed.error);
+const { type, ...fields } = parsed.data;
+  if (type === "BOX" && fields.heightMm === 0) return jsonFieldError("heightMm", "Enter a box height greater than zero.");
+  if (type === "MAILER" && fields.heightMm !== 0) return jsonFieldError("heightMm", "A mailer uses the product thickness as its height.");
+  if (fields.maxWeightGrams !== null && fields.maxWeightGrams <= fields.emptyWeightGrams) return jsonFieldError("maxWeightGrams", "Maximum packed weight must be greater than the empty package weight.");
   const code = `${type === "BOX" ? "UNIT-BOX" : "MAILER"}-${randomUUID().slice(0, 8).toUpperCase()}`;
   const created = await db.packaging.create({ data: { ...fields, code, storeId: context!.store.id } });
   await db.auditLog.create({ data: { actorId: context!.user.id, storeId: context!.store.id, action: "PACKAGING_CREATED", entityType: "Packaging", entityId: created.id } });

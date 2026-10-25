@@ -1,3 +1,4 @@
+import { jsonValidationError } from "@/lib/admin-validation-feedback";
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminApiContext, canManageStore } from "@/lib/admin";
 import { db } from "@/lib/db";
@@ -22,9 +23,8 @@ export async function PUT(request: NextRequest) {
   const parsed = experienceSchema.safeParse(
     await request.json().catch(() => null),
   );
-  if (!parsed.success)
-    return jsonError(parsed.error.issues[0]?.message ?? "Invalid content", 400);
-  const ids = parsed.data.groups.map((g) => g.id);
+  if (!parsed.success) return jsonValidationError(parsed.error);
+const ids = parsed.data.groups.map((g) => g.id);
   if (
     new Set(ids).size !== ids.length ||
     parsed.data.groups.some(

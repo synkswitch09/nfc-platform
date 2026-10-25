@@ -1,3 +1,4 @@
+import { jsonValidationError } from "@/lib/admin-validation-feedback";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { getAdminApiContext, canManageStore } from "@/lib/admin";
@@ -15,8 +16,8 @@ export async function PATCH(
     .object({ status: z.enum(["PENDING", "PUBLISHED", "HIDDEN"]) })
     .strict()
     .safeParse(await request.json().catch(() => null));
-  if (!parsed.success) return jsonError("Invalid review status", 400);
-  const { reviewId } = await params;
+  if (!parsed.success) return jsonValidationError(parsed.error);
+const { reviewId } = await params;
   const changed = await db.productReview.updateMany({
     where: { id: reviewId, storeId: context!.store.id },
     data: parsed.data,

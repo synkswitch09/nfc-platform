@@ -1,3 +1,4 @@
+import { jsonValidationError } from "@/lib/admin-validation-feedback";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { getAdminApiContext } from "@/lib/admin";
@@ -17,8 +18,8 @@ export async function POST(request: NextRequest) {
   const context = await getAdminApiContext();
   if (!context || !(context.isPlatformAdmin || context.storeRole === "ADMIN")) return jsonError("Administrator access required", 403);
   const parsed = schema.safeParse(await request.json().catch(() => null));
-  if (!parsed.success) return jsonError(parsed.error.issues[0]?.message ?? "Invalid Etsy processing profile");
-  const connection = await db.marketplaceConnection.findFirst({ where: { storeId: context.store.id, kind: "ETSY", status: "ACTIVE" } });
+  if (!parsed.success) return jsonValidationError(parsed.error);
+const connection = await db.marketplaceConnection.findFirst({ where: { storeId: context.store.id, kind: "ETSY", status: "ACTIVE" } });
   if (!connection) return jsonError("Connect Etsy first", 409);
   try {
     const readinessStateId = await createEtsyReadinessState(connection, parsed.data);

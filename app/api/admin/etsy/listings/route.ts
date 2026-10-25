@@ -1,3 +1,4 @@
+import { jsonValidationError } from "@/lib/admin-validation-feedback";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { getAdminApiContext } from "@/lib/admin";
@@ -12,8 +13,8 @@ export async function POST(request: NextRequest) {
   const context = await getAdminApiContext();
   if (!context || !(context.isPlatformAdmin || context.storeRole === "ADMIN")) return jsonError("Administrator access required", 403);
   const parsed = linkSchema.safeParse(await request.json().catch(() => null));
-  if (!parsed.success) return jsonError("Enter a valid Etsy listing ID");
-  const [connection, product] = await Promise.all([
+  if (!parsed.success) return jsonValidationError(parsed.error);
+const [connection, product] = await Promise.all([
     db.marketplaceConnection.findFirst({ where: { storeId: context.store.id, kind: "ETSY", status: "ACTIVE" } }),
     db.product.findFirst({
       where: { id: parsed.data.productId, storeId: context.store.id },

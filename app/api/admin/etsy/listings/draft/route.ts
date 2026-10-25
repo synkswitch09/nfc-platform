@@ -1,3 +1,4 @@
+import { jsonValidationError } from "@/lib/admin-validation-feedback";
 import { NextRequest, NextResponse } from "next/server";
 import { MarketplaceKind } from "@prisma/client";
 import { z } from "zod";
@@ -13,8 +14,8 @@ export async function POST(request: NextRequest) {
   const context = await getAdminApiContext();
   if (!context || !(context.isPlatformAdmin || context.storeRole === "ADMIN")) return jsonError("Administrator access required", 403);
   const parsed = schema.safeParse(await request.json().catch(() => null));
-  if (!parsed.success) return jsonError("Select a product and publishing mode", 400);
-  const [connection, product] = await Promise.all([
+  if (!parsed.success) return jsonValidationError(parsed.error);
+const [connection, product] = await Promise.all([
     db.marketplaceConnection.findFirst({ where: { storeId: context.store.id, kind: MarketplaceKind.ETSY, status: "ACTIVE" } }),
     db.product.findFirst({ where: { id: parsed.data.productId, storeId: context.store.id }, include: { variants: true, options: { include: { values: true } }, images: { orderBy: { sortOrder: "asc" } } } }),
   ]);

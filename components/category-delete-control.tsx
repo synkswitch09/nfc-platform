@@ -1,4 +1,5 @@
 "use client";
+import { useAdminRequest } from "@/components/admin-form-feedback";
 
 import { useState } from "react";
 import { Trash2 } from "lucide-react";
@@ -15,6 +16,8 @@ export function CategoryDeleteControl({
   productCount: number;
   canDelete: boolean;
 }) {
+  const { request: adminRequest, feedbackRef, feedback } = useAdminRequest();
+
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [confirmation, setConfirmation] = useState("");
@@ -26,7 +29,7 @@ export function CategoryDeleteControl({
     if (confirmation !== categoryName) return;
     setPending(true);
     setMessage("");
-    const response = await fetch(`/api/admin/categories/${categoryId}`, {
+    const response = await adminRequest(`/api/admin/categories/${categoryId}`, {
       method: "DELETE",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ confirmation }),
@@ -44,7 +47,7 @@ export function CategoryDeleteControl({
   if (!canDelete) return null;
 
   return (
-    <section className="admin-panel" aria-labelledby="delete-category-heading">
+    <section ref={node => { feedbackRef.current = node; }} className="admin-panel" aria-labelledby="delete-category-heading">{feedback}
       <div className="panel-heading">
         <div>
           <h2 id="delete-category-heading">Delete category</h2>

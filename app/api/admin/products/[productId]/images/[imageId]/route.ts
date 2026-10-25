@@ -1,3 +1,4 @@
+import { jsonValidationError } from "@/lib/admin-validation-feedback";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { getAdminApiContext } from "@/lib/admin";
@@ -10,8 +11,8 @@ const schema = z.object({ altText: z.string().trim().min(3).max(160), isPrimary:
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ productId: string; imageId: string }> }) {
   if (!assertSameOrigin(request)) return jsonError("Invalid request origin", 403);
   const context = await getAdminApiContext(); if (!context) return jsonError("Forbidden", 403); const { user, store } = context;
-  const parsed = schema.safeParse(await request.json().catch(() => null)); if (!parsed.success) return jsonError(parsed.error.issues[0]?.message ?? "Invalid image details");
-  const { productId, imageId } = await params;
+  const parsed = schema.safeParse(await request.json().catch(() => null)); if (!parsed.success) return jsonValidationError(parsed.error);
+const { productId, imageId } = await params;
   const exists = await db.productImage.findFirst({ where: { id: imageId, productId, product: { storeId: store.id } } }); if (!exists) return jsonError("Image not found", 404);
   if (parsed.data.optionValueId && !await db.productOptionValue.findFirst({ where: { id: parsed.data.optionValueId, option: { productId, product: { storeId: store.id } } }, select: { id: true } })) return jsonError("Colour choice does not belong to this product", 409);
   if (parsed.data.variantId && !await db.productVariant.findFirst({ where: { id: parsed.data.variantId, productId, product: { storeId: store.id } }, select: { id: true } })) return jsonError("Variant does not belong to this product", 409);

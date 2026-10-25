@@ -1,4 +1,5 @@
 "use client";
+import { useAdminRequest } from "@/components/admin-form-feedback";
 
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
@@ -16,6 +17,8 @@ const capabilityOptions = [
 const defaultCapabilities: StoreCapability[] = [StoreCapability.COMMERCE, StoreCapability.PRINT_3D, StoreCapability.INVENTORY];
 
 export function CreateStoreForm({ environment }: { environment: string }) {
+  const { request: adminRequest, feedbackRef, feedback } = useAdminRequest();
+
   const router = useRouter();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
@@ -30,7 +33,7 @@ export function CreateStoreForm({ environment }: { environment: string }) {
     setError("");
     setSuccess("");
     try {
-      const response = await fetch("/api/admin/stores", {
+      const response = await adminRequest("/api/admin/stores", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
@@ -50,7 +53,7 @@ export function CreateStoreForm({ environment }: { environment: string }) {
     }
   }
 
-  return <section className="admin-panel">
+  return <section ref={node => { feedbackRef.current = node; }} className="admin-panel">{feedback}
     <h2>Create store</h2>
     <p className="muted">The new store starts as a draft in {environment}. Set up DNS and HTTPS in Azure separately.</p>
     <form onSubmit={submit} className="create-store-form">

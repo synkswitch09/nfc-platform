@@ -1,4 +1,5 @@
 "use client";
+import { useAdminRequest, findAdminIssueControl } from "@/components/admin-form-feedback";
 
 import { useEffect, useRef, useState } from "react";
 import { ArrowDown, ArrowUp, Copy, Download, ImagePlus, Plus, Trash2 } from "lucide-react";
@@ -7,6 +8,8 @@ import { defaultEmailTemplate, emailTemplateKeys, emailTemplateLabels, getEmailT
 
 type Preview = { subject: string; html: string; text: string };
 export function EmailTemplatesEditor({ initial, canEdit, canPublish, testRecipient }: { initial: EmailTemplates; canEdit: boolean; canPublish: boolean; testRecipient: string }) {
+  const { request: adminRequest, feedbackRef, feedback } = useAdminRequest();
+
   const [templates, setTemplates] = useState(initial);
   const [key, setKey] = useState<EmailTemplateKey>("verification");
   const [template, setTemplate] = useState<EmailTemplate>(getEmailTemplateEntry(initial, "verification").draft);
@@ -52,7 +55,7 @@ export function EmailTemplatesEditor({ initial, canEdit, canPublish, testRecipie
     if (actionName === "reset" && !window.confirm("Restore the standard template for live emails and discard this draft?")) return;
     setPending(true); setMessage("");
     try {
-      const response = await fetch("/api/admin/email-templates", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ key, action: actionName, template, revision: entry.revision }) });
+      const response = await adminRequest("/api/admin/email-templates", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ key, action: actionName, template, revision: entry.revision }) });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "The template could not be saved");
       if (data.entry) { setTemplates(current => ({ ...current, [key]: data.entry })); setTemplate(data.entry.draft); }
@@ -76,26 +79,30 @@ export function EmailTemplatesEditor({ initial, canEdit, canPublish, testRecipie
     } catch (error) { setMessage(error instanceof Error ? error.message : "Invalid template file"); }
     if (importRef.current) importRef.current.value = "";
   }
-  return <div className="email-workspace">
+  return <div ref={node => { feedbackRef.current = node; }} className="email-workspace">{feedback}
     <section className="admin-panel email-selector"><label className="field">Notification type<select value={key} disabled={pending} onChange={event => selectTemplate(event.target.value as EmailTemplateKey)}>{emailTemplateKeys.map(item => <option key={item} value={item}>{emailTemplateLabels[item]}</option>)}</select></label>
       <p className="field-hint">{entry.published ? `Custom template published ${new Date(entry.publishedAt!).toLocaleDateString("en-AU")}.` : "The standard template is active."} {dirty ? "Unsaved draft changes." : unpublished ? "Draft ready for review." : "Draft matches the live template."}</p>
       <div className="email-actions">{canEdit && <button className="button secondary" disabled={pending || !valid.success} onClick={() => void action("save")}>Save draft</button>}{canPublish && <button className="button" disabled={pending || !valid.success} onClick={() => void action("publish")}>Publish template</button>}</div>
       {message && <p role="status" className="email-status">{message}</p>}
     </section>
     <div className="email-editor-grid"><section className="admin-panel email-composer"><h2>Compose email</h2>
-      <fieldset disabled={!canEdit || pending} className="email-fields"><label className="field">Subject<input value={template.subject} maxLength={250} onChange={event => setTemplate({ ...template, subject: event.target.value })} /></label>
-        <label className="field">Inbox preview text<input value={template.preheader} maxLength={250} onChange={event => setTemplate({ ...template, preheader: event.target.value })} /></label>
-        <label className="field">Accent colour<input type="color" value={template.accent} onChange={event => setTemplate({ ...template, accent: event.target.value })} /></label>
+      <fieldset disabled={!canEdit || pending} className="email-fields"><label className="field">Subject<input name="subject" aria-invalid={!valid.success && valid.issues.some(issue => issue.path === "subject")} value={template.subject} maxLength={250} onChange={event => setTemplate({ ...template, subject: event.target.value })} /></label>
+        <label className="field">Inbox preview text<input name="preheader" aria-invalid={!valid.success && valid.issues.some(issue => issue.path === "preheader")} value={template.preheader} maxLength={250} onChange={event => setTemplate({ ...template, preheader: event.target.value })} /></label>
+        <label className="field">Accent colour<input type="color" name="accent" aria-invalid={!valid.success && valid.issues.some(issue => issue.path === "accent")} value={template.accent} onChange={event => setTemplate({ ...template, accent: event.target.value })} /></label>
         <div className="email-token-list"><p>Dynamic fields — copy and paste into text:</p>{templateTokens(key).map(token => <button key={token} type="button" className="email-token" onClick={() => { void navigator.clipboard.writeText(`{{${token}}}`).then(() => setMessage(`Copied {{${token}}}.`)).catch(() => setMessage(`Select and copy {{${token}}}.`)); }}><Copy size={12} /><code>{`{{${token}}}`}</code></button>)}</div>
         {template.blocks.map((block, index) => <div className="email-block" key={index}><div className="email-block-heading"><strong>{index + 1}. {block.type}</strong><div><button type="button" className="icon-button" aria-label={`Move block ${index + 1} up`} disabled={index === 0} onClick={() => move(index, -1)}><ArrowUp size={16} /></button><button type="button" className="icon-button" aria-label={`Move block ${index + 1} down`} disabled={index === template.blocks.length - 1} onClick={() => move(index, 1)}><ArrowDown size={16} /></button><button type="button" className="icon-button" aria-label={`Remove block ${index + 1}`} onClick={() => setTemplate({ ...template, blocks: template.blocks.filter((_, i) => i !== index) })}><Trash2 size={16} /></button></div></div>
-          {(block.type === "text" || block.type === "heading") && <label className="field">{block.type === "heading" ? "Heading" : "Text"}<textarea rows={block.type === "heading" ? 2 : 4} maxLength={3000} value={block.text} onChange={event => updateBlock(index, { ...block, text: event.target.value })} /></label>}
-          {block.type === "image" && <><MediaUploadField uploadEndpoint="/api/admin/email-templates/images" label="Email image" value={block.url} onChange={url => updateBlock(index, { ...block, url })} /><label className="field">Image description<input value={block.alt} maxLength={200} onChange={event => updateBlock(index, { ...block, alt: event.target.value })} /></label></>}
-          {block.type === "button" && <><label className="field">Button label<input value={block.text} maxLength={120} onChange={event => updateBlock(index, { ...block, text: event.target.value })} /></label><label className="field">Button URL<input value={block.url} onChange={event => updateBlock(index, { ...block, url: event.target.value })} placeholder="https://… or {{store.url}}" /></label></>}
+          {(block.type === "text" || block.type === "heading") && <label className="field">{block.type === "heading" ? "Heading" : "Text"}<textarea rows={block.type === "heading" ? 2 : 4} maxLength={3000} name={`blocks.${index}.text`} aria-invalid={!valid.success && valid.issues.some(issue => issue.path === `blocks.${index}.text`)} value={block.text} onChange={event => updateBlock(index, { ...block, text: event.target.value })} /></label>}
+          {block.type === "image" && <><MediaUploadField uploadEndpoint="/api/admin/email-templates/images" label="Email image" name={`blocks.${index}.url`} aria-invalid={!valid.success && valid.issues.some(issue => issue.path === `blocks.${index}.url`)} value={block.url} onChange={url => updateBlock(index, { ...block, url })} /><label className="field">Image description<input name={`blocks.${index}.alt`} aria-invalid={!valid.success && valid.issues.some(issue => issue.path === `blocks.${index}.alt`)} value={block.alt} maxLength={200} onChange={event => updateBlock(index, { ...block, alt: event.target.value })} /></label></>}
+          {block.type === "button" && <><label className="field">Button label<input name={`blocks.${index}.text`} aria-invalid={!valid.success && valid.issues.some(issue => issue.path === `blocks.${index}.text`)} value={block.text} maxLength={120} onChange={event => updateBlock(index, { ...block, text: event.target.value })} /></label><label className="field">Button URL<input name={`blocks.${index}.url`} aria-invalid={!valid.success && valid.issues.some(issue => issue.path === `blocks.${index}.url`)} value={block.url} onChange={event => updateBlock(index, { ...block, url: event.target.value })} placeholder="https://… or {{store.url}}" /></label></>}
           {block.type === "divider" && <hr />}
         </div>)}
         <div className="email-add-blocks">{(["heading", "text", "image", "button", "divider"] as const).map(type => <button type="button" className="button secondary" key={type} disabled={template.blocks.length >= 24} onClick={() => add(type)}>{type === "image" ? <ImagePlus size={15} /> : <Plus size={15} />} {type}</button>)}</div>
       </fieldset>
-      {!valid.success && <p role="alert" className="upload-error">{valid.error}</p>}
+      {!valid.success && <div role="alert" className="form-error validation-summary"><strong>Check these email fields:</strong><ul>{valid.issues.map((issue, index) => <li key={index}><button type="button" className="text-button" onClick={() => {
+        const root = feedbackRef.current;
+        const input = root && findAdminIssueControl(root, issue);
+        input?.focus(); input?.scrollIntoView({ block: "center", behavior: "smooth" });
+      }}>{issue.message}</button></li>)}</ul></div>}
       <div className="email-protected"><strong>Required notification details</strong><p>Verification codes, secure links, order updates, reward conditions and support instructions are added automatically after your blocks. These details cannot be removed by editing the template. Emails also include a plain text version.</p></div>
       <div className="email-actions"><button className="button secondary" onClick={exportTemplate}><Download size={15} /> Export JSON</button>{canEdit && <label className="button secondary">Import JSON<input className="email-import" ref={importRef} type="file" accept=".json,application/json" disabled={pending} onChange={event => void importTemplate(event.target.files?.[0])} /></label>}</div>
       {canPublish && <div className="email-actions"><button className="button secondary" disabled={pending} onClick={() => { setTemplate(defaultEmailTemplate(key)); setMessage("Standard design loaded into the draft. Publish to make it live."); }}>Load standard design</button><button className="button secondary" disabled={pending} onClick={() => void action("reset")}>Restore standard live template</button></div>}
