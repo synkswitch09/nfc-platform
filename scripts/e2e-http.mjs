@@ -395,6 +395,43 @@ async function main() {
   assert(refundedBalance.balance === 100 && await db.paymentRefund.count({ where: { providerRefundId: remoteRefund.id } }) === 1, "Full refund returns the original 100 points once and removes its earned credits");
   assert((await db.loyaltyReservation.findUniqueOrThrow({ where: { orderId: redeemedOrder.id } })).restoredPoints === 100, "Database enforces the complete redemption return");
 
+  // Local pickup: no address or delivery quote, normal manufacturing, then private instructions on readiness.
+  const pickupLocation = "E2E PRIVATE PICKUP LOCATION";
+  const pickupCategory = await db.productCategory.findFirstOrThrow({ where: { storeId: tapkinStore.id, status: "PUBLISHED" } });
+  const pickupProduct = await db.product.create({ data: { storeId: tapkinStore.id, categoryId: pickupCategory.id, name: "E2E pickup accessory", slug: `pickup-accessory-${suffix}`, description: "Disposable made-to-order pickup fixture", brand: "Tapkin", type: "ACCESSORY", status: "ACTIVE", shopVisible: true, personalisationMode: "NONE", variants: { create: { name: "Made to order", sku: `PICKUP-${suffix}`, priceCents: 1500, inventory: 0, trackInventory: false, backorderPolicy: "ALLOW", productionMinutes: 15 } } }, include: { variants: true } });
+  const pickupInput = { deliveryMethod: "PICKUP", customer: { name: "Pickup guest", email: `pickup-${suffix}@example.test` }, items: [{ variantId: pickupProduct.variants[0].id, quantity: 1 }] };
+  try {
+    await db.store.update({ where: { id: tapkinStore.id }, data: { shippingConfig: { ...tapkinStore.shippingConfig, pickup: { enabled: false } } } });
+    await jsonResponse(await request("/api/checkout", { method: "POST", json: pickupInput }), 409, "Disabled pickup cannot bypass delivery charges");
+    await db.store.update({ where: { id: tapkinStore.id }, data: { shippingConfig: { ...tapkinStore.shippingConfig, pickup: { enabled: true, suburb: "Adelaide, SA", address: pickupLocation, hours: "By appointment", instructions: "Bring your order number" } } } });
+    for (const path of ["/checkout", "/cart"]) {
+      const page = await bodyText(await request(path));
+      assert(!page.text.includes(pickupLocation), `Private pickup address is absent from public ${path} HTML and client props`);
+    }
+    const pickupCheckout = await jsonResponse(await request("/api/checkout", { method: "POST", json: pickupInput }), 200, "Pickup accepts name and email without address, phone or delivery quote");
+    const pickupOrder = await db.order.findUniqueOrThrow({ where: { id: pickupCheckout.orderId }, include: { productionBooking: true, shipments: true, shippitPreparation: true } });
+    assert(pickupOrder.deliveryMethod === "PICKUP" && pickupOrder.shippingCents === 0 && pickupOrder.totalCents === 1500 && !pickupOrder.shippingLine1 && !pickupOrder.shippingQuoteId, "Database snapshots free pickup without a shipping destination");
+    assert(pickupOrder.productionBooking?.minutes === 15 && !pickupOrder.productionBooking.releasedAt && !pickupOrder.shipments.length && !pickupOrder.shippitPreparation, "Pickup keeps production capacity reservation and never queues a carrier label");
+    const pickupUrl = new URL(pickupCheckout.url);
+    const pickupPath = `${pickupUrl.pathname}${pickupUrl.search}`;
+    assert(!(await bodyText(await request(pickupPath))).text.includes(pickupLocation), "Paid pickup order does not reveal the address before readiness");
+    const paymentNotice = await db.orderNotification.findFirst({ where: { orderId: pickupOrder.id, dedupeKey: { startsWith: "paid:" } } });
+    assert(paymentNotice?.text.includes("ready-for-pickup") && !paymentNotice.text.includes(pickupLocation), "Initial payment email asks the customer to wait and keeps pickup address private");
+    await jsonResponse(await request(`/api/admin/orders/${pickupOrder.id}/status`, { method: "POST", jar: adminJar, json: { status: "PROCESSING" } }), 200, "Pickup enters preparation");
+    await jsonResponse(await request(`/api/admin/orders/${pickupOrder.id}/status`, { method: "POST", jar: adminJar, json: { status: "READY_TO_SHIP" } }), 409, "Pickup readiness still requires completed manufacture and packing");
+    await db.manufacturingJob.updateMany({ where: { orderItem: { orderId: pickupOrder.id } }, data: { status: "READY" } });
+    await db.orderItem.updateMany({ where: { orderId: pickupOrder.id }, data: { packedQuantity: 1 } });
+    await jsonResponse(await request(`/api/admin/orders/${pickupOrder.id}/status`, { method: "POST", jar: adminJar, json: { status: "READY_TO_SHIP" } }), 200, "Prepared pickup queues ready-for-collection notification");
+    assert(Boolean((await db.productionBooking.findUniqueOrThrow({ where: { orderId: pickupOrder.id } })).releasedAt), "Ready pickup releases manufacturing capacity before collection");
+    assert(await db.orderNotification.count({ where: { orderId: pickupOrder.id, dedupeKey: { startsWith: "pickup-ready:" }, text: { contains: pickupLocation } } }) === 1, "Ready email durably contains the private address exactly once");
+    assert((await bodyText(await request(pickupPath))).text.includes(pickupLocation), "Ready pickup instructions are visible to the authorised guest");
+    await jsonResponse(await request(`/api/admin/orders/${pickupOrder.id}/shipment`, { method: "POST", jar: adminJar }), 409, "Pickup order rejects a shipping label");
+    await jsonResponse(await request(`/api/admin/orders/${pickupOrder.id}/status`, { method: "POST", jar: adminJar, json: { status: "COMPLETED" } }), 200, "Pickup handover needs no carrier or tracking number");
+    assert(Boolean((await db.order.findUniqueOrThrow({ where: { id: pickupOrder.id } })).collectedAt), "Pickup handover records collection time");
+  } finally {
+    await db.store.update({ where: { id: tapkinStore.id }, data: { shippingConfig: tapkinStore.shippingConfig } });
+  }
+
   await jsonResponse(await request("/api/auth/logout", { method: "POST", jar: customerJar }), 200, "Customer can sign out");
   const signedOutDashboard = await request("/dashboard", { jar: customerJar, redirect: "manual" });
   assert([302, 303, 307, 308].includes(signedOutDashboard.status), "Signed-out session cannot reopen the dashboard");

@@ -17,8 +17,10 @@ type CheckoutAddress = CountryAddressValue & { recipient: string };
 
 type ShippingQuote = { token: string; providerKey: string; serviceCode: string; serviceName: string; amountCents: number; estimatedDaysMin: number | null; estimatedDaysMax: number | null; expiresAt: string };
 
-export function CheckoutForm({ account, store, countries, integrations: configuredIntegrations, autocompleteEnabled = false, loyalty: configuredLoyalty }: { account: { name: string; email: string; address: CheckoutAddress | null;addresses?: (CheckoutAddress & {id:string;label:string|null;isDefault:boolean})[] } | null; store: { slug: string; displayName: string; currency: string; nfcEnabled: boolean }; countries: string[]; integrations?: IntegrationConfig; autocompleteEnabled?: boolean; loyalty?: LoyaltyConfig }) {
+export function CheckoutForm({ account, store, countries, integrations: configuredIntegrations, autocompleteEnabled = false, loyalty: configuredLoyalty, pickup = { enabled: false, suburb: "" } }: { account: { name: string; email: string; address: CheckoutAddress | null;addresses?: (CheckoutAddress & {id:string;label:string|null;isDefault:boolean})[] } | null; store: { slug: string; displayName: string; currency: string; nfcEnabled: boolean }; countries: string[]; integrations?: IntegrationConfig; autocompleteEnabled?: boolean; loyalty?: LoyaltyConfig; pickup?: { enabled: boolean; suburb: string } }) {
   const cart = useCart();
+  const [deliveryMethod, setDeliveryMethod] = useState<"DELIVERY" | "PICKUP">("DELIVERY");
+  const isPickup = pickup.enabled && deliveryMethod === "PICKUP";
   const loyalty = configuredLoyalty ?? parseLoyaltyConfig({});
   const [pointsBalance, setPointsBalance] = useState<number | null>(null);
   const [pointsToRedeem, setPointsToRedeem] = useState(0);
@@ -79,7 +81,7 @@ export function CheckoutForm({ account, store, countries, integrations: configur
   const usablePoints = loyalty.enabled ? Math.min(pointsToRedeem, pointsMaximum) : 0;
   const pointsDiscount = usablePoints >= loyalty.minimumRedeemPoints ? usablePoints / loyalty.redemptionUnitPoints * loyalty.redemptionUnitCents : 0;
   const selectedQuote = quotes.find(quote => quote.token === selectedQuoteToken);
-  const shipping = selectedQuote?.amountCents ?? 0;
+  const shipping = isPickup ? 0 : selectedQuote?.amountCents ?? 0;
 
   function addressFrom(data: FormData) {
     const optional = (name: string) => String(data.get(name) ?? "").trim() || undefined;
@@ -108,7 +110,7 @@ export function CheckoutForm({ account, store, countries, integrations: configur
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); setError("");
-    if (!selectedQuoteToken) { setDeliveryError("Calculate delivery for this address and choose a service before continuing."); document.querySelector(".checkout-section .country-address-fields")?.scrollIntoView({ block: "center", behavior: "smooth" }); return; }
+    if (!isPickup && !selectedQuoteToken) { setDeliveryError("Calculate delivery for this address and choose a service before continuing."); document.querySelector(".checkout-section .country-address-fields")?.scrollIntoView({ block: "center", behavior: "smooth" }); return; }
     setPending(true);
     const form = event.currentTarget;
     const data = new FormData(form);
@@ -119,19 +121,20 @@ export function CheckoutForm({ account, store, countries, integrations: configur
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
         items: cart.lines.map(line => ({ variantId: line.variantId, quantity: line.quantity, personalisationChoice: line.personalisationChoice, personalisation: line.personalisation })),
-        shippingQuoteToken: selectedQuoteToken,
+        deliveryMethod: isPickup ? "PICKUP" : "DELIVERY",
+        shippingQuoteToken: isPickup ? undefined : selectedQuoteToken,
         pointsToRedeem: usablePoints,
-        saveAddress: data.get("saveAddress")==="on",
+        saveAddress: !isPickup && data.get("saveAddress")==="on",
         promotionCode: String(data.get("promotionCode") ?? "").trim().toUpperCase() || undefined,
         customer: {
           name: data.get("name"), email: data.get("email"),
-          shipping: addressFrom(data),
+          ...(isPickup ? { phone: String(data.get("phone") ?? "").trim() || undefined } : { shipping: addressFrom(data) }),
         },
       }),
     });
       const result = await response.json().catch(() => ({}));
       if (!response.ok) { showFormIssues(form, result.issues); setError(result.error ?? "We couldn't start checkout. Please try again."); return; }
-      if (!account && integrations.rememberCheckoutEnabled) {
+      if (!account && !isPickup && integrations.rememberCheckoutEnabled) {
         try {
           if (remember) saveCheckout(localStorage, store.slug, { name: String(data.get("name") ?? ""), email: String(data.get("email") ?? ""), address: addressFrom(data) }, integrations.rememberCheckoutDays);
           else forgetCheckout(localStorage, store.slug);
@@ -149,9 +152,11 @@ export function CheckoutForm({ account, store, countries, integrations: configur
     <div className="checkout-fields">
       {!account && <div className="guest-banner"><strong>Continue as guest</strong><span>No account is required to buy. {store.nfcEnabled ? "Create one after payment to manage connected products." : "You can create one later to manage this order."}</span></div>}
       {account && <div className="guest-banner"><strong>Signed in as {account.name}</strong><span>Your order will appear in your account after payment.</span></div>}
+      {pickup.enabled && <section className="checkout-section"><h2>Delivery method</h2><fieldset className="shipping-options"><legend>Choose how to receive your order</legend><label><input type="radio" name="deliveryMethod" value="DELIVERY" checked={!isPickup} onChange={() => { setDeliveryMethod("DELIVERY"); invalidateDelivery(); }} /><span><strong>Delivery</strong><small>Shipping calculated for your address</small></span></label><label><input type="radio" name="deliveryMethod" value="PICKUP" checked={isPickup} onChange={() => { setDeliveryMethod("PICKUP"); invalidateDelivery(); }} /><span><strong>Local pickup — Free</strong><small>{pickup.suburb}. By appointment. We will email the address and collection instructions when your order is ready.</small></span></label></fieldset></section>}
       <section className="checkout-section"><h2>Contact</h2><div className="field-grid"><label className="field">Full name<input name="name" autoComplete="name" key={addressKey} defaultValue={chosenAddress?.recipient ?? account?.name ?? ""} minLength={2} required /></label><label className="field">Email<input name="email" type="email" autoComplete="email" key={addressKey} defaultValue={account?.email ?? remembered?.email ?? ""} readOnly={Boolean(account)} required /></label></div></section>
-      <section className="checkout-section" onChange={event => { if ((event.target as HTMLInputElement).name === "shippingQuote") return; invalidateDelivery(); }}><h2>Delivery address</h2>{Boolean(account?.addresses?.length)&&<label className="field">Saved address<select value={addressId} onChange={e=>{setAddressId(e.target.value);invalidateDelivery();}}><option value="">New address</option>{account?.addresses?.map(a=><option key={a.id} value={a.id}>{a.label??a.line1}{a.isDefault?" · Default":""}</option>)}</select></label>}<CountryAddressFields key={addressKey} initial={chosenAddress} countries={countries} autocompleteEnabled={autocompleteEnabled} onAddressChange={invalidateDelivery} />{account&&<label><input name="saveAddress" type="checkbox"/> Save this delivery address to my account</label>}<button className="button secondary" type="button" disabled={quotePending} onClick={event => calculateDelivery(event.currentTarget.form!)}>{quotePending ? "Calculating…" : "Calculate delivery"}</button>{deliveryError && <p className="form-error" role="alert">{deliveryError}</p>}{quotes.length > 0 && <fieldset className="shipping-options"><legend>Delivery service</legend>{quotes.map(quote => <label key={quote.token}><input type="radio" name="shippingQuote" value={quote.token} checked={selectedQuoteToken === quote.token} onChange={() => setSelectedQuoteToken(quote.token)} /><span><strong>{quote.serviceName}</strong><small>{quote.estimatedDaysMin ? `${quote.estimatedDaysMin}${quote.estimatedDaysMax && quote.estimatedDaysMax !== quote.estimatedDaysMin ? `–${quote.estimatedDaysMax}` : ""} business days` : "Delivery estimate shown after dispatch"}</small></span><b>{quote.amountCents ? money.format(quote.amountCents / 100) : "Free"}</b></label>)}</fieldset>}</section>
-      {!account && integrations.rememberCheckoutEnabled && <section className="checkout-section"><h2>Next time</h2>
+      {isPickup && <section className="checkout-section"><label className="field">Phone (optional)<input name="phone" type="tel" autoComplete="tel" maxLength={40} defaultValue={chosenAddress?.phone ?? ""} /></label><p>Please wait for your ready-for-pickup email before arranging collection. Made-to-order products still need their usual preparation time.</p></section>}
+      {!isPickup && <section className="checkout-section" onChange={event => { if ((event.target as HTMLInputElement).name === "shippingQuote") return; invalidateDelivery(); }}><h2>Delivery address</h2>{Boolean(account?.addresses?.length)&&<label className="field">Saved address<select value={addressId} onChange={e=>{setAddressId(e.target.value);invalidateDelivery();}}><option value="">New address</option>{account?.addresses?.map(a=><option key={a.id} value={a.id}>{a.label??a.line1}{a.isDefault?" · Default":""}</option>)}</select></label>}<CountryAddressFields key={addressKey} initial={chosenAddress} countries={countries} autocompleteEnabled={autocompleteEnabled} onAddressChange={invalidateDelivery} />{account&&<label><input name="saveAddress" type="checkbox"/> Save this delivery address to my account</label>}<button className="button secondary" type="button" disabled={quotePending} onClick={event => calculateDelivery(event.currentTarget.form!)}>{quotePending ? "Calculating…" : "Calculate delivery"}</button>{deliveryError && <p className="form-error" role="alert">{deliveryError}</p>}{quotes.length > 0 && <fieldset className="shipping-options"><legend>Delivery service</legend>{quotes.map(quote => <label key={quote.token}><input type="radio" name="shippingQuote" value={quote.token} checked={selectedQuoteToken === quote.token} onChange={() => setSelectedQuoteToken(quote.token)} /><span><strong>{quote.serviceName}</strong><small>{quote.estimatedDaysMin ? `${quote.estimatedDaysMin}${quote.estimatedDaysMax && quote.estimatedDaysMax !== quote.estimatedDaysMin ? `–${quote.estimatedDaysMax}` : ""} business days` : "Delivery estimate shown after dispatch"}</small></span><b>{quote.amountCents ? money.format(quote.amountCents / 100) : "Free"}</b></label>)}</fieldset>}</section>}
+      {!account && !isPickup && integrations.rememberCheckoutEnabled && <section className="checkout-section"><h2>Next time</h2>
         <label className="check-field"><input type="checkbox" checked={remember} onChange={event => {
           setRemember(event.target.checked);
           if (!event.target.checked) { try { forgetCheckout(localStorage, store.slug); } catch { /* Storage unavailable. */ } setHasRemembered(false); }
@@ -164,6 +169,6 @@ export function CheckoutForm({ account, store, countries, integrations: configur
       {loyalty.enabled && store.currency === "AUD" && <section className="checkout-section"><h2>Points</h2>{account ? <><p>{pointsBalance === null ? "Your points balance is loading or unavailable." : `${pointsBalance} points available for this store.`}</p>{pointsNotice && <p role="status">{pointsNotice}</p>}<label className="field">Points to use<input name="pointsToRedeem" type="number" min={0} max={pointsMaximum} step={loyalty.redemptionUnitPoints} value={usablePoints} disabled={pointsBalance === null || !pointsMaximum} onChange={event => setPointsToRedeem(Math.max(0, Number(event.target.value) || 0))} /></label><p className="fine-print">{loyalty.redemptionUnitPoints} points = {money.format(loyalty.redemptionUnitCents / 100)} off. Minimum {loyalty.minimumRedeemPoints} points; maximum {loyalty.maximumRedeemPercent}% of products. {loyalty.allowCouponStacking ? "Eligible offers can be combined; final limits are checked before payment." : "Using points replaces automatic offers and cannot be combined with a discount code."} Points are reserved while payment is pending.</p><Link href="/dashboard/points">View points history and expiry</Link></> : <p>This qualifying purchase earns points after payment. Create an account later and verify this purchase email to claim them. <Link href="/login">Sign in</Link> to use an existing balance.</p>}</section>}
       <section className="checkout-section payment-note"><LockKeyhole /><div><h2>Secure payment</h2><p>You will enter card details on Stripe Checkout. {store.displayName} never stores your card number.</p></div></section>
     </div>
-    <aside className="order-summary checkout-summary"><h2>Your order</h2>{cart.lines.map(line => <p key={line.key}><span>{line.productName} × {line.quantity}</span><strong>{money.format(line.unitPriceCents * line.quantity / 100)}</strong></p>)}<p><span>Shipping</span><strong>{selectedQuote ? (shipping ? money.format(shipping / 100) : "Free") : "Calculate at address"}</strong></p>{pointsDiscount > 0 && <p><span>Points discount</span><strong>−{money.format(pointsDiscount / 100)}</strong></p>}<p className="summary-total"><span>Total before other offers</span><strong>{money.format((subtotal + shipping - pointsDiscount) / 100)}</strong></p>{error && <div className="form-error" role="alert">{error}</div>}<button className="button purchase-button" disabled={pending || !selectedQuote}>{pending ? "Preparing secure payment…" : "Continue to secure payment"}</button><p className="fine-print">By continuing, you agree to our <Link href="/terms"><u>terms</u></Link> and acknowledge our <Link href="/privacy"><u>privacy policy</u></Link>.</p></aside>
+    <aside className="order-summary checkout-summary"><h2>Your order</h2>{cart.lines.map(line => <p key={line.key}><span>{line.productName} × {line.quantity}</span><strong>{money.format(line.unitPriceCents * line.quantity / 100)}</strong></p>)}<p><span>{isPickup ? "Local pickup" : "Shipping"}</span><strong>{isPickup ? "Free" : selectedQuote ? (shipping ? money.format(shipping / 100) : "Free") : "Calculate at address"}</strong></p>{pointsDiscount > 0 && <p><span>Points discount</span><strong>−{money.format(pointsDiscount / 100)}</strong></p>}<p className="summary-total"><span>Total before other offers</span><strong>{money.format((subtotal + shipping - pointsDiscount) / 100)}</strong></p>{error && <div className="form-error" role="alert">{error}</div>}<button className="button purchase-button" disabled={pending || (!isPickup && !selectedQuote)}>{pending ? "Preparing secure payment…" : "Continue to secure payment"}</button><p className="fine-print">By continuing, you agree to our <Link href="/terms"><u>terms</u></Link> and acknowledge our <Link href="/privacy"><u>privacy policy</u></Link>.</p></aside>
   </form>;
 }

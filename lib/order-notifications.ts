@@ -17,7 +17,8 @@ export async function queueOrderNotice(tx: Prisma.TransactionClient, orderId: st
 }
 
 export async function queuePaidOrder(tx: Prisma.TransactionClient, orderId: string) {
-  await queueOrderNotice(tx, orderId, `paid:${orderId}`, "Payment confirmed", "Payment has been received. We will let you know when your order progresses. You can leave a review from the purchased product page after signing in or verifying your purchase email through Help & requests.", true);
+  const order = await tx.order.findUnique({ where: { id: orderId }, select: { deliveryMethod: true } });
+  await queueOrderNotice(tx, orderId, `paid:${orderId}`, "Payment confirmed", (order?.deliveryMethod === "PICKUP" ? "Payment has been received for local pickup. Please wait for your ready-for-pickup email, which will contain the address and instructions. " : "Payment has been received. We will let you know when your order progresses. ") + "You can leave a review from the purchased product page after signing in or verifying your purchase email through Help & requests.", true);
 }
 
 export async function processOrderNotifications(orderId?: string) {
