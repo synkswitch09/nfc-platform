@@ -27,6 +27,7 @@ export default async function AdminStorefrontFooterPage() {
       </div>
       <StorefrontChromeForm
         area="footer"
+        kosykinLayout={context.store.slug === "kosykin"}
         footer={settings.footerConfig}
         socialLinks={settings.socialLinks}
       />

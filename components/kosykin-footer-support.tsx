@@ -1,89 +1,132 @@
-import type { CSSProperties } from "react";
-import { parseLandingContent } from "@/lib/landing-sections";
-import {
-  typographyOverrideSchema,
-  typographyVariables,
-} from "@/lib/typography";
-import { localizeSections } from "@/lib/i18n";
-import { db } from "@/lib/db";
-import { KosykinHomeSection } from "@/components/kosykin-home-section";
+import Image from "next/image";
+import Link from "next/link";
+import { Clock3 } from "lucide-react";
+import type { FooterConfig } from "@/lib/site-chrome";
+import { localizedPath } from "@/lib/i18n";
+import { typographyStyle } from "@/lib/typography";
+import { FooterSocialLinks } from "@/components/site-footer";
+import { StorefrontIcon } from "@/components/storefront-icon";
 
-// The published Home support block is the single CMS source for all routes.
-export async function KosykinFooterSupport({
-  storeId,
-  enabled,
+export function KosykinFooterSupport({
+  config,
+  socialLinks,
+  storeName,
   locale,
   defaultLocale,
 }: {
-  storeId: string;
-  enabled: boolean;
+  config: FooterConfig;
+  socialLinks: Record<string, string>;
+  storeName: string;
   locale: string;
   defaultLocale: string;
 }) {
-  if (!enabled || !process.env.DATABASE_URL) return null;
-  const home = await db.contentPage.findFirst({
-    where: { storeId, kind: "HOME", status: "PUBLISHED" },
-    select: {
-      sections: {
-        where: { type: "CTA_BANNER" },
-        orderBy: { sortOrder: "asc" },
-        select: {
-          visible: true,
-          content: true,
-          translations: {
-            where: { locale },
-            select: { locale: true, content: true },
-          },
-        },
-      },
-    },
-  });
-  const block = home?.sections.find((section) => {
-    const content = section.content;
-    return (
-      content &&
-      typeof content === "object" &&
-      !Array.isArray(content) &&
-      content.layoutVariant === "KOSYKIN_SUPPORT"
-    );
-  });
-  if (!block?.visible || !block.content) return null;
-  const localized = localizeSections([block], locale, defaultLocale)[0];
-  const value = parseLandingContent("CTA_BANNER", localized.content);
-  if (!value) return null;
-  const style = {
-    "--support-background":
-      (typeof value.backgroundColour === "string" && value.backgroundColour) ||
-      undefined,
-    "--support-text":
-      (typeof value.copyColour === "string" && value.copyColour) || undefined,
-    "--section-headline": value.headlineColour || undefined,
-    ...typographyVariables(
-      "section-headline-type",
-      typographyOverrideSchema.parse(value.headlineTypography),
-    ),
-    ...typographyVariables(
-      "section-copy-type",
-      typographyOverrideSchema.parse(value.copyTypography),
-    ),
-    ...typographyVariables(
-      "section-button-type",
-      typographyOverrideSchema.parse(value.buttonTypography),
-    ),
-  } as CSSProperties;
+  const support = config.support;
+  if (!support.enabled) return null;
+  const customLogo =
+    config.logoUrl &&
+    ![
+      "/images/kosykin/logo.png",
+      "/images/kosykin/wordmark-navy.webp",
+    ].includes(config.logoUrl)
+      ? config.logoUrl
+      : "";
   return (
     <section
-      className="kosy-footer-support kosy-home-section"
-      data-variant="kosykin-support"
-      style={style}
-      aria-label="Need a hand?"
+      className="kosy-footer-support"
+      aria-label={support.headline}
+      style={{
+        backgroundColor: support.backgroundColour || undefined,
+        color: support.textColour || undefined,
+      }}
     >
-      <KosykinHomeSection
-        type="CTA_BANNER"
-        value={value}
-        products={[]}
-        currency="AUD"
-      />
+      <div className="kosy-footer-identity">
+        <Link
+          className="kosy-footer-brand"
+          href={localizedPath("/", locale, defaultLocale)}
+          aria-label={`${storeName} Home`}
+        >
+          {customLogo ? (
+            <Image
+              src={customLogo}
+              alt={storeName}
+              width={112}
+              height={66}
+              unoptimized
+            />
+          ) : (
+            <span
+              className="kosy-footer-stacked-logo"
+              role="img"
+              aria-label={storeName}
+            >
+              <span>
+                <Image
+                  src="/images/kosykin/wordmark-navy.webp"
+                  alt=""
+                  width={708}
+                  height={101}
+                  unoptimized
+                />
+              </span>
+              <span>
+                <Image
+                  src="/images/kosykin/wordmark-navy.webp"
+                  alt=""
+                  width={708}
+                  height={101}
+                  unoptimized
+                />
+              </span>
+            </span>
+          )}
+        </Link>
+        <FooterSocialLinks config={config} socialLinks={socialLinks} dark />
+      </div>
+      <div className="kosy-footer-help">
+        <h2 style={typographyStyle(support.headlineTypography)}>
+          {support.headline}
+        </h2>
+        <p style={typographyStyle(support.copyTypography)}>{support.copy}</p>
+        {support.responseText && (
+          <p
+            className="kosy-footer-response"
+            style={typographyStyle(support.copyTypography)}
+          >
+            <StorefrontIcon
+              name="clock"
+              size={22}
+              fallback={<Clock3 size={22} />}
+            />
+            <span>{support.responseText}</span>
+          </p>
+        )}
+      </div>
+      <div
+        className="kosy-footer-actions"
+        style={typographyStyle(support.buttonTypography)}
+      >
+        <Link
+          className="kosy-footer-contact"
+          href={localizedPath("/support", locale, defaultLocale)}
+        >
+          {support.contactLabel}
+        </Link>
+        {support.instagramVisible &&
+          (support.instagramHref ? (
+            <a
+              className="kosy-footer-instagram"
+              href={support.instagramHref}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {support.instagramLabel}
+            </a>
+          ) : (
+            <span className="kosy-footer-instagram" aria-disabled="true">
+              {support.instagramLabel}
+            </span>
+          ))}
+      </div>
     </section>
   );
 }

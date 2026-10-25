@@ -20,7 +20,9 @@ export function StorefrontChromeForm({
   header,
   footer,
   socialLinks = {},
+  kosykinLayout = false,
 }: {
+  kosykinLayout?: boolean;
   area: "header" | "footer";
   header?: HeaderConfig;
   footer?: FooterConfig;
@@ -99,10 +101,26 @@ export function StorefrontChromeForm({
         : footer
           ? {
               ...footer,
+              support: kosykinLayout ? {
+                ...footer.support,
+                enabled: form.get("supportEnabled") === "on",
+                headline: form.get("supportHeadline"),
+                copy: form.get("supportCopy"),
+                responseText: form.get("supportResponseText"),
+                contactLabel: form.get("supportContactLabel"),
+                instagramLabel: form.get("supportInstagramLabel"),
+                instagramHref: form.get("supportInstagramHref"),
+                instagramVisible: form.get("supportInstagramVisible") === "on",
+                backgroundColour: form.get("supportBackgroundColour"),
+                textColour: form.get("supportTextColour"),
+                headlineTypography: typographyFromForm(form, "supportHeadlineTypography", footer.support.headlineTypography),
+                copyTypography: typographyFromForm(form, "supportCopyTypography", footer.support.copyTypography),
+                buttonTypography: typographyFromForm(form, "supportButtonTypography", footer.support.buttonTypography),
+              } : footer.support,
               logoTreatment: form.get("logoTreatment") ?? footer.logoTreatment,
               logoUrl,
               copyright: form.get("copyright"),
-              tagline: form.get("tagline"),
+              tagline: form.get("tagline") ?? footer.tagline,
               termsLabel: form.get("termsLabel"),
               privacyLabel: form.get("privacyLabel"),
               showTerms: form.get("showTerms") === "on",
@@ -182,6 +200,7 @@ export function StorefrontChromeForm({
         ) : footer ? (
           <FooterFields
             config={footer}
+            kosykinLayout={kosykinLayout}
             socialProfiles={socialProfiles}
             onSocialProfilesChange={setSocialProfiles}
           />
@@ -404,17 +423,37 @@ function HeaderFields({ config }: { config: HeaderConfig }) {
 
 function FooterFields({
   config,
+  kosykinLayout,
   socialProfiles,
   onSocialProfilesChange,
 }: {
   config: FooterConfig;
+  kosykinLayout: boolean;
   socialProfiles: NonNullable<FooterConfig["socialProfiles"]>;
   onSocialProfilesChange: (rows: NonNullable<FooterConfig["socialProfiles"]>) => void;
 }) {
   return (
     <>
+      {kosykinLayout && <section className="admin-panel">
+        <h3>Support panel — cream area</h3>
+        <p>This panel and the legal strip form one shared footer on every Kosykin page. Social networks below appear in the cream area. Contact us always opens Help &amp; requests.</p>
+        <Check name="supportEnabled" label="Show support panel" checked={config.support.enabled} />
+        <div className="field-grid">
+          <Text name="supportHeadline" label="Support heading" value={config.support.headline} />
+          <label className="field">Support copy<textarea name="supportCopy" defaultValue={config.support.copy} /></label>
+          <Text name="supportResponseText" label="Reply time text (empty to hide)" value={config.support.responseText} />
+          <Text name="supportContactLabel" label="Contact button label" value={config.support.contactLabel} />
+          <Text name="supportInstagramLabel" label="Instagram message button label" value={config.support.instagramLabel} />
+          <Text name="supportInstagramHref" label="Instagram message destination URL" type="url" value={config.support.instagramHref} />
+          <Colour name="supportBackgroundColour" label="Support background" value={config.support.backgroundColour} />
+          <Colour name="supportTextColour" label="Support text" value={config.support.textColour} />
+        </div>
+        <small>Use a full https:// link for Instagram messaging. An empty URL leaves a non-clickable preview. This is separate from the Instagram profile link under Social networks.</small>
+        <Check name="supportInstagramVisible" label="Show Instagram message button" checked={config.support.instagramVisible} />
+        <IndividualTypographyPanel title="Support typography" description="Override the heading, copy or buttons independently." fields={[["supportHeadlineTypography", "Heading"], ["supportCopyTypography", "Copy and reply time"], ["supportButtonTypography", "Buttons"]]} values={{ supportHeadlineTypography: config.support.headlineTypography, supportCopyTypography: config.support.copyTypography, supportButtonTypography: config.support.buttonTypography }} />
+      </section>}
       <div className="field-grid">
-        <Select name="logoTreatment" label="Logo treatment" value={config.logoTreatment} options={[["ORIGINAL", "Original uploaded colours"], ["CREAM", "Cream silhouette"]]} />
+        {!kosykinLayout && <Select name="logoTreatment" label="Logo treatment" value={config.logoTreatment} options={[["ORIGINAL", "Original uploaded colours"], ["CREAM", "Cream silhouette"]]} />}
         <Text name="copyright" label="Copyright" value={config.copyright} />
         <Text name="termsLabel" label="Terms label" value={config.termsLabel} />
         <Text
@@ -422,10 +461,10 @@ function FooterFields({
           label="Privacy label"
           value={config.privacyLabel}
         />
-        <label className="field wide">
+        {!kosykinLayout && <label className="field wide">
           Tagline
           <textarea name="tagline" defaultValue={config.tagline} />
-        </label>
+        </label>}
         <label className="field wide">
           Custom footer links
           <textarea
@@ -503,7 +542,7 @@ function FooterFields({
         title="Individual footer text"
         description="Set a style for one text field only. Leave an option on Inherit to keep the footer default."
         fields={[
-          ["taglineTypography", "Tagline"],
+          ...(!kosykinLayout ? [["taglineTypography", "Tagline"] as [string, string]] : []),
           ["copyrightTypography", "Copyright"],
           ["customLinksTypography", "Custom footer links"],
           ["termsTypography", "Terms label"],
