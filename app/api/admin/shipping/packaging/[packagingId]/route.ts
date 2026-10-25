@@ -1,3 +1,4 @@
+import { jsonValidationError, jsonFieldError } from "@/lib/admin-validation-feedback";
 import { NextRequest, NextResponse } from "next/server";
 import { canManageStore, getAdminApiContext } from "@/lib/admin";
 import { db } from "@/lib/db";
@@ -10,12 +11,12 @@ export async function PATCH(request: NextRequest, { params }: Context) {
   const context = await getAdminApiContext();
   if (!canManageStore(context)) return jsonError("Forbidden", 403);
   const parsed = packageFields.safeParse(await request.json().catch(() => null));
-  if (!parsed.success) return jsonError(parsed.error.issues[0]?.message ?? "Invalid packaging", 400);
-  const { packagingId } = await params;
+  if (!parsed.success) return jsonValidationError(parsed.error);
+const { packagingId } = await params;
   const item = await db.packaging.findFirst({ where: { id: packagingId, storeId: context!.store.id } });
   if (!item) return jsonError("Packaging not found", 404);
-  if (item.code.startsWith("MAILER-") ? parsed.data.heightMm !== 0 : parsed.data.heightMm === 0) return jsonError("Check the package height", 400);
-  if (parsed.data.maxWeightGrams !== null && parsed.data.maxWeightGrams <= parsed.data.emptyWeightGrams) return jsonError("Maximum weight must exceed empty weight", 400);
+  if (item.code.startsWith("MAILER-") ? parsed.data.heightMm !== 0 : parsed.data.heightMm === 0) return jsonFieldError("heightMm", "Enter a box height greater than zero; a mailer uses the product thickness.");
+  if (parsed.data.maxWeightGrams !== null && parsed.data.maxWeightGrams <= parsed.data.emptyWeightGrams) return jsonFieldError("maxWeightGrams", "Maximum packed weight must be greater than the empty package weight.");
   await db.packaging.update({ where: { id: packagingId }, data: parsed.data });
   await db.auditLog.create({ data: { actorId: context!.user.id, storeId: context!.store.id, action: "PACKAGING_UPDATED", entityType: "Packaging", entityId: packagingId } });
   return NextResponse.json({ ok: true });

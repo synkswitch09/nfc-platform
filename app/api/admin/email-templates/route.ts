@@ -1,3 +1,4 @@
+import { jsonValidationError } from "@/lib/admin-validation-feedback";
 import { NextRequest, NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
@@ -16,12 +17,12 @@ export async function POST(request: NextRequest) {
   if (!context) return jsonError("Forbidden", 403);
   if (Number(request.headers.get("content-length") ?? 0) > 100_000) return jsonError("Template is too large", 413);
   const parsed = requestSchema.safeParse(await request.json().catch(() => null));
-  if (!parsed.success) return jsonError("Invalid template request");
-  const { key, action, revision } = parsed.data;
+  if (!parsed.success) return jsonValidationError(parsed.error);
+const { key, action, revision } = parsed.data;
   const permission = ["publish", "reset"].includes(action) ? "content.publish" : action === "preview" ? "content.read" : "content.write";
   if (!hasPermission(context, permission)) return jsonError("Forbidden", 403);
   const validation = validateEmailTemplate(key, action === "reset" ? defaultEmailTemplate(key) : parsed.data.template);
-  if (!validation.success) return jsonError(validation.error);
+  if (!validation.success) return NextResponse.json({ error: validation.error, issues: validation.issues }, { status: 400 });
   const template = validation.data;
   if (action === "preview" || action === "test") {
     const data = sampleEmailData(key, context.store.displayName, context.store.origin, context.store.logoUrl);

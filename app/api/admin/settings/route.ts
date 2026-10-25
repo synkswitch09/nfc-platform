@@ -1,3 +1,4 @@
+import { jsonValidationError } from "@/lib/admin-validation-feedback";
 import { NextRequest, NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
@@ -55,9 +56,9 @@ const schema = z
     flatRateCents: z.number().int().min(0).max(100_000),
     freeOverCents: z.number().int().min(0).max(10_000_000),
     theme: storefrontThemeSchema,
-    homepage,
-    headerConfig: headerConfigSchema,
-    footerConfig: footerConfigSchema,
+    homepage: homepage.optional(),
+    headerConfig: headerConfigSchema.optional(),
+    footerConfig: footerConfigSchema.optional(),
     status: z.nativeEnum(StoreStatus).optional(),
     capabilities: z
       .array(z.nativeEnum(StoreCapability))
@@ -84,11 +85,8 @@ export async function POST(request: NextRequest) {
     return jsonError("Store administrator access required", 403);
   const { user, store } = context;
   const parsed = schema.safeParse(await request.json().catch(() => null));
-  if (!parsed.success)
-    return jsonError(
-      parsed.error.issues[0]?.message ?? "Invalid store settings",
-    );
-  const value = parsed.data;
+  if (!parsed.success) return jsonValidationError(parsed.error);
+const value = parsed.data;
   const removingNfc =
     store.capabilities.includes(StoreCapability.NFC) &&
     value.capabilities &&
@@ -118,21 +116,22 @@ export async function POST(request: NextRequest) {
         seoDescription: value.siteDescription,
         googleSiteVerification: value.googleSiteVerification,
         socialImageUrl: value.defaultSocialImageUrl || null,
-        socialLinks: {
-          instagram: value.instagram || null,
-          tumblr: value.tumblr || null,
-          facebook: value.facebook || null,
-          tiktok: value.tiktok || null,
-          linkedin: value.linkedin || null,
-        },
+        ...([value.instagram, value.tumblr, value.facebook, value.tiktok, value.linkedin].some(link => link !== undefined) ? { socialLinks: {
+          ...store.socialLinks,
+          ...(value.instagram !== undefined ? { instagram: value.instagram || null } : {}),
+          ...(value.tumblr !== undefined ? { tumblr: value.tumblr || null } : {}),
+          ...(value.facebook !== undefined ? { facebook: value.facebook || null } : {}),
+          ...(value.tiktok !== undefined ? { tiktok: value.tiktok || null } : {}),
+          ...(value.linkedin !== undefined ? { linkedin: value.linkedin || null } : {}),
+        } } : {}),
         shippingConfig: {
           flatRateCents: value.flatRateCents,
           freeOverCents: value.freeOverCents,
         },
-        headerConfig: value.headerConfig,
-        footerConfig: value.footerConfig,
+        ...(value.headerConfig !== undefined ? { headerConfig: value.headerConfig } : {}),
+        ...(value.footerConfig !== undefined ? { footerConfig: value.footerConfig } : {}),
         theme: value.theme,
-        homepage: { ...store.homepage, ...value.homepage },
+        ...(value.homepage !== undefined ? { homepage: { ...store.homepage, ...value.homepage } } : {}),
         ...platformData,
       },
     }),

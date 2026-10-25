@@ -1,3 +1,4 @@
+import { jsonValidationError } from "@/lib/admin-validation-feedback";
 import { randomUUID } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
@@ -12,8 +13,8 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   const context = await getAdminApiContext("support.write");
   if (!context) return jsonError("Forbidden", 403);
   const parsed = schema.safeParse(await request.json().catch(() => null));
-  if (!parsed.success) return jsonError("Invalid support update. Refresh the ticket and try again.", 400);
-  const data = parsed.data;
+  if (!parsed.success) return jsonValidationError(parsed.error);
+const data = parsed.data;
   if (data.notifyCustomer && !data.response) return jsonError("Write a customer response before emailing it", 400);
   if (data.releaseHold && (data.releaseReason?.length ?? 0) < 10) return jsonError("Explain why preparation can resume (at least 10 characters)", 400);
   const { requestId } = await params;

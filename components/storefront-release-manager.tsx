@@ -1,4 +1,5 @@
 "use client";
+import { useAdminRequest } from "@/components/admin-form-feedback";
 
 import { ChangeEvent, useState } from "react";
 import { Download, FileUp, Upload } from "lucide-react";
@@ -13,6 +14,8 @@ type Preview = {
 };
 
 export function StorefrontReleaseManager() {
+  const { request: adminRequest, feedbackRef, feedback } = useAdminRequest();
+
   const [release, setRelease] = useState<unknown>(null);
   const [fileName, setFileName] = useState("");
   const [preview, setPreview] = useState<Preview | null>(null);
@@ -46,7 +49,7 @@ export function StorefrontReleaseManager() {
     setMessage("");
     setPreview(null);
     try {
-      const response = await fetch("/api/admin/storefront-releases/preview", {
+      const response = await adminRequest("/api/admin/storefront-releases/preview", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify(release),
@@ -68,7 +71,7 @@ export function StorefrontReleaseManager() {
     setMessage("");
     setPreview(null);
     try {
-      const response = await fetch("/api/admin/storefront-releases/import", {
+      const response = await adminRequest("/api/admin/storefront-releases/import", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify(release),
@@ -84,7 +87,7 @@ export function StorefrontReleaseManager() {
   }
 
   return (
-    <div className="admin-stack">
+    <div ref={node => { feedbackRef.current = node; }} className="admin-stack">{feedback}
       <section className="admin-panel">
         <div className="panel-heading">
           <div>

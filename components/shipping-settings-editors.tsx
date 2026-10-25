@@ -1,4 +1,5 @@
 "use client";
+import { useAdminRequest } from "@/components/admin-form-feedback";
 
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -8,20 +9,21 @@ type Package = { id: string; name: string; code: string; lengthMm: number; width
 type Rate = { id: string; serviceName: string; amountCents: number; freeOverCents: number | null; estimatedDaysMin: number | null; estimatedDaysMax: number | null; active: boolean };
 
 function useSave() {
+  const { request, feedbackRef, feedback } = useAdminRequest();
   const router = useRouter();
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState("");
   async function send(url: string, method: "POST" | "PATCH" | "DELETE", body?: object) {
     setPending(true); setMessage("");
     try {
-      const response = await fetch(url, { method, headers: { "content-type": "application/json" }, body: body ? JSON.stringify(body) : undefined });
+      const response = await request(url, { method, headers: { "content-type": "application/json" }, body: body ? JSON.stringify(body) : undefined });
       const result = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(result.error ?? "Could not save changes");
       setMessage(method === "DELETE" ? "Removed" : "Saved"); router.refresh(); return true;
     } catch (error) { setMessage(error instanceof Error ? error.message : "Could not save changes"); return false; }
     finally { setPending(false); }
   }
-  return { pending, message, send };
+  return { pending, message, send, feedbackRef, feedback };
 }
 
 function Status({ message }: { message: string }) { return message && <span role="status" className={message === "Saved" || message === "Removed" ? "upload-success" : "upload-error"}>{message}</span>; }
@@ -29,7 +31,7 @@ const nullable = (value: FormDataEntryValue | null) => String(value ?? "").trim(
 const nullableNumber = (value: FormDataEntryValue | null) => nullable(value) === null ? null : Number(value);
 
 export function OriginEditor({ origin }: { origin: Origin }) {
-  const { pending, message, send } = useSave();
+  const { pending, message, send, feedbackRef, feedback } = useSave();
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); const form = new FormData(event.currentTarget);
     await send(`/api/admin/shipping/origins/${origin.id}`, "PATCH", {
@@ -40,7 +42,7 @@ export function OriginEditor({ origin }: { origin: Origin }) {
       active: form.get("active") === "on", isDefault: form.get("isDefault") === "on",
     });
   }
-  return <form className="shipping-settings-form" onSubmit={save}><div className="field-grid two">
+  return <form ref={node => { feedbackRef.current = node; }} className="shipping-settings-form" onSubmit={save}>{feedback}<div className="field-grid two">
     <label className="field">Origin name<input name="name" defaultValue={origin.name} required /></label>
     <label className="field">Sender name<input name="senderName" defaultValue={origin.senderName} required /></label>
     <label className="field">Company<input name="company" defaultValue={origin.company ?? ""} /></label>
@@ -56,7 +58,7 @@ export function OriginEditor({ origin }: { origin: Origin }) {
 }
 
 export function PackagingEditor({ item }: { item?: Package }) {
-  const { pending, message, send } = useSave();
+  const { pending, message, send, feedbackRef, feedback } = useSave();
   const [type, setType] = useState<"BOX" | "MAILER">(item?.code.startsWith("MAILER-") ? "MAILER" : "BOX");
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); const target = event.currentTarget; const form = new FormData(target);
@@ -68,7 +70,7 @@ export function PackagingEditor({ item }: { item?: Package }) {
     if (!item || !window.confirm(item.code === "SMALL-PARCEL" ? `Delete ${item.name}? Its Standard delivery rate will remain available as a general fallback.` : `Delete ${item.name}? Products using this package must be changed first.`)) return;
     await send(`/api/admin/shipping/packaging/${item.id}`, "DELETE");
   }
-  return <form className="shipping-settings-form" onSubmit={save}><div className="field-grid two">
+  return <form ref={node => { feedbackRef.current = node; }} className="shipping-settings-form" onSubmit={save}>{feedback}<div className="field-grid two">
     {!item && <label className="field">Package type<select value={type} onChange={event => setType(event.target.value as "BOX" | "MAILER")}><option value="BOX">Individual box</option><option value="MAILER">Shipping bag</option></select></label>}
     <label className="field">Name<input name="name" defaultValue={item?.name ?? ""} required /></label>
     <label className="field">Length (mm)<input name="lengthMm" type="number" min="1" max="1000" defaultValue={item?.lengthMm ?? ""} required /></label>
@@ -80,12 +82,12 @@ export function PackagingEditor({ item }: { item?: Package }) {
 }
 
 export function RateEditor({ rate }: { rate: Rate }) {
-  const { pending, message, send } = useSave();
+  const { pending, message, send, feedbackRef, feedback } = useSave();
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); const form = new FormData(event.currentTarget);
     await send(`/api/admin/shipping/rates/${rate.id}`, "PATCH", { serviceName: form.get("serviceName"), amountCents: Math.round(Number(form.get("amount")) * 100), freeOverCents: nullable(form.get("freeOver")) === null ? null : Math.round(Number(form.get("freeOver")) * 100), estimatedDaysMin: nullableNumber(form.get("minDays")), estimatedDaysMax: nullableNumber(form.get("maxDays")), active: form.get("active") === "on" });
   }
-  return <form className="shipping-settings-form" onSubmit={save}><div className="field-grid two">
+  return <form ref={node => { feedbackRef.current = node; }} className="shipping-settings-form" onSubmit={save}>{feedback}<div className="field-grid two">
     <label className="field">Service name<input name="serviceName" defaultValue={rate.serviceName} required /></label>
     <label className="field">Delivery charge (AUD)<input name="amount" type="number" min="0" step="0.01" defaultValue={(rate.amountCents / 100).toFixed(2)} required /></label>
     <label className="field">Free over (AUD, optional)<input name="freeOver" type="number" min="0" step="0.01" defaultValue={rate.freeOverCents === null ? "" : (rate.freeOverCents / 100).toFixed(2)} /></label>

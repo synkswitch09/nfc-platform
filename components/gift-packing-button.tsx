@@ -1,4 +1,5 @@
 "use client";
+import { useAdminRequest } from "@/components/admin-form-feedback";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 export function GiftPackingButton({
@@ -8,13 +9,15 @@ export function GiftPackingButton({
   orderId: string;
   giftId: string;
 }) {
+  const { request: adminRequest, feedbackRef, feedback } = useAdminRequest();
+
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const router = useRouter();
   async function pack() {
     setBusy(true);
     try {
-      const r = await fetch(
+      const r = await adminRequest(
         `/api/admin/orders/${orderId}/gifts/${giftId}/pack`,
         { method: "POST" },
       );
@@ -27,11 +30,11 @@ export function GiftPackingButton({
     }
   }
   return (
-    <>
+    <div ref={node => { feedbackRef.current = node; }} style={{ display: "contents" }}>{feedback}
       <button type="button" disabled={busy} onClick={() => void pack()}>
         {busy ? "Saving…" : "Confirm gift packed"}
       </button>
       {error && <p role="alert">{error}</p>}
-    </>
+    </div>
   );
 }

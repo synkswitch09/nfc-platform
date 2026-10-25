@@ -1,10 +1,13 @@
 "use client";
+import { useAdminRequest } from "@/components/admin-form-feedback";
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { emailCategories, type EmailCategory, type EmailSenders } from "@/lib/email-senders";
 const labels: Record<EmailCategory, string> = { default: "Default", orders: "Orders & delivery", account: "Account & security", promotions: "Promotions", support: "Support tickets" };
 const descriptions: Record<EmailCategory, string> = { default: "Used when a message has no specific category.", orders: "Payment confirmations, receipts and shipping updates.", account: "Verification codes, password recovery, security alerts and team invitations.", promotions: "Sender for marketing campaigns. This setting does not start campaigns or subscribe customers.", support: "Notifications about ticket responses. Customers continue the conversation in their account." };
 export function EmailSendersForm({ senders, domain }: { senders: EmailSenders; domain: string }) {
+  const { request: adminRequest, feedbackRef, feedback } = useAdminRequest();
+
   const router = useRouter();
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState("");
@@ -13,14 +16,14 @@ export function EmailSendersForm({ senders, domain }: { senders: EmailSenders; d
     const form = new FormData(event.currentTarget);
     const payload = Object.fromEntries(emailCategories.map(category => [category, { address: String(form.get(`${category}.address`) ?? "").trim(), name: String(form.get(`${category}.name`) ?? "").trim() }]));
     try {
-      const response = await fetch("/api/admin/settings/email", { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify(payload) });
+      const response = await adminRequest("/api/admin/settings/email", { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify(payload) });
       const result = await response.json();
       setMessage(response.ok ? "Email senders saved" : result.error ?? "Senders could not be saved");
       if (response.ok) router.refresh();
     } catch { setMessage("Senders could not be saved. Please try again."); }
     finally { setPending(false); }
   }
-  return <form className="admin-panel form" onSubmit={submit}>
+  return <form ref={node => { feedbackRef.current = node; }} className="admin-panel form" onSubmit={submit}>{feedback}
     <h2>Email senders</h2>
     <p>Configure each sender for this store using @{domain}. Leave a category address empty to use the default sender. The sending domain comes from this store’s primary domain. Verify it in Resend before sending; provider credentials remain protected on the server.</p>
     <p>Customer service is handled through Account → Help & requests. Emails explain that replies are not monitored and link to the ticket channel.</p>

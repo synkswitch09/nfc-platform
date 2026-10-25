@@ -1,4 +1,5 @@
 "use client";
+import { useAdminRequest } from "@/components/admin-form-feedback";
 
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -28,6 +29,8 @@ export function StoreResetForm({
   currency: string;
   preview: StoreResetPreview;
 }) {
+  const { request: adminRequest, feedbackRef, feedback } = useAdminRequest();
+
   const router = useRouter();
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState("");
@@ -46,7 +49,7 @@ export function StoreResetForm({
       return;
     setPending(true);
     setMessage("");
-    const response = await fetch("/api/admin/store-reset", {
+    const response = await adminRequest("/api/admin/store-reset", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
@@ -78,7 +81,7 @@ export function StoreResetForm({
     ["Audit entries", preview.auditLogs],
   ];
   return (
-    <form className="admin-form" onSubmit={submit}>
+    <form ref={node => { feedbackRef.current = node; }} className="admin-form" onSubmit={submit}>{feedback}
       <section className="admin-panel danger-panel">
         <div className="panel-heading">
           <div>

@@ -1,3 +1,5 @@
+import { jsonValidationError } from "@/lib/admin-validation-feedback";
+import { z } from "zod";
 import { NextRequest, NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { Prisma } from "@prisma/client";
@@ -12,7 +14,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   const { categoryId } = await params;
   let sections;
   try { sections = validateLandingSections((await request.json()).sections); }
-  catch (error) { return jsonError(sectionValidationMessage(error)); }
+  catch (error) { return error instanceof z.ZodError ? jsonValidationError(error) : jsonError(sectionValidationMessage(error)); }
   const category = await db.productCategory.findFirst({ where: { id: categoryId, storeId: context.store.id }, select: { id: true, slug: true, name: true, status: true, sortOrder: true, seoTitle: true, seoDescription: true, ogImageUrl: true, canonicalUrl: true, indexable: true, contentPage: { select: { id: true } } } });
   if (!category) return jsonError("Category not found", 404);
   try {

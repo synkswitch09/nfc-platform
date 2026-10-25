@@ -1,3 +1,4 @@
+import { jsonValidationError } from "@/lib/admin-validation-feedback";
 import { assertNoSupportHold } from "@/lib/support-access";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
@@ -10,8 +11,8 @@ const schema = z.object({ quantity: z.number().int().min(0), tagIds: z.array(z.s
 export async function POST(request: NextRequest, { params }: { params: Promise<{ orderId: string; itemId: string }> }) {
   if (!assertSameOrigin(request)) return jsonError("Invalid request origin", 403);
   const context = await getAdminApiContext(); if (!context) return jsonError("Forbidden", 403);
-  const parsed = schema.safeParse(await request.json().catch(() => null)); if (!parsed.success) return jsonError("Invalid packing quantity or NFC IDs", 400);
-  const { orderId, itemId } = await params;
+  const parsed = schema.safeParse(await request.json().catch(() => null)); if (!parsed.success) return jsonValidationError(parsed.error);
+const { orderId, itemId } = await params;
   const item = await db.orderItem.findFirst({ where: { id: itemId, orderId, order: { storeId: context.store.id } }, select: { id: true, quantity: true, packedQuantity: true, variantId: true, order: { select: { status: true } }, shippingSnapshot: true, manufacturingJobs: { select: { quantity: true, status: true } }, tags: { select: { publicTagId: true, manufacturingStatus: true, status: true } } } });
   if (!item) return jsonError("Order item not found", 404);
   if (!["PAID", "PROCESSING"].includes(item.order.status)) return jsonError("Order is not open for packing", 409);

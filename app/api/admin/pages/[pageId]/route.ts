@@ -1,3 +1,4 @@
+import { jsonValidationError, jsonFieldError } from "@/lib/admin-validation-feedback";
 import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { getAdminApiContext } from "@/lib/admin";
@@ -18,9 +19,8 @@ export async function PATCH(
   const parsed = contentPageSchema.safeParse(
     await request.json().catch(() => null),
   );
-  if (!parsed.success)
-    return jsonError(parsed.error.issues[0]?.message ?? "Invalid page");
-  if (!validCanonicalOverride(parsed.data.canonicalUrl, context.store.origin)) return jsonError("Canonical URL must belong to this store and contain no query or fragment", 400);
+  if (!parsed.success) return jsonValidationError(parsed.error);
+if (!validCanonicalOverride(parsed.data.canonicalUrl, context.store.origin)) return jsonFieldError("canonicalUrl", "Canonical URL must belong to this store and contain no query or fragment.");
   const { pageId } = await params;
   const existing = await db.contentPage.findFirst({
     where: { id: pageId, storeId: context.store.id, categoryId: null },
