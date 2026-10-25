@@ -1,3 +1,4 @@
+import { parsePickupConfig, type PickupConfig } from "@/lib/local-pickup";
 import { reserveLoyalty, releaseLoyalty, settleLoyalty } from "@/lib/loyalty";
 import { parseLoyaltyConfig, redemptionCents, maximumRedeemPoints } from "@/lib/loyalty-config";
 import { queueOrderMeasurement } from "@/lib/measurement";
@@ -26,15 +27,20 @@ export type CheckoutCustomerInput = {
   measurementSessionId?: string;
   email: string;
   name: string;
-  shipping: ShippingDestination;
+  deliveryMethod?: "DELIVERY" | "PICKUP";
+  phone?: string;
+  shipping?: ShippingDestination;
 };
 
 export class CheckoutError extends Error {
   constructor(message: string, readonly status = 400) { super(message); }
 }
 
-export async function createPendingOrder(items: CheckoutItemInput[], customer: CheckoutCustomerInput, store: Storefront, shippingQuoteToken: string, promotionCode?: string, pointsToRedeem = 0) {
+export async function createPendingOrder(items: CheckoutItemInput[], customer: CheckoutCustomerInput, store: Storefront, shippingQuoteToken = "", promotionCode?: string, pointsToRedeem = 0) {
   if (store.status !== StoreStatus.ACTIVE || !hasStoreCapability(store, StoreCapability.COMMERCE)) throw new CheckoutError("This store is not accepting orders", 409);
+  const pickupOrder = customer.deliveryMethod === "PICKUP";
+  if (!pickupOrder && (!customer.shipping || !shippingQuoteToken)) throw new CheckoutError("A delivery address and delivery quote are required");
+  const destination = pickupOrder ? undefined : customer.shipping;
   const claimToken = customer.userId ? null : createOpaqueToken();
   return db.$transaction(async tx => {
     const ids = [...new Set(items.map(item => item.variantId))];
@@ -82,10 +88,20 @@ export async function createPendingOrder(items: CheckoutItemInput[], customer: C
       return total + toMake * (variant.productionMinutes ?? 0);
     }, 0);
 
-    const quote = await tx.shippingQuote.findFirst({ where: { tokenHash: sha256(shippingQuoteToken), storeId: store.id, status: "ACTIVE", expiresAt: { gt: new Date() } } });
-    if (!quote || quote.cartHash !== shippingCartHash(items) || quote.destinationHash !== shippingDestinationHash(customer.shipping)) throw new CheckoutError("Your delivery quote expired or no longer matches this order", 409);
-    const consumed = await tx.shippingQuote.updateMany({ where: { id: quote.id, status: "ACTIVE", expiresAt: { gt: new Date() } }, data: { status: "CONSUMED", consumedAt: new Date() } });
-    if (consumed.count !== 1) throw new CheckoutError("Your delivery quote has already been used", 409);
+    let pickup: PickupConfig | null = null;
+    if (pickupOrder) {
+      const current = await tx.store.findUnique({ where: { id: store.id }, select: { shippingConfig: true } });
+      const config = current?.shippingConfig && typeof current.shippingConfig === "object" && !Array.isArray(current.shippingConfig) ? current.shippingConfig : {};
+      pickup = parsePickupConfig((config as Record<string, unknown>).pickup);
+      if (!pickup.enabled) throw new CheckoutError("Local pickup is not currently available. Please select delivery.", 409);
+    }
+    const deliveryQuote = pickupOrder ? null : await tx.shippingQuote.findFirst({ where: { tokenHash: sha256(shippingQuoteToken), storeId: store.id, status: "ACTIVE", expiresAt: { gt: new Date() } } });
+    if (!pickupOrder) {
+      if (!deliveryQuote || deliveryQuote.cartHash !== shippingCartHash(items) || deliveryQuote.destinationHash !== shippingDestinationHash(destination!)) throw new CheckoutError("Your delivery quote expired or no longer matches this order", 409);
+      const consumed = await tx.shippingQuote.updateMany({ where: { id: deliveryQuote.id, status: "ACTIVE", expiresAt: { gt: new Date() } }, data: { status: "CONSUMED", consumedAt: new Date() } });
+      if (consumed.count !== 1) throw new CheckoutError("Your delivery quote has already been used", 409);
+    }
+    const quote = deliveryQuote ?? { id: undefined, amountCents: 0, currency: store.currency, providerKey: "pickup", serviceCode: "local-pickup", serviceName: "Local pickup", estimatedDaysMin: null, estimatedDaysMax: null, createdAt: new Date(), packagingSnapshot: undefined, originSnapshot: undefined };
     const baseTotals = calculateQuotedOrderTotals(lines.map(line => ({ unitPriceCents: line.unitPriceCents, quantity: line.item.quantity })), quote.amountCents);
     const now = new Date();
     const activePromotions = await tx.promotion.findMany({ where: { storeId: store.id, active: true, OR: [{ startsAt: null }, { startsAt: { lte: now } }], AND: [{ OR: [{ endsAt: null }, { endsAt: { gt: now } }] }] } });
@@ -99,7 +115,7 @@ export async function createPendingOrder(items: CheckoutItemInput[], customer: C
     for (const candidate of candidates) {
       if (candidate.allowedEmailHash && candidate.allowedEmailHash !== sha256(customer.email.trim().toLowerCase())) continue;
       if (candidate.usageLimit !== null && await tx.order.count({ where: { promotionId: candidate.id, status: { in: ["PAYMENT_PENDING", "PAID", "PROCESSING", "READY_TO_SHIP", "SHIPPED", "DELIVERED", "COMPLETED"] } } }) >= candidate.usageLimit) continue;
-      const discount = calculatePromotion(candidate, lines.map(line => ({ productId: line.variant.productId, unitPriceCents: line.unitPriceCents, quantity: line.item.quantity, weightGrams: line.variant.product.weightGrams ?? 0 })), quote.amountCents, customer.shipping.country);
+      const discount = calculatePromotion(candidate, lines.map(line => ({ productId: line.variant.productId, unitPriceCents: line.unitPriceCents, quantity: line.item.quantity, weightGrams: line.variant.product.weightGrams ?? 0 })), quote.amountCents, destination?.country ?? store.country);
       if (discount > discountCents) { promotion = candidate; discountCents = discount; }
     }
     if (code && !promotion) throw new CheckoutError("The discount code does not apply to this order", 409);
@@ -125,19 +141,21 @@ export async function createPendingOrder(items: CheckoutItemInput[], customer: C
         customerName: customer.name,
         claimTokenHash: claimToken ? sha256(claimToken) : null,
         claimExpiresAt: claimToken ? new Date(Date.now() + 30 * 86_400_000) : null,
+        deliveryMethod: pickupOrder ? "PICKUP" : "DELIVERY",
+        ...(pickup ? { pickupSnapshot: pickup } : {}),
         shippingName: customer.name,
-        shippingCompany: customer.shipping.company || null,
-        shippingLine1: customer.shipping.line1,
-        shippingLine2: customer.shipping.line2 || null,
-        shippingSuburb: customer.shipping.locality,
-        shippingState: customer.shipping.administrativeArea || null,
-        shippingLocality: customer.shipping.locality,
-        shippingDependentLocality: customer.shipping.dependentLocality || null,
-        shippingAdministrativeArea: customer.shipping.administrativeArea || null,
-        shippingPostcode: customer.shipping.postcode,
-        shippingCountry: customer.shipping.country,
-        shippingPhone: customer.shipping.phone || null,
-        shippingFormattedAddress: customer.shipping.formattedAddress || null,
+        shippingCompany: destination?.company || null,
+        shippingLine1: destination?.line1,
+        shippingLine2: destination?.line2 || null,
+        shippingSuburb: destination?.locality,
+        shippingState: destination?.administrativeArea || null,
+        shippingLocality: destination?.locality,
+        shippingDependentLocality: destination?.dependentLocality || null,
+        shippingAdministrativeArea: destination?.administrativeArea || null,
+        shippingPostcode: destination?.postcode,
+        shippingCountry: pickupOrder ? store.country : destination!.country,
+        shippingPhone: pickupOrder ? customer.phone || null : destination?.phone || null,
+        shippingFormattedAddress: destination?.formattedAddress || null,
         shippingProviderKey: quote.providerKey,
         shippingServiceCode: quote.serviceCode,
         shippingServiceName: quote.serviceName,

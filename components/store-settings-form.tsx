@@ -32,7 +32,7 @@ type Settings = {
   googleSiteVerification?: string;
   defaultSocialImageUrl: string | null;
   socialLinks: Record<string, string | null>;
-  shippingConfig: Record<string, number>;
+  shippingConfig: { flatRateCents: number; freeOverCents: number; pickup?: import("@/lib/local-pickup").PickupConfig };
   theme: StorefrontTheme;
   homepage: {
     heroEyebrow: string;
@@ -95,6 +95,13 @@ export function StoreSettingsForm({
       siteDescription: form.get("siteDescription"),
       googleSiteVerification: form.get("googleSiteVerification"),
       defaultSocialImageUrl: form.get("defaultSocialImageUrl"),
+      pickup: {
+        enabled: form.get("pickup.enabled") === "on",
+        suburb: String(form.get("pickup.suburb") ?? ""),
+        address: String(form.get("pickup.address") ?? ""),
+        hours: String(form.get("pickup.hours") ?? ""),
+        instructions: String(form.get("pickup.instructions") ?? ""),
+      },
       flatRateCents: Math.round(Number(form.get("flatRate")) * 100),
       freeOverCents: Math.round(Number(form.get("freeOver")) * 100),
       theme: {
@@ -353,6 +360,15 @@ export function StoreSettingsForm({
               required
             />
           </label>
+        </div>
+      </section>
+      <section className="admin-panel"><h2>Local pickup</h2><p>Free collection, paid online. Only the suburb is public; the full address is sent when the order is ready. Fill in the details before enabling.</p>
+        <label><input type="checkbox" name="pickup.enabled" defaultChecked={settings.shippingConfig.pickup?.enabled ?? false} /> Enable local pickup</label>
+        <div className="field-grid">
+          <label className="field">Public suburb / area<input name="pickup.suburb" maxLength={120} defaultValue={settings.shippingConfig.pickup?.suburb ?? ""} placeholder="Parafield Gardens, SA" /></label>
+          <label className="field">Private pickup address<textarea name="pickup.address" maxLength={500} defaultValue={settings.shippingConfig.pickup?.address ?? ""} /></label>
+          <label className="field">Hours / appointment arrangements<textarea name="pickup.hours" maxLength={500} defaultValue={settings.shippingConfig.pickup?.hours ?? ""} placeholder="By appointment. Please contact us through Help & requests to arrange collection." /></label>
+          <label className="field">Additional pickup instructions (optional)<textarea name="pickup.instructions" maxLength={1500} defaultValue={settings.shippingConfig.pickup?.instructions ?? ""} /></label>
         </div>
       </section>
       <section className="admin-panel">

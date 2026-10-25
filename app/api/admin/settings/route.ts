@@ -1,3 +1,4 @@
+import { pickupConfigSchema } from "@/lib/local-pickup";
 import { jsonValidationError } from "@/lib/admin-validation-feedback";
 import { NextRequest, NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
@@ -53,6 +54,7 @@ const schema = z
     facebook: url.optional(),
     tiktok: url.optional(),
     linkedin: url.optional(),
+    pickup: pickupConfigSchema.optional(),
     flatRateCents: z.number().int().min(0).max(100_000),
     freeOverCents: z.number().int().min(0).max(10_000_000),
     theme: storefrontThemeSchema,
@@ -125,6 +127,8 @@ const value = parsed.data;
           ...(value.linkedin !== undefined ? { linkedin: value.linkedin || null } : {}),
         } } : {}),
         shippingConfig: {
+          ...store.shippingConfig,
+          ...(value.pickup !== undefined ? { pickup: value.pickup } : {}),
           flatRateCents: value.flatRateCents,
           freeOverCents: value.freeOverCents,
         },

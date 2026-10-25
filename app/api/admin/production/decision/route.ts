@@ -17,13 +17,14 @@ const environment = context.store.environment;
     const result = await db.$transaction(async tx => {
       const pool = await tx.productionPool.findUnique({ where: { environment } });
       if (!pool || pool.version !== parsed.data.expectedVersion) return null;
-      const bookings = await tx.productionBooking.findMany({ where: { environment, releasedAt: null }, orderBy: [{ createdAt: "asc" }, { orderId: "asc" }] });
+      const bookings = await tx.productionBooking.findMany({ where: { environment, releasedAt: null }, include: { order: { select: { deliveryMethod: true } } }, orderBy: [{ createdAt: "asc" }, { orderId: "asc" }] });
       const risk = projectQueue(bookings, pool.weeklyCapacityMinutes).filter(item => item.atRisk);
       const updated = await tx.productionPool.updateMany({ where: { environment, version: pool.version }, data: { reviewedAt: new Date(), version: { increment: 1 } } });
       if (!updated.count) return null;
       if (parsed.data.decision === "UPDATE_AND_NOTIFY") for (const booking of risk) {
         await tx.productionBooking.updateMany({ where: { orderId: booking.orderId, releasedAt: null }, data: { promisedAt: booking.recalculated } });
-        await queueOrderNotice(tx, booking.orderId, `production-date:${booking.orderId}:${booking.recalculated.toISOString()}`, "Updated dispatch estimate", `We have updated the estimated dispatch date for your order to ${booking.recalculated.toLocaleDateString("en-AU", { timeZone: "Australia/Adelaide" })}. We will email tracking when it ships.`);
+        const pickup = booking.order.deliveryMethod === "PICKUP";
+        await queueOrderNotice(tx, booking.orderId, `${pickup ? "pickup-date" : "production-date"}:${booking.orderId}:${booking.recalculated.toISOString()}`, pickup ? "Updated pickup preparation estimate" : "Updated dispatch estimate", `We have updated the estimated ${pickup ? "pickup preparation" : "dispatch"} date for your order to ${booking.recalculated.toLocaleDateString("en-AU", { timeZone: "Australia/Adelaide" })}. ${pickup ? "Please wait for the ready-for-pickup email before collecting." : "We will email tracking when it ships."}`);
       }
       await tx.auditLog.create({ data: { actorId: context.user.id, storeId: context.store.id, action: "PRODUCTION_SCHEDULE_DECISION", entityType: "ProductionPool", entityId: context.store.id, metadata: { environment, decision: parsed.data.decision, affected: risk.length } } });
       return { affected: risk.length };

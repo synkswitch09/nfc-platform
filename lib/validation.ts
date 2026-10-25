@@ -72,12 +72,19 @@ export const checkoutSchema = z.object({
   saveAddress:z.boolean().default(false),
   promotionCode: z.string().trim().toUpperCase().regex(/^[A-Z0-9_-]{3,32}$/).optional(),
   items: checkoutItemsSchema,
-  shippingQuoteToken: z.string().min(32).max(200),
+  deliveryMethod: z.enum(["DELIVERY", "PICKUP"]).default("DELIVERY"),
+  shippingQuoteToken: z.string().min(32).max(200).optional(),
   customer: z
     .object({
       name: z.string().trim().min(2).max(100),
       email: z.string().trim().toLowerCase().email().max(254),
-      shipping: shippingAddressSchema,
+      phone: z.string().trim().max(40).optional(),
+      shipping: shippingAddressSchema.optional(),
     })
     .optional(),
+}).superRefine((value, context) => {
+  if (value.deliveryMethod === "DELIVERY") {
+    if (!value.shippingQuoteToken) context.addIssue({ code: "custom", path: ["shippingQuoteToken"], message: "Calculate delivery and select a service." });
+    if (value.customer && !value.customer.shipping) context.addIssue({ code: "custom", path: ["customer", "shipping"], message: "Enter a delivery address." });
+  }
 });
