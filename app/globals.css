@@ -5932,12 +5932,12 @@ body[data-store="kosykin"] .modular-landing > .kosy-home-section { padding: 64px
 .kosy-home-product-showcase::before { content: ""; position: absolute; z-index: -1; top: -45px; left: 0; width: 100%; height: 100px; border-radius: 50% 50% 0 0 / 100% 100% 0 0; background: inherit; }
 .kosy-home-product-showcase > .kosy-section-heading, .kosy-home-feature-list > .kosy-section-heading, [data-variant="kosykin-reviews"] > .kosy-section-heading { text-align: center; margin-bottom: 42px; }
 .kosy-featured-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 20px; }
-.kosy-product-card { display: flex; flex-direction: column; padding: 22px; border-radius: 30px; background: white; box-shadow: 0 9px 16px #24324716; min-width: 0; }
-.kosy-product-image { display: grid; place-items: center; aspect-ratio: 1.1; overflow: hidden; border-radius: 20px; background: #f9f3e9; }
+.kosy-product-card { display: flex; flex-direction: column; padding: 20px; border-radius: 30px; background: white; box-shadow: 0 4px 16px #2432470c; min-width: 0; }
+.kosy-product-image { position: relative; display: grid; place-items: center; aspect-ratio: 1.1; overflow: hidden; border-radius: 20px; background: #f9f3e9; }
 .kosy-product-image img { width: 100%; height: 100%; object-fit: cover; transition: transform .25s ease; }
 .kosy-product-image:hover img { transform: scale(1.035); }
 .kosy-product-name { margin-top: 18px; text-decoration: none; color: inherit; }
-.kosy-product-name h3 { font-size: 1rem; line-height: 1.3; margin: 0; min-height: 2.6em; }
+.kosy-product-name h3 { font-size: .98rem; line-height: 1.3; margin: 0; min-height: 2.6em; }
 .kosy-product-card > p { font-size: .9rem; margin: 5px 0 14px; line-height: 1.35; }
 .kosy-product-price { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; justify-content: space-between; margin-top: auto; }
 .kosy-product-price strong { font-size: .95rem; font-weight: 500; }
@@ -5984,7 +5984,7 @@ body[data-store="kosykin"] .modular-landing > .kosy-home-media-content { padding
 }
 @media (max-width: 650px) {
   body[data-store="kosykin"] .modular-landing > .kosy-home-section { padding: 38px 20px; }
-  .kosy-product-card { padding: 12px; border-radius: 20px; }.kosy-featured-grid { gap: 12px; }.kosy-product-name h3 { font-size: .9rem; }.kosy-product-actions { flex-wrap: wrap; }.kosy-product-actions .kosy-section-action { font-size: .75rem; }
+  .kosy-product-card { padding: 12px; border-radius: 20px; }.kosy-featured-grid { gap: 12px; }.kosy-product-actions { flex-wrap: wrap; }.kosy-product-actions .kosy-section-action { font-size: .75rem; }
   .kosy-why-content { grid-template-columns: 1fr; }.kosy-why-image { width: 65%; margin: auto; }.kosy-why-grid { gap: 30px 18px; }.kosy-why-grid h3 { font-size: 1rem; }.kosy-why-grid p { font-size: .85rem; }
   .kosy-story-panel { min-height: 540px; grid-template-columns: 1fr; background: #243247; }.kosy-story-panel > img { opacity: .35; object-position: 20% center; }.kosy-story-panel > div { grid-column: 1; padding: 35px 24px; }.kosy-story-panel .kosy-section-heading h2 { font-size: 1.9rem; }
   .kosy-home-faq { grid-template-columns: 1fr; gap: 35px; }.kosy-promotion-slide { grid-template-columns: 1fr; gap: 20px; }.kosy-promotion-carousel { padding: 30px 25px; }
@@ -6060,12 +6060,16 @@ body[data-store="kosykin"] .site-header .brand { overflow: visible; }
 .kosy-filter-summary { margin: 0 8px 25px; font-size: .9rem; }
 .kosy-filter-summary a { margin-left: 12px; text-decoration: underline; }
 .kosy-shop-grid { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 20px; }
-.kosy-shop-grid .kosy-product-card { padding: 20px; box-shadow: 0 4px 16px #2432470c; }
 .kosy-shop-grid .kosy-product-image { position: relative; background: #f9f3e9; }
-.kosy-product-hover-image { position: absolute; inset: 0; opacity: 0; transition: opacity .2s; }
-.kosy-product-image:hover .kosy-product-hover-image { opacity: 1; }
+.kosy-product-image img.kosy-product-hover-image { position: absolute; inset: 0; opacity: 0; transition: opacity .35s ease, transform .35s ease; pointer-events: none; }
+@media (hover: hover) and (pointer: fine) {
+  .kosy-product-image:hover img.kosy-product-hover-image { opacity: 1; }
+}
+.kosy-product-image:focus-visible img.kosy-product-hover-image { opacity: 1; }
+@media (prefers-reduced-motion: reduce) {
+  .kosy-product-image img.kosy-product-hover-image { transition: none; }
+}
 .kosy-product-badge { position: absolute; left: 10px; top: 10px; padding: 4px 8px; background: #fff9e8; color: #243247; border-radius: 20px; font-size: .65rem; }
-.kosy-shop-grid .kosy-product-name h3 { font-size: .98rem; }
 .kosy-product-unavailable { font-size: .8rem; }
 .kosy-shop-empty { display: grid; place-items: center; text-align: center; min-height: 280px; gap: 14px; }
 .kosy-shop-empty h3, .kosy-shop-empty p { margin: 0; }
@@ -6076,8 +6080,8 @@ body[data-store="kosykin"] .site-header .brand { overflow: visible; }
 .kosy-promotion-slide p { font-family: var(--promo-copy-font, var(--font-caveat)); font-weight: 700; font-size: clamp(1.25rem, 2.3vw, 2rem); }
 .kosy-review-grid figure { position: relative; }
 @media(max-width: 1050px) { .kosy-shop-grid { grid-template-columns: repeat(3,minmax(0,1fr)); } .kosy-shop-categories a { padding: 14px; } }
-@media(max-width: 800px) { .kosy-shop-grid { grid-template-columns: repeat(2,minmax(0,1fr)); } .kosy-shop-intro { padding: 20px 0 34px; } .kosy-shop-intro h1 { margin-bottom: 28px; } .kosy-shop-categories { display: flex; text-align: left; } .kosy-shop-results { padding: 24px 12px 40px; } .kosy-shop-toolbar { align-items: flex-start; gap: 12px; margin-inline: 0; } .kosy-shop-toolbar h2 { font-size: 1rem; } .kosy-shop-toolbar p { font-size: .85rem; } .kosy-filter-trigger { padding: 9px; font-size: .8rem; } .kosy-shop-grid .kosy-product-card { padding: 12px; } }
-@media(max-width: 480px) { .kosy-shop-grid { grid-template-columns: minmax(0,1fr); } .kosy-shop-grid .kosy-product-card { max-width: 360px; width: 100%; margin: auto; } .kosy-shop-filter-panel { inset: 100px 16px auto; width: auto; max-height: calc(100dvh - 120px); } .kosy-shop { margin-top: 32px; } }
+@media(max-width: 800px) { .kosy-shop-grid, .kosy-featured-grid { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 20px; } .kosy-shop-intro { padding: 20px 0 34px; } .kosy-shop-intro h1 { margin-bottom: 28px; } .kosy-shop-categories { display: flex; text-align: left; } .kosy-shop-results { padding: 24px 12px 40px; } .kosy-shop-toolbar { align-items: flex-start; gap: 12px; margin-inline: 0; } .kosy-shop-toolbar h2 { font-size: 1rem; } .kosy-shop-toolbar p { font-size: .85rem; } .kosy-filter-trigger { padding: 9px; font-size: .8rem; } .kosy-product-card { padding: 12px; } }
+@media(max-width: 480px) { .kosy-shop-grid, .kosy-featured-grid { grid-template-columns: minmax(0,1fr); } .kosy-product-card { max-width: 360px; width: 100%; margin: auto; } .kosy-shop-filter-panel { inset: 100px 16px auto; width: auto; max-height: calc(100dvh - 120px); } .kosy-shop { margin-top: 32px; } }
 
 .kosy-shop-trust { padding: 56px 46px; }
 .kosy-shop-support { padding: 60px 46px; background: #f9f3e9; }

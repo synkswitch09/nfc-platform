@@ -1,10 +1,9 @@
+import { KosykinProductCard } from "@/components/kosykin-product-card";
 import { CategoryIcon } from "@/components/category-icon";
 import { StorefrontIcon } from '@/components/storefront-icon';
-import Image from 'next/image';
 import Link from 'next/link';
 import { ShoppingBag } from 'lucide-react';
 import type { Prisma } from '@prisma/client';
-import { FavouriteButton } from '@/components/favourite-button';
 import { KosykinHomeSection } from '@/components/kosykin-home-section';
 import { SharedBanners } from '@/components/shared-banners';
 import type { BannerGroup } from '@/lib/store-experience';
@@ -22,8 +21,7 @@ export function KosykinShop({ products, filterProducts, categories, query, promo
   const selected = categories.filter(category => queryList(query.category).includes(category.slug));
   const label = selected.length === 1 ? selected[0].name : selected.length > 1 ? 'Selected pieces' : 'All Pieces';
   const description = selected.length === 1 ? shopCategoryStyle(selected[0]).description : 'Find your kind of Kosy';
-  const money = new Intl.NumberFormat('en-AU', { style: 'currency', currency });
-  const colours = [...new Map(filterProducts.flatMap(product => product.options.flatMap(option => option.values)).map(value => [value.value, { value: value.value, label: value.label, swatchHex: value.swatchHex }])).values()];
+  const colours = [...new Map(filterProducts.flatMap(product => product.options.filter(option => option.type === "COLOUR").flatMap(option => option.values)).map(value => [value.value, { value: value.value, label: value.label, swatchHex: value.swatchHex }])).values()];
   const priceCeiling = Math.max(50, Math.ceil(Math.max(0, ...filterProducts.flatMap(product => product.variants.map(variant => variant.priceCents))) / 100 / 50) * 50, Number.isFinite(Number(query.max)) ? Math.max(0, Number(query.max)) : 0);
   const activeFilters = Boolean(query.min || query.max || query.colour || query.sale || query.availability || (query.sort && query.sort !== 'featured'));
   const features = (Array.isArray(trust?.features) ? trust.features as { id?: string; label?: string; supportingText?: string; icon?: string; iconUrl?: string; visible?: boolean }[] : []).filter(feature => feature.visible !== false);
@@ -38,15 +36,7 @@ export function KosykinShop({ products, filterProducts, categories, query, promo
         const variant = product.variants[0];
         const canBuy = product.variants.some(available);
         const simple = checkoutEnabled && product.personalisationMode === 'NONE' && product.sourceVariantCount === 1 && product._count.options === 0 && product.type === 'ACCESSORY';
-        const swatches = product.options[0]?.values ?? [];
-        const newArrival = Date.now() - product.createdAt.getTime() < 30 * 86400000;
-        return <article key={product.id} className="kosy-product-card">
-          <Link className="kosy-product-image" href={`/products/${product.slug}`}>{product.images[0] ? <Image src={product.images[0].url} alt={product.images[0].altText || product.name} width={520} height={520} unoptimized /> : <ShoppingBag aria-label="Product image coming soon" />}{product.images[1] && <Image className="kosy-product-hover-image" src={product.images[1].url} alt="" width={520} height={520} unoptimized />}{newArrival && <span className="kosy-product-badge">✦ New arrival</span>}</Link>
-          <Link className="kosy-product-name" href={`/products/${product.slug}`}><h3>{product.name}</h3></Link><p>{product.shortDescription ?? product.description}</p>
-          <div className="kosy-product-price"><strong>{product.sourceVariantCount > 1 || product.personalisationMode !== 'NONE' || product._count.options > 0 ? 'From ' : ''}{money.format(variant.priceCents / 100)}</strong><div className="kosy-product-swatches">{swatches.slice(0,3).map(value => <Link key={value.id} href={`/products/${product.slug}?colour=${encodeURIComponent(value.value)}`} style={{ background: value.swatchHex || '#ddd' }} title={value.label} aria-label={`View ${product.name} in ${value.label}`} />)}{swatches.length > 3 && <span>+{swatches.length - 3}</span>}</div></div>
-          {!canBuy && <p className="kosy-product-unavailable">Currently unavailable</p>}
-          <div className="kosy-product-actions">{simple && canBuy ? <ShopAddButton variantId={variant.id} productName={product.name} variantName={variant.name} unitPriceCents={variant.priceCents} /> : <Link className="kosy-section-action" href={`/products/${product.slug}`}><StorefrontIcon name="cart" size={20} fallback={<ShoppingBag size={15} />} />{canBuy ? 'Add to cart' : 'View product'}</Link>}<FavouriteButton slug={product.slug} iconOnly /></div>
-        </article>;
+        return <KosykinProductCard key={product.id} product={product} currency={currency} canBuy={canBuy} addAction={simple && canBuy ? <ShopAddButton variantId={variant.id} productName={product.name} variantName={variant.name} unitPriceCents={variant.priceCents} /> : undefined} />;
       })}</div>
       {!products.length && <div className="kosy-shop-empty"><ShoppingBag size={32} /><h3>No pieces found</h3><p>Try another category or reset your filters to find your kind of Kosy.</p><Link className="kosy-section-action" href="/shop">See all pieces</Link></div>}
     </section>

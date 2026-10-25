@@ -51,12 +51,11 @@ export default async function Home() {
           .findMany({
             where: { storeId: store.id, status: "ACTIVE", shopVisible: true },
             include: {
-              images: { where: { isPrimary: true }, take: 1 },
-              options: { where: { type: "COLOUR" }, take: 1, include: { values: { where: { active: true }, orderBy: { sortOrder: "asc" } } } },
+              images: { orderBy: [{ isPrimary: "desc" }, { sortOrder: "asc" }], take: 2 },
+              options: { where: { active: true }, include: { values: { where: { active: true }, orderBy: { sortOrder: "asc" } } } },
               variants: {
                 where: { active: true },
                 orderBy: { priceCents: "asc" },
-                take: 1,
               },
             },
             orderBy: [{ featured: "desc" }, { name: "asc" }],
