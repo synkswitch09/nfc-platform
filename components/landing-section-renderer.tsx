@@ -78,17 +78,7 @@ type RenderSection = {
   visible?: boolean;
   content: Prisma.JsonValue;
 };
-type RenderProduct = {
-  id: string;
-  slug: string;
-  name: string;
-  description: string;
-  shortDescription: string | null;
-  featured: boolean;
-  images: Array<{ url: string; altText: string }>;
-  variants: Array<{ priceCents: number }>;
-  options?: Array<{ values: Array<{ id: string; label: string; value: string; swatchHex: string | null }> }>;
-};
+type RenderProduct = import("@/components/kosykin-product-card").StorefrontCardProduct & { featured: boolean };
 type RenderCategory = KosykinCollectionCategory & {
   id: string;
   slug: string;
