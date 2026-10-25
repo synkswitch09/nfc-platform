@@ -45,10 +45,11 @@ export function shopVariantMatches(variant: { priceCents: number; compareAtPrice
 }
 
 /** Personalised products can offer colours as configuration, without a variant per colour. */
-export function shopProductVariants<T extends { priceCents: number; compareAtPriceCents?: number | null; colour?: string | null; optionSelection?: unknown }>(product: { variants: T[]; options: { code: string; values: { value: string; label: string }[] }[] }, query: ShopQuery, available: (variant: T) => boolean) {
+export function shopProductVariants<T extends { priceCents: number; compareAtPriceCents?: number | null; colour?: string | null; optionSelection?: unknown }>(product: { variants: T[]; options: { code: string; type?: string; values: { value: string; label: string }[] }[] }, query: ShopQuery, available: (variant: T) => boolean) {
   const colours = queryList(query.colour);
-  const colourCodes = product.options.map(option => option.code);
+  const colourOptions = product.options.filter(option => !option.type || option.type === "COLOUR");
+  const colourCodes = colourOptions.map(option => option.code);
   const mapped = product.variants.some(variant => variant.colour || (variant.optionSelection && typeof variant.optionSelection === 'object' && Object.keys(variant.optionSelection).some(code => colourCodes.includes(code))));
-  const configurable = !mapped && colours.length > 0 && product.options.some(option => option.values.some(value => colours.some(colour => colour.toLowerCase() === value.value.toLowerCase() || colour.toLowerCase() === value.label.toLowerCase())));
+  const configurable = !mapped && colours.length > 0 && colourOptions.some(option => option.values.some(value => colours.some(colour => colour.toLowerCase() === value.value.toLowerCase() || colour.toLowerCase() === value.label.toLowerCase())));
   return product.variants.filter(variant => shopVariantMatches(variant, configurable ? { ...query, colour: undefined } : query) && (query.availability !== 'available' || available(variant)));
 }
