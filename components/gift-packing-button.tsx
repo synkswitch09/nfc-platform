@@ -5,9 +5,11 @@ import { useRouter } from "next/navigation";
 export function GiftPackingButton({
   orderId,
   giftId,
+  action = "PACK",
 }: {
   orderId: string;
   giftId: string;
+  action?: "PACK" | "PRINT";
 }) {
   const { request: adminRequest, feedbackRef, feedback } = useAdminRequest();
 
@@ -19,7 +21,7 @@ export function GiftPackingButton({
     try {
       const r = await adminRequest(
         `/api/admin/orders/${orderId}/gifts/${giftId}/pack`,
-        { method: "POST" },
+        { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action }) },
       );
       if (!r.ok) setError((await r.json()).error);
       else router.refresh();
@@ -32,7 +34,7 @@ export function GiftPackingButton({
   return (
     <div ref={node => { feedbackRef.current = node; }} style={{ display: "contents" }}>{feedback}
       <button type="button" disabled={busy} onClick={() => void pack()}>
-        {busy ? "Saving…" : "Confirm gift packed"}
+        {busy ? "Saving…" : action === "PRINT" ? "Confirm gift printed and checked" : "Confirm gift packed"}
       </button>
       {error && <p role="alert">{error}</p>}
     </div>

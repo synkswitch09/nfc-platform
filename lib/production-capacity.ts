@@ -50,3 +50,14 @@ export async function reserveProduction(tx: Prisma.TransactionClient, environmen
 export async function releaseProduction(tx: Prisma.TransactionClient, orderId: string) {
   await tx.productionBooking.updateMany({ where: { orderId, releasedAt: null }, data: { releasedAt: new Date() } });
 }
+
+export async function reserveGiftProduction(tx: Prisma.TransactionClient, orderId: string, minutes: number) {
+  if (minutes <= 0) return;
+  const order = await tx.order.findUniqueOrThrow({ where: { id: orderId }, select: { checkoutEnvironment: true, productionBooking: true } });
+  const environment = order.checkoutEnvironment;
+  const pool = await tx.productionPool.upsert({ where: { environment }, create: { environment, version: 1 }, update: { version: { increment: 1 }, reviewedAt: null } });
+  const occupied = await tx.productionBooking.aggregate({ where: { environment, releasedAt: null }, _sum: { minutes: true } });
+  const forecast = addBusinessDays(new Date(), Math.max(1, Math.ceil(((occupied._sum.minutes ?? 0) + minutes) / Math.max(1, pool.weeklyCapacityMinutes / 5))));
+  const promisedAt = order.productionBooking && order.productionBooking.promisedAt > forecast ? order.productionBooking.promisedAt : forecast;
+  await tx.productionBooking.upsert({ where: { orderId }, create: { environment, orderId, minutes, promisedAt }, update: { minutes: { increment: minutes }, promisedAt } });
+}

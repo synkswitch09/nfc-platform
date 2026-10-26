@@ -5,7 +5,7 @@ import { getExperience } from "@/lib/store-experience";
 import { StoreExperienceAdmin } from "@/components/store-experience-admin";
 export default async function ExperiencePage() {
   const { store } = await requireAdminPageContext();
-  const [{ config }, campaign, categories, reviews] = await Promise.all([
+  const [{ config }, campaign, categories, reviews, products] = await Promise.all([
     getExperience(store.id),
     db.giftCampaign.findUnique({
       where: { storeId_key: { storeId: store.id, key: "launch-stands" } },
@@ -24,6 +24,7 @@ export default async function ExperiencePage() {
       orderBy: { createdAt: "desc" },
       take: 100,
     }),
+    db.product.findMany({ where: { storeId: store.id, status: "ACTIVE" }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
   ]);
   return (
     <div>
@@ -34,6 +35,7 @@ export default async function ExperiencePage() {
         campaign={campaign}
         categories={categories}
         reviews={reviews}
+        products={products}
       />
     </div>
   );

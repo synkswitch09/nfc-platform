@@ -398,8 +398,8 @@ async function main() {
   // Local pickup: no address or delivery quote, normal manufacturing, then private instructions on readiness.
   const pickupLocation = "E2E PRIVATE PICKUP LOCATION";
   const pickupCategory = await db.productCategory.findFirstOrThrow({ where: { storeId: tapkinStore.id, status: "PUBLISHED" } });
-  const pickupProduct = await db.product.create({ data: { storeId: tapkinStore.id, categoryId: pickupCategory.id, name: "E2E pickup accessory", slug: `pickup-accessory-${suffix}`, description: "Disposable made-to-order pickup fixture", brand: "Tapkin", type: "ACCESSORY", status: "ACTIVE", shopVisible: true, personalisationMode: "NONE", variants: { create: { name: "Made to order", sku: `PICKUP-${suffix}`, priceCents: 1500, inventory: 0, trackInventory: false, backorderPolicy: "ALLOW", productionMinutes: 15 } } }, include: { variants: true } });
-  const giftCampaign = await db.giftCampaign.create({ data: { storeId: tapkinStore.id, key: `e2e-gift-${suffix}`, name: "E2E limited gift", categoryId: pickupCategory.id, giftName: "E2E complimentary Mini Tray", limit: 1, active: true } });
+  const pickupProduct = await db.product.create({ data: { storeId: tapkinStore.id, categoryId: pickupCategory.id, name: "E2E pickup accessory", slug: `pickup-accessory-${suffix}`, description: "Disposable made-to-order pickup fixture", brand: "Tapkin", type: "ACCESSORY", status: "ACTIVE", shopVisible: true, personalisationMode: "NONE", variants: { create: { name: "Made to order", sku: `PICKUP-${suffix}`, priceCents: 1500, inventory: 0, trackInventory: false, backorderPolicy: "ALLOW", productionMinutes: 15, colour: "Baby Blue" } } }, include: { variants: true } });
+  const giftCampaign = await db.giftCampaign.create({ data: { storeId: tapkinStore.id, key: `e2e-gift-${suffix}`, name: "E2E limited gift", categoryId: pickupCategory.id, giftName: "E2E complimentary Mini Tray", giftProductId: pickupProduct.id, limit: 1, active: true } });
   const giftLookup = { variantIds: [pickupProduct.variants[0].id] };
   const giftPreview = await jsonResponse(await request("/api/cart/gifts", { method: "POST", json: giftLookup }), 200, "Cart and checkout can preview eligible gifts before payment");
   assert(giftPreview.gifts.some(gift => gift.id === giftCampaign.id), "Gift preview matches the cart category");
@@ -417,12 +417,12 @@ async function main() {
     const pickupCheckout = await jsonResponse(await request("/api/checkout", { method: "POST", json: pickupInput }), 200, "Pickup accepts name and email without address, phone or delivery quote");
     const pickupOrder = await db.order.findUniqueOrThrow({ where: { id: pickupCheckout.orderId }, include: { productionBooking: true, shipments: true, shippitPreparation: true } });
     assert(pickupOrder.deliveryMethod === "PICKUP" && pickupOrder.shippingCents === 0 && pickupOrder.totalCents === 1500 && !pickupOrder.shippingLine1 && !pickupOrder.shippingQuoteId, "Database snapshots free pickup without a shipping destination");
-    assert(pickupOrder.productionBooking?.minutes === 15 && !pickupOrder.productionBooking.releasedAt && !pickupOrder.shipments.length && !pickupOrder.shippitPreparation, "Pickup keeps production capacity reservation and never queues a carrier label");
+    assert(pickupOrder.productionBooking?.minutes === 30 && !pickupOrder.productionBooking.releasedAt && !pickupOrder.shipments.length && !pickupOrder.shippitPreparation, "Pickup keeps production capacity reservation and never queues a carrier label");
     const pickupUrl = new URL(pickupCheckout.url);
     const pickupPath = `${pickupUrl.pathname}${pickupUrl.search}`;
     const awardedGift = await db.orderGift.findFirstOrThrow({ where: { orderId: pickupOrder.id, campaignId: giftCampaign.id } });
     const confirmedPage = await bodyText(await request(pickupPath));
-    assert(confirmedPage.text.includes("E2E complimentary Mini Tray") && confirmedPage.text.includes("Included at no charge"), "Authorised guest confirmation shows the actual awarded gift");
+    assert(confirmedPage.text.includes("E2E complimentary Mini Tray") && confirmedPage.text.includes("Baby Blue") && confirmedPage.text.includes("Included at no charge"), "Authorised guest confirmation shows the actual awarded gift");
     const exhaustedPreview = await jsonResponse(await request("/api/cart/gifts", { method: "POST", json: giftLookup }), 200, "Cart gift eligibility refreshes after the last place is awarded");
     assert(!exhaustedPreview.gifts.some(gift => gift.id === giftCampaign.id), "Exhausted gift is absent from future cart and checkout previews");
     const wrongToken = new URL(pickupCheckout.url); wrongToken.searchParams.set("token", "wrong-token");
@@ -434,6 +434,9 @@ async function main() {
     await jsonResponse(await request(`/api/admin/orders/${pickupOrder.id}/status`, { method: "POST", jar: adminJar, json: { status: "READY_TO_SHIP" } }), 409, "Pickup readiness still requires completed manufacture and packing");
     await db.manufacturingJob.updateMany({ where: { orderItem: { orderId: pickupOrder.id } }, data: { status: "READY" } });
     await db.orderItem.updateMany({ where: { orderId: pickupOrder.id }, data: { packedQuantity: 1 } });
+    assert(awardedGift.variantId === pickupProduct.variants[0].id && awardedGift.requiresPrinting && awardedGift.colour === "Baby Blue", "Gift records a real SKU, assigned colour and printing requirement");
+    await jsonResponse(await request(`/api/admin/orders/${pickupOrder.id}/gifts/${awardedGift.id}/pack`, { method: "POST", jar: adminJar }), 409, "Gift cannot be packed before its printing is confirmed");
+    await jsonResponse(await request(`/api/admin/orders/${pickupOrder.id}/gifts/${awardedGift.id}/pack`, { method: "POST", jar: adminJar, json: { action: "PRINT" } }), 200, "Operator confirms the assigned gift was printed and checked");
     await jsonResponse(await request(`/api/admin/orders/${pickupOrder.id}/gifts/${awardedGift.id}/pack`, { method: "POST", jar: adminJar }), 200, "Awarded gift is packed before the order becomes ready");
     await jsonResponse(await request(`/api/admin/orders/${pickupOrder.id}/status`, { method: "POST", jar: adminJar, json: { status: "READY_TO_SHIP" } }), 200, "Prepared pickup queues ready-for-collection notification");
     assert(Boolean((await db.productionBooking.findUniqueOrThrow({ where: { orderId: pickupOrder.id } })).releasedAt), "Ready pickup releases manufacturing capacity before collection");
