@@ -1,4 +1,5 @@
 "use client";
+import { Cookie } from "lucide-react";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { readPrivacyPreferences, savePrivacyPreferences } from "@/lib/privacy-preferences";
@@ -31,7 +32,7 @@ export function PrivacyControls({ store, analyticsAvailable, advertisingAvailabl
     setNotice("Checkout details forgotten on this device.");
   }
   if (!ready) return null;
-  if (!open) return <button className="analytics-settings-link" type="button" onClick={() => { setNotice(""); setOpen(true); }}>Privacy & cookie settings</button>;
+  if (!open) return <button className="analytics-settings-link" aria-label="Privacy & cookie settings" title="Privacy & cookie settings" type="button" onClick={() => { setNotice(""); setOpen(true); }}><Cookie size={18} aria-hidden="true" /></button>;
   return <aside className="analytics-consent privacy-controls" aria-label="Privacy and cookie settings">
     <div><h2>Privacy choices</h2><p>Essential cookies support sign-in, security and checkout. Optional analytics helps us understand shopping activity. Advertising measurement helps us assess our Meta campaigns. These services stay off until you accept them. <Link href="/privacy">Privacy policy</Link></p>
       <label className="check-field"><input type="checkbox" checked disabled />Essential services (always required)</label>
