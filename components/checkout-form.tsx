@@ -141,7 +141,7 @@ export function CheckoutForm({ account, store, countries, integrations: configur
           else forgetCheckout(localStorage, store.slug);
         } catch { /* Remembering details is optional and must not block payment. */ }
       }
-      try { sessionStorage.setItem("commerce-checkout-cart", JSON.stringify({ orderId: result.orderId, lines: cart.lines.map(line => ({ key: line.key, quantity: line.quantity })) })); } catch { /* Payment can continue when browser storage is unavailable. */ }
+      try { const snapshot = JSON.stringify({ orderId: result.orderId, lines: cart.lines.map(line => ({ key: line.key, quantity: line.quantity })) }); localStorage.setItem(`commerce-checkout-cart:${result.orderId}`, snapshot); sessionStorage.setItem("commerce-checkout-cart", snapshot); } catch { /* Payment can continue when browser storage is unavailable. */ }
       window.location.assign(result.url);
     } catch {
       setError("We couldn't connect to checkout. Please try again in a moment.");
