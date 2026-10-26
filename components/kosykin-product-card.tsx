@@ -1,7 +1,7 @@
 "use client";
 import Image from "next/image";
 import Link from "next/link";
-import { ShoppingBag } from "lucide-react";
+import { ArrowRight, ShoppingBag } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { FavouriteButton } from "@/components/favourite-button";
 import { StorefrontIcon } from "@/components/storefront-icon";
@@ -26,6 +26,6 @@ export function KosykinProductCard({ product, currency, canBuy = true, addAction
     <Link className="kosy-product-name" href={`/products/${product.slug}`}><h3>{product.name}</h3></Link><p>{product.shortDescription ?? product.description}</p>
     <div className="kosy-product-price"><strong>{productCardPriceLabel(product, currency)}</strong><ProductCardSwatches product={product} onPreview={setPreviewColour} /></div>
     {!canBuy && <p className="kosy-product-unavailable">Currently unavailable</p>}
-    <div className="kosy-product-actions">{!home && (addAction ?? <Link className="kosy-section-action" href={`/products/${product.slug}`}><StorefrontIcon name="cart" size={20} fallback={<ShoppingBag size={15} />} />{canBuy ? "Add to cart" : "View product"}</Link>)}<FavouriteButton slug={product.slug} iconOnly /></div>
+    <div className="kosy-product-actions">{home ? <Link className="kosy-section-action" href={`/products/${product.slug}`}>View product<ArrowRight size={16} aria-hidden="true" /></Link> : (addAction ?? <Link className="kosy-section-action" href={`/products/${product.slug}`}><StorefrontIcon name="cart" size={20} fallback={<ShoppingBag size={15} />} />{canBuy ? "Add to cart" : "View product"}</Link>)}<FavouriteButton slug={product.slug} iconOnly /></div>
   </article>;
 }
