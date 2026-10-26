@@ -172,16 +172,17 @@ export default async function PublicCategoryPage({
           description: true,
           shortDescription: true,
           featured: true,
+          createdAt: true,
+          personalisationMode: true,
+          options: { where: { active: true }, include: { values: { where: { active: true }, orderBy: { sortOrder: "asc" } } } },
           images: {
-            where: { isPrimary: true },
-            select: { url: true, altText: true },
-            take: 1,
+            orderBy: [{ isPrimary: "desc" }, { sortOrder: "asc" }],
+            select: { id: true, url: true, altText: true, optionValueId: true, variantId: true },
           },
           variants: {
             where: { active: true },
-            select: { priceCents: true },
+            select: { id: true, imageId: true, colour: true, priceCents: true, optionSelection: true },
             orderBy: { priceCents: "asc" },
-            take: 1,
           },
         },
         orderBy: [{ featured: "desc" }, { name: "asc" }],
@@ -197,6 +198,7 @@ export default async function PublicCategoryPage({
         products={products}
         categories={categories}
         store={{
+          slug: store.slug,
           displayName: store.displayName,
           currency: store.currency,
           nfcEnabled: hasStoreCapability(store, StoreCapability.NFC),
@@ -279,6 +281,7 @@ export default async function PublicCategoryPage({
   };
 
   const storefront = {
+    slug: store.slug,
     displayName: store.displayName,
     currency: store.currency,
     nfcEnabled: hasStoreCapability(store, StoreCapability.NFC),

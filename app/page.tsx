@@ -155,6 +155,7 @@ export default async function Home() {
           categories={categories}
           kosykinCollectionCategories={store.slug === 'kosykin' ? categoryCatalog : undefined}
           store={{
+            slug: store.slug,
             displayName: store.displayName,
             currency: store.currency,
             nfcEnabled,

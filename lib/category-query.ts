@@ -19,7 +19,7 @@ const publicCategoryArgs = Prisma.validator<Prisma.ProductCategoryDefaultArgs>()
     products: {
       where: { status: ProductStatus.ACTIVE, shopVisible: true },
       include: {
-        images: { where: { isPrimary: true }, take: 1 },
+        images: { orderBy: [{ isPrimary: "desc" }, { sortOrder: "asc" }] },
         options: { where: { active: true }, include: { values: { where: { active: true } } } },
         variants: { where: { active: true }, orderBy: { priceCents: "asc" } },
       },
