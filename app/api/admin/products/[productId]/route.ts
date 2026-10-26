@@ -116,8 +116,9 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
   const context = await getAdminApiContext(); if (!context || context.user.role !== "ADMIN") return jsonError("Administrator access required", 403);
   const { user, store } = context;
   const { productId } = await params;
-  const product = await db.product.findFirst({ where: { id: productId, storeId: store.id }, include: { images: { select: { storageKey: true } }, videos: { select: { storageKey: true } }, variants: { select: { id: true, modelStorageKey: true, _count: { select: { orderItems: true, inventoryMovements: true, manufacturingJobs: true } } } }, _count: { select: { tags: true, batches: true } } } });
+  const product = await db.product.findFirst({ where: { id: productId, storeId: store.id }, include: { images: { select: { storageKey: true } }, videos: { select: { storageKey: true } }, variants: { select: { id: true, modelStorageKey: true, _count: { select: { orderItems: true, inventoryMovements: true, manufacturingJobs: true, giftAwards: true } } } }, _count: { select: { tags: true, batches: true, giftCampaignProducts: true } } } });
   if (!product) return jsonError("Product not found", 404);
+  if (product._count.giftCampaignProducts || product.variants.some(variant => variant._count.giftAwards)) return jsonError("This product is linked to a gift campaign or an awarded gift. Archive it instead of deleting it.", 409);
   const history = { orderItems: product.variants.reduce((sum, variant) => sum + variant._count.orderItems, 0), inventoryMovements: product.variants.reduce((sum, variant) => sum + variant._count.inventoryMovements, 0), manufacturingJobs: product.variants.reduce((sum, variant) => sum + variant._count.manufacturingJobs, 0), tags: product._count.tags, batches: product._count.batches };
   if (!canHardDeleteProduct(history)) return jsonError("This product has historical data and cannot be permanently deleted. Archive it instead.", 409);
   const variantIds = product.variants.map(variant => variant.id);

@@ -11,6 +11,9 @@ export async function POST(
     return jsonError("Invalid request origin", 403);
   const context = await getAdminApiContext("production.write");
   if (!context) return jsonError("Forbidden", 403);
+  const input = await request.json().catch(() => ({}));
+  const action = input?.action ?? "PACK";
+  if (!["PACK", "PRINT"].includes(action)) return jsonError("Invalid gift action");
   const { orderId, giftId } = await params;
   const order = await db.order.findFirst({
     where: {
@@ -27,19 +30,20 @@ export async function POST(
         id: giftId,
         orderId,
         packedAt: null,
+        ...(action === "PRINT" ? { requiresPrinting: true, printedAt: null } : { OR: [{ requiresPrinting: false }, { printedAt: { not: null } }] }),
         order: {
           storeId: context.store.id,
           status: { in: ["PAID", "PROCESSING"] },
         },
       },
-      data: { packedAt: new Date() },
+      data: action === "PRINT" ? { printedAt: new Date() } : { packedAt: new Date() },
     });
     if (result.count)
       await tx.auditLog.create({
         data: {
           actorId: context.user.id,
           storeId: context.store.id,
-          action: "GIFT_PACKED",
+          action: action === "PRINT" ? "GIFT_PRINTED" : "GIFT_PACKED",
           entityType: "OrderGift",
           entityId: giftId,
         },
@@ -48,5 +52,5 @@ export async function POST(
   });
   return changed
     ? NextResponse.json({ ok: true })
-    : jsonError("Gift already packed or not found", 409);
+    : jsonError("Gift not found, already completed, or still awaiting printing", 409);
 }

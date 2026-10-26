@@ -1,4 +1,5 @@
-import { jsonValidationError } from "@/lib/admin-validation-feedback";
+import { availableGiftChoices } from "@/lib/gift-variants";
+import { jsonFieldError, jsonValidationError } from "@/lib/admin-validation-feedback";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { Prisma } from "@prisma/client";
@@ -8,6 +9,7 @@ import { assertSameOrigin, jsonError } from "@/lib/http";
 const schema = z
   .object({
     categoryId: z.string().uuid(),
+    giftProductId: z.string().uuid().nullable().optional(),
     giftName: z.string().trim().min(1).max(120),
     limit: z.number().int().min(1).max(100000),
     active: z.boolean(),
@@ -27,6 +29,11 @@ if (
     }))
   )
     return jsonError("Category not found in this store", 404);
+  if (parsed.data.active && parsed.data.giftProductId === null) return jsonFieldError("giftProductId", "Select the actual gift product before activating this campaign.");
+  if (parsed.data.giftProductId) {
+    const product = await db.product.findFirst({ where: { id: parsed.data.giftProductId, storeId: context!.store.id, status: "ACTIVE" }, include: { variants: { where: { active: true } }, options: { where: { type: "COLOUR", active: true }, take: 1, include: { values: { where: { active: true } } } } } });
+    if (!product || !availableGiftChoices(product).length) return jsonFieldError("giftProductId", "Choose a gift product with an available colour and stock or a made-to-order production time.");
+  }
   try {
     await db.$transaction(
       async (tx) => {
