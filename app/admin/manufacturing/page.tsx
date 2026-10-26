@@ -1,3 +1,4 @@
+import { GiftProductionQueue } from "@/components/gift-production-queue";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ManufacturingJobStatus, StoreCapability } from "@prisma/client";
@@ -39,6 +40,7 @@ export default async function ManufacturingPage() {
       })}</div>
       {!jobs.length && <div className="admin-empty">Paid 3D-print order items will appear here automatically.</div>}
     </section>
+    <GiftProductionQueue storeId={store.id} />
     {hasStoreCapability(store, StoreCapability.NFC) && <section className="admin-panel"><div className="panel-heading"><div><h2>NFC identity production</h2><p>NFC generation and programming remain a separate, specialised workflow.</p></div><Link href="/admin/manufacturing/batches">Open NFC production batches</Link></div></section>}
   </div>;
 }

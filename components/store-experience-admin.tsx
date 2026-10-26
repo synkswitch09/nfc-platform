@@ -7,6 +7,7 @@ import type { BannerGroup, ExperienceConfig } from "@/lib/store-experience";
 type Campaign = {
   categoryId: string;
   giftName: string;
+  giftProductId?: string | null;
   limit: number;
   active: boolean;
   awardedCount: number;
@@ -26,11 +27,13 @@ export function StoreExperienceAdmin({
   campaign,
   categories,
   reviews,
+  products,
 }: {
   initial: ExperienceConfig;
   campaign: Campaign;
   categories: { id: string; name: string }[];
   reviews: Review[];
+  products: { id: string; name: string }[];
 }) {
   const { request: adminRequest, feedbackRef, feedback } = useAdminRequest();
 
@@ -40,6 +43,7 @@ export function StoreExperienceAdmin({
   const router = useRouter();
   const [gift, setGift] = useState({
     categoryId: campaign?.categoryId ?? categories[0]?.id ?? "",
+    giftProductId: campaign?.giftProductId ?? "",
     giftName: campaign?.giftName ?? "Wavy Mini Tray",
     limit: campaign?.limit ?? 50,
     active: campaign?.active ?? false,
@@ -48,10 +52,11 @@ export function StoreExperienceAdmin({
     setBusy(true);
     setMessage("");
     try {
+      const requestBody = url.endsWith("gift-campaign") && body && typeof body === "object" ? { ...body, giftProductId: (body as { giftProductId?: string }).giftProductId || null } : body;
       const response = await adminRequest(url, {
         method,
         headers: { "content-type": "application/json" },
-        body: JSON.stringify(body),
+        body: JSON.stringify(requestBody),
       });
       const result = await response.json();
       setMessage(response.ok ? "Saved" : (result.error ?? "Could not save"));
@@ -461,10 +466,7 @@ export function StoreExperienceAdmin({
         <p>
           {campaign?.awardedCount ?? 0} / {campaign?.limit ?? 50} qualifying
           paid orders · Cycle {campaign?.cycle ?? 1}. One complimentary gift per
-          qualifying order, regardless of item quantity. The gift is recorded as
-          a packing instruction and emailed to the buyer and operations; it does
-          not reserve a separate gift SKU or print capacity. Allow for the gift
-          when configuring packaging and manufacturing.
+          qualifying order, regardless of item quantity. Link the gift product below: one available colour is assigned automatically after payment and saved with its SKU. Made-to-order gifts appear in the production queue and reserve their print time. Tracked gifts consume available stock. The customer cannot remove or change the gift separately.
         </p>
         <div className="field-grid three">
           <label className="field">
@@ -480,6 +482,7 @@ export function StoreExperienceAdmin({
               ))}
             </select>
           </label>
+          <label className="field">Gift product (random available colour)<select name="giftProductId" value={gift.giftProductId} onChange={event => { const product = products.find(product => product.id === event.target.value); setGift({ ...gift, giftProductId: event.target.value, giftName: product?.name ?? gift.giftName }); }}><option value="">Select a product</option>{products.map(product => <option key={product.id} value={product.id}>{product.name}</option>)}</select></label>
           <label className="field">
             Complimentary gift
             <input
