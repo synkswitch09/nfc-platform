@@ -696,6 +696,11 @@ export function AdminProductForm({
                     />
                   </label>}
                 </div>
+                <label className="field">
+                  Customer help text (optional)
+                  <input name={`options.${index}.helpText`} maxLength={200} value={option.helpText} onChange={event => updateOption(setOptions, index, "helpText", event.target.value)} />
+                  <small>Shown on the product page. Leave blank to show no extra text.</small>
+                </label>
                 {!selectionOptions.includes(option) && <label className="check-field">
                   <input
                     type="checkbox"

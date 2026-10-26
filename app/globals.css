@@ -6278,4 +6278,4 @@ body[data-store="kosykin"] .kosy-footer-legal .footer-links a { font-weight: 400
 .kosy-product-card-home .kosy-product-name::after { content: ""; position: absolute; inset: 0; border-radius: 30px; }
 .kosy-product-card-home .kosy-product-name:focus-visible::after { outline: 2px solid #243247; outline-offset: 3px; }
 .kosy-product-card-home .kosy-product-image, .kosy-product-card-home .kosy-product-swatches, .kosy-product-card-home .kosy-product-actions { position: relative; z-index: 1; }
-.kosy-product-card-home .kosy-product-actions { align-self: flex-end; }
+.kosy-product-card-home .kosy-product-actions { align-self: stretch; }
