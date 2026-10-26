@@ -22,11 +22,13 @@ export async function OrderGifts({
               {gift.quantity} × {gift.giftName}
             </strong>{" "}
             · Included at no charge.
+            {gift.colour && <> Colour: <strong>{gift.colour}</strong>.</>}
           </p>
+          {packing && <p>SKU: {gift.sku ?? "Legacy gift — confirm manually"}{gift.material ? ` · ${gift.material}` : ""}{gift.productionMinutes ? ` · Print time: ${gift.productionMinutes} min` : ""}{gift.requiresPrinting ? gift.printedAt ? " · Printed and checked" : " · To print" : " · Packing instruction"}</p>}
           {packing &&
             (gift.packedAt ? (
               <p>Gift packed</p>
-            ) : (
+            ) : gift.requiresPrinting && !gift.printedAt ? <GiftPackingButton orderId={orderId} giftId={gift.id} action="PRINT" /> : (
               <GiftPackingButton orderId={orderId} giftId={gift.id} />
             ))}
         </div>

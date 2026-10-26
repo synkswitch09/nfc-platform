@@ -535,6 +535,7 @@ model Address {
 }
 
 model Product {
+  giftCampaignProducts GiftCampaign[] @relation("GiftCampaignProduct")
   reviews             ProductReview[]
   id                  String                @id @default(uuid()) @db.Uuid
   storeId             String                @db.Uuid
@@ -853,6 +854,7 @@ model ProductOptionValue {
 }
 
 model ProductVariant {
+  giftAwards OrderGift[] @relation("GiftVariant")
   id                  String               @id @default(uuid()) @db.Uuid
   productId           String               @db.Uuid
   sku                 String               @unique
@@ -1750,6 +1752,8 @@ model GiftCampaign {
   name String
   categoryId String @db.Uuid
   giftName String
+  giftProductId String? @db.Uuid
+  giftProduct Product? @relation("GiftCampaignProduct", fields: [giftProductId], references: [id], onDelete: Restrict)
   limit Int @default(50)
   awardedCount Int @default(0)
   cycle Int @default(1)
@@ -1770,6 +1774,15 @@ model OrderGift {
   sequence Int
   giftName String
   quantity Int @default(1)
+  variantId String? @db.Uuid
+  variant ProductVariant? @relation("GiftVariant", fields: [variantId], references: [id], onDelete: Restrict)
+  sku String?
+  colour String?
+  colourHex String?
+  material String?
+  productionMinutes Int?
+  requiresPrinting Boolean @default(false)
+  printedAt DateTime?
   packedAt DateTime?
   createdAt DateTime @default(now())
   order Order @relation(fields: [orderId], references: [id], onDelete: Restrict)

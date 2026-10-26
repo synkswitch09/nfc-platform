@@ -1,3 +1,4 @@
+import { availableGiftChoices } from "@/lib/gift-variants";
 import { cache } from "react";
 import { z } from "zod";
 import { db } from "@/lib/db";
@@ -67,15 +68,17 @@ export function campaignAvailable(campaign: {
   active: boolean;
   awardedCount: number;
   limit: number;
+  giftProductId?: string | null;
+  giftProduct?: (Parameters<typeof availableGiftChoices>[0] & { status: string }) | null;
 }) {
-  return campaign.active && campaign.awardedCount < campaign.limit;
+  return campaign.active && campaign.awardedCount < campaign.limit && (!campaign.giftProductId || Boolean(campaign.giftProduct?.status === "ACTIVE" && availableGiftChoices(campaign.giftProduct).length));
 }
 export const publicBannerGroups = cache(async (storeId: string) => {
   const [{ config }, campaigns] = await Promise.all([
     getExperience(storeId),
     db.giftCampaign.findMany({
       where: { storeId },
-      include: { category: { select: { name: true, slug: true } } },
+      include: { category: { select: { name: true, slug: true } }, giftProduct: { include: { variants: { where: { active: true } }, options: { where: { active: true, type: "COLOUR" }, take: 1, include: { values: { where: { active: true } } } } } } },
     }),
   ]);
   return config.groups
