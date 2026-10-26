@@ -33,8 +33,9 @@ function lineKey(variantId: string, personalisationChoice: "BASIC" | "PERSONALIS
 export function CartProvider({ children, storageKey,guestStorageKey,legacyStorageKey, accountSyncEnabled = false }: { children: React.ReactNode; storageKey: string;accountSyncEnabled?: boolean;guestStorageKey?:string;legacyStorageKey?:string }) {
   const [lines, setLines] = useState<CartLine[]>([]);
   const [ready, setReady] = useState(false);
+  const [accountHydrated, setAccountHydrated] = useState(false);
   const revision=useRef<string|undefined>(undefined);const syncing=useRef(false);const hydrated=useRef(false);const [syncMessage,setSyncMessage]=useState("");
-  useEffect(()=>{if(!accountSyncEnabled || !ready || hydrated.current)return;hydrated.current=true;syncing.current=true;void fetch("/api/account/cart",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({lines:lines.map(({variantId,quantity,personalisationChoice,personalisation})=>({variantId,quantity,personalisationChoice,personalisation}))})}).then(async response=>{if(!response.ok)return;const result=await response.json();revision.current=result.revision;setLines(result.lines);if(result.removedCount)setSyncMessage("Some saved items or options are no longer available. Review the current choices in the shop.");}).catch(()=>{}).finally(()=>{syncing.current=false;});},[ready,lines,accountSyncEnabled]);
+  useEffect(()=>{if(!accountSyncEnabled || !ready || hydrated.current)return;hydrated.current=true;syncing.current=true;void fetch("/api/account/cart",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({lines:lines.map(({variantId,quantity,personalisationChoice,personalisation})=>({variantId,quantity,personalisationChoice,personalisation}))})}).then(async response=>{if(!response.ok)return;const result=await response.json();revision.current=result.revision;setLines(result.lines);if(result.removedCount)setSyncMessage("Some saved items or options are no longer available. Review the current choices in the shop.");}).catch(()=>{}).finally(()=>{syncing.current=false;setAccountHydrated(true);});},[ready,lines,accountSyncEnabled]);
   useEffect(()=>{if(!accountSyncEnabled||!ready||!revision.current||syncing.current)return;const timer=setTimeout(()=>{void fetch("/api/account/cart",{method:"PUT",headers:{"content-type":"application/json"},body:JSON.stringify({revision:revision.current,lines:lines.map(({variantId,quantity,personalisationChoice,personalisation})=>({variantId,quantity,personalisationChoice,personalisation}))})}).then(async response=>{if(response.ok)revision.current=(await response.json()).revision;else if(response.status===409)setSyncMessage("Your saved cart changed on another device. Reload this page to merge it.");}).catch(()=>setSyncMessage("Your cart is saved on this device. Reconnect to sync it to your account."));},500);return()=>clearTimeout(timer);},[lines,ready,accountSyncEnabled]);
   useEffect(() => {
     const frame = requestAnimationFrame(() => {
@@ -51,7 +52,7 @@ export function CartProvider({ children, storageKey,guestStorageKey,legacyStorag
 
   const value = useMemo<CartContextValue>(() => ({
     lines,
-    ready,
+    ready: ready && (!accountSyncEnabled || accountHydrated),
     count: lines.reduce((sum, line) => sum + line.quantity, 0),
     add: input => {
       const existing = lines.find(line => line.key === lineKey(input.variantId, input.personalisationChoice, input.personalisation));
@@ -74,7 +75,7 @@ export function CartProvider({ children, storageKey,guestStorageKey,legacyStorag
       const remaining = line.quantity - bought.quantity;
       return remaining > 0 ? [{ ...line, quantity: remaining }] : [];
     })),
-  }), [lines, ready]);
+  }), [lines, ready, accountSyncEnabled, accountHydrated]);
 
   return <CartContext.Provider value={value}>{syncMessage&&<p className="notice" role="status">{syncMessage}</p>}{children}</CartContext.Provider>;
 }

@@ -11,11 +11,13 @@ const product: StorefrontCardProduct & { featured: boolean } = {
   options: [{ code: 'colour', type: 'COLOUR', required: true, priceDeltaCents: 0, values: ['Pink', 'Blue', 'Peach', 'Lavender'].map(label => ({ id: label, label, value: label, swatchHex: '#ffffff', priceDeltaCents: 0 })) }],
 };
 describe('shared Home and Shop product cards', () => {
-  it('renders the exact shared Shop card on Home with extra colour count and second image', () => {
+  it('uses the shared card with product navigation on Home and purchase action only in Shop', () => {
     const shop = renderToStaticMarkup(<KosykinProductCard product={product} currency="AUD" />);
     const home = renderToStaticMarkup(<KosykinHomeSection type="PRODUCT_SHOWCASE" value={{}} products={[product]} currency="AUD" />);
-    const card = (html: string) => html.slice(html.indexOf('<article'), html.indexOf('</article>') + 10);
-    expect(card(home)).toBe(card(shop));
+    expect(home).toContain('kosy-product-card-home');
+    expect(home).not.toContain('Add to cart');
+    expect(home).toContain('href="/products/mini-tray"');
+    expect(shop).toContain('Add to cart');
     expect(shop).toContain('AUD $12.95');
     expect(shop).not.toContain('From ');
     expect(shop).toContain('aria-label="1 more colour">+1');

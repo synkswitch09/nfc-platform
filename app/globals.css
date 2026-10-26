@@ -6270,3 +6270,12 @@ body[data-store="kosykin"] .kosy-footer-legal .footer-links { gap: 20px 32px; fo
 }
 
 body[data-store="kosykin"] .kosy-footer-legal .footer-links a { font-weight: 400; }
+
+/* Compact, labelled privacy control remains reachable by touch and keyboard. */
+.analytics-settings-link { width: 36px; height: 36px; padding: 0; display: grid; place-items: center; border-radius: 50%; border-color: #24324730; color: #243247; box-shadow: 0 2px 8px #24324712; }
+.analytics-settings-link:focus-visible { outline: 2px solid #243247; outline-offset: 3px; }
+.kosy-product-card-home { position: relative; }
+.kosy-product-card-home .kosy-product-name::after { content: ""; position: absolute; inset: 0; border-radius: 30px; }
+.kosy-product-card-home .kosy-product-name:focus-visible::after { outline: 2px solid #243247; outline-offset: 3px; }
+.kosy-product-card-home .kosy-product-image, .kosy-product-card-home .kosy-product-swatches, .kosy-product-card-home .kosy-product-actions { position: relative; z-index: 1; }
+.kosy-product-card-home .kosy-product-actions { align-self: flex-end; }

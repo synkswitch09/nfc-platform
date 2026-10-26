@@ -51,7 +51,7 @@ export default async function Home() {
           .findMany({
             where: { storeId: store.id, status: "ACTIVE", shopVisible: true },
             include: {
-              images: { orderBy: [{ isPrimary: "desc" }, { sortOrder: "asc" }], take: 2 },
+              images: { orderBy: [{ isPrimary: "desc" }, { sortOrder: "asc" }] },
               options: { where: { active: true }, include: { values: { where: { active: true }, orderBy: { sortOrder: "asc" } } } },
               variants: {
                 where: { active: true },
