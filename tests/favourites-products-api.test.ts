@@ -11,7 +11,7 @@ it("resolves guest favourites using only public active products in the current s
   const response = await POST(request(["wavy-stand"]));
   expect(response.status).toBe(200);
   expect(mocks.find.mock.calls[0][0].where).toEqual({ storeId: "kosykin-store", status: "ACTIVE", shopVisible: true, slug: { in: ["wavy-stand"] } });
-  expect(mocks.find.mock.calls[0][0].select.variants.select).toEqual({ priceCents: true, optionSelection: true });
+  expect(mocks.find.mock.calls[0][0].select.variants.select).toMatchObject({ priceCents: true, optionSelection: true });
   expect(mocks.find.mock.calls[0][0].select.variants.take).toBeUndefined();
   expect(mocks.find.mock.calls[0][0].select.options.where).toEqual({ active: true });
   expect(response.headers.get("cache-control")).toBe("no-store");

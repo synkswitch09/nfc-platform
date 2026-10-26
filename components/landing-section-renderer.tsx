@@ -1,3 +1,4 @@
+import { KosykinProductCard } from "@/components/kosykin-product-card";
 import { KosykinHomeSection } from "@/components/kosykin-home-section";
 import { SharedBannerReference } from "@/components/shared-banner-reference";
 import { StorefrontIcon } from '@/components/storefront-icon';
@@ -97,7 +98,7 @@ type ModularPageProps = {
   products: RenderProduct[];
   categories: RenderCategory[];
   kosykinCollectionCategories?: RenderCategory[];
-  store: { displayName: string; currency: string; nfcEnabled: boolean };
+  store: { slug?: string; displayName: string; currency: string; nfcEnabled: boolean };
   kosykinSocials?: { links: Record<string, string>; icons: FooterConfig["socialIcons"]; platforms: string[] };
   shopHref?: string;
   theme?: string;
@@ -112,7 +113,7 @@ export function LandingSectionRenderer({
   store,
 }: {
   category: PublicCategory;
-  store: { displayName: string; currency: string; nfcEnabled: boolean };
+  store: { slug?: string; displayName: string; currency: string; nfcEnabled: boolean };
 }) {
   return (
     <ModularPageRenderer
@@ -520,7 +521,7 @@ export function ModularPageRenderer({
                   copy={common.copy}
                 />
                 <div className="shop-grid">
-                  {visibleProducts.map((product, index) => (
+                  {visibleProducts.map((product, index) => store.slug === "kosykin" ? <KosykinProductCard key={product.id} product={product} currency={store.currency} /> : (
                     <article
                       className="card product-card"
                       key={collectionKey("product", product, index)}

@@ -8,13 +8,12 @@ import { KosykinHomeSection } from '@/components/kosykin-home-section';
 import { SharedBanners } from '@/components/shared-banners';
 import type { BannerGroup } from '@/lib/store-experience';
 import { KosykinShopFilters } from '@/components/kosykin-shop-filters';
-import { ShopAddButton } from '@/components/shop-add-button';
 import { queryList, shopCategoryStyle, type ShopQuery } from '@/lib/kosykin-shop';
 import type { CSSProperties } from 'react';
 type Product = Prisma.ProductGetPayload<{ include: { images: true; variants: true; options: { include: { values: true } } } }>;
 type Category = { id: string; slug: string; name: string; shortDescription: string | null; highlightColour?: string };
 type Promotion = { content: Prisma.JsonValue; visible: boolean } | null;
-export function KosykinShop({ products, filterProducts, categories, query, promotion, trust, currency, available, checkoutEnabled, bannerGroups = [] }: {
+export function KosykinShop({ products, filterProducts, categories, query, promotion, trust, currency, available, bannerGroups = [] }: {
   bannerGroups?: BannerGroup[];
   products: (Product & { _count: { options: number }; sourceVariantCount: number })[]; filterProducts: Product[]; categories: Category[]; query: ShopQuery; promotion: Promotion; trust?: Record<string, unknown>; currency: string; checkoutEnabled: boolean; available: (variant: Product['variants'][number]) => boolean;
 }) {
@@ -33,10 +32,8 @@ export function KosykinShop({ products, filterProducts, categories, query, promo
     <section className="kosy-shop-results" aria-labelledby="kosy-shop-results-title"><div className="kosy-shop-toolbar"><div><h2 id="kosy-shop-results-title">{label}</h2><p>{description}</p></div><KosykinShopFilters key={JSON.stringify(query)} query={query} colours={colours} priceCeiling={priceCeiling} currency={currency} /></div>
       {activeFilters && <p className="kosy-filter-summary" role="status">{products.length} {products.length === 1 ? 'piece' : 'pieces'} found with your filters. <Link href={selected.length ? `/shop?${new URLSearchParams(selected.map(category => ['category', category.slug]))}` : '/shop'}>Clear filters</Link></p>}
       <div className="kosy-shop-grid">{products.map(product => {
-        const variant = product.variants[0];
         const canBuy = product.variants.some(available);
-        const simple = checkoutEnabled && product.personalisationMode === 'NONE' && product.sourceVariantCount === 1 && product._count.options === 0 && product.type === 'ACCESSORY';
-        return <KosykinProductCard key={product.id} product={product} currency={currency} canBuy={canBuy} addAction={simple && canBuy ? <ShopAddButton variantId={variant.id} productName={product.name} variantName={variant.name} unitPriceCents={variant.priceCents} /> : undefined} />;
+        return <KosykinProductCard key={product.id} product={product} currency={currency} canBuy={canBuy} />;
       })}</div>
       {!products.length && <div className="kosy-shop-empty"><ShoppingBag size={32} /><h3>No pieces found</h3><p>Try another category or reset your filters to find your kind of Kosy.</p><Link className="kosy-section-action" href="/shop">See all pieces</Link></div>}
     </section>
