@@ -23,7 +23,7 @@ export default async function NewProductPage({ searchParams }: { searchParams: P
     db.packaging.findMany({ where: { storeId: store.id, active: true }, select: { id: true, name: true, code: true, lengthMm: true, widthMm: true, heightMm: true }, orderBy: { name: "asc" } }),
   ]);
   if (template === "colour" || template === "two-colour") {
-    const colourOption = (name: string, code: string) => ({ name, code, type: "COLOUR" as const, required: true, maxLength: null, price: "0", helpText: "Add the colours available for this product and upload photos for each colour.", values: [] });
+    const colourOption = (name: string, code: string) => ({ name, code, type: "COLOUR" as const, required: true, maxLength: null, price: "0", helpText: "", values: [] });
     initial.options = template === "colour" ? [colourOption("Colour", "colour")] : [colourOption("Background", "base-colour"), colourOption("Letters / accent", "accent-colour")];
   }
   if (template === "nfc") initial.type = "PET";
