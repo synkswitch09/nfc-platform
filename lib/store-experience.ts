@@ -160,7 +160,7 @@ export async function prepareExperienceSections(
               content: {
                 ...content,
                 layoutVariant: "KOSYKIN_PROMOTIONS",
-                items: group.slides,
+                sharedBlockId: group.id,
               } as import("@prisma/client").Prisma.JsonValue,
             },
           ]
@@ -201,7 +201,7 @@ export async function prepareExperienceSections(
       type: "CTA_BANNER",
       name: group.name,
       visible: true,
-      content: { layoutVariant: "KOSYKIN_PROMOTIONS", items: group.slides },
+      content: { layoutVariant: "KOSYKIN_PROMOTIONS", sharedBlockId: group.id },
     });
   }
   return result;
