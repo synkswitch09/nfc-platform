@@ -1,12 +1,13 @@
 "use client";
-import { productCardPriceLabel, type CardPriceProduct } from "@/lib/product-card-price";
+import { KosykinProductCard, type StorefrontCardProduct } from "@/components/kosykin-product-card";
+import { productCardPriceLabel } from "@/lib/product-card-price";
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useFavourites } from "@/components/favourites-provider";
 import { FavouriteButton } from "@/components/favourite-button";
-type Product = CardPriceProduct & { slug: string; name: string; shortDescription: string | null; images: { url: string; altText: string }[]; variants: { priceCents: number }[] };
-export function FavouritesProducts({ currency }: { currency: string }) {
+type Product = StorefrontCardProduct;
+export function FavouritesProducts({ currency, kosykin = false }: { currency: string; kosykin?: boolean }) {
   const favourites = useFavourites();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -26,9 +27,9 @@ export function FavouritesProducts({ currency }: { currency: string }) {
   }, [saved, ready]);
   if (error || favourites?.error) return <p role="status">{error || favourites?.error}</p>;
   if (loading || !ready) return <p role="status">Loading favourites…</p>;
-  return <>{!products.length ? <div className="favourites-empty"><p>Save a piece using its heart button and it will appear here.</p><Link className="button" href="/shop">Explore the shop</Link></div> : <div className="shop-grid">{products.map(product => <article className="card product-card" key={product.slug}>
+  return <>{!products.length ? <div className="favourites-empty"><p>Save a piece using its heart button and it will appear here.</p><Link className="button" href="/shop">Explore the shop</Link></div> : <div className="shop-grid">{products.map(product => kosykin ? <KosykinProductCard key={product.id} product={product} currency={currency} /> : <article className="card product-card" key={product.slug}>
     <Link href={`/products/${product.slug}`}>{product.images[0] && <Image src={product.images[0].url} alt={product.images[0].altText} width={500} height={500} unoptimized />}<h2>{product.name}</h2></Link>
     <p>{product.shortDescription}</p>{product.variants[0] && <strong>{productCardPriceLabel(product, currency)}</strong>}
-    <FavouriteButton slug={product.slug} /><Link className="button" href={`/products/${product.slug}`}>Add to cart</Link>
+    <FavouriteButton slug={product.slug} /><Link className="button" href={`/products/${product.slug}`}>View product</Link>
   </article>)}</div>}</>;
 }
