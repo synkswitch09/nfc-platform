@@ -122,3 +122,16 @@ it("keeps unrelated banners when only the limited campaign ends and rejects unsa
     }).success,
   ).toBe(false);
 });
+it('makes Home an explicit reference to the shared group and removes legacy promotional copies when the campaign ends', async () => {
+  const legacy: ExperienceSection = { id: 'legacy', type: 'CTA_BANNER', name: 'Old launch gift', content: { layoutVariant: 'KOSYKIN_PROMOTIONS', items: [{ title: 'Stale gift copy' }] } };
+  const before = await prepareExperienceSections('s', [...sections, legacy]);
+  const shared = before.find(section => section.id === id)!;
+  expect(shared.content).toEqual({ layoutVariant: 'KOSYKIN_PROMOTIONS', sharedBlockId: id });
+  expect(before.some(section => section.id === 'legacy')).toBe(false);
+  for (const change of [{ active: false, awardedCount: 1 }, { active: true, awardedCount: 50 }]) {
+    m.campaigns.mockResolvedValue([{ key: 'launch-stands', limit: 50, ...change }]);
+    const after = await prepareExperienceSections('s', [...sections, legacy, shared]);
+    expect(after.some(section => section.id === id || section.id === 'legacy')).toBe(false);
+    expect(await publicBannerGroups('s')).toEqual([]);
+  }
+});

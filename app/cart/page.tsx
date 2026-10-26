@@ -10,5 +10,5 @@ export const metadata: Metadata = { title: "Your cart", robots: { index: false, 
 export default async function CartPage() {
   const store = await getCurrentStorefront();
   if (!isStoreCommerceAvailable(store)) notFound();
-  return <section className="section compact-section"><div className="section-head"><p className="eyebrow">Your selection</p><h1 className="page-title">Cart</h1></div><CartView pickupEnabled={publicPickupConfig(store.shippingConfig.pickup).enabled} currency={store.currency} nfcEnabled={hasStoreCapability(store, StoreCapability.NFC)} shippingConfig={{ flatRateCents: store.shippingConfig.flatRateCents, freeOverCents: store.shippingConfig.freeOverCents }} /></section>;
+  return <section className="section compact-section"><div className="section-head"><p className="eyebrow">Your selection</p><h1 className="page-title">Cart</h1></div><CartView storeSlug={store.slug} pickupEnabled={publicPickupConfig(store.shippingConfig.pickup).enabled} currency={store.currency} nfcEnabled={hasStoreCapability(store, StoreCapability.NFC)} shippingConfig={{ flatRateCents: store.shippingConfig.flatRateCents, freeOverCents: store.shippingConfig.freeOverCents }} /></section>;
 }
