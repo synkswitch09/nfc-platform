@@ -399,6 +399,12 @@ async function main() {
   const pickupLocation = "E2E PRIVATE PICKUP LOCATION";
   const pickupCategory = await db.productCategory.findFirstOrThrow({ where: { storeId: tapkinStore.id, status: "PUBLISHED" } });
   const pickupProduct = await db.product.create({ data: { storeId: tapkinStore.id, categoryId: pickupCategory.id, name: "E2E pickup accessory", slug: `pickup-accessory-${suffix}`, description: "Disposable made-to-order pickup fixture", brand: "Tapkin", type: "ACCESSORY", status: "ACTIVE", shopVisible: true, personalisationMode: "NONE", variants: { create: { name: "Made to order", sku: `PICKUP-${suffix}`, priceCents: 1500, inventory: 0, trackInventory: false, backorderPolicy: "ALLOW", productionMinutes: 15 } } }, include: { variants: true } });
+  const giftCampaign = await db.giftCampaign.create({ data: { storeId: tapkinStore.id, key: `e2e-gift-${suffix}`, name: "E2E limited gift", categoryId: pickupCategory.id, giftName: "E2E complimentary Mini Tray", limit: 1, active: true } });
+  const giftLookup = { variantIds: [pickupProduct.variants[0].id] };
+  const giftPreview = await jsonResponse(await request("/api/cart/gifts", { method: "POST", json: giftLookup }), 200, "Cart and checkout can preview eligible gifts before payment");
+  assert(giftPreview.gifts.some(gift => gift.id === giftCampaign.id), "Gift preview matches the cart category");
+  const otherStoreGifts = await jsonResponse(await request("/api/cart/gifts", { method: "POST", host: "home.localhost", json: giftLookup }), 200, "Gift eligibility lookup is store scoped");
+  assert(!otherStoreGifts.gifts.some(gift => gift.id === giftCampaign.id), "Other stores cannot advertise this store's gift");
   const pickupInput = { deliveryMethod: "PICKUP", customer: { name: "Pickup guest", email: `pickup-${suffix}@example.test` }, items: [{ variantId: pickupProduct.variants[0].id, quantity: 1 }] };
   try {
     await db.store.update({ where: { id: tapkinStore.id }, data: { shippingConfig: { ...tapkinStore.shippingConfig, pickup: { enabled: false } } } });
@@ -414,6 +420,13 @@ async function main() {
     assert(pickupOrder.productionBooking?.minutes === 15 && !pickupOrder.productionBooking.releasedAt && !pickupOrder.shipments.length && !pickupOrder.shippitPreparation, "Pickup keeps production capacity reservation and never queues a carrier label");
     const pickupUrl = new URL(pickupCheckout.url);
     const pickupPath = `${pickupUrl.pathname}${pickupUrl.search}`;
+    const awardedGift = await db.orderGift.findFirstOrThrow({ where: { orderId: pickupOrder.id, campaignId: giftCampaign.id } });
+    const confirmedPage = await bodyText(await request(pickupPath));
+    assert(confirmedPage.text.includes("E2E complimentary Mini Tray") && confirmedPage.text.includes("Included at no charge"), "Authorised guest confirmation shows the actual awarded gift");
+    const exhaustedPreview = await jsonResponse(await request("/api/cart/gifts", { method: "POST", json: giftLookup }), 200, "Cart gift eligibility refreshes after the last place is awarded");
+    assert(!exhaustedPreview.gifts.some(gift => gift.id === giftCampaign.id), "Exhausted gift is absent from future cart and checkout previews");
+    const wrongToken = new URL(pickupCheckout.url); wrongToken.searchParams.set("token", "wrong-token");
+    assert((await request(`${wrongToken.pathname}${wrongToken.search}`)).status === 404, "Gift confirmation stays behind the order access check");
     assert(!(await bodyText(await request(pickupPath))).text.includes(pickupLocation), "Paid pickup order does not reveal the address before readiness");
     const paymentNotice = await db.orderNotification.findFirst({ where: { orderId: pickupOrder.id, dedupeKey: { startsWith: "paid:" } } });
     assert(paymentNotice?.text.includes("ready-for-pickup") && !paymentNotice.text.includes(pickupLocation), "Initial payment email asks the customer to wait and keeps pickup address private");
@@ -421,6 +434,7 @@ async function main() {
     await jsonResponse(await request(`/api/admin/orders/${pickupOrder.id}/status`, { method: "POST", jar: adminJar, json: { status: "READY_TO_SHIP" } }), 409, "Pickup readiness still requires completed manufacture and packing");
     await db.manufacturingJob.updateMany({ where: { orderItem: { orderId: pickupOrder.id } }, data: { status: "READY" } });
     await db.orderItem.updateMany({ where: { orderId: pickupOrder.id }, data: { packedQuantity: 1 } });
+    await jsonResponse(await request(`/api/admin/orders/${pickupOrder.id}/gifts/${awardedGift.id}/pack`, { method: "POST", jar: adminJar }), 200, "Awarded gift is packed before the order becomes ready");
     await jsonResponse(await request(`/api/admin/orders/${pickupOrder.id}/status`, { method: "POST", jar: adminJar, json: { status: "READY_TO_SHIP" } }), 200, "Prepared pickup queues ready-for-collection notification");
     assert(Boolean((await db.productionBooking.findUniqueOrThrow({ where: { orderId: pickupOrder.id } })).releasedAt), "Ready pickup releases manufacturing capacity before collection");
     assert(await db.orderNotification.count({ where: { orderId: pickupOrder.id, dedupeKey: { startsWith: "pickup-ready:" }, text: { contains: pickupLocation } } }) === 1, "Ready email durably contains the private address exactly once");

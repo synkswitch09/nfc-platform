@@ -1,4 +1,5 @@
 "use client";
+import { CartGiftOffers } from "@/components/cart-gift-offers";
 import { maximumRedeemPoints, parseLoyaltyConfig, type LoyaltyConfig } from "@/lib/loyalty-config";
 import { ensureMeasurementSession } from "@/lib/measurement-client";
 
@@ -150,6 +151,7 @@ export function CheckoutForm({ account, store, countries, integrations: configur
   return <form className="checkout-layout" onSubmit={submit}>
     <CommerceAnalyticsEvent store={store.slug} data={{ event: "begin_checkout", items: cart.lines.map(line => ({ variantId: line.variantId, quantity: line.quantity })) }} />
     <div className="checkout-fields">
+      <CartGiftOffers storeSlug={store.slug} />
       {!account && <div className="guest-banner"><strong>Continue as guest</strong><span>No account is required to buy. {store.nfcEnabled ? "Create one after payment to manage connected products." : "You can create one later to manage this order."}</span></div>}
       {account && <div className="guest-banner"><strong>Signed in as {account.name}</strong><span>Your order will appear in your account after payment.</span></div>}
       {pickup.enabled && <section className="checkout-section"><h2>Delivery method</h2><fieldset className="shipping-options"><legend>Choose how to receive your order</legend><label><input type="radio" name="deliveryMethod" value="DELIVERY" checked={!isPickup} onChange={() => { setDeliveryMethod("DELIVERY"); invalidateDelivery(); }} /><span><strong>Delivery</strong><small>Shipping calculated for your address</small></span></label><label><input type="radio" name="deliveryMethod" value="PICKUP" checked={isPickup} onChange={() => { setDeliveryMethod("PICKUP"); invalidateDelivery(); }} /><span><strong>Local pickup — Free</strong><small>{pickup.suburb}. By appointment. We will email the address and collection instructions when your order is ready.</small></span></label></fieldset></section>}
