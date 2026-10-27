@@ -1,6 +1,5 @@
 import { KosykinProductCard } from "@/components/kosykin-product-card";
-import { CategoryIcon } from "@/components/category-icon";
-import { StorefrontIcon } from '@/components/storefront-icon';
+import { KosykinTrustRow } from "@/components/kosykin-trust-row";
 import Link from 'next/link';
 import { ShoppingBag } from 'lucide-react';
 import type { Prisma } from '@prisma/client';
@@ -23,7 +22,6 @@ export function KosykinShop({ products, filterProducts, categories, query, promo
   const colours = [...new Map(filterProducts.flatMap(product => product.options.filter(option => option.type === "COLOUR").flatMap(option => option.values)).map(value => [value.value, { value: value.value, label: value.label, swatchHex: value.swatchHex }])).values()];
   const priceCeiling = Math.max(50, Math.ceil(Math.max(0, ...filterProducts.flatMap(product => product.variants.map(variant => variant.priceCents))) / 100 / 50) * 50, Number.isFinite(Number(query.max)) ? Math.max(0, Number(query.max)) : 0);
   const activeFilters = Boolean(query.min || query.max || query.colour || query.sale || query.availability || (query.sort && query.sort !== 'featured'));
-  const features = (Array.isArray(trust?.features) ? trust.features as { id?: string; label?: string; supportingText?: string; icon?: string; iconUrl?: string; visible?: boolean }[] : []).filter(feature => feature.visible !== false);
   return <div className="kosy-shop">
     <SharedBanners groups={bannerGroups} position="TOP" />
     {promotion?.visible && promotion.content && typeof promotion.content === 'object' && !Array.isArray(promotion.content) && <section className="kosy-shop-promotions"><KosykinHomeSection type="CTA_BANNER" value={promotion.content as Record<string, unknown>} products={[]} currency={currency} /></section>}
@@ -38,7 +36,7 @@ export function KosykinShop({ products, filterProducts, categories, query, promo
       {!products.length && <div className="kosy-shop-empty"><ShoppingBag size={32} /><h3>No pieces found</h3><p>Try another category or reset your filters to find your kind of Kosy.</p><Link className="kosy-section-action" href="/shop">See all pieces</Link></div>}
     </section>
     <SharedBanners groups={bannerGroups} position="AFTER_PRODUCTS" />
-    {features.length > 0 && <div className="kosy-trust-row kosy-shop-trust">{features.map((feature,index) => <div key={feature.id || index}><span className="kosy-trust-icon"><StorefrontIcon name={feature.icon === 'shield-check' ? 'secureCheckout' : feature.icon === 'package' ? 'shipping' : 'madeToOrder'} imageUrl={feature.iconUrl} size={28} fallback={<CategoryIcon name={feature.icon} size={28} />} /></span><span><strong>{feature.label}</strong><small>{feature.supportingText}</small></span></div>)}</div>}
+    <KosykinTrustRow content={trust} />
 
     <SharedBanners groups={bannerGroups} position="BOTTOM" />
   </div>;

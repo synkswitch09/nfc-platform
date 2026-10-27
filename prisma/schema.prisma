@@ -545,6 +545,7 @@ model Product {
   description         String
   shortDescription    String?
   fullDescription     String?               @db.Text
+  detailConfig        Json                  @default("{}")
   type                ProductType
   status              ProductStatus         @default(DRAFT)
   featured            Boolean               @default(false)
@@ -698,6 +699,7 @@ model ProductCategory {
   description         String?               @db.Text
   icon                String?
   imageUrl            String?
+  highlightColour     String?
   cardTitle           String?
   cardText            String?
   cardImageUrl        String?

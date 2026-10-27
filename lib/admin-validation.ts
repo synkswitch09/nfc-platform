@@ -1,3 +1,4 @@
+import { productDetailSchema } from "@/lib/product-detail";
 import { z } from "zod";
 import { isSafeImageSource } from "@/lib/image-source";
 import { KEYCHAIN_BASE_SHAPES, KEYCHAIN_FONTS, KEYCHAIN_LETTER_FINISHES, KEYCHAIN_SIZES } from "@/lib/keychain";
@@ -21,6 +22,7 @@ export const adminProductSchema = z.object({
   slug: z.string().trim().toLowerCase().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/).max(160),
   description: z.string().trim().min(10).max(500),
   fullDescription: z.string().trim().max(20_000).nullable().optional(),
+  detailConfig: productDetailSchema.optional(),
   categoryId: z.string().uuid().nullable().optional(),
   type: z.enum(["PET", "CHILD", "EMERGENCY", "SOCIAL", "BUSINESS", "LUGGAGE", "REVIEW", "CUSTOM", "ACCESSORY"]),
   status: z.enum(["DRAFT", "ACTIVE", "HIDDEN", "OUT_OF_STOCK", "ARCHIVED"]),
@@ -106,6 +108,7 @@ export const adminCategorySchema = z.object({
   description: z.string().trim().max(5_000).nullable().optional(),
   icon: z.string().trim().regex(/^[a-z][a-z0-9-]{1,39}$/).nullable().optional(),
   imageUrl: optionalImageSource,
+  highlightColour: z.string().regex(/^#[a-f\d]{6}$/i).or(z.literal("")).nullable().optional(),
   cardTitle: z.string().trim().max(100).nullable().optional(),
   cardText: z.string().trim().max(240).nullable().optional(),
   cardImageUrl: optionalImageSource,

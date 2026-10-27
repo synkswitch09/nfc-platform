@@ -6279,3 +6279,74 @@ body[data-store="kosykin"] .kosy-footer-legal .footer-links a { font-weight: 400
 .kosy-product-card .kosy-product-name:focus-visible::after { outline: 2px solid #243247; outline-offset: 3px; }
 .kosy-product-card .kosy-product-image, .kosy-product-card .kosy-product-swatches, .kosy-product-card .kosy-product-actions { position: relative; z-index: 1; }
 .kosy-product-card .kosy-product-actions { align-self: stretch; }
+
+/* Shared Kosykin product detail: one fixed gallery and one independently scrollable panel. */
+body[data-store="kosykin"] .kosy-pdp-layout {
+  --pdp-height: min(720px, calc(100dvh - 180px));
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, .85fr);
+  gap: clamp(28px, 4vw, 64px);
+  align-items: start;
+}
+body[data-store="kosykin"] .kosy-pdp-layout .product-gallery {
+  position: static; top: auto; height: var(--pdp-height); max-height: none;
+  display: grid; grid-template-columns: 1fr; gap: 14px; min-width: 0; padding: 0; background: none;
+}
+body[data-store="kosykin"] .kosy-pdp-layout .product-gallery:has(.product-thumbs) { grid-template-columns: 68px minmax(0, 1fr); }
+.kosy-pdp-layout .pdp-gallery-stage { min-width: 0; height: 100%; overflow: hidden; border-radius: 28px; background: #f7f5ef; }
+.kosy-pdp-layout .pdp-gallery-stage > img,
+.kosy-pdp-layout .pdp-gallery-stage > video,
+.kosy-pdp-layout .pdp-gallery-stage > model-viewer { display: block; width: 100%; height: 100%; max-height: none; object-fit: contain; border-radius: inherit; }
+.kosy-pdp-layout .pdp-gallery-stage .keychain-preview { height: 100%; border-radius: inherit; box-shadow: none; }
+body[data-store="kosykin"] .kosy-pdp-layout .keychain-preview canvas { width: 100%; height: 100%; min-height: 0; }
+.kosy-pdp-layout .pdp-gallery-stage .product-placeholder { height: 100%; min-height: 0; }
+body[data-store="kosykin"] .kosy-pdp-layout .product-thumbs { grid-column: 1; grid-row: 1; display: flex; flex-direction: column; align-items: stretch; gap: 10px; height: 100%; overflow-y: auto; margin: 0; padding: 2px; }
+.kosy-pdp-layout .product-gallery:has(.product-thumbs) .pdp-gallery-stage { grid-column: 2; grid-row: 1; }
+body[data-store="kosykin"] .kosy-pdp-layout .product-thumbs button { flex: 0 0 auto; width: 100%; padding: 3px; border-radius: 16px; }
+body[data-store="kosykin"] .kosy-pdp-layout .pdp-scroll { height: var(--pdp-height); overflow-y: auto; scrollbar-gutter: stable; min-width: 0; padding: 0 14px 8px 0; scroll-padding: 16px; }
+.kosy-pdp-layout .pdp-scroll:focus-visible { outline: 2px solid #243247; outline-offset: 6px; border-radius: 8px; }
+.pdp-category { display: inline-flex; padding: 8px 17px; border-radius: 99px; font-size: .78rem; font-weight: 700; letter-spacing: .025em; }
+body[data-store="kosykin"] .kosy-pdp-layout h1 { font-size: clamp(1.8rem, 3vw, 3rem); line-height: 1.1; margin: 20px 0 12px; }
+.pdp-short-description { margin: 0 0 20px; }
+.pdp-price-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 24px; }
+.pdp-price-row > strong { font-size: 1.35rem; }
+.pdp-intro, .pdp-details p { white-space: pre-line; line-height: 1.65; }
+body[data-store="kosykin"] .kosy-pdp-layout .purchase-panel { padding: 0; border: 0; box-shadow: none; border-radius: 0; background: none; margin-top: 26px; gap: 20px; }
+.pdp-purchase-actions { display: grid; gap: 12px; }
+body[data-store="kosykin"] .kosy-pdp-layout .purchase-button,
+.pdp-buy-now { position: static; z-index: auto; width: 100%; min-height: 50px; border: 0; border-radius: 99px; }
+.pdp-highlights { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 28px; }
+.pdp-highlights article { display: flex; align-items: flex-start; gap: 10px; padding: 16px; background: #f8f5eb; border-radius: 16px; }
+.pdp-highlights article > :first-child { flex-shrink: 0; }
+.pdp-highlights strong { font-size: .85rem; }
+.pdp-highlights p { font-size: .8rem; line-height: 1.45; margin: 5px 0 0; }
+.pdp-video-card { display: flex; align-items: center; gap: 18px; padding: 16px; border: 1px solid #e5e3de; border-radius: 18px; margin-top: 24px; }
+.pdp-video-cover { position: relative; flex: 0 0 110px; overflow: hidden; border-radius: 12px; }
+.pdp-video-cover img { display: block; width: 110px; height: 110px; object-fit: cover; }
+.pdp-video-cover > svg { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); padding: 7px; box-sizing: content-box; border-radius: 50%; color: #243247; background: #ffffffde; }
+.pdp-video-card > span:last-child { display: grid; gap: 8px; min-width: 0; }
+.pdp-video-card > span > span { font-size: .85rem; }
+.pdp-video-card small { display: flex; gap: 6px; align-items: center; text-decoration: underline; }
+.pdp-details { display: grid; gap: 20px; margin-top: 30px; }
+.pdp-details h2 { font-size: 1rem; margin: 0 0 8px; }
+.pdp-details p { font-size: .9rem; margin: 0; }
+.pdp-recommendations { margin: 64px 0 30px; background: #f8f8f8; padding: clamp(20px, 3vw, 40px); border-radius: 28px; }
+.pdp-recommendations > h2 { margin: 0 0 28px; text-align: center; font-size: 1.6rem; }
+.pdp-recommendation-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 20px; }
+@media (max-width: 1000px) {
+  .pdp-recommendation-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 760px), (max-height: 550px) {
+  body[data-store="kosykin"] .kosy-pdp-layout { grid-template-columns: 1fr; gap: 28px; }
+  body[data-store="kosykin"] .kosy-pdp-layout .product-gallery,
+  body[data-store="kosykin"] .kosy-pdp-layout .product-gallery:has(.product-thumbs) { position: static; top: auto; height: auto; max-height: none; display: flex; flex-direction: column; gap: 12px; }
+  .kosy-pdp-layout .pdp-gallery-stage { height: auto; width: 100%; aspect-ratio: 1; }
+  body[data-store="kosykin"] .kosy-pdp-layout .product-thumbs { flex-direction: row; height: auto; overflow: auto; padding: 2px; margin: 0; }
+  body[data-store="kosykin"] .kosy-pdp-layout .product-thumbs button { flex: 0 0 62px; width: 62px; }
+  body[data-store="kosykin"] .kosy-pdp-layout .pdp-scroll { height: auto; overflow: visible; padding: 0; scrollbar-gutter: auto; }
+  body[data-store="kosykin"] .kosy-pdp-layout h1 { font-size: 2rem; }
+  .pdp-recommendations { margin-top: 40px; padding: 16px; }
+  .pdp-recommendation-grid { gap: 12px; }
+}
+@media (max-width: 380px) {
+  .pdp-highlights, .pdp-recommendation-grid { grid-template-columns: 1fr; }
+}
