@@ -12,6 +12,7 @@ const rootFields: Record<string, { field: string; section: ProductValidationFeed
   slug: { field: "Product URL", section: "product-details" },
   description: { field: "Short description", section: "product-details" },
   fullDescription: { field: "Full description", section: "product-details" },
+  detailConfig: { field: "Product page content", section: "product-details" },
   categoryId: { field: "Category", section: "product-details" },
   brand: { field: "Brand", section: "product-details" },
   personalisationMode: { field: "Personalisation purchase mode", section: "choices" },
@@ -45,6 +46,12 @@ export function productValidationFeedback(issues: ZodIssue[]): ProductValidation
   return issues.map((issue) => {
     const path = issue.path.map(String);
     const key = path.join(".");
+    if (path[0] === "detailConfig") {
+      const labels: Record<string, string> = { url: "Instagram link", imageUrl: "cover image", title: "title", text: "text", ctaLabel: "link label", cartBackground: "Add to cart background", cartText: "Add to cart text", buyBackground: "Buy now background", buyText: "Buy now text" };
+      const block = path[1] === "highlights" ? `Highlight ${Number(path[2]) + 1}` : path[1] === "sections" ? `Information section ${Number(path[2]) + 1}` : path[1] === "video" ? "Video card" : "Purchase buttons";
+      const field = `${block} — ${labels[path.at(-1)!] ?? path.at(-1)}`;
+      return { path: key, field, section: "product-details", message: issueText(issue, field) };
+    }
     if (path[0] === "variants") {
       const number = Number(path[1]) + 1;
       const label = path[2] === "trackInventory" ? "fulfilment method" : path[2] === "productionMinutes" ? "production minutes per item" : path[2] === "optionSelection" ? "product choices" : path[2] === "sku" ? "SKU" : path[2] === "name" ? "name" : path[2] === "inventory" ? "stock" : path[2] === "priceCents" ? "price" : String(path[2] ?? "details");

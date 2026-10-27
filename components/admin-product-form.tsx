@@ -1,4 +1,6 @@
 "use client";
+import { ProductDetailEditor } from "@/components/product-detail-editor";
+import { parseProductDetail } from "@/lib/product-detail";
 
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -66,6 +68,7 @@ export type AdminProductInitial = {
   slug: string;
   description: string;
   fullDescription: string;
+  detailConfig?: unknown;
   categoryId: string;
   type: string;
   status: string;
@@ -209,6 +212,7 @@ export function AdminProductForm({
   const [message, setMessage] = useState("");
   const [validationIssues, setValidationIssues] = useState<ProductValidationIssue[]>([]);
   const [pending, setPending] = useState(false);
+  const [detailConfig, setDetailConfig] = useState(() => parseProductDetail(initial.detailConfig));
   const [namePreview, setNamePreview] = useState(initial.name);
   const [slugPreview, setSlugPreview] = useState(initial.slug);
   const [ogImageUrl, setOgImageUrl] = useState(initial.ogImageUrl);
@@ -251,6 +255,7 @@ export function AdminProductForm({
       slug: form.get("slug"),
       description: form.get("description"),
       fullDescription: form.get("fullDescription") || null,
+      ...(storeSlug === "kosykin" ? { detailConfig } : {}),
       categoryId: form.get("categoryId") || null,
       type: form.get("type"),
       status: form.get("status"),
@@ -323,7 +328,7 @@ export function AdminProductForm({
       if (firstSection)
         window.setTimeout(
           () => {
-            const field = [...formElement.querySelectorAll<HTMLElement>("[data-validation-path]")].find(input => input.dataset.validationPath === issues[0]?.path);
+            const field = [...formElement.querySelectorAll<HTMLElement>("[data-validation-path], [name]")].find(input => input.dataset.validationPath === issues[0]?.path || input.getAttribute("name") === issues[0]?.path);
             if (field) { field.focus(); field.scrollIntoView({ behavior: "smooth", block: "center" }); }
             else document.getElementById(firstSection)?.scrollIntoView({ behavior: "smooth", block: "start" });
           },
@@ -501,6 +506,7 @@ export function AdminProductForm({
             className="large-textarea"
           />
         </label>
+        {storeSlug === "kosykin" && <ProductDetailEditor issues={validationIssues} value={detailConfig} onChange={setDetailConfig} />}
         <div className="check-row">
           <label className="check-field">
             <input

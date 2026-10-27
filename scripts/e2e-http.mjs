@@ -264,18 +264,24 @@ async function main() {
   assert(e2eCategory?.status === "PUBLISHED", "Published category exists for the product journey");
   const slug = `e2e-nfc-tag-${suffix}`; const sku = `E2E-${suffix.toUpperCase()}`.slice(0, 50);
   const productPayload = { name: `E2E NFC Tag ${suffix}`, slug, description: "A test-only NFC tag used by the integrated business journey.", fullDescription: "Created through Product Admin, imaged, stocked, published and then used in the NFC manufacturing flow.", categoryId: e2eCategory.id, type: "PET", status: "DRAFT", featured: false, shopVisible: false, brand: "Tapkin", gstInclusive: true, personalisationMode: "OPTIONAL", seoTitle: `E2E NFC Tag ${suffix}`, seoDescription: "Integrated test product for NFC commerce and manufacturing.", ogImageUrl: "", canonicalUrl: "", indexable: false,
+    detailConfig: { highlights: [{ title: "Made locally", text: "Configured in Product Admin" }], video: { enabled: true, url: "https://www.instagram.com/reel/test-product/" }, sections: [{ title: "Care", text: "Wipe with a soft cloth." }], buttons: { cartBackground: "#123456", cartText: "#ffffff", buyBackground: "#E8CB67", buyText: "#243247" } },
     variants: [{ sku, name: "Standard", colour: "Ocean", size: "Standard", material: "PETG", priceCents: 3495, compareAtPriceCents: null, costCents: 800, inventory: 25, trackInventory: true, lowStockThreshold: 3, backorderPolicy: "DENY", active: true }],
     options: [{ name: "Pet name", code: "pet-name", type: "SHORT_TEXT", required: true, maxLength: 24, priceDeltaCents: 0, helpText: "Printed on the tag", active: true, values: [] }],
   };
   const created = await jsonResponse(await request("/api/admin/products", { method: "POST", jar: adminJar, json: productPayload }), 201, "Administrator creates a draft product");
   const product = await db.product.findUnique({ where: { id: created.product.id }, include: { variants: true } });
   assert(product?.variants[0]?.inventory === 25, "Product variant and inventory are persisted");
+  assert(product.detailConfig?.buttons?.cartBackground === "#123456" && product.detailConfig?.sections?.[0]?.title === "Care", "Product page blocks and button colours persist through Product Admin");
   const imageForm = new FormData();
   imageForm.append("file", new Blob([Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=", "base64")], { type: "image/png" }), "e2e.png");
   imageForm.append("altText", "Ocean E2E NFC pet tag");
   await jsonResponse(await request(`/api/admin/products/${product.id}/images`, { method: "POST", jar: adminJar, body: imageForm }), 201, "Administrator uploads a content-verified product image");
   const variant = product.variants[0];
   await jsonResponse(await request(`/api/admin/products/${product.id}`, { method: "PATCH", jar: adminJar, json: { ...productPayload, status: "ACTIVE", shopVisible: true, indexable: true, variants: [{ ...productPayload.variants[0], id: variant.id }] } }), 200, "Administrator publishes the product");
+  const presentationEdit = { ...productPayload, detailConfig: { ...productPayload.detailConfig, showHighlights: false }, variants: [{ ...productPayload.variants[0], id: variant.id }], status: "ACTIVE", shopVisible: true, indexable: true };
+  await jsonResponse(await request(`/api/admin/products/${product.id}`, { method: "PATCH", jar: adminJar, json: presentationEdit }), 200, "Administrator changes optional page visibility");
+  const presentationSaved = await db.product.findUnique({ where: { id: product.id } });
+  assert(presentationSaved.detailConfig?.showHighlights === false && presentationSaved.detailConfig?.video?.url === productPayload.detailConfig.video.url, "Page visibility edits retain optional product content");
   const storeProduct = await bodyText(await request(`/products/${slug}`));
   assert(storeProduct.text.includes(productPayload.name), "Published product appears in the store");
   const homeAdminJar = new Map();

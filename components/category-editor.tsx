@@ -21,6 +21,7 @@ export type CategoryEditorInitial = {
   icon: string;
   imageUrl: string;
   cardTitle: string;
+  highlightColour?: string;
   cardText: string;
   cardImageUrl: string;
   cardImageAlt: string;
@@ -123,6 +124,7 @@ export function CategoryEditor({
       icon: text("icon"),
       imageUrl: initial.imageUrl,
       cardTitle: text("cardTitle"),
+      highlightColour: text("highlightColour") || null,
       cardText: text("cardText"),
       cardImageUrl: text("cardImageUrl") ?? "",
       cardImageAlt: text("cardImageAlt"),
@@ -274,6 +276,7 @@ export function CategoryEditor({
               ))}
             </select>
           </label>
+          <label className="field">Category accent colour (optional)<input name="highlightColour" defaultValue={initial.highlightColour ?? ""} placeholder="#E8CB67" pattern="#[0-9a-fA-F]{6}" maxLength={7} /><small>Used for this category in the shop and product details. Leave blank to inherit.</small></label>
           <label className="field">
             Card title
             <input name="cardTitle" defaultValue={initial.cardTitle} />
