@@ -6,6 +6,7 @@ export function LegalPageIntro({ name, store, slug, locale = store.defaultLocale
   const links = store.footerConfig.policyLinks.filter(link => link.visible).sort((a, b) => a.order - b.order);
   const showPolicyNavigation = slug !== "privacy" && links.some(link => link.href === `/${slug}`);
   return <header className="section compact-section legal-page-intro">
+    {store.slug === "kosykin" && <nav className="breadcrumbs legal-breadcrumbs" aria-label="Breadcrumb"><Link href={localizedPath("/", locale, store.defaultLocale)}>Home</Link><span aria-hidden="true">/</span><span aria-current="page">{name}</span></nav>}
     <h1>{name}</h1>
     {showPolicyNavigation && <nav aria-label="Policies">
       {links.map(link => <Link key={link.id} href={localizedPath(link.href, locale, store.defaultLocale)} aria-current={link.href === `/${slug}` ? "page" : undefined}>{link.label}</Link>)}
