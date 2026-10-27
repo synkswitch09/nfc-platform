@@ -49,6 +49,7 @@ export default async function EditCategoryPage({
     icon: category.icon ?? "",
     imageUrl: category.imageUrl ?? "",
     cardTitle: category.cardTitle ?? "",
+    highlightColour: category.highlightColour ?? "",
     cardText: category.cardText ?? "",
     cardImageUrl: category.cardImageUrl ?? "",
     cardImageAlt: category.cardImageAlt ?? "",

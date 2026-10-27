@@ -1,3 +1,4 @@
+import { productDetailSchema } from "@/lib/product-detail";
 import { z } from "zod";
 import { isSafeStorageKey } from "@/lib/storage/keys";
 
@@ -44,6 +45,7 @@ export const releaseProductCategoryFields = z.object({
   icon: text.nullable().optional(),
   imageUrl: text.nullable().optional(),
   cardTitle: text.nullable().optional(),
+  highlightColour: z.string().regex(/^#[a-f\d]{6}$/i).or(z.literal("")).nullable().optional(),
   cardText: text.nullable().optional(),
   cardImageUrl: text.nullable().optional(),
   cardImageAlt: text.nullable().optional(),
@@ -128,6 +130,7 @@ export const releaseProductFields = z.object({
   description: text,
   shortDescription: text.nullable().optional(),
   fullDescription: text.nullable().optional(),
+  detailConfig: productDetailSchema.optional(),
   type: z.enum(["PET","CHILD","EMERGENCY","SOCIAL","BUSINESS","LUGGAGE","REVIEW","CUSTOM","ACCESSORY"]),
   status: z.enum(["DRAFT","ACTIVE","HIDDEN","OUT_OF_STOCK","ARCHIVED"]).optional(),
   featured: z.boolean().optional(),

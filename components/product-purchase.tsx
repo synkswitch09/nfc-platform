@@ -4,6 +4,9 @@ import { storefrontMoney } from "@/lib/product-card-price";
 import { emitCommerceEvent, sendCommerceEvent } from "@/lib/measurement-client";
 import {FavouriteButton} from "@/components/favourite-button";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
+import { parseProductDetail, categoryTextColour } from "@/lib/product-detail";
+import { ProductDetailBlocks } from "@/components/product-detail-blocks";
 import { createElement, FormEvent, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { PackageCheck, Radio, RefreshCw, ShieldCheck, Truck } from "lucide-react";
@@ -20,8 +23,11 @@ type OptionValue = { id: string; label: string; value: string; priceDeltaCents: 
 type Option = { code: string; name: string; type: string; required: boolean; maxLength: number | null; priceDeltaCents: number; helpText: string | null; values: OptionValue[] };
 type Choice = "BASIC" | "PERSONALISED";
 
-export function ProductPurchase({ checkoutEnabled, previewOnly = false, productName, productSlug, productId, storeSlug, description, categoryName, storeName, currency, connected, personalisationMode, variants, options, images, videos = [], initialColour = "", initialVariantId = "" }: { checkoutEnabled: boolean; previewOnly?: boolean; productName: string; productSlug: string; productId: string; storeSlug: string; description: string; categoryName: string | null; storeName: string; currency: string; connected: boolean; personalisationMode: "NONE" | "OPTIONAL" | "REQUIRED"; variants: Variant[]; options: Option[]; images: ProductImage[]; videos?: ProductVideo[]; initialColour?: string; initialVariantId?: string }) {
+export function ProductPurchase({ checkoutEnabled, previewOnly = false, productName, productSlug, productId, storeSlug, description, categoryName, storeName, currency, connected, personalisationMode, variants, options, images, videos = [], initialColour = "", initialVariantId = "", fullDescription = "", categoryColour = "#E8CB67", categorySlug, detailConfig }: { checkoutEnabled: boolean; previewOnly?: boolean; productName: string; productSlug: string; productId: string; storeSlug: string; description: string; categoryName: string | null; storeName: string; currency: string; connected: boolean; personalisationMode: "NONE" | "OPTIONAL" | "REQUIRED"; variants: Variant[]; options: Option[]; images: ProductImage[]; videos?: ProductVideo[]; initialColour?: string; initialVariantId?: string; fullDescription?: string | null; categoryColour?: string; categorySlug?: string; detailConfig?: unknown }) {
   const cart = useCart();
+  const router = useRouter();
+  const isKosykin = storeSlug === "kosykin";
+  const presentation = parseProductDetail(detailConfig);
   useEffect(() => { if (storeSlug === "kosykin" && productSlug === "custom-name-keychain" && !previewOnly) void sendCommerceEvent(storeSlug, { event: "personalizer_interaction", productId, action: "open" }); }, [storeSlug, productSlug, productId, previewOnly]);
   const defaultVariant = variants.find(item => item.id === initialVariantId) ?? variants.find(item => item.isDefault) ?? variants[0];
   const selectionOptions = options.filter(option => ["SELECT", "RADIO", "COLOUR"].includes(option.type));
@@ -97,24 +103,32 @@ export function ProductPurchase({ checkoutEnabled, previewOnly = false, productN
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
+    if (!cart.ready) return setError("Your cart is still loading. Please try again in a moment.");
     if (!checkoutEnabled) return setError("Orders are not open yet.");
     if (isKeychain) { try { generateKeychain({ ...keychainInput, name: customValues["keychain-name"] ?? "" }); } catch (cause) { return setError(cause instanceof Error ? cause.message : "Invalid keychain name"); } }
     if (!variant || soldOut) return setError(selectionMatchesVariant ? "This option is currently unavailable." : "That option combination is currently unavailable.");
     const personalisation = { ...selections, ...(choice === "PERSONALISED" ? Object.fromEntries(Object.entries(customValues).filter(([, value]) => value)) : {}) };
     cart.add({ variantId: variant.id, productName, variantName: variant.name, unitPriceCents: variant.priceCents + optionPriceCents, quantity: 1, personalisationChoice: choice, personalisation });
-    setAdded(true);
+    const submitter = (event.nativeEvent as SubmitEvent).submitter;
+    if (submitter instanceof HTMLButtonElement && submitter.value === "BUY_NOW") router.push("/checkout");
+    else setAdded(true);
   }
 
-  return <div className="product-layout">
+  const galleryMedia = (!isKeychain && view3d && variant?.modelUrl ? createElement("model-viewer", { src: variant.modelUrl, "camera-controls": true, "interaction-prompt": "auto", alt: `Rotate ${productName} in 3D`, className: "product-model-viewer" }) : activeVideo ? <video key={activeVideo.id} className="product-gallery-video" src={activeVideo.url} controls playsInline preload="metadata" aria-label={activeVideo.caption} /> : isKeychain && choice === "PERSONALISED" && !activeImageId ? <KeychainPreview input={keychainInput} /> : activeImage ? <Image src={activeImage.url} alt={activeImage.altText} width={900} height={900} priority unoptimized /> : <div className="product-placeholder"><Radio size={64} /><span>{storeName}</span><strong>{productName}</strong><small>Made to order in Adelaide</small></div>);
+
+  return <div className={isKosykin ? "product-layout kosy-pdp-layout" : "product-layout"}>
     <div className="product-gallery">
-      {!isKeychain && view3d && variant?.modelUrl ? createElement("model-viewer", { src: variant.modelUrl, "camera-controls": true, "interaction-prompt": "auto", alt: `Rotate ${productName} in 3D`, className: "product-model-viewer" }) : activeVideo ? <video key={activeVideo.id} className="product-gallery-video" src={activeVideo.url} controls playsInline preload="metadata" aria-label={activeVideo.caption} /> : isKeychain && choice === "PERSONALISED" && !activeImageId ? <KeychainPreview input={keychainInput} /> : activeImage ? <Image src={activeImage.url} alt={activeImage.altText} width={900} height={900} priority unoptimized /> : <div className="product-placeholder"><Radio size={64} /><span>{storeName}</span><strong>{productName}</strong><small>Made to order in Adelaide</small></div>}
-      <div className="gallery-price" aria-live="polite">{previewOnly ? "Pricing coming soon" : variant ? storefrontMoney(variant.priceCents + optionPriceCents, currency) : "Unavailable"}</div>
-      {(gallery.length > 1 || variantVideos.length > 0 || Boolean(variant?.modelUrl) || isKeychain && gallery.length > 0) && <div className="product-thumbs">{isKeychain && <button type="button" className={!activeImageId ? "active" : ""} onClick={() => { setActiveImageId(""); setView3d(false); if (!previewOnly) emitCommerceEvent({ event: "personalizer_interaction", productId, action: "preview", field: "preview" }); }} aria-label="View personalised 3D preview"><span className="product-media-thumb">3D<small>Preview</small></span></button>}{gallery.map(image => <button type="button" key={image.id} className={!view3d && !activeVideo && image.id === activeImageId ? "active" : ""} onClick={() => { setActiveImageId(image.id); setView3d(false); }} aria-label={`View ${image.altText}`}><Image src={image.url} alt="" width={160} height={160} unoptimized /></button>)}{variantVideos.map(video => <button type="button" key={video.id} className={activeVideo?.id === video.id && !view3d ? "active" : ""} onClick={() => { setActiveImageId(video.id); setView3d(false); }} aria-label={`Play ${video.caption}`}><span className="product-media-thumb">▶<small>Video</small></span></button>)}{variant?.modelUrl && <button type="button" className={view3d ? "active" : ""} onClick={() => { setView3d(true); setActiveImageId(""); }} aria-label="View product in 3D"><span className="product-media-thumb">3D<small>Rotate</small></span></button>}</div>}
+      {isKosykin ? <div className="pdp-gallery-stage">{galleryMedia}</div> : galleryMedia}
+      {!isKosykin && <div className="gallery-price" aria-live="polite">{previewOnly ? "Pricing coming soon" : variant ? storefrontMoney(variant.priceCents + optionPriceCents, currency) : "Unavailable"}</div>}
+      {(gallery.length > 1 || variantVideos.length > 0 || Boolean(variant?.modelUrl) || isKeychain && gallery.length > 0) && <div className="product-thumbs">{isKeychain && <button type="button" className={!activeImageId ? "active" : ""} onClick={() => { setActiveImageId(""); setView3d(false); if (!previewOnly) emitCommerceEvent({ event: "personalizer_interaction", productId, action: "preview", field: "preview" }); }} aria-label="View personalised 3D preview"><span className="product-media-thumb">3D<small>Preview</small></span></button>}{gallery.map(image => <button type="button" key={image.id} className={!view3d && !activeVideo && !(isKeychain && choice === "PERSONALISED" && !activeImageId) && image.id === activeImage?.id ? "active" : ""} onClick={() => { setActiveImageId(image.id); setView3d(false); }} aria-label={`View ${image.altText}`}><Image src={image.url} alt="" width={160} height={160} unoptimized /></button>)}{variantVideos.map(video => <button type="button" key={video.id} className={activeVideo?.id === video.id && !view3d ? "active" : ""} onClick={() => { setActiveImageId(video.id); setView3d(false); }} aria-label={`Play ${video.caption}`}><span className="product-media-thumb">▶<small>Video</small></span></button>)}{variant?.modelUrl && <button type="button" className={view3d ? "active" : ""} onClick={() => { setView3d(true); setActiveImageId(""); }} aria-label="View product in 3D"><span className="product-media-thumb">3D<small>Rotate</small></span></button>}</div>}
     </div>
-    <div className="product-copy">
-      <p className="eyebrow">{categoryName ?? (connected ? "Smart NFC product" : "Made-to-order product")}</p>
-      <h1>{productName}</h1><FavouriteButton slug={productSlug}/>
-      <p className="lead">{description}</p>
+    <div className={isKosykin ? "product-copy pdp-scroll" : "product-copy"} tabIndex={isKosykin ? 0 : undefined} role={isKosykin ? "region" : undefined} aria-label={isKosykin ? "Product information and purchase options" : undefined}>
+      {isKosykin ? <>
+        {categoryName && <Link className="pdp-category" href={categorySlug ? `/shop?category=${encodeURIComponent(categorySlug)}` : "/shop"} style={{ backgroundColor: categoryColour, color: categoryTextColour(categoryColour) }}>{categoryName}</Link>}
+        <h1>{productName}</h1><p className="pdp-short-description">{description}</p>
+        <div className="pdp-price-row"><strong aria-live="polite">{previewOnly ? "Pricing coming soon" : variant ? storefrontMoney(variant.priceCents + optionPriceCents, currency) : "Unavailable"}</strong><FavouriteButton slug={productSlug} iconOnly /></div>
+        {presentation.showDescription && fullDescription?.trim() && <div className="pdp-intro">{fullDescription}</div>}
+      </> : <><p className="eyebrow">{categoryName ?? (connected ? "Smart NFC product" : "Made-to-order product")}</p><h1>{productName}</h1><FavouriteButton slug={productSlug}/><p className="lead">{description}</p></>}
       <form className="purchase-panel" onSubmit={submit} onBlur={event => { if (isKeychain && !previewOnly && event.target instanceof HTMLInputElement && event.target.type === "text") emitCommerceEvent({ event: "personalizer_interaction", productId, action: "change", field: "text" }); }}>
         {variants.length > 1 && !hasMappedVariants && <label className="field">Variant<select value={variant?.id ?? ""} onChange={event => chooseVariant(event.target.value)}>{variants.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>}
         {selectionOptions.filter(option => option.code !== "keyring-hardware" || selections["keychain-attachment"] === "keychain").map(option => <SelectionField key={option.code} option={isKeychain && option.code === "letter-finish" ? { ...option, helpText: "Raised: 2.6 mm base + 1.4 mm letters (4 mm total). Flush: 2.6 mm total." } : option} value={selections[option.code] ?? ""} onChange={value => chooseSelection(option, value)} />)}
@@ -122,11 +136,15 @@ export function ProductPurchase({ checkoutEnabled, previewOnly = false, productN
         {choice === "PERSONALISED" && customOptions.map(option => <CustomField key={option.code} option={option} value={customValues[option.code] ?? ""} onChange={value => { setCustomValues(current => ({ ...current, [option.code]: value })); }} />)}
         {keychainError && <p className="form-error" role="status">{keychainError}</p>}
         {error && <div className="form-error" role="alert">{error}</div>}
-        <button className="button purchase-button" disabled={previewOnly || !checkoutEnabled || soldOut || Boolean(keychainError)}>{previewOnly ? "Preview only · orders closed" : !checkoutEnabled ? "Orders opening soon" : soldOut ? (selectionMatchesVariant ? "Out of stock" : "Unavailable combination") : "Add to cart"}</button>
+        <div className={isKosykin ? "pdp-purchase-actions" : undefined}>
+        <button name="purchaseAction" value="ADD_TO_CART" style={isKosykin ? { background: presentation.buttons.cartBackground, color: presentation.buttons.cartText } : undefined} className="button purchase-button" disabled={!cart.ready || previewOnly || !checkoutEnabled || soldOut || Boolean(keychainError)}>{previewOnly ? "Preview only · orders closed" : !checkoutEnabled ? "Orders opening soon" : soldOut ? (selectionMatchesVariant ? "Out of stock" : "Unavailable combination") : "Add to cart"}</button>
+        {isKosykin && <button type="submit" name="purchaseAction" value="BUY_NOW" className="button pdp-buy-now" style={{ background: presentation.buttons.buyBackground, color: presentation.buttons.buyText }} disabled={!cart.ready || previewOnly || !checkoutEnabled || soldOut || Boolean(keychainError)}>Buy now</button>}
+        </div>
         {added && <div className="cart-added" role="status"><strong>Added to your cart</strong><div><button type="button" className="button secondary" onClick={() => setAdded(false)}>Continue shopping</button><Link className="button" href="/checkout">Checkout</Link></div></div>}
         <p className="fine-print">{previewOnly ? "Explore the design here in the Shop. Pricing and ordering will follow." : checkoutEnabled ? "Secure checkout · Prices include GST where applicable" : "Products are visible while orders are closed."}</p>
       </form>
-      <div className="trust-list">{connected && <span><ShieldCheck /> Personal data stays off the NFC chip</span>}{connected && <span><RefreshCw /> Update the profile any time</span>}<span><PackageCheck /> Made to order</span><span><Truck /> Australia-wide delivery</span></div>
+      {isKosykin && <ProductDetailBlocks config={presentation} />}
+      {!isKosykin && <div className="trust-list">{connected && <span><ShieldCheck /> Personal data stays off the NFC chip</span>}{connected && <span><RefreshCw /> Update the profile any time</span>}<span><PackageCheck /> Made to order</span><span><Truck /> Australia-wide delivery</span></div>}
     </div>
   </div>;
 }
