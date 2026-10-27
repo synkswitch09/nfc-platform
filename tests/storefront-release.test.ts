@@ -26,6 +26,15 @@ describe("storefront release validation", () => {
     });
   });
 
+  it("keeps product detail configuration and category accents in catalog releases", () => {
+    const parsed = storefrontReleaseSchema.parse({ ...release,
+      categories: [{ ...release.categories[0], highlightColour: "#A4DBE8" }],
+      products: [{ ...release.products[0], detailConfig: { showHighlights: false, sections: [{ title: "Care", text: "Wipe gently." }], video: { enabled: true, url: "https://www.instagram.com/reel/example/", imageUrl: "/api/media/production-kosykin-00000000-0000-4000-8000-000000000001.webp" } } }],
+    });
+    expect(parsed.categories[0].highlightColour).toBe("#A4DBE8");
+    expect(parsed.products[0].detailConfig).toMatchObject({ showHighlights: false, sections: [{ title: "Care", text: "Wipe gently." }], video: { imageUrl: "/api/media/production-kosykin-00000000-0000-4000-8000-000000000001.webp" } });
+  });
+
   it("preserves the Home page's negative sort order during export and import", () => {
     const parsed = storefrontReleaseSchema.parse({
       ...release,

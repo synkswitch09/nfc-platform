@@ -3,7 +3,7 @@ import {
   Backpack, Badge, BadgeHelp, BriefcaseBusiness, Building2, Bus, Camera, Check, Clock, Compass, Contact, Dog, EyeOff,
   HandHelping, Heart, HeartHandshake, Home, ImageUp, Lock, Luggage, Map, MapPin, Medal, MessageCircle, Mic2, Package, PawPrint, Phone,
   Plane, QrCode, Radio, RefreshCw, Repeat2, Share2, Shield, ShieldCheck, ShoppingBag, Sparkles, SquarePen, Store, Tag,
-  Shapes, Trees, Users, Zap,
+  Shapes, Trees, Users, Zap, Layers, Palette,
 } from "lucide-react";
 
 const categoryIcons = {
@@ -14,7 +14,7 @@ const categoryIcons = {
   medal: Medal, package: Package, paw: PawPrint, phone: Phone, plane: Plane, "qr-code": QrCode, radio: Radio, refresh: RefreshCw,
   "refresh-cw": RefreshCw, repeat: Repeat2, share: Share2, "share-2": Share2, shield: Shield,
   "shield-check": ShieldCheck, "shopping-bag": ShoppingBag, sparkles: Sparkles, "square-pen": SquarePen, store: Store, tag: Tag,
-  shapes: Shapes, trees: Trees, users: Users, zap: Zap,
+  layers: Layers, palette: Palette, shapes: Shapes, trees: Trees, users: Users, zap: Zap,
 } as const;
 
 export function CategoryIcon({ name, size = 24, imageUrl }: { name?: string | null; size?: number; imageUrl?: string }) {
