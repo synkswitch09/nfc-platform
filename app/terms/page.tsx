@@ -43,12 +43,13 @@ export default async function TermsPage() {
         products={[]}
         categories={[]}
         store={{
+          slug: store.slug,
           displayName: store.displayName,
           currency: store.currency,
           nfcEnabled: hasStoreCapability(store, StoreCapability.NFC),
         }}
         theme={localized.visualTheme.toLowerCase()}
-        breadcrumbs={[{ label: "Home", href: "/" }, { label: localized.name }]}
+        breadcrumbs={store.slug === "kosykin" ? undefined : [{ label: "Home", href: "/" }, { label: localized.name }]}
       /><LegalSellerInformation store={store} /></div>
     );
   }

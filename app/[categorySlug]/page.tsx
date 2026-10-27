@@ -204,7 +204,7 @@ export default async function PublicCategoryPage({
           nfcEnabled: hasStoreCapability(store, StoreCapability.NFC),
         }}
         theme={localized.visualTheme.toLowerCase()}
-        breadcrumbs={[{ label: "Home", href: "/" }, { label: localized.name }]}
+        breadcrumbs={store.slug === "kosykin" && page.kind === "LEGAL" ? undefined : [{ label: "Home", href: "/" }, { label: localized.name }]}
       /></div>
     );
   }
