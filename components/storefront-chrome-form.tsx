@@ -2,6 +2,8 @@
 
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
+import { lucideIconKey } from "@/lib/content-icons";
+import { StorefrontIconSelect } from "@/components/storefront-icon-select";
 import { MediaUploadField } from "@/components/media-upload-field";
 import { storefrontIconSlots } from "@/lib/storefront-icons";
 import {
@@ -219,7 +221,7 @@ export function StorefrontChromeForm({
           onChange={setCompactLogoUrl}
         />}
         {area === "header" && header ? (
-          <><HeaderFields config={header} /><details className="admin-panel"><summary>Storefront icons (all pages)</summary><p>Upload or select an icon for each control. These settings apply across this store. Empty fields use the brand defaults. Section-specific icon uploads take priority. Footer social profile icons can be overridden in Footer.</p>{Object.entries(storefrontIconSlots).map(([slot, label]) => <MediaUploadField key={slot} uploadEndpoint="/api/admin/settings/images" label={label} name={`icon-${slot}`} value={iconUrls[slot] || ''} onChange={value => setIconUrls(current => ({ ...current, [slot]: value }))} />)}</details></>
+          <><HeaderFields config={header} /><details className="admin-panel"><summary>Storefront icons (all pages)</summary><p>Upload or select an icon for each control. These settings apply across this store. Empty fields use the brand defaults. Section-specific icon uploads take priority. Footer social profile icons can be overridden in Footer.</p>{Object.entries(storefrontIconSlots).map(([slot, label]) => <div key={slot}><StorefrontIconSelect label={label} value={iconUrls[slot] || ''} onChange={value => setIconUrls(current => ({ ...current, [slot]: value }))} /><MediaUploadField uploadEndpoint="/api/admin/settings/images" label={`${label} custom upload`} name={`icon-${slot}`} value={lucideIconKey(iconUrls[slot] || '') ? '' : iconUrls[slot] || ''} onChange={value => setIconUrls(current => ({ ...current, [slot]: value }))} /></div>)}</details></>
         ) : footer ? (
           <FooterFields
             config={footer}
@@ -535,7 +537,8 @@ function FooterFields({
               <label className="field">Network name<input name={`socialProfiles-${index}-label`} aria-label={`Network ${index + 1} name`} value={row.label} maxLength={60} required onChange={e => update({ label: e.target.value })} /></label>
               <label className="field">Destination URL<input name={`socialProfiles-${index}-href`} aria-label={`Network ${index + 1} URL`} type="url" value={row.href} onChange={e => update({ href: e.target.value })} /></label>
             </div>
-            <MediaUploadField uploadEndpoint="/api/admin/settings/images" label={`${row.label} icon`} name={`socialProfiles-${index}-iconUrl`} value={row.iconUrl} onChange={iconUrl => update({ iconUrl })} />
+            <StorefrontIconSelect label={`${row.label} icon`} value={row.iconUrl} onChange={iconUrl => update({ iconUrl })} />
+            <MediaUploadField uploadEndpoint="/api/admin/settings/images" label={`${row.label} icon`} name={`socialProfiles-${index}-iconUrl`} value={lucideIconKey(row.iconUrl) ? "" : row.iconUrl} onChange={iconUrl => update({ iconUrl })} />
             <div className="check-row"><label><input type="checkbox" checked={row.visible} onChange={e => update({ visible: e.target.checked })} /> Visible</label>
               <button type="button" className="button secondary" disabled={index === 0} onClick={() => move(-1)}>Move earlier</button>
               <button type="button" className="button secondary" disabled={index === socialProfiles.length - 1} onClick={() => move(1)}>Move later</button>

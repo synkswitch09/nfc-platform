@@ -17,4 +17,6 @@ Original PNG assets exported from the supplied Zeplin Home design on 23 October 
 | facebook-footer.png | solid-brands-facebook@3x.png |
 | clock.png | frame-2@3x.png |
 
-Controls without a verified exported icon retain their functional fallback. Their images can be supplied in CMS Header > Storefront icons. Feature and item uploads take priority over global defaults. Do not infer an unexported Shop or other screen icon from these Home assets.
+These historical exports are retained so existing CMS image references remain valid. Custom uploads take priority over default icons.
+
+Interface defaults now render Lucide React icons directly. Social brand logos remain image assets because this installed Lucide version does not export brand icons. Earlier exports also remain compatible with saved CMS image overrides. The shared Lucide catalog and stable keys live in `lib/content-icons.ts`; its statically imported renderer is `components/content-lucide-icon.tsx`.

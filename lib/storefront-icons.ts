@@ -8,12 +8,12 @@ export const storefrontIconSlots = {
 } as const;
 export type StorefrontIconSlot = keyof typeof storefrontIconSlots;
 export const kosykinIconDefaults: Partial<Record<StorefrontIconSlot, string>> = {
-  cart: '/images/kosykin/icons/cart.png',
-  arrowRight: '/images/kosykin/icons/arrow-right.png',
-  chevronLeft: '/images/kosykin/icons/chevron-left.png', chevronRight: '/images/kosykin/icons/chevron-right.png', chevronDown: '/images/kosykin/icons/chevron-down.png',
-  whyAppearance: '/images/kosykin/icons/why-appearance.png', whyProduction: '/images/kosykin/icons/why-made-to-order.png', whyMaterials: '/images/kosykin/icons/why-materials.png', whyDetail: '/images/kosykin/icons/why-detail.png',
-  instagram: '/images/kosykin/icons/instagram.png', facebook: '/images/kosykin/icons/facebook.png', clock: '/images/kosykin/icons/clock.png',
-  instagramFooter: '/images/kosykin/icons/instagram-footer.png', facebookFooter: '/images/kosykin/icons/facebook-footer.png',
+  cart: 'lucide:shopping-bag', favourites: 'lucide:heart', favourite: 'lucide:heart', favouriteSaved: 'lucide:heart',
+  menu: 'lucide:menu', close: 'lucide:x', filter: 'lucide:sliders-horizontal', arrowRight: 'lucide:arrow-right',
+  chevronLeft: 'lucide:chevron-left', chevronRight: 'lucide:chevron-right', chevronDown: 'lucide:chevron-down', faq: 'lucide:plus',
+  secureCheckout: 'lucide:shield-check', shipping: 'lucide:truck', madeToOrder: 'lucide:package-check',
+  whyAppearance: 'lucide:sparkles', whyProduction: 'lucide:scan-box', whyMaterials: 'lucide:hand-coins', whyDetail: 'lucide:package-check',
+  instagram: '/images/kosykin/icons/instagram.png', facebook: '/images/kosykin/icons/facebook.png', instagramFooter: '/images/kosykin/icons/instagram-footer.png', facebookFooter: '/images/kosykin/icons/facebook-footer.png', clock: 'lucide:clock',
 };
 export function storefrontIconSource(slot: StorefrontIconSlot, overrides: Record<string, string>, kosykin: boolean, imageUrl?: string) {
   return imageUrl || overrides[slot] || (kosykin ? kosykinIconDefaults[slot] : '') || '';

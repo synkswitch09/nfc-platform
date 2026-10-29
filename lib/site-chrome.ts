@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { lucideIconKey } from "@/lib/content-icons";
 import { isSafeImageSource } from "@/lib/image-source";
 import { typographyOverrideSchema } from "@/lib/typography";
 import { storefrontIconSlots } from "@/lib/storefront-icons";
@@ -18,6 +19,7 @@ const optionalImage = z
   .trim()
   .refine(isSafeImageSource)
   .or(z.literal(""));
+const optionalIcon = z.string().trim().refine(value => !value || isSafeImageSource(value) || lucideIconKey(value) !== null, "Select a Lucide icon or a valid uploaded image.");
 const optionalColour = z
   .string()
   .trim()
@@ -47,7 +49,7 @@ const navLinkSchema = z.object({
 });
 
 export const headerConfigSchema = z.object({
-  iconUrls: z.record(z.string(), optionalImage).refine(icons => Object.keys(icons).every(key => Object.hasOwn(storefrontIconSlots, key)), 'Unknown storefront icon').default({}),
+  iconUrls: z.record(z.string(), optionalIcon).refine(icons => Object.keys(icons).every(key => Object.hasOwn(storefrontIconSlots, key)), 'Unknown storefront icon').default({}),
   logoUrl: optionalImage.default(""),
   compactLogoUrl: optionalImage.default(""),
   homeLabel: z.string().trim().min(1).max(40).default("Home"),
@@ -143,7 +145,7 @@ export const footerConfigSchema = z.object({
     id: z.string().uuid(),
     label: z.string().trim().min(1).max(60),
     href: httpsHref.or(z.literal("")),
-    iconUrl: optionalImage.default(""),
+    iconUrl: optionalIcon.default(""),
     visible: z.boolean().default(true),
     order: z.number().int().min(0).max(100).default(0),
   })).max(24).nullable().default(null),
@@ -162,11 +164,11 @@ export const footerConfigSchema = z.object({
   privacyTypography: individualTypography,
   socialIcons: z
     .object({
-      instagram: optionalImage.default(""),
-      tumblr: optionalImage.default(""),
-      facebook: optionalImage.default(""),
-      tiktok: optionalImage.default(""),
-      linkedin: optionalImage.default(""),
+      instagram: optionalIcon.default(""),
+      tumblr: optionalIcon.default(""),
+      facebook: optionalIcon.default(""),
+      tiktok: optionalIcon.default(""),
+      linkedin: optionalIcon.default(""),
     })
     .default({ instagram: "", tumblr: "", facebook: "", tiktok: "", linkedin: "" }),
 });
