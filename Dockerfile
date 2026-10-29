@@ -5,6 +5,7 @@ WORKDIR /app
 RUN apk add --no-cache openssl libc6-compat
 COPY package.json package-lock.json ./
 COPY prisma/schema.prisma ./prisma/schema.prisma
+COPY scripts/generate-lucide-catalog.mjs ./scripts/generate-lucide-catalog.mjs
 RUN npm ci
 
 FROM dependencies AS builder
