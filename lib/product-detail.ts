@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { contentIconKeys } from "@/lib/content-icons";
+import { isContentIconKey } from "@/lib/content-icons";
 import { isSafeImageSource } from "@/lib/image-source";
 
 const text = (max: number) => z.string().trim().max(max);
@@ -16,7 +16,7 @@ export const productDetailSchema = z.object({
   }).prefault({ cartBackground: undefined, cartText: undefined, buyBackground: undefined, buyText: undefined }),
   highlights: z.array(z.object({
     title: text(80).default(""), text: text(240).default(""),
-    icon: z.enum(contentIconKeys).default("sparkles"),
+    icon: z.string().refine(isContentIconKey, "Select a Lucide icon from the list.").default("sparkles"),
     visible: z.boolean().default(true),
   })).max(8).default([]),
   video: z.object({

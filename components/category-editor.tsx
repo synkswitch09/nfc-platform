@@ -208,10 +208,9 @@ export function CategoryEditor({
               required
             />
           </label>
-          <label className="field">
-            Icon key
+          <div className="field"><span>Icon</span>
             <ContentIconSelect name="icon" defaultValue={initial.icon} />
-          </label>
+          </div>
           <label className="field">
             Status
             <select name="status" defaultValue={initial.status}>

@@ -1147,8 +1147,8 @@ function NarrativeFields({
           {features.map((feature, index) => (
             <div className="variant-editor" key={feature.id}>
               <CategoryImageUploadField name={`content.features.${index}.iconUrl`} categoryId={categoryId} uploadEndpoint={mediaUploadEndpoint} label="Feature icon image (overrides icon name)" value={feature.iconUrl ?? ''} onChange={iconUrl => onChange({ features: replace(features, index, { iconUrl }) })} />
-              <label className="field">
-                Icon
+              <div className="field">
+                <span>Icon</span>
                 <ContentIconSelect name={`content.features.${index}.icon`}
                   value={feature.icon}
                   onValueChange={(icon) =>
@@ -1159,7 +1159,7 @@ function NarrativeFields({
                     })
                   }
                 />
-              </label>
+              </div>
               <label className="field">
                 Label
                 <input name={`content.features.${index}.label`}
@@ -1367,13 +1367,13 @@ function ItemsEditor({
             </select>
             <small>Shared Home and Shop collection settings. Categories must be Published with Shop enabled; Home also requires Home enabled in Categories. A hidden collection card hides it from both surfaces. Category order follows Categories.</small>
           </label>}
-          <label className="field">
-            Icon
+          <div className="field">
+            <span>Icon</span>
             <ContentIconSelect name={`content.items.${index}.icon`}
               value={item.icon ?? "sparkles"}
               onValueChange={icon => update(index, { icon })}
             />
-          </label>
+          </div>
           <label className="field">
             Title
             <input name={`content.items.${index}.title`}
