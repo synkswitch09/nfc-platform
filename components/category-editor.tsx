@@ -10,6 +10,7 @@ import type {
   CategoryStep,
   CategoryUseCase,
 } from "@/lib/category-content";
+import { ContentIconSelect } from "@/components/content-icon-select";
 import { CategoryImageUploadField } from "@/components/category-image-upload-field";
 
 export type CategoryEditorInitial = {
@@ -209,11 +210,7 @@ export function CategoryEditor({
           </label>
           <label className="field">
             Icon key
-            <input
-              name="icon"
-              defaultValue={initial.icon}
-              placeholder="shield-check"
-            />
+            <ContentIconSelect name="icon" defaultValue={initial.icon} />
           </label>
           <label className="field">
             Status

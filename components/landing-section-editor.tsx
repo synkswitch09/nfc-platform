@@ -1,4 +1,5 @@
 "use client";
+import { ContentIconSelect } from "@/components/content-icon-select";
 import { useAdminRequest } from "@/components/admin-form-feedback";
 
 import { useEffect, useRef, useState } from "react";
@@ -1148,12 +1149,12 @@ function NarrativeFields({
               <CategoryImageUploadField name={`content.features.${index}.iconUrl`} categoryId={categoryId} uploadEndpoint={mediaUploadEndpoint} label="Feature icon image (overrides icon name)" value={feature.iconUrl ?? ''} onChange={iconUrl => onChange({ features: replace(features, index, { iconUrl }) })} />
               <label className="field">
                 Icon
-                <input name={`content.features.${index}.icon`}
+                <ContentIconSelect name={`content.features.${index}.icon`}
                   value={feature.icon}
-                  onChange={(event) =>
+                  onValueChange={(icon) =>
                     onChange({
                       features: replace(features, index, {
-                        icon: event.target.value,
+                        icon,
                       }),
                     })
                   }
@@ -1368,9 +1369,9 @@ function ItemsEditor({
           </label>}
           <label className="field">
             Icon
-            <input name={`content.items.${index}.icon`}
+            <ContentIconSelect name={`content.items.${index}.icon`}
               value={item.icon ?? "sparkles"}
-              onChange={(event) => update(index, { icon: event.target.value })}
+              onValueChange={icon => update(index, { icon })}
             />
           </label>
           <label className="field">

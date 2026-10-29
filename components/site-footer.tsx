@@ -300,32 +300,12 @@ export function FooterSocialLinks({
             profile.label.toLowerCase() as keyof typeof socialIcons
           ] ?? Globe;
         const imageUrl = profile.iconUrl;
-        const icon = imageUrl ? (
-          <Image
-            className="footer-social-icon-image"
-            src={imageUrl}
-            alt=""
-            width={20}
-            height={20}
-            unoptimized
-          />
-        ) : (
-          <StorefrontIcon
-            name={
-              profile.label.toLowerCase() === "instagram"
-                ? dark
-                  ? "instagram"
-                  : "instagramFooter"
-                : profile.label.toLowerCase() === "facebook"
-                  ? dark
-                    ? "facebook"
-                    : "facebookFooter"
-                  : undefined
-            }
-            size={20}
-            fallback={<Icon size={19} />}
-          />
-        );
+        const icon = <StorefrontIcon
+          name={profile.label.toLowerCase() === "instagram" ? dark ? "instagram" : "instagramFooter" : profile.label.toLowerCase() === "facebook" ? dark ? "facebook" : "facebookFooter" : undefined}
+          imageUrl={imageUrl}
+          size={20}
+          fallback={<Icon size={19} />}
+        />;
         const href = profile.href;
         return href ? (
           <a
