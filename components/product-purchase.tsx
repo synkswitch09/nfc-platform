@@ -1,4 +1,5 @@
 "use client";
+import { StorefrontIcon } from "@/components/storefront-icon";
 import { storefrontMoney } from "@/lib/product-card-price";
 
 import { emitCommerceEvent, sendCommerceEvent } from "@/lib/measurement-client";
@@ -9,7 +10,7 @@ import { parseProductDetail, categoryTextColour } from "@/lib/product-detail";
 import { ProductDetailBlocks } from "@/components/product-detail-blocks";
 import { createElement, FormEvent, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { PackageCheck, Radio, RefreshCw, ShieldCheck, Truck } from "lucide-react";
+import { PackageCheck, Radio, RefreshCw, ShieldCheck, Truck, ShoppingBag } from "lucide-react";
 import { useCart } from "@/components/cart-provider";
 import { keychainPaletteFromOptions } from "@/lib/keychain-order";
 import { KeychainPreview } from "@/components/keychain-preview";
@@ -137,7 +138,7 @@ export function ProductPurchase({ checkoutEnabled, previewOnly = false, productN
         {keychainError && <p className="form-error" role="status">{keychainError}</p>}
         {error && <div className="form-error" role="alert">{error}</div>}
         <div className={isKosykin ? "pdp-purchase-actions" : undefined}>
-        <button name="purchaseAction" value="ADD_TO_CART" style={isKosykin ? { background: presentation.buttons.cartBackground, color: presentation.buttons.cartText } : undefined} className="button purchase-button" disabled={!cart.ready || previewOnly || !checkoutEnabled || soldOut || Boolean(keychainError)}>{previewOnly ? "Preview only · orders closed" : !checkoutEnabled ? "Orders opening soon" : soldOut ? (selectionMatchesVariant ? "Out of stock" : "Unavailable combination") : "Add to cart"}</button>
+        <button name="purchaseAction" value="ADD_TO_CART" style={isKosykin ? { background: presentation.buttons.cartBackground, color: presentation.buttons.cartText } : undefined} className="button purchase-button" disabled={!cart.ready || previewOnly || !checkoutEnabled || soldOut || Boolean(keychainError)}>{isKosykin && <StorefrontIcon name="cart" size={18} fallback={<ShoppingBag size={18} aria-hidden="true" />} />}{previewOnly ? "Preview only · orders closed" : !checkoutEnabled ? "Orders opening soon" : soldOut ? (selectionMatchesVariant ? "Out of stock" : "Unavailable combination") : "Add to cart"}</button>
         {isKosykin && <button type="submit" name="purchaseAction" value="BUY_NOW" className="button pdp-buy-now" style={{ background: presentation.buttons.buyBackground, color: presentation.buttons.buyText }} disabled={!cart.ready || previewOnly || !checkoutEnabled || soldOut || Boolean(keychainError)}>Buy now</button>}
         </div>
         {added && <div className="cart-added" role="status"><strong>Added to your cart</strong><div><button type="button" className="button secondary" onClick={() => setAdded(false)}>Continue shopping</button><Link className="button" href="/checkout">Checkout</Link></div></div>}
