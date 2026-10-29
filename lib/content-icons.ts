@@ -1,98 +1,21 @@
-/** Shared, stable Lucide keys for CMS content and icon overrides. */
-export const contentIconKeys = [
-  "backpack",
-  "badge",
-  "business",
-  "briefcase-business",
-  "badge-help",
-  "building",
-  "bus",
-  "camera",
-  "check",
-  "clock",
-  "compass",
-  "contact",
-  "dog",
-  "eye-off",
-  "hand-helping",
-  "heart",
-  "heart-handshake",
-  "home",
-  "image-pen",
-  "lock",
-  "luggage",
-  "map",
-  "map-pin",
-  "message",
-  "message-circle",
-  "mic-2",
-  "medal",
-  "package",
-  "paw",
-  "phone",
-  "plane",
-  "qr-code",
-  "radio",
-  "refresh",
-  "refresh-cw",
-  "repeat",
-  "share",
-  "share-2",
-  "shield",
-  "shield-check",
-  "shopping-bag",
-  "sparkles",
-  "square-pen",
-  "store",
-  "tag",
-  "layers",
-  "palette",
-  "shapes",
-  "trees",
-  "users",
-  "zap",
-  "feather",
-  "droplets",
-  "droplet",
-  "leaf",
-  "scan-box",
-  "hand-coins",
-  "package-check",
-  "truck",
-  "lock-keyhole",
-  "circle-user-round",
-  "user-round",
-  "sliders-horizontal",
-  "menu",
-  "x",
-  "plus",
-  "minus",
-  "arrow-right",
-  "arrow-up-right",
-  "chevron-left",
-  "chevron-right",
-  "chevron-down",
-  "play",
-  "circle-play",
-  "sparkle",
-  "ruler",
-  "recycle",
-  "printer",
-  "circle-check",
-  "circle-help",
-  "mouse-pointer-click",
-  "move",
-  "weight",
-  "hand",
-  "swatch-book",
-] as const;
+import installedIconNames from "@/lib/lucide-icon-names.json";
+/** Older CMS aliases stay valid; new choices come from the complete installed Lucide registry. */
+export const legacyContentIconKeys = ["business", "paw", "image-pen", "message", "refresh", "share"] as const;
+export const contentIconKeys = [...new Set([...installedIconNames, ...legacyContentIconKeys])].sort() as [string, ...string[]];
+const knownKeys = new Set<string>(contentIconKeys);
 export type ContentIconKey = typeof contentIconKeys[number];
 export function contentIconLabel(key: string) {
   return key.split("-").map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(" ");
 }
+export function filterContentIcons(query: string): string[] {
+  const normalise = (value: string) => value.toLowerCase().replace(/[^a-z0-9]/g, "");
+  const search = normalise(query);
+  return contentIconKeys.filter(key => normalise(key).includes(search));
+}
+export function isContentIconKey(key: string): boolean { return knownKeys.has(key); }
 export function lucideIconSource(key: string): string { return `lucide:${key}`; }
 export function lucideIconKey(source: string): ContentIconKey | null {
   if (!source.startsWith("lucide:")) return null;
   const key = source.slice(7);
-  return contentIconKeys.find(name => name === key) ?? null;
+  return knownKeys.has(key) ? key : null;
 }

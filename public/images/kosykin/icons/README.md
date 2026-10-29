@@ -20,3 +20,5 @@ Original PNG assets exported from the supplied Zeplin Home design on 23 October 
 These historical exports are retained so existing CMS image references remain valid. Custom uploads take priority over default icons.
 
 Interface defaults now render Lucide React icons directly. Social brand logos remain image assets because this installed Lucide version does not export brand icons. Earlier exports also remain compatible with saved CMS image overrides. The shared Lucide catalog and stable keys live in `lib/content-icons.ts`; its statically imported renderer is `components/content-lucide-icon.tsx`.
+
+The full installed Lucide registry is generated into `lib/lucide-icon-names.json` by `scripts/generate-lucide-catalog.mjs` during `postinstall` (or `npm run icons:generate`). CMS pickers search by kebab-case, spaced or React/PascalCase names. Common interface icons are synchronous; other selected icons use Lucide's dynamic loader instead of bundling every glyph eagerly. Legacy CMS aliases remain supported.

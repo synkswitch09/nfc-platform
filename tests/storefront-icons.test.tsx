@@ -9,9 +9,10 @@ import { KosykinHomeSection } from '@/components/kosykin-home-section';
 import { KosykinTrustRow } from '@/components/kosykin-trust-row';
 import { CategoryIcon } from '@/components/category-icon';
 import { ContentIconSelect } from '@/components/content-icon-select';
-import { contentIconKeys, lucideIconKey } from '@/lib/content-icons';
+import { contentIconKeys, lucideIconKey, filterContentIcons } from '@/lib/content-icons';
 import { productDetailSchema } from '@/lib/product-detail';
 import { contentLucideIcons } from '@/components/content-lucide-icon';
+import dynamicIconImports from 'lucide-react/dynamicIconImports.mjs';
 import { existsSync } from 'node:fs';
 
 describe('Storefront icon configuration', () => {
@@ -59,7 +60,7 @@ describe('Storefront icon configuration', () => {
     expect(render('/images/my-icon.png')).toContain('/images/my-icon.png');
     expect(render('/images/my-icon.png')).not.toContain('/images/kosykin');
     expect(productDetailSchema.parse({ highlights: [{ icon: 'palette' }] }).highlights[0].icon).toBe('palette');
-    expect([...contentIconKeys].sort()).toEqual(Object.keys(contentLucideIcons).sort());
+    expect(Object.keys(contentLucideIcons).every(key => contentIconKeys.includes(key))).toBe(true);
     expect(new Set(contentIconKeys).size).toBe(contentIconKeys.length);
   });
   it('offers Lucide icons with previews and preserves legacy category selections', () => {
@@ -84,6 +85,31 @@ describe('Storefront icon configuration', () => {
     const html = renderToStaticMarkup(<StorefrontIcon imageUrl="lucide:feather" fallback={<span>Fallback</span>} />);
     expect(html).toContain('lucide-feather');
     expect(html).not.toContain('<img');
+  });
+
+  it('includes every icon from the installed Lucide package, not a curated subset', () => {
+    const installed = Object.keys(dynamicIconImports);
+    expect(installed.every(key => contentIconKeys.includes(key))).toBe(true);
+    expect(contentIconKeys.length).toBeGreaterThan(2000);
+    for (const key of installed) {
+      expect(lucideIconKey(`lucide:${key}`)).toBe(key);
+      expect(productDetailSchema.safeParse({ highlights: [{ title: 'Benefit', icon: key }] }).success).toBe(true);
+    }
+  });
+  it('finds PascalCase, spaced and kebab-case names and renders both reported missing icons', async () => {
+    expect(filterContentIcons('BrushCleaning')).toContain('brush-cleaning');
+    expect(filterContentIcons('Package Open')).toContain('package-open');
+    expect(filterContentIcons('package-open')).toEqual(['package-open']);
+    expect(filterContentIcons('no-such-icon-xyz')).toEqual([]);
+    for (const key of ['brush-cleaning', 'package-open'] as const) {
+      const html = renderToStaticMarkup(<CategoryIcon name={key} />);
+      expect(html).toContain(`lucide-${key}`);
+      expect(html).not.toContain('lucide-radio');
+    }
+    // An icon outside the synchronous hot-path map still has a valid lazy module.
+    const glyph = await dynamicIconImports['zodiac-virgo']();
+    expect(glyph.__iconData.name).toBe('zodiac-virgo');
+    expect(glyph.__iconData.node.length).toBeGreaterThan(0);
   });
 
 });
