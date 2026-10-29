@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "postinstall": "prisma generate",
+    "postinstall": "prisma generate && node scripts/generate-lucide-catalog.mjs",
     "dev": "next dev",
     "build": "prisma generate && next build",
     "start": "next start",
@@ -17,7 +17,8 @@
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
     "db:seed": "tsx prisma/seed.ts",
-    "print-agent": "node scripts/print-agent.mjs"
+    "print-agent": "node scripts/print-agent.mjs",
+    "icons:generate": "node scripts/generate-lucide-catalog.mjs"
   },
   "dependencies": {
     "@google/model-viewer": "^4.3.1",
