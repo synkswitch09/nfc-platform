@@ -62,8 +62,8 @@ try {
   assert.equal(query.status, 200);
   assert.match(query.body, /Choose the help you need/);
   count++;
-  const flight = await read('/plans', publicHost, { rsc: '1' });
-  assert.equal(flight.status, 200);
+  const flight = await read('/plans?_rsc', publicHost, { rsc: '1' });
+  assert.equal(flight.status, 200, JSON.stringify(flight.headers));
   assert.match(flight.headers['content-type'] || '', /text\/x-component/);
   count++;
   console.log(`${count} assistant/store HTTP checks passed behind simulated HTTPS ingress`);
