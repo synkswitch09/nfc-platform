@@ -105,6 +105,7 @@ async function processEvent(event:Event,leaseToken:string){
 }
 async function failEvent(event:Event,error:unknown,sending:boolean){
  const uncertain=sending&&(!(error instanceof MetaGraphError)||error.uncertain),code=error instanceof MetaGraphError?error.code:0;
+ if(event.connection.provider==="WHATSAPP"&&error instanceof MetaGraphError&&[131042,131031].includes(code))await db.assistantSocialConnection.updateMany({where:{id:event.connectionId},data:{enabled:false,lastError:error.message}});
  await db.assistantSocialEvent.updateMany({where:{id:event.id,status:{in:["GENERATING","READY","SENDING"]}},data:{status:uncertain?"UNCERTAIN":"FAILED",errorCode:uncertain?"CHECK_META_BEFORE_RESENDING":code===190?"RECONNECT_REQUIRED":"HUMAN_REVIEW",leaseUntil:null}});
  if(code===190)await db.assistantSocialConnection.updateMany({where:{id:event.connectionId},data:{status:"REAUTH_REQUIRED",autoMessages:false,autoComments:false,lastError:"Meta access expired or was revoked. Reconnect this account."}});
  await db.assistantConversation.updateMany({where:{socialConnectionId:event.connectionId,externalThreadId:event.kind==="COMMENT"?`comment:${event.targetId}`:`dm:${event.contactId}`},data:{humanOnly:true}});

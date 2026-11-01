@@ -8,7 +8,7 @@ import { assistantUrl } from "../config";
 import { AssistantError } from "../http";
 import { assistantChannelLimit } from "../policy";
 import { candidateSchema,exchangeMetaCode,requiredScopes,verifyAndSubscribe,graph } from "./graph";
-import { openMeta,requireMeta,sealMeta,type SocialProvider } from "./security";
+import { openMeta,requireMeta,requireWhatsApp,sealMeta,type SocialProvider } from "./security";
 import { verifyWhatsAppNumber } from "./whatsapp";
 export const safeConnectionSelect={id:true,provider:true,accountId:true,displayName:true,status:true,enabled:true,tokenExpiresAt:true,autoMessages:true,autoComments:true,lastError:true,connectedAt:true} as const;
 export async function metaSessionHash(){const token=(await cookies()).get(ASSISTANT_COOKIE)?.value;if(!token)throw new AssistantError("Please sign in again.",401);return sha256(token);}
@@ -68,9 +68,10 @@ export async function setSocialEnabled(workspaceId:string,connectionId:string,en
  await db.$transaction(async tx=>{
   await tx.$queryRaw`SELECT id FROM "AssistantWorkspace" WHERE id=${workspaceId}::uuid FOR UPDATE`;
   const connection=await tx.assistantSocialConnection.findFirst({where:{id:connectionId,workspaceId,status:"CONNECTED"}});if(!connection)throw new AssistantError("Reconnect this account before activating it.",409);
+  if(enabled){requireMeta();if(connection.provider==="WHATSAPP")requireWhatsApp();}
   if(enabled&&!connection.autoMessages&&!connection.autoComments)throw new AssistantError("Choose and save at least one reply option before activating this channel.");
   if(enabled&&connection.tokenExpiresAt&&connection.tokenExpiresAt<=new Date())throw new AssistantError("Meta access expired. Reconnect this account.",409);
-  await tx.assistantSocialConnection.update({where:{id:connectionId},data:{enabled}});
+  await tx.assistantSocialConnection.update({where:{id:connectionId},data:{enabled,lastError:enabled?null:connection.lastError}});
   if(!enabled)await tx.assistantSocialEvent.updateMany({where:{connectionId,status:{in:["PENDING","GENERATING","READY"]},kind:{in:["MESSAGE","COMMENT"]}},data:{status:"SKIPPED",errorCode:"CHANNEL_PAUSED",leaseUntil:null}});
  });
 }

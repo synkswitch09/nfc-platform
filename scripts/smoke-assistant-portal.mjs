@@ -41,12 +41,13 @@ try {
   let count = 0;
   for (const [path, status] of [
     ['/', 200], ['/plans', 200], ['/how-it-works', 200], ['/help', 200], ['/help/website', 200],
-    ['/faq', 200], ['/terms', 200], ['/privacy', 200], ['/login', 200], ['/register', 200],
+    ['/help/instagram', 200], ['/help/facebook', 200], ['/help/whatsapp', 200], ['/faq', 200], ['/terms', 200], ['/privacy', 200], ['/login', 200], ['/register', 200],
     ['/account', 307], ['/ai-assistants', 307], ['/assistant-portal/account', 307],
     ['/api/admin/stores', 404], ['/not-a-real-page', 404], ['/robots.txt', 200], ['/assistant-widget.js', 200],
   ]) {
     const result = await read(path);
     assert.equal(result.status, status, `${path}: ${result.body.slice(0, 1000)}`);
+    if(path==='/help/whatsapp'){assert.match(result.body,/Connect WhatsApp/);assert.match(result.body,/six-digit/);assert.match(result.headers['content-security-policy']||'',/https:\/\/connect\.facebook\.net/);}
     if (path === '/') {
       assert.match(result.body, /ai-shell/);
       assert.doesNotMatch(result.body, /data-store="tapkin"/);
@@ -57,6 +58,7 @@ try {
   assert.equal(store.status, 200);
   assert.match(store.body, /data-store="tapkin"/);
   assert.doesNotMatch(store.body, /ai-shell/);
+  assert.doesNotMatch(store.headers['content-security-policy']||'', /connect\.facebook\.net/);
   count++;
   const query = await read('/plans?locale=en-AU');
   assert.equal(query.status, 200);

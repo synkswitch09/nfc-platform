@@ -2,7 +2,9 @@ import { createHmac } from "node:crypto";
 import { z } from "zod";
 import { AssistantError } from "../http";
 import { metaId,requireMeta,type SocialProvider } from "./security";
-export class MetaGraphError extends AssistantError {constructor(readonly code:number,readonly uncertain=false){super(code===190?"Meta access has expired or was revoked. Reconnect this account.":uncertain?"Delivery could not be confirmed. Check Meta before sending again.":"Meta could not complete this action. Check the account permissions or reconnect.",409);}}
+export class MetaGraphError extends AssistantError {
+ constructor(readonly code:number,readonly uncertain=false){super(code===190?"Meta access has expired or was revoked. Reconnect this account.":code===131042?"WhatsApp billing is not ready. Add or update the payment method in Meta WhatsApp Manager.":code===131047?"The WhatsApp 24-hour reply window has closed. Wait for the customer to message again.":code===131031?"Meta has restricted this WhatsApp account. Check WhatsApp Manager before activating replies.":uncertain?"Delivery could not be confirmed. Check Meta before sending again.":"Meta could not complete this action. Check the account permissions or reconnect.",409);}
+}
 const id=z.string().regex(/^\d{1,40}$/);
 export const candidateSchema=z.object({accountId:id,pageId:id,name:z.string().max(300),token:z.string().min(1).max(8192),authorizingUserId:id,scopes:z.array(z.string()).max(100),requiresRegistration:z.boolean().optional(),expiresAt:z.string().datetime().optional()});
 export type MetaCandidate=z.infer<typeof candidateSchema>;
