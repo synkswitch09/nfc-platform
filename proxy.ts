@@ -30,7 +30,9 @@ export async function proxy(request: NextRequest) {
   if (locale) requestHeaders.set("x-store-locale", locale);
   const portalPage = assistantHost && !request.nextUrl.pathname.startsWith("/assistant-portal") && !request.nextUrl.pathname.startsWith("/api/") && !request.nextUrl.pathname.startsWith("/_next/") && !["/robots.txt", "/sitemap.xml", "/favicon.ico", "/assistant-widget.js"].includes(request.nextUrl.pathname);
   const destination = new URL(request.url);
-  destination.host = request.headers.get("host") ?? destination.host;
+  // Keep the internal origin: replacing it with the public Host behind Azure
+  // ingress retains port 3000 and turns this into an external proxy request.
+  // The original Host is preserved in requestHeaders for portal selection.
   destination.pathname = `/assistant-portal${request.nextUrl.pathname === "/" ? "" : request.nextUrl.pathname}`;
   const response = portalPage ? NextResponse.rewrite(destination, { request: { headers: requestHeaders } }) : NextResponse.next({ request: { headers: requestHeaders } });
   if (requestedLocale && locale === requestedLocale) response.cookies.set(localeCookieName, requestedLocale, { path: "/", maxAge: 31_536_000, sameSite: "lax" });
