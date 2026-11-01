@@ -9,3 +9,5 @@ export function assistantAccess(workspace:AccessWorkspace,now=new Date()){
 }
 export function retentionDeadline(end:Date){return new Date(end.getTime()+90*DAY);}
 export function canEditAssistant(user:{id:string;role:string},workspace:{ownerId:string}){return user.role==="ADMIN"||user.id===workspace.ownerId;}
+
+export function assistantChannelLimit(workspace:AccessWorkspace){return workspace.billingExempt?3:workspace.stripeStatus==="active"&&workspace.planKey==="agenda"?2:1;}
