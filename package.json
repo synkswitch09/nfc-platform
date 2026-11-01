@@ -28,6 +28,7 @@
     "lucide-react": "latest",
     "next": "^16.4.2",
     "openid-client": "6.8.1",
+    "parse5": "8.0.0",
     "qrcode": "latest",
     "react": "latest",
     "react-dom": "latest",
