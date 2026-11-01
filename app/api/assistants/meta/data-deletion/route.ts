@@ -1,0 +1,7 @@
+import { createHmac,randomUUID } from "node:crypto";
+import { NextRequest,NextResponse } from "next/server";
+import { metaConfig,secureEqual,signedMetaUser } from "@/lib/assistants/meta/security";
+import { revokeMetaUser } from "@/lib/assistants/meta/revoke";
+import { assistantUrl } from "@/lib/assistants/config";
+export async function POST(request:NextRequest){try{const raw=await request.text();if(raw.length>20000)return new NextResponse(null,{status:413});const userId=signedMetaUser(new URLSearchParams(raw).get("signed_request")||"");await revokeMetaUser(userId);const confirmation_code=randomUUID(),signature=createHmac("sha256",metaConfig().appSecret).update(confirmation_code).digest("base64url");return NextResponse.json({url:assistantUrl(`/api/assistants/meta/data-deletion?code=${confirmation_code}&proof=${signature}`),confirmation_code});}catch{return NextResponse.json({error:"Request could not be processed"},{status:400});}}
+export async function GET(request:NextRequest){const code=request.nextUrl.searchParams.get("code")||"",proof=request.nextUrl.searchParams.get("proof")||"",secret=metaConfig().appSecret;if(!secret||!code||!secureEqual(createHmac("sha256",secret).update(code).digest("base64url"),proof))return new NextResponse("Confirmation not found",{status:404});return new NextResponse("Your Meta account connection and its stored social conversations have been deleted. Business information, billing and other services are unaffected.",{headers:{"content-type":"text/plain; charset=utf-8","cache-control":"no-store"}});}

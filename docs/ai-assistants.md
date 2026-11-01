@@ -6,7 +6,7 @@ This feature runs in the existing Next.js application and PostgreSQL database. I
 
 Public home, plans, connection guides, FAQ and draft terms/privacy; separate host-bound login sessions using the shared user identity; verified email; per-business ownership; draft and published knowledge/instructions; configurable authorized Claude models; website widget, conversations and human takeover; private support inbox; seven-day trial of one website channel with 100 responses and no automatic charge; paid Respond subscription at AUD 49/month with 1,000 responses. Global administrators can grant reasoned billing exemptions to their own businesses and authorize models. The Agenda plan is not available for purchase.
 
-Instagram, Facebook Messenger, comments, calls, external calendars and bookings are not connected in this release. Their interface labels describe future availability. Provider secrets and billing exemptions cannot be changed by customers. Model availability is controlled by a server-owned catalogue (`AI_ASSISTANT_MODELS`), with a provider interface for later adapters. Review model IDs against the provider account before activation.
+Instagram, Facebook Messenger and optional comment replies are implemented through the platform Meta app; see [Meta setup](assistant-meta.md) for credentials, review and production testing. Calls, external calendars and bookings are not connected in this release. Provider secrets and billing exemptions cannot be changed by customers. Model availability is controlled by a server-owned catalogue (`AI_ASSISTANT_MODELS`), with a provider interface for later adapters. Review model IDs against the provider account before activation.
 
 ## Activation checklist
 

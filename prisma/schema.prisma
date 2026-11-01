@@ -2115,6 +2115,8 @@ model AssistantWorkspace {
  conversations AssistantConversation[]
  notices AssistantNotice[]
  supportMessages AssistantSupportMessage[]
+ socialConnections AssistantSocialConnection[]
+ metaFlows AssistantMetaFlow[]
  @@index([ownerId])
  @@unique([ownerId,name])
  @@index([retentionAt])
@@ -2154,6 +2156,10 @@ model AssistantConversation {
  workspaceId String @db.Uuid
  tokenHash String @unique
  channel String @default("WEB")
+ socialConnectionId String? @db.Uuid
+ externalThreadId String?
+ lastCustomerMessageAt DateTime?
+ socialConnection AssistantSocialConnection? @relation(fields:[socialConnectionId],references:[id],onDelete:Cascade)
  humanOnly Boolean @default(false)
  lockedUntil DateTime?
  createdAt DateTime @default(now())
@@ -2161,10 +2167,12 @@ model AssistantConversation {
  workspace AssistantWorkspace @relation(fields:[workspaceId],references:[id],onDelete:Cascade)
  messages AssistantMessage[]
  @@index([workspaceId,updatedAt])
+ @@unique([socialConnectionId,externalThreadId])
 }
 model AssistantMessage {
  id String @id @default(uuid()) @db.Uuid
  conversationId String @db.Uuid
+ externalId String?
  requestId String?
  role String
  text String @db.Text
@@ -2196,4 +2204,72 @@ model AssistantSupportMessage {
  createdAt DateTime @default(now())
  workspace AssistantWorkspace @relation(fields:[workspaceId],references:[id],onDelete:Cascade)
  @@index([workspaceId,createdAt])
+}
+
+// Credentials are encrypted with a dedicated server key; never serialize these
+// models directly into portal client props.
+model AssistantSocialConnection {
+  id                String                  @id @default(uuid()) @db.Uuid
+  workspaceId       String                  @db.Uuid
+  provider          String
+  accountId         String
+  pageId            String
+  displayName       String
+  authorizingUserId String
+  tokenCiphertext   String?                 @db.Text
+  grantedScopes     String[]                @default([])
+  status            String                  @default("CONNECTED")
+  autoMessages      Boolean                 @default(false)
+  autoComments      Boolean                 @default(false)
+  lastError         String?
+  connectedAt       DateTime                @default(now())
+  updatedAt         DateTime                @updatedAt
+  workspace         AssistantWorkspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  conversations     AssistantConversation[]
+  events            AssistantSocialEvent[]
+
+  @@unique([provider, accountId])
+  @@unique([workspaceId, provider])
+  @@index([authorizingUserId])
+}
+
+model AssistantMetaFlow {
+  id                   String             @id @default(uuid()) @db.Uuid
+  workspaceId          String             @db.Uuid
+  userId               String             @db.Uuid
+  sessionHash          String
+  stateHash            String             @unique
+  provider             String
+  withComments         Boolean            @default(false)
+  phase                String             @default("AUTHORIZING")
+  candidatesCiphertext String?            @db.Text
+  expiresAt            DateTime
+  createdAt            DateTime           @default(now())
+  workspace            AssistantWorkspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([expiresAt])
+  @@index([workspaceId, userId])
+}
+
+model AssistantSocialEvent {
+  id              String                    @id @default(uuid()) @db.Uuid
+  connectionId    String                    @db.Uuid
+  eventKey        String
+  kind            String
+  contactId       String
+  targetId        String
+  text            String                    @db.Text
+  occurredAt      DateTime
+  status          String                    @default("PENDING")
+  leaseUntil      DateTime?
+  leaseToken      String?
+  replyText       String?                   @db.Text
+  errorCode       String?
+  externalReplyId String?
+  createdAt       DateTime                  @default(now())
+  updatedAt       DateTime                  @updatedAt
+  connection      AssistantSocialConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+
+  @@unique([connectionId, eventKey])
+  @@index([status, createdAt])
 }

@@ -29,6 +29,10 @@ async function runCycle() {
  try { await cycle(); }
  finally {
   try {
+   const social = await fetch(new URL("/api/assistants/meta/process", origin), { method: "POST", headers: { authorization: `Bearer ${secret}` }, signal: AbortSignal.timeout(100_000), redirect: "error" });
+   if (!social.ok) console.error(`Social recovery worker failed (HTTP ${social.status}).`);
+  } catch { console.error("Social recovery will retry on the next worker cycle."); }
+  try {
    const response = await fetch(new URL("/api/assistants/maintenance", origin), { method: "POST", headers: { authorization: `Bearer ${secret}` }, signal: AbortSignal.timeout(45_000), redirect: "error" });
    if (!response.ok) console.error(`Assistant maintenance failed (HTTP ${response.status}); commerce processing is unaffected.`);
    else console.log(JSON.stringify({ assistantMaintenance: await response.json() }));
