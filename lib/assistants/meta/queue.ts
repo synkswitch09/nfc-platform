@@ -12,14 +12,14 @@ import { MetaGraphError,sendMetaReply } from "./graph";
 import { metaConfig,openMeta } from "./security";
 type Event=Prisma.AssistantSocialEventGetPayload<{include:{connection:{include:{workspace:true}}}}>;
 export function socialCanReply(workspace:AssistantWorkspace,connection:AssistantSocialConnection,conversation:AssistantConversation,kind:string,manual=false){
- const access=assistantAccess(workspace);return assistantConfig().launchEnabled&&metaConfig().ready&&access.active&&Boolean(workspace.knowledgeApprovedAt)&&workspace.channels.includes(connection.provider)&&(access.reason!=="trial"||workspace.trialChannel===connection.provider)&&connection.status==="CONNECTED"&&Boolean(connection.tokenCiphertext)&&(manual||(!conversation.humanOnly&&(kind==="COMMENT"?connection.autoComments:connection.autoMessages)))&&(kind==="COMMENT"||messageWindowOpen(conversation.lastCustomerMessageAt));
+ const access=assistantAccess(workspace);return assistantConfig().launchEnabled&&metaConfig().ready&&access.active&&workspace.channels.length<=access.channels&&Boolean(workspace.knowledgeApprovedAt)&&workspace.channels.includes(connection.provider)&&(access.reason!=="trial"||workspace.trialChannel===connection.provider)&&connection.status==="CONNECTED"&&Boolean(connection.tokenCiphertext)&&(manual||(!conversation.humanOnly&&(kind==="COMMENT"?connection.autoComments:connection.autoMessages)))&&(kind==="COMMENT"||messageWindowOpen(conversation.lastCustomerMessageAt));
 }
 export async function receiveMetaEvents(payload:unknown){
  let received=0;for(const event of parseMetaEvents(payload)){
   const connection=await db.assistantSocialConnection.findUnique({where:{provider_accountId:{provider:event.provider,accountId:event.accountId}}});if(!connection||connection.status!=="CONNECTED"||event.contactId===connection.pageId)continue;
   // Old/replayed notifications are retained for human review, never answered.
   if(!Number.isFinite(event.occurredAt.getTime())||event.occurredAt.getTime()>Date.now()+5*60000)continue;
-  await db.assistantSocialEvent.upsert({where:{connectionId_eventKey:{connectionId:connection.id,eventKey:event.eventKey}},create:{connectionId:connection.id,eventKey:event.eventKey,kind:event.kind,contactId:event.contactId,targetId:event.targetId,text:event.text,occurredAt:event.occurredAt},update:{}});received++;
+  const stored=await db.assistantSocialEvent.createMany({data:[{connectionId:connection.id,eventKey:event.eventKey,kind:event.kind,contactId:event.contactId,targetId:event.targetId,text:event.text,occurredAt:event.occurredAt}],skipDuplicates:true});received+=stored.count;
  }return received;
 }
 async function conversationFor(event:Event){

@@ -2229,7 +2229,7 @@ model AssistantSocialConnection {
   events            AssistantSocialEvent[]
 
   @@unique([provider, accountId])
-  @@unique([workspaceId, provider])
+  @@index([workspaceId, provider])
   @@index([authorizingUserId])
 }
 

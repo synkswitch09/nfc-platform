@@ -73,7 +73,8 @@ CREATE INDEX "AssistantSocialConnection_authorizingUserId_idx" ON "AssistantSoci
 CREATE UNIQUE INDEX "AssistantSocialConnection_provider_accountId_key" ON "AssistantSocialConnection"("provider", "accountId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "AssistantSocialConnection_workspaceId_provider_key" ON "AssistantSocialConnection"("workspaceId", "provider");
+CREATE INDEX "AssistantSocialConnection_workspaceId_provider_idx" ON "AssistantSocialConnection"("workspaceId", "provider");
+CREATE UNIQUE INDEX "AssistantSocialConnection_active_workspace_provider_key" ON "AssistantSocialConnection"("workspaceId", "provider") WHERE "status" IN ('CONNECTED','REAUTH_REQUIRED');
 
 -- CreateIndex
 CREATE UNIQUE INDEX "AssistantMetaFlow_stateHash_key" ON "AssistantMetaFlow"("stateHash");
