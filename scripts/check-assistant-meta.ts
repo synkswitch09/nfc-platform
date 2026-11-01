@@ -31,6 +31,11 @@ async function main(){
   mode="ok";await receiveMetaEvents(incoming("old","10001","20004"));await db.assistantSocialEvent.updateMany({where:{eventKey:"message:old"},data:{occurredAt:new Date(Date.now()-25*3600000)}});await processMetaQueue();assert.equal(sends,attempted);
   await receiveMetaEvents(incoming("photo","10001","20005",{attachments:[{type:"image"}]}));await processMetaQueue();assert.equal(sends,attempted);assert.equal((await db.assistantConversation.findFirstOrThrow({where:{socialConnectionId:connectionId,externalThreadId:"dm:20005"}})).humanOnly,true);
   await receiveMetaEvents(incoming("refund","10001","20006",{text:"I need a refund"}));await processMetaQueue();assert.equal(sends,attempted);
+  // A confirmed outbound comment must never be answered again, even when
+  // Meta supplies a differently-scoped actor ID.
+  await db.assistantSocialConnection.update({where:{id:connectionId},data:{autoComments:true}});
+  await db.assistantSocialEvent.create({data:{connectionId,eventKey:"sent-comment",kind:"COMMENT",contactId:"20009",targetId:"99900",text:"Original",occurredAt:new Date(),status:"SENT",externalReplyId:"99901"}});
+  await receiveMetaEvents({object:"instagram",entry:[{id:"10001",time:Math.floor(Date.now()/1000),changes:[{field:"comments",value:{id:"99901",from:{id:"88888"},text:"Our own reply"}}]}]});await processMetaQueue();assert.equal(sends,attempted);assert.equal(modelCalls,generated);
   // The quota is shared across web/social and enforced atomically by the existing service.
   const period=new Date().toISOString().slice(0,7);await db.assistantUsage.updateMany({where:{workspaceId:a.id,period},data:{responses:10000}});await receiveMetaEvents(incoming("quota","10001","20007"));await processMetaQueue();assert.equal(modelCalls,generated);assert.equal(sends,attempted);
   // Durable SENDING fences cannot be replayed after a worker crash.

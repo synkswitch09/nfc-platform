@@ -40,6 +40,9 @@ async function lockDelivery(tx:Prisma.TransactionClient,workspaceId:string,conne
  return {workspace:await tx.assistantWorkspace.findUniqueOrThrow({where:{id:workspaceId}}),connection:await tx.assistantSocialConnection.findUniqueOrThrow({where:{id:connectionId}}),conversation:await tx.assistantConversation.findUniqueOrThrow({where:{id:conversationId}})};
 }
 async function processEvent(event:Event,leaseToken:string){
+ // Identity can be scoped differently across Meta surfaces. Also recognise
+ // our confirmed outbound comment IDs instead of relying only on actor IDs.
+ if(event.kind==="COMMENT"&&((await db.assistantSocialEvent.count({where:{connectionId:event.connectionId,externalReplyId:event.targetId}}))||(await db.assistantMessage.count({where:{externalId:event.targetId,conversation:{socialConnectionId:event.connectionId}}})))){await db.assistantSocialEvent.update({where:{id:event.id},data:{status:"SKIPPED",errorCode:"OWN_COMMENT",leaseUntil:null}});return;}
  const conversation=await conversationFor(event);
  if(event.kind==="ECHO"){
   await db.$transaction(async tx=>{await tx.$queryRaw`SELECT id FROM "AssistantConversation" WHERE id=${conversation.id}::uuid FOR UPDATE`;const external=event.eventKey.slice("message:".length);const ours=await tx.assistantSocialEvent.count({where:{connectionId:event.connectionId,externalReplyId:external}});const manual=await tx.assistantMessage.count({where:{conversationId:conversation.id,externalId:external}});if(!ours&&!manual){await tx.assistantConversation.update({where:{id:conversation.id},data:{humanOnly:true}});await tx.assistantMessage.upsert({where:{conversationId_requestId:{conversationId:conversation.id,requestId:event.eventKey}},create:{conversationId:conversation.id,requestId:event.eventKey,role:"ASSISTANT",text:event.text},update:{}});}});await db.assistantSocialEvent.update({where:{id:event.id},data:{status:"SKIPPED",errorCode:"ECHO",leaseUntil:null}});return;
