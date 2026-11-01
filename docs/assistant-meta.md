@@ -56,7 +56,7 @@ Request/review only capabilities you intend to enable. Review the current permis
 3. Sign in on Meta and approve access to the desired assets. Back in the portal, select the authorised account to link to this business.
 4. Instagram must be a Business/Creator account linked to a Facebook Page the user manages. Enable **Allow access to messages** under Instagram's Message controls → Connected tools.
 5. Review the selected account. Automatic messages/comments are both **off by default**. Enable the desired switches and save reply preferences.
-6. Start the trial for that channel or activate the service. The trial is one channel; paid plans enforce their channel allowance; internal exempt businesses allow WEB + Instagram + Facebook. Disable website chat before adding a social channel on a one-channel plan. Authorisation alone never starts billing or the trial.
+6. Start the trial for that channel or activate the service. The trial is one channel; paid plans enforce their channel allowance; internal exempt businesses allow WEB + Instagram + Facebook + WhatsApp + WhatsApp. Disable website chat before adding a social channel on a one-channel plan. Authorisation alone never starts billing or the trial.
 
 ## Delivery and operation
 
@@ -89,3 +89,5 @@ After GitHub checks and the controlled database migration succeed:
 - [Page subscribed apps](https://developers.facebook.com/docs/graph-api/reference/page/subscribed_apps/)
 - [Page feed payload reference](https://developers.facebook.com/docs/graph-api/webhooks/reference/page/)
 - [Meta's Messenger API collection: permissions and messaging window](https://www.postman.com/meta/messenger-platform-api/documentation/iyp204x/messenger-platform-api)
+
+WhatsApp Cloud API and explicit per-channel Activate/Pause buttons are covered in [WhatsApp setup](assistant-whatsapp.md). New connections start paused; existing IG/FB settings are preserved by the migration.

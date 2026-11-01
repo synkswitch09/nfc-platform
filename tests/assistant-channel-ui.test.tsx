@@ -1,0 +1,8 @@
+import { createElement } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
+import { expect,it,vi } from 'vitest';
+vi.mock('next/navigation',()=>({useRouter:()=>({refresh:vi.fn()})}));
+import { AssistantSocialConnections } from '@/components/assistants/social-connections';
+const connection=(provider:string,enabled:boolean)=>({id:provider,provider,accountId:'123',displayName:provider,status:'CONNECTED',enabled,tokenExpiresAt:null,autoMessages:true,autoComments:false,lastError:null,connectedAt:new Date()});
+it('renders independent controls for all three channels and no comments option for WhatsApp',()=>{const html=renderToStaticMarkup(createElement(AssistantSocialConnections,{workspaceId:'business',connections:[connection('INSTAGRAM',true),connection('FACEBOOK',false),connection('WHATSAPP',true)],choices:null,ready:true,whatsAppReady:true,issues:[]}));expect((html.match(/Pause channel/g)||[])).toHaveLength(2);expect((html.match(/Activate channel/g)||[])).toHaveLength(1);expect((html.match(/name="autoComments"/g)||[])).toHaveLength(2);expect((html.match(/name="autoMessages"/g)||[])).toHaveLength(3);expect(html).toContain('Reconnect WhatsApp');expect(html).not.toContain('sdk.js');});
+it('asks for a registration PIN only when Meta reports registration is required',()=>{const html=renderToStaticMarkup(createElement(AssistantSocialConnections,{workspaceId:'business',connections:[],choices:{id:'flow',provider:'WHATSAPP',choices:[{id:'123',name:'Business number',requiresRegistration:true}]},ready:true,whatsAppReady:true,issues:[]}));expect(html).toContain('name="pin"');expect(html).toContain('type="password"');expect(html).toContain('Use this number');});

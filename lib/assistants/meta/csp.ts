@@ -1,0 +1,3 @@
+// Permit the explicit Meta signup SDK only on the assistant host. Storefront
+// scripts and consent rules retain their existing policy.
+export function assistantMetaCsp(){const evalPolicy=process.env.NODE_ENV==="production"?"":" 'unsafe-eval'";return `default-src 'self'; img-src 'self' data: https:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'${evalPolicy} https://connect.facebook.net; connect-src 'self' https://graph.facebook.com https://www.facebook.com; frame-src 'self' https://www.facebook.com https://web.facebook.com https://business.facebook.com https://checkout.stripe.com; object-src 'none'; base-uri 'self'; form-action 'self' https://www.facebook.com https://business.facebook.com https://checkout.stripe.com; frame-ancestors 'none'`;}

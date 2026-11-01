@@ -41,6 +41,8 @@ jobs:
         run: node --import tsx scripts/check-store-experience.ts
       - name: Verify Meta delivery and isolation in disposable database
         run: node --import tsx scripts/check-assistant-meta.ts
+      - name: Verify WhatsApp and independent channel controls
+        run: node --import tsx scripts/check-assistant-whatsapp.ts
       - name: Validate environment worker provisioning
         run: python3 -m unittest discover -s tests -p test_*.py
       - run: npm run lint

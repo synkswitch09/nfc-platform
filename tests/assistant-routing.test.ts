@@ -54,3 +54,10 @@ describe('assistant routing behind Azure ingress', () => {
     expect((await proxy(ingressRequest('/api/admin/stores'))).status).toBe(404);
   });
 });
+
+it('allows the explicit Meta signup SDK only on the assistant host',async()=>{
+ const portal=await proxy(ingressRequest('/account'));
+ expect(portal.headers.get('content-security-policy')).toContain('https://connect.facebook.net');
+ const store=await proxy(new NextRequest('http://localhost:3000/shop',{headers:{host:'kosykin.com.au'}}));
+ expect(store.headers.get('content-security-policy')).toBeNull();
+});
