@@ -51,6 +51,7 @@ const runtimeConfigSchema = z.object({
   }, z.record(z.string().regex(/^[a-z0-9-]+$/), z.object({ apiKey: z.string().trim().min(1) }).strict())),
   EMAIL_TEST_OUTBOX_PATH: optionalString,
   STRIPE_SECRET_KEY: optionalString,
+  AI_ASSISTANTS_STRIPE_RESPOND_PRICE: optionalString,
   STRIPE_WEBHOOK_SECRET: optionalString,
   CHECKOUT_RECONCILE_SECRET: z.preprocess(blankToUndefined, z.string().min(32).optional()),
   NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: optionalString,
@@ -152,10 +153,10 @@ const runtimeConfigSchema = z.object({
       if (value.STRIPE_SECRET_KEY || value.STRIPE_WEBHOOK_SECRET || value.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY) issue("STRIPE_SECRET_KEY", "Preview mode must not have Stripe credentials");
       if (value.EMAIL_MODE !== "mock" || value.EMAIL_WEBHOOK_URL || value.EMAIL_WEBHOOK_SECRET) issue("EMAIL_MODE", "Preview mode must not deliver email");
     } else {
-      if (value.PRODUCTION_CHECKOUT_ENABLED) {
-        if (!value.STRIPE_SECRET_KEY?.startsWith("sk_live_")) issue("STRIPE_SECRET_KEY", "Production checkout requires a Stripe live secret key");
-        if (!value.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY?.startsWith("pk_live_")) issue("NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY", "Production checkout requires a Stripe live publishable key");
-        if (!value.STRIPE_WEBHOOK_SECRET?.startsWith("whsec_")) issue("STRIPE_WEBHOOK_SECRET", "Production checkout requires its own Stripe webhook secret");
+      if (value.PRODUCTION_CHECKOUT_ENABLED || value.AI_ASSISTANTS_STRIPE_RESPOND_PRICE) {
+        if (!value.STRIPE_SECRET_KEY?.startsWith("sk_live_")) issue("STRIPE_SECRET_KEY", "Production payments require a Stripe live secret key");
+        if (!value.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY?.startsWith("pk_live_")) issue("NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY", "Production payments require a Stripe live publishable key");
+        if (!value.STRIPE_WEBHOOK_SECRET?.startsWith("whsec_")) issue("STRIPE_WEBHOOK_SECRET", "Production payments require its own Stripe webhook secret");
       } else if (value.STRIPE_SECRET_KEY || value.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || value.STRIPE_WEBHOOK_SECRET) {
         issue("STRIPE_SECRET_KEY", "Production checkout is disabled; leave Stripe credentials unset");
       }

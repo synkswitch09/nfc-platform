@@ -1,3 +1,5 @@
+import Link from "next/link";
+import { assistantConfig, assistantUrl } from "@/lib/assistants/config";
 import { notFound } from "next/navigation";
 import { Building2, CircleDollarSign, PackageCheck, ShoppingBag, Users } from "lucide-react";
 import { requireAdminPageContext } from "@/lib/admin";
@@ -20,7 +22,7 @@ export default async function PlatformAdminPage() {
   const totalOrders = orders.reduce((sum, row) => sum + row._count._all, 0);
   const formatMoney = (value: number, currency: string) => new Intl.NumberFormat("en-AU", { style: "currency", currency, maximumFractionDigits: 0 }).format(value / 100);
   return <div>
-    <div className="admin-heading"><div><p className="admin-kicker">All stores</p><h1>Platform overview</h1><p>Read-only commerce totals across the shared platform.</p></div></div>
+    <div className="admin-heading"><div><p className="admin-kicker">All stores</p><h1>Platform overview</h1><p>Read-only commerce totals across the shared platform.</p><Link className="button secondary" href={assistantUrl("/ai-assistants", assistantConfig())}>Manage AI assistants</Link></div></div>
     <div className="metric-grid"><article className="metric-card"><span><Building2 size={18} /></span><strong>{stores.length}</strong><p>Stores</p></article><article className="metric-card"><span><CircleDollarSign size={18} /></span><strong>{totalRevenue === null ? "Mixed currencies" : formatMoney(totalRevenue, stores[0]?.currency ?? "AUD")}</strong><p>Revenue</p></article><article className="metric-card"><span><ShoppingBag size={18} /></span><strong>{totalOrders}</strong><p>Paid orders</p></article></div>
     <section className="admin-panel flush"><div className="admin-table platform-table"><div className="admin-tr admin-th"><span>Store</span><span>Revenue</span><span>Orders</span><span>Products</span><span>Customers</span></div>{stores.map(store => { const storeOrders = orderMap.get(store.id); return <div className="admin-tr" key={store.id}><span><strong>{store.displayName}</strong><small>{store.status}</small></span><span>{formatMoney(storeOrders?._sum.totalCents ?? 0, store.currency)}</span><span><ShoppingBag size={14} /> {storeOrders?._count._all ?? 0}</span><span><PackageCheck size={14} /> {productMap.get(store.id) ?? 0}</span><span><Users size={14} /> {customerMap.get(store.id) ?? 0}</span></div>; })}</div></section>
   </div>;

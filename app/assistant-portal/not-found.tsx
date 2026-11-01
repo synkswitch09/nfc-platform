@@ -1,0 +1,2 @@
+import Link from "next/link";
+export default function AssistantNotFound(){return <section className="ai-card ai-prose"><p className="ai-eyebrow">Page not found</p><h1>Let's get you back.</h1><p>This address may have changed or the page may be private.</p><div className="ai-actions"><Link className="ai-button" href="/">Go to home</Link><Link className="ai-button ai-secondary" href="/help">Open help</Link></div></section>;}

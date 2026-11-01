@@ -1,3 +1,5 @@
+import { headers } from "next/headers";
+import { assistantConfig, isAssistantHost } from "@/lib/assistants/config";
 import type { MetadataRoute } from "next";
 import { db } from "@/lib/db";
 import { getRuntimeConfig, searchEnginePolicy } from "@/lib/config";
@@ -9,6 +11,7 @@ import { canonicalForStore } from "@/lib/seo";
 export const dynamic = "force-dynamic";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  if(isAssistantHost((await headers()).get("host"))) { const ai=assistantConfig(); return ai.launchEnabled && process.env.APP_ENV === "production" ? ["/", "/plans", "/how-it-works", "/faq", "/help", "/terms", "/privacy"].map(path => ({url: `${ai.origin}${path}`})) : []; }
   const config = getRuntimeConfig();
   const store = await getCurrentStorefront();
   if (store.status !== StoreStatus.ACTIVE || !searchEnginePolicy(config.appEnv, config.previewMode).index) return [];

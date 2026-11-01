@@ -8,7 +8,7 @@ def validate_production_checkout(values):
     if values.get("PRODUCTION_PREVIEW_MODE", "false") != "false":
         raise RuntimeError("Official production deployment requires PRODUCTION_PREVIEW_MODE=false")
     required = {"STRIPE_SECRET_KEY": "sk_live_", "NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY": "pk_live_", "STRIPE_WEBHOOK_SECRET": "whsec_"}
-    if enabled == "true":
+    if enabled == "true" or values.get("AI_ASSISTANTS_STRIPE_RESPOND_PRICE"):
         invalid = [name for name, prefix in required.items() if not str(values.get(name) or "").startswith(prefix)]
         if invalid:
             raise RuntimeError("Production checkout configuration missing or invalid: " + ", ".join(invalid))

@@ -1,3 +1,4 @@
+vi.mock("next/headers", () => ({ headers: async () => new Headers({host: "tapkin.com.au"}) }));
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({ products: vi.fn(), categories: vi.fn(), pages: vi.fn(), storeSlug: "tapkin" }));
