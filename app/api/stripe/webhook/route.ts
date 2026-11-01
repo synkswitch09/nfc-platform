@@ -33,6 +33,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ received: true, ignored: true });
   }
   const session = event.data.object as Stripe.Checkout.Session;
+  // Assistant subscriptions use the same Stripe account but are not retail orders.
+  if (session.mode === "subscription" && session.metadata?.service === "assistants") return NextResponse.json({ received: true, ignored: true, service: "assistants" });
   const orderId = session.metadata?.orderId;
   const storeId = session.metadata?.storeId;
   if (!orderId || !storeId) {

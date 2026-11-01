@@ -45,6 +45,8 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
+      - name: Verify assistant and store host separation
+        run: npm run test:assistant-http
       - name: Build production runtime image
         run: docker build --target runner --tag tapkin:${{ github.sha }} .
       - name: Build controlled migration image

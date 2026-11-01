@@ -1,0 +1,18 @@
+import { it,expect,vi,beforeEach } from 'vitest';
+import { NextRequest } from 'next/server';
+const mocks=vi.hoisted(()=>({user:vi.fn(),find:vi.fn(),update:vi.fn(),provider:vi.fn(),reserve:vi.fn(),usage:vi.fn()}));
+vi.mock('@/lib/assistants/auth',()=>({assistantUser:mocks.user}));
+vi.mock('@/lib/db',()=>({db:{assistantWorkspace:{findUnique:mocks.find,update:mocks.update},assistantUsage:{upsert:mocks.usage,updateMany:mocks.reserve}}}));
+vi.mock('@/lib/assistants/providers',()=>({getAssistantProvider:()=>({reply:mocks.provider})}));
+import { assistantWrite,ownedWorkspace } from '@/lib/assistants/http';
+import { assistantReply } from '@/lib/assistants/replies';
+import { POST } from '@/app/api/assistants/workspaces/[id]/[action]/route';
+const id='916cad1a-07b8-4fa8-9315-7c1ef1fd88ae';
+const workspace={id,ownerId:'owner',name:'Brand',modelKey:'claude-sonnet',allowedModelKeys:['claude-sonnet'],billingExempt:false,stripeStatus:null,paidThrough:null,trialEndsAt:null,trialChannel:null,planKey:'respond',pausedAt:null,knowledgeApprovedAt:new Date()};
+beforeEach(()=>{vi.clearAllMocks();vi.stubEnv('ANTHROPIC_API_KEY','test');mocks.user.mockResolvedValue({id:'owner',role:'USER',emailVerifiedAt:new Date()});mocks.find.mockResolvedValue(workspace);mocks.usage.mockResolvedValue({id:'usage'});});
+it('rejects a foreign origin before lookup',()=>{expect(()=>assistantWrite(new NextRequest('https://admin.tapkin.com.au/api/assistants/workspaces',{method:'POST',headers:{host:'admin.tapkin.com.au',origin:'https://evil.example'}}))).toThrow('origin');expect(mocks.find).not.toHaveBeenCalled();});
+it('hides a different owners business',async()=>{mocks.user.mockResolvedValue({id:'other',role:'USER',emailVerifiedAt:new Date()});await expect(ownedWorkspace(id)).rejects.toThrow('not found');});
+it('does not give store staff platform privileges',async()=>{mocks.user.mockResolvedValue({id:'owner',role:'STORE_ADMIN',emailVerifiedAt:new Date()});const r=await POST(new NextRequest('https://admin.tapkin.com.au/api/assistants/workspaces/'+id+'/admin',{method:'POST',headers:{host:'admin.tapkin.com.au',origin:'https://admin.tapkin.com.au','content-type':'application/json'},body:JSON.stringify({billingExempt:true,billingExemptReason:'free',allowedModelKeys:['claude-sonnet'],paused:false})}),{params:Promise.resolve({id,action:'admin'})});expect(r.status).toBe(403);expect(mocks.update).not.toHaveBeenCalled();});
+it('rejects injected billing flags in customer settings',async()=>{const r=await POST(new NextRequest('https://admin.tapkin.com.au/api/assistants/workspaces/'+id+'/settings',{method:'POST',headers:{host:'admin.tapkin.com.au',origin:'https://admin.tapkin.com.au','content-type':'application/json'},body:JSON.stringify({name:'Brand',modelKey:'claude-sonnet',masterPrompt:'',businessKnowledge:'',allowedOrigins:[],webEnabled:false,responseToComments:false,billingExempt:true})}),{params:Promise.resolve({id,action:'settings'})});expect(r.status).toBe(400);expect(mocks.update).not.toHaveBeenCalled();});
+it('never calls the model for inactive access',async()=>{await expect(assistantReply(workspace as never,[{role:'user',content:'Hi'}])).rejects.toThrow('paused');expect(mocks.provider).not.toHaveBeenCalled();expect(mocks.reserve).not.toHaveBeenCalled();});
+it('never calls the model after quota exhaustion',async()=>{mocks.reserve.mockResolvedValue({count:0});await expect(assistantReply({...workspace,billingExempt:true} as never,[{role:'user',content:'Hi'}])).rejects.toThrow('included usage');expect(mocks.provider).not.toHaveBeenCalled();});

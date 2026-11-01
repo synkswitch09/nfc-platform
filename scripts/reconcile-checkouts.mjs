@@ -25,10 +25,20 @@ async function cycle() {
  if (operationsFailed) throw new Error("Order operations failed; checkout reconciliation completed");
 }
 
+async function runCycle() {
+ try { await cycle(); }
+ finally {
+  try {
+   const response = await fetch(new URL("/api/assistants/maintenance", origin), { method: "POST", headers: { authorization: `Bearer ${secret}` }, signal: AbortSignal.timeout(45_000), redirect: "error" });
+   if (!response.ok) console.error(`Assistant maintenance failed (HTTP ${response.status}); commerce processing is unaffected.`);
+   else console.log(JSON.stringify({ assistantMaintenance: await response.json() }));
+  } catch { console.error("Assistant maintenance could not finish; it will retry on the next worker cycle."); }
+ }
+}
 if (process.argv.includes("--watch")) {
   while (true) {
-    try { await cycle(); }
+    try { await runCycle(); }
     catch { console.error("Checkout reconciliation failed; retrying in five minutes. Inspect application logs."); }
     await new Promise(resolve => setTimeout(resolve, 5 * 60_000));
   }
-} else await cycle();
+} else await runCycle();

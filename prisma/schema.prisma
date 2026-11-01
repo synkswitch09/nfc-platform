@@ -315,6 +315,10 @@ model User {
   emailVerifiedAt           DateTime?
   createdAt                 DateTime             @default(now())
   updatedAt                 DateTime             @updatedAt
+  assistantWorkspaces       AssistantWorkspace[]
+  assistantSessions         AssistantSession[]
+  assistantAuthTokens       AssistantAuthToken[]
+  assistantTrialUsedAt       DateTime?
   loyaltyWallets            LoyaltyWallet[]
   customerAccountData       CustomerAccountData[]
   teamInvitations           TeamInvitation[]
@@ -2068,4 +2072,128 @@ model LoyaltyEntry {
   order Order? @relation(fields: [orderId], references: [id], onDelete: SetNull)
   @@unique([walletId, eventKey])
   @@index([walletId, createdAt])
+}
+
+model AssistantWorkspace {
+ id String @id @default(uuid()) @db.Uuid
+ ownerId String @db.Uuid
+ name String
+ modelKey String @default("claude-sonnet")
+ allowedModelKeys String[] @default(["claude-sonnet", "claude-haiku"])
+ masterPrompt String @default("") @db.Text
+ businessKnowledge String @default("") @db.Text
+ publishedPrompt String @default("") @db.Text
+ publishedKnowledge String @default("") @db.Text
+ lastStripeSyncedAt DateTime?
+ knowledgeApprovedAt DateTime?
+ billingExempt Boolean @default(false)
+ billingExemptReason String?
+ planKey String @default("respond")
+ trialStartedAt DateTime?
+ trialEndsAt DateTime?
+ trialChannel String?
+ stripeCustomerId String? @unique
+ stripeSubscriptionId String? @unique
+ stripeStatus String?
+ paidThrough DateTime?
+ cancelAtPeriodEnd Boolean @default(false)
+ checkoutAttemptId String?
+ checkoutAttemptAt DateTime?
+ checkoutSessionId String?
+ checkoutLockUntil DateTime?
+ pausedAt DateTime?
+ retentionAt DateTime?
+ finalNoticeAt DateTime?
+ widgetKey String @unique @default(uuid())
+ allowedOrigins String[] @default([])
+ channels String[] @default([])
+ responseToComments Boolean @default(false)
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ owner User @relation(fields:[ownerId],references:[id],onDelete:Restrict)
+ usage AssistantUsage[]
+ conversations AssistantConversation[]
+ notices AssistantNotice[]
+ supportMessages AssistantSupportMessage[]
+ @@index([ownerId])
+ @@unique([ownerId,name])
+ @@index([retentionAt])
+}
+model AssistantSession {
+ id String @id @default(uuid()) @db.Uuid
+ tokenHash String @unique
+ userId String @db.Uuid
+ origin String
+ expiresAt DateTime
+ createdAt DateTime @default(now())
+ user User @relation(fields:[userId],references:[id],onDelete:Cascade)
+ @@index([expiresAt])
+}
+model AssistantAuthToken {
+ id String @id @default(uuid()) @db.Uuid
+ tokenHash String @unique
+ userId String @db.Uuid
+ purpose String
+ expiresAt DateTime
+ createdAt DateTime @default(now())
+ user User @relation(fields:[userId],references:[id],onDelete:Cascade)
+ @@index([expiresAt])
+}
+model AssistantUsage {
+ id String @id @default(uuid()) @db.Uuid
+ workspaceId String @db.Uuid
+ period String
+ responses Int @default(0)
+ inputTokens Int @default(0)
+ outputTokens Int @default(0)
+ workspace AssistantWorkspace @relation(fields:[workspaceId],references:[id],onDelete:Cascade)
+ @@unique([workspaceId,period])
+}
+model AssistantConversation {
+ id String @id @default(uuid()) @db.Uuid
+ workspaceId String @db.Uuid
+ tokenHash String @unique
+ channel String @default("WEB")
+ humanOnly Boolean @default(false)
+ lockedUntil DateTime?
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ workspace AssistantWorkspace @relation(fields:[workspaceId],references:[id],onDelete:Cascade)
+ messages AssistantMessage[]
+ @@index([workspaceId,updatedAt])
+}
+model AssistantMessage {
+ id String @id @default(uuid()) @db.Uuid
+ conversationId String @db.Uuid
+ requestId String?
+ role String
+ text String @db.Text
+ status String @default("COMPLETE")
+ createdAt DateTime @default(now())
+ conversation AssistantConversation @relation(fields:[conversationId],references:[id],onDelete:Cascade)
+ @@unique([conversationId,requestId])
+ @@index([conversationId,createdAt])
+}
+model AssistantNotice {
+ id String @id @default(uuid()) @db.Uuid
+ workspaceId String @db.Uuid
+ noticeKey String
+ subject String
+ text String @db.Text
+ sentAt DateTime?
+ leaseUntil DateTime?
+ leaseToken String?
+ attempts Int @default(0)
+ createdAt DateTime @default(now())
+ workspace AssistantWorkspace @relation(fields:[workspaceId],references:[id],onDelete:Cascade)
+ @@unique([workspaceId,noticeKey])
+}
+model AssistantSupportMessage {
+ id String @id @default(uuid()) @db.Uuid
+ workspaceId String @db.Uuid
+ role String
+ text String @db.Text
+ createdAt DateTime @default(now())
+ workspace AssistantWorkspace @relation(fields:[workspaceId],references:[id],onDelete:Cascade)
+ @@index([workspaceId,createdAt])
 }

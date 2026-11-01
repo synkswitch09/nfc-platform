@@ -1,0 +1,30 @@
+import { describe,it,expect,vi,afterEach } from 'vitest';
+import { assistantConfig,assistantUrl,cleanOrigin,isAssistantHost,permittedModels } from '@/lib/assistants/config';
+import { assistantAccess,retentionDeadline,canEditAssistant,DAY } from '@/lib/assistants/policy';
+import { anthropicProvider } from '@/lib/assistants/providers';
+const now=new Date('2026-11-01T00:00:00Z');
+const base={billingExempt:false,stripeStatus:null,paidThrough:null,trialEndsAt:null,trialChannel:null,planKey:'respond',pausedAt:null};
+afterEach(()=>vi.unstubAllEnvs());
+describe('assistant boundaries',()=>{
+ it.each(['http://example.com','https://example.com/path','https://user:pass@example.com','https://example.com/?a=1','https://example.com/#a'])('rejects unsafe origin %s',v=>expect(()=>cleanOrigin(v)).toThrow());
+ it('allows local development only',()=>{expect(cleanOrigin('http://localhost:3100',true)).toBe('http://localhost:3100');expect(()=>cleanOrigin('http://localhost:3100')).toThrow();});
+ it.each(['//evil.example','/\\evil.example','/\nredirect'])('rejects external redirect %s',v=>expect(()=>assistantUrl(v)).toThrow());
+ it('matches exact host and port',()=>{expect(isAssistantHost('admin.tapkin.com.au')).toBe(true);expect(isAssistantHost('admin.tapkin.com.au.evil.test')).toBe(false);expect(isAssistantHost('admin.tapkin.com.au:444')).toBe(false);});
+ it('fails closed for malformed model configuration',()=>{expect(()=>assistantConfig({AI_ASSISTANT_MODELS:'oops'})).toThrow();expect(()=>assistantConfig({AI_ASSISTANT_MODELS:'[]'})).toThrow();});
+ it('shows no unconnected models',()=>expect(permittedModels(['claude-sonnet'],assistantConfig({}))).toEqual([]));
+ it('limits models to administrator allowance',()=>expect(permittedModels(['claude-haiku'],assistantConfig({ANTHROPIC_API_KEY:'test'})).map(m=>m.key)).toEqual(['claude-haiku']));
+ it('does not start a trial automatically',()=>expect(assistantAccess(base,now).active).toBe(false));
+ it('expires trial exactly at its boundary',()=>expect(assistantAccess({...base,trialEndsAt:now},now).active).toBe(false));
+ it('grants only remaining trial time',()=>expect(assistantAccess({...base,trialEndsAt:new Date(+now+1)},now)).toMatchObject({active:true,limit:100,channels:1,period:'trial'}));
+ it.each(['incomplete','past_due','payment_pending','canceled'])('never grants paid access for %s',stripeStatus=>expect(assistantAccess({...base,stripeStatus,paidThrough:new Date(+now+DAY)},now).active).toBe(false));
+ it('expires paid access even if webhook has not arrived',()=>expect(assistantAccess({...base,stripeStatus:'active',paidThrough:now},now).active).toBe(false));
+ it('pauses internal businesses too',()=>expect(assistantAccess({...base,billingExempt:true,pausedAt:now},now).active).toBe(false));
+ it('retains for ninety days',()=>expect(+retentionDeadline(now)-+now).toBe(90*DAY));
+ it('restricts unrelated owners and store staff',()=>{expect(canEditAssistant({id:'other',role:'STORE_ADMIN'},{ownerId:'owner'})).toBe(false);expect(canEditAssistant({id:'owner',role:'USER'},{ownerId:'owner'})).toBe(true);expect(canEditAssistant({id:'other',role:'ADMIN'},{ownerId:'owner'})).toBe(true);});
+});
+describe('Claude adapter',()=>{
+ const model=assistantConfig({}).models[0];
+ it('uses bounded official API request and accounts usage',async()=>{const request=vi.fn().mockResolvedValue(Response.json({content:[{type:'text',text:'Hello'}],stop_reason:'end_turn',usage:{input_tokens:15,output_tokens:3}}));expect(await anthropicProvider('test',request).reply(model,{system:'Brand',messages:[{role:'user',content:'Hi'}]})).toEqual({text:'Hello',inputTokens:15,outputTokens:3});expect(request.mock.calls[0][0]).toBe('https://api.anthropic.com/v1/messages');expect(JSON.parse(request.mock.calls[0][1].body).max_tokens).toBe(1024);});
+ it('never leaks provider error bodies',async()=>{const request=vi.fn().mockResolvedValue(new Response('secret provider detail',{status:401}));await expect(anthropicProvider('test',request).reply(model,{system:'',messages:[]})).rejects.toThrow('The assistant could not answer. Please try again shortly.');expect(request).toHaveBeenCalledTimes(1);});
+ it('does not present truncated answers as complete',async()=>{const request=vi.fn().mockResolvedValue(Response.json({content:[{type:'text',text:'Partial'}],stop_reason:'max_tokens',usage:{input_tokens:1,output_tokens:1}}));await expect(anthropicProvider('test',request).reply(model,{system:'',messages:[]})).rejects.toThrow();});
+});

@@ -1,3 +1,7 @@
+import { headers } from "next/headers";
+import { assistantConfig, isAssistantHost } from "@/lib/assistants/config";
+import { AssistantChrome } from "@/components/assistants/chrome";
+import "./assistant-portal/portal.css";
 import { FavouritesProvider } from "@/components/favourites-provider";
 import { StorefrontIconsProvider } from "@/components/storefront-icon";
 import { StoreMeasurement } from "@/components/store-measurement";
@@ -42,6 +46,7 @@ const bebas = Bebas_Neue({ subsets: ["latin"], weight: "400", variable: "--font-
 const caveat = Caveat({ subsets: ["latin"], weight: ["400", "700"], variable: "--font-caveat", display: "swap" });
 
 export async function generateMetadata(): Promise<Metadata> {
+  if (isAssistantHost((await headers()).get("host"))) { const config = assistantConfig(); return { metadataBase: new URL(config.origin), title: { default: config.name, template: `%s · ${config.name}` }, description: "Answer customer questions while you focus on your business.", robots: { index: config.launchEnabled && process.env.APP_ENV === "production", follow: true } }; }
   const store = await getCurrentStorefront();
   const settings = await getStoreSettings(store);
   const config = getRuntimeConfig();
@@ -91,6 +96,7 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
+  if (isAssistantHost((await headers()).get("host"))) return <html lang="en-AU"><body className={`${inter.variable} assistant-app`}><AssistantChrome>{children}</AssistantChrome></body></html>;
   const store = await getCurrentStorefront();
   const locale = await getRequestLocale(store);
   const copy = getSystemCopy(locale);

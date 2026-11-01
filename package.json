@@ -18,7 +18,8 @@
     "db:deploy": "prisma migrate deploy",
     "db:seed": "tsx prisma/seed.ts",
     "print-agent": "node scripts/print-agent.mjs",
-    "icons:generate": "node scripts/generate-lucide-catalog.mjs"
+    "icons:generate": "node scripts/generate-lucide-catalog.mjs",
+    "test:assistant-http": "node scripts/smoke-assistant-portal.mjs"
   },
   "dependencies": {
     "@google/model-viewer": "^4.3.1",
