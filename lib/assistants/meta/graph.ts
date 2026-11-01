@@ -2,11 +2,13 @@ import { createHmac } from "node:crypto";
 import { z } from "zod";
 import { AssistantError } from "../http";
 import { metaId,requireMeta,type SocialProvider } from "./security";
-export class MetaGraphError extends AssistantError {constructor(readonly code:number,readonly uncertain=false){super(code===190?"Meta access has expired or was revoked. Reconnect this account.":uncertain?"Delivery could not be confirmed. Check Meta before sending again.":"Meta could not complete this action. Check the account permissions or reconnect.",409);}}
+export class MetaGraphError extends AssistantError {
+ constructor(readonly code:number,readonly uncertain=false){super(code===190?"Meta access has expired or was revoked. Reconnect this account.":code===131042?"WhatsApp billing is not ready. Add or update the payment method in Meta WhatsApp Manager.":code===131047?"The WhatsApp 24-hour reply window has closed. Wait for the customer to message again.":code===131031?"Meta has restricted this WhatsApp account. Check WhatsApp Manager before activating replies.":uncertain?"Delivery could not be confirmed. Check Meta before sending again.":"Meta could not complete this action. Check the account permissions or reconnect.",409);}
+}
 const id=z.string().regex(/^\d{1,40}$/);
-export const candidateSchema=z.object({accountId:id,pageId:id,name:z.string().max(300),token:z.string().min(1).max(8192),authorizingUserId:id,scopes:z.array(z.string()).max(100)});
+export const candidateSchema=z.object({accountId:id,pageId:id,name:z.string().max(300),token:z.string().min(1).max(8192),authorizingUserId:id,scopes:z.array(z.string()).max(100),requiresRegistration:z.boolean().optional(),expiresAt:z.string().datetime().optional()});
 export type MetaCandidate=z.infer<typeof candidateSchema>;
-export function requiredScopes(provider:SocialProvider,comments:boolean){return ["pages_show_list","pages_manage_metadata","pages_read_engagement",...(provider==="FACEBOOK"?["pages_messaging"]:["instagram_basic","instagram_manage_messages"]),...(comments?(provider==="FACEBOOK"?["pages_manage_engagement","pages_read_user_content"]:["instagram_manage_comments"]):[])];}
+export function requiredScopes(provider:SocialProvider,comments:boolean){if(provider==="WHATSAPP")return ["whatsapp_business_management","whatsapp_business_messaging"];return ["pages_show_list","pages_manage_metadata","pages_read_engagement",...(provider==="FACEBOOK"?["pages_messaging"]:["instagram_basic","instagram_manage_messages"]),...(comments?(provider==="FACEBOOK"?["pages_manage_engagement","pages_read_user_content"]:["instagram_manage_comments"]):[])];}
 // Never accept provider URLs or follow pagination links; every request stays on
 // the fixed Graph host. Errors never expose request URLs, tokens or Meta bodies.
 export async function graph(path:string,token:string|undefined,method="GET",params:Record<string,unknown>={}){
@@ -18,6 +20,7 @@ export async function graph(path:string,token:string|undefined,method="GET",para
  const raw=await response.text().catch(()=>"");if(raw.length>750000)throw new MetaGraphError(0,method!=="GET");let data;try{data=JSON.parse(raw);}catch{throw new MetaGraphError(0,method!=="GET");}if(!response.ok||data.error)throw new MetaGraphError(Number(data.error?.code)||response.status,response.status>=500&&method!=="GET");return data;
 }
 export async function exchangeMetaCode(code:string,provider:SocialProvider,comments:boolean){
+ if(provider==="WHATSAPP")throw new AssistantError("Use WhatsApp Embedded Signup to connect this channel.");
  const c=requireMeta(),short=await graph("oauth/access_token",undefined,"GET",{client_id:c.appId,client_secret:c.appSecret,redirect_uri:c.callback,code});const first=z.object({access_token:z.string().min(1).max(8192)}).parse(short);
  const long=z.object({access_token:z.string().min(1).max(8192)}).parse(await graph("oauth/access_token",undefined,"GET",{grant_type:"fb_exchange_token",client_id:c.appId,client_secret:c.appSecret,fb_exchange_token:first.access_token}));
  const user=z.object({id}).parse(await graph("me",long.access_token,"GET",{fields:"id"}));
@@ -32,6 +35,7 @@ export async function exchangeMetaCode(code:string,provider:SocialProvider,comme
  if(!candidates.length)throw new AssistantError(provider==="INSTAGRAM"?"No linked professional Instagram account was found. Link it to a Facebook Page you manage and try again.":"No eligible Facebook Page was found. Sign in with an account that manages your business Page.",409);return candidates;
 }
 export async function verifyAndSubscribe(candidate:MetaCandidate,provider:SocialProvider,comments:boolean){
+ if(provider==="WHATSAPP")throw new AssistantError("Use the WhatsApp account verification flow.");
  const page=z.object({id,instagram_business_account:z.object({id}).optional()}).parse(await graph("me",candidate.token,"GET",{fields:provider==="INSTAGRAM"?"id,instagram_business_account":"id"}));if(page.id!==candidate.pageId||(provider==="INSTAGRAM"&&page.instagram_business_account?.id!==candidate.accountId))throw new MetaGraphError(100);
  // Facebook Login uses the Page edge. Instagram fields are configured on the
  // Instagram webhook object in the app dashboard, NOT in subscribed_fields.
@@ -41,6 +45,10 @@ export async function verifyAndSubscribe(candidate:MetaCandidate,provider:Social
 export async function sendMetaReply(connection:{provider:string;pageId:string},token:string,kind:string,target:string,text:string){
  if(!text.trim()||text.length>990)throw new AssistantError("Social replies must contain between 1 and 990 characters.");
  if(kind==="COMMENT"&&!/^\d+(?:_\d+)?$/.test(target))throw new MetaGraphError(100);if(kind!=="COMMENT"&&!metaId(target))throw new MetaGraphError(100);
+ if(connection.provider==="WHATSAPP"){
+  if(kind!=="MESSAGE"||!/^\d{6,20}$/.test(target))throw new MetaGraphError(100);
+  const result=await graph(`${connection.pageId}/messages`,token,"POST",{messaging_product:"whatsapp",recipient_type:"individual",to:target,type:"text",text:{body:text,preview_url:false}});const messageId=result.messages?.[0]?.id;if(typeof messageId!=="string"||!messageId||messageId.length>1000)throw new MetaGraphError(0,true);return messageId;
+ }
  const path=kind==="COMMENT"?`${target}/${connection.provider==="INSTAGRAM"?"replies":"comments"}`:`${connection.pageId}/messages`;
  const body=kind==="COMMENT"?{message:text}:{recipient:{id:target},message:{text},...(connection.provider==="FACEBOOK"?{messaging_type:"RESPONSE"}:{})};
  const result=await graph(path,token,"POST",body);const messageId=kind==="COMMENT"?result.id:result.message_id;if(typeof messageId!=="string"||!messageId||messageId.length>1000)throw new MetaGraphError(0,true);return messageId;

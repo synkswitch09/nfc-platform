@@ -1,7 +1,7 @@
 import { createCipheriv,createDecipheriv,createHash,createHmac,randomBytes,timingSafeEqual } from "node:crypto";
 import { assistantUrl } from "../config";
 import { AssistantError } from "../http";
-export type SocialProvider="FACEBOOK"|"INSTAGRAM";
+export type SocialProvider="FACEBOOK"|"INSTAGRAM"|"WHATSAPP";
 export function metaConfig(){
  const appId=process.env.AI_ASSISTANTS_META_APP_ID||"",appSecret=process.env.AI_ASSISTANTS_META_APP_SECRET||"",verifyToken=process.env.AI_ASSISTANTS_META_VERIFY_TOKEN||"",tokenKey=process.env.AI_ASSISTANTS_META_TOKEN_KEY||"",version=process.env.AI_ASSISTANTS_META_GRAPH_VERSION||"v26.0",loginConfigId=process.env.AI_ASSISTANTS_META_LOGIN_CONFIG_ID||"";
  return {appId,appSecret,verifyToken,tokenKey,version,loginConfigId,ready:Boolean(/^\d+$/.test(appId)&&appSecret.length>=16&&verifyToken.length>=32&&tokenKey.length>=32&&/^v\d+\.0$/.test(version)&&process.env.AI_ASSISTANTS_META_ENABLED==="true"),callback:assistantUrl("/api/assistants/meta/callback")};
@@ -13,3 +13,6 @@ export function sealMeta(value:unknown,context:string){const c=requireMeta(),iv=
 export function openMeta(value:string,context:string):unknown{const [v,iv,tag,text]=value.split(".");if(v!=="v1"||!iv||!tag||!text)throw new AssistantError("Please reconnect your social account.",409);const decipher=createDecipheriv("aes-256-gcm",createHash("sha256").update(requireMeta().tokenKey).digest(),Buffer.from(iv,"base64url"));decipher.setAAD(Buffer.from(context));decipher.setAuthTag(Buffer.from(tag,"base64url"));return JSON.parse(Buffer.concat([decipher.update(Buffer.from(text,"base64url")),decipher.final()]).toString("utf8"));}
 export const metaId=(value:unknown):value is string=>typeof value==="string"&&/^\d{1,40}$/.test(value);
 export function signedMetaUser(signed:string){const [signature,payload,...extra]=signed.split(".");if(extra.length||!signature||!payload||!metaConfig().appSecret)throw new AssistantError("Invalid signed request",403);const expected=createHmac("sha256",metaConfig().appSecret).update(payload).digest("base64url");if(!secureEqual(signature,expected))throw new AssistantError("Invalid signed request",403);const data=JSON.parse(Buffer.from(payload,"base64url").toString("utf8"));if(data.algorithm!=="HMAC-SHA256"||!metaId(data.user_id))throw new AssistantError("Invalid signed request",403);return data.user_id as string;}
+
+export function whatsAppConfig(){const meta=metaConfig(),configId=process.env.AI_ASSISTANTS_WHATSAPP_CONFIG_ID||"";return {ready:meta.ready&&process.env.AI_ASSISTANTS_WHATSAPP_ENABLED==="true"&&/^\d+$/.test(configId),configId,appId:meta.appId,version:meta.version};}
+export function requireWhatsApp(){const config=whatsAppConfig();if(!config.ready)throw new AssistantError("WhatsApp needs to be enabled by the platform administrator.",503);return config;}

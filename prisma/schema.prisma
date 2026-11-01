@@ -2172,6 +2172,7 @@ model AssistantConversation {
 model AssistantMessage {
  id String @id @default(uuid()) @db.Uuid
  conversationId String @db.Uuid
+ deliveryStatus String?
  externalId String?
  requestId String?
  role String
@@ -2213,12 +2214,15 @@ model AssistantSocialConnection {
   workspaceId       String                  @db.Uuid
   provider          String
   accountId         String
+  whatsAppAccountId String?
   pageId            String
   displayName       String
   authorizingUserId String
   tokenCiphertext   String?                 @db.Text
   grantedScopes     String[]                @default([])
   status            String                  @default("CONNECTED")
+  enabled           Boolean                 @default(false)
+  tokenExpiresAt    DateTime?
   autoMessages      Boolean                 @default(false)
   autoComments      Boolean                 @default(false)
   lastError         String?
@@ -2231,6 +2235,7 @@ model AssistantSocialConnection {
   @@unique([provider, accountId])
   @@index([workspaceId, provider])
   @@index([authorizingUserId])
+  @@index([whatsAppAccountId])
 }
 
 model AssistantMetaFlow {

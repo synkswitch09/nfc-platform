@@ -3,6 +3,7 @@ import { currentAppEnvironment } from "@/lib/config";
 import { getClientIp } from "@/lib/http";
 import { rateLimit } from "@/lib/rate-limit";
 import { isAssistantHost } from "@/lib/assistants/config";
+import { assistantMetaCsp } from "@/lib/assistants/meta/csp";
 import { localeCookieName } from "@/lib/i18n";
 
 export async function proxy(request: NextRequest) {
@@ -36,6 +37,7 @@ export async function proxy(request: NextRequest) {
   destination.pathname = `/assistant-portal${request.nextUrl.pathname === "/" ? "" : request.nextUrl.pathname}`;
   const response = portalPage ? NextResponse.rewrite(destination, { request: { headers: requestHeaders } }) : NextResponse.next({ request: { headers: requestHeaders } });
   if (requestedLocale && locale === requestedLocale) response.cookies.set(localeCookieName, requestedLocale, { path: "/", maxAge: 31_536_000, sameSite: "lax" });
+  if(assistantHost)response.headers.set("Content-Security-Policy",assistantMetaCsp());
   response.headers.set("x-request-id", requestId);
   if (currentAppEnvironment() !== "production" || previewMode) response.headers.set("X-Robots-Tag", "noindex, nofollow, noarchive");
   response.headers.set("X-Content-Type-Options", "nosniff");

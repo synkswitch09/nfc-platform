@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { metaId,type SocialProvider } from "./security";
-export type MetaIncoming={provider:SocialProvider;accountId:string;eventKey:string;kind:"MESSAGE"|"COMMENT"|"HANDOFF"|"ECHO";contactId:string;targetId:string;text:string;occurredAt:Date};
+export type MetaIncoming={provider:SocialProvider;accountId:string;eventKey:string;scopeId?:string;kind:"MESSAGE"|"COMMENT"|"HANDOFF"|"ECHO"|"DELIVERY";contactId:string;targetId:string;text:string;occurredAt:Date};
 const envelope=z.object({object:z.string(),entry:z.array(z.object({id:z.string(),time:z.number().optional(),messaging:z.array(z.unknown()).max(1000).optional(),changes:z.array(z.unknown()).max(1000).optional()})).max(1000)});
 const record=(x:unknown):Record<string,unknown>=>x&&typeof x==="object"&&!Array.isArray(x)?x as Record<string,unknown>:{};
 function timestamp(value:unknown,fallback:number|undefined){const n=typeof value==="number"?value:typeof value==="string"?Date.parse(value):NaN;const date=new Date(Number.isFinite(n)?n<1e12?n*1000:n:(fallback||0)*1000);return date;}
