@@ -7,6 +7,7 @@ import { validateLandingSections } from '@/lib/landing-sections';
 import { kosykinHomeTemplate } from '@/lib/kosykin-home-template';
 import { KosykinHomeSection } from '@/components/kosykin-home-section';
 import { KosykinTrustRow } from '@/components/kosykin-trust-row';
+import { ModularPageRenderer } from '@/components/landing-section-renderer';
 import { CategoryIcon } from '@/components/category-icon';
 import { ContentIconSelect } from '@/components/content-icon-select';
 import { contentIconKeys, lucideIconKey, filterContentIcons } from '@/lib/content-icons';
@@ -14,8 +15,29 @@ import { productDetailSchema } from '@/lib/product-detail';
 import { contentLucideIcons } from '@/components/content-lucide-icon';
 import dynamicIconImports from 'lucide-react/dynamicIconImports.mjs';
 import { existsSync } from 'node:fs';
+import type { Prisma } from '@prisma/client';
 
 describe('Storefront icon configuration', () => {
+  it('uses each saved trust icon on home and shared shop/detail rows before global defaults', () => {
+    const hero = kosykinHomeTemplate()[0];
+    const features = [
+      { id: '11111111-1111-4111-8111-111111111111', label: 'Secure checkout', icon: 'credit-card-check' },
+      { id: '22222222-2222-4222-8222-222222222222', label: 'Free shipping', icon: 'truck' },
+      { id: '33333333-3333-4333-8333-333333333333', label: 'Made to order', icon: 'package-open' },
+    ];
+    const content = validateLandingSections([{ ...hero, content: { ...hero.content, features } }])[0].content;
+    const home = <ModularPageRenderer name="Home" sections={[{ ...hero, id: 'hero', content: content as Prisma.JsonValue }]} products={[]} categories={[]} store={{ displayName: 'Kosykin', currency: 'AUD', nfcEnabled: false }} />;
+    for (const row of [home, <KosykinTrustRow key="shared" content={content} />]) {
+      const html = renderToStaticMarkup(<StorefrontIconsProvider kosykin overrides={{ secureCheckout: 'lucide:package-check', shipping: 'lucide:package-check', madeToOrder: 'lucide:package-check' }}>{row}</StorefrontIconsProvider>);
+      for (const icon of ['credit-card-check', 'truck', 'package-open']) expect(html).toContain(`lucide-${icon}`);
+      expect(html).not.toContain('lucide-package-check');
+    }
+    const uploaded = renderToStaticMarkup(<KosykinTrustRow content={{ features: [{ label: 'Custom icon', icon: 'truck', iconUrl: '/images/custom-trust.png' }] }} />);
+    expect(uploaded).toContain('/images/custom-trust.png');
+    expect(uploaded).not.toContain('lucide-truck');
+    const arrow = renderToStaticMarkup(home).match(/<a class="kosy-hero-down"[\s\S]*?<\/a>/)?.[0];
+    expect(arrow).toContain('lucide-chevron-down');
+  });
   it('keeps uploaded icons when saving CMS config and rejects unsafe sources and unknown controls', () => {
     const iconUrls = { cart: '/api/media/staging-kosykin-11111111-1111-4111-8111-111111111111.png', menu: 'https://cdn.example.com/menu.png' };
     expect(parseHeaderConfig({ iconUrls }).iconUrls).toEqual(iconUrls);
