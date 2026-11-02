@@ -4,13 +4,14 @@ import Link from "next/link";
 import { ArrowRight, Camera } from "lucide-react";
 import { CategoryIcon } from "@/components/category-icon";
 import { KosykinPromotions } from "@/components/kosykin-promotions";
+import { CustomerReviewCard } from "@/components/customer-review-card";
 import { StorefrontIcon } from '@/components/storefront-icon';
 import type { StorefrontIconSlot } from '@/lib/storefront-icons';
 import type { FooterConfig } from "@/lib/site-chrome";
 import type { LandingSectionType } from "@prisma/client";
 
 type Product = StorefrontCardProduct & { featured: boolean };
-type Item = { id: string; title?: string; description?: string; supportingText?: string; imageUrl?: string; imageAlt?: string; icon?: string; iconUrl?: string; ctaLabel?: string; ctaHref?: string; visible?: boolean; order?: number };
+type Item = { id: string; title?: string; description?: string; productName?: string; rating?: number; supportingText?: string; imageUrl?: string; imageAlt?: string; icon?: string; iconUrl?: string; ctaLabel?: string; ctaHref?: string; visible?: boolean; order?: number };
 const whyIcons: Record<string, StorefrontIconSlot> = { sparkles: 'whyAppearance', package: 'whyProduction', 'hand-helping': 'whyMaterials', 'heart-handshake': 'whyDetail' };
 const text = (value: unknown) => typeof value === "string" ? value : "";
 const items = (value: unknown) => (Array.isArray(value) ? value as Item[] : []).filter(item => item.visible !== false).sort((a,b) => (a.order ?? 0) - (b.order ?? 0));
@@ -36,7 +37,7 @@ export function KosykinHomeSection({ type, value, products, currency, socials }:
   if (value.layoutVariant === "KOSYKIN_REVIEWS") {
     const reviews = items(value.items);
     if (!reviews.length) return null;
-    return <>{heading}<div className="kosy-review-grid">{reviews.map(item => <figure key={item.id}>{item.imageUrl && <Image src={item.imageUrl} alt={item.imageAlt || ""} width={48} height={48} unoptimized />}<blockquote>{item.description}</blockquote><figcaption><strong>{item.title}</strong>{item.supportingText && <span>{item.supportingText}</span>}</figcaption></figure>)}</div></>;
+    return <>{heading}<div className="kosy-review-grid">{reviews.map(item => <CustomerReviewCard key={item.id} productName={item.productName || item.ctaLabel} productHref={item.ctaHref} rating={item.rating} body={item.description} author={item.title} supportingText={item.supportingText} />)}</div></>;
   }
   if (value.layoutVariant === "KOSYKIN_SUPPORT") return <><div className="kosy-support-brand"><Image src={text(value.imageUrl) || "/images/kosykin/wordmark-navy.webp"} alt="Kosy Kin" width={150} height={50} unoptimized />{socials && <div className="kosy-support-socials">{(["instagram", "facebook"] as const).filter(platform => socials.links[platform]).map(platform => <a href={socials.links[platform]} key={platform} target="_blank" rel="noopener noreferrer" aria-label={platform}><StorefrontIcon name={platform} imageUrl={socials.icons[platform]} size={22} fallback={platform === "instagram" ? <Camera size={20} aria-hidden="true" /> : <b aria-hidden="true">f</b>} /></a>)}</div>}</div><div>{heading}</div><div>{action}</div></>;
   return <>{heading}{action}</>;

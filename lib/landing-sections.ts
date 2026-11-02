@@ -271,6 +271,8 @@ const narrativeSchema = z.object({
   contentPosition: z.enum(["LEFT", "CENTRE", "RIGHT"]).default("LEFT"),
 });
 const itemSchema = z.object({
+  productName: z.string().trim().max(160).optional(),
+  rating: z.number().min(1).max(5).optional(),
   titleFont: z.enum(["INTER", "BEBAS_NEUE", "CAVEAT"]).optional(),
   copyFont: z.enum(["INTER", "BEBAS_NEUE", "CAVEAT"]).optional(),
   id: contentItemId,

@@ -5,6 +5,7 @@ import { paidReviewOrder } from "@/lib/product-reviews";
 import { getExperience } from "@/lib/store-experience";
 import type { Storefront } from "@/lib/storefront";
 import { ProductReviewForm } from "@/components/product-review-form";
+import { CustomerReviewCard } from "@/components/customer-review-card";
 export async function ProductReviews({
   store,
   productId,
@@ -18,7 +19,7 @@ export async function ProductReviews({
       where: { storeId: store.id, productId, status: "PUBLISHED" },
       orderBy: { createdAt: "desc" },
       take: 30,
-      select: { id: true, displayName: true, rating: true, body: true },
+      select: { id: true, displayName: true, rating: true, body: true, product: { select: { name: true } } },
     }),
     supportIdentity(store),
   ]);
@@ -43,17 +44,7 @@ export async function ProductReviews({
       {reviews.length ? (
         <div className="kosy-review-grid">
           {reviews.map((review) => (
-            <figure key={review.id}>
-              <p aria-label={`${review.rating} out of 5 stars`}>
-                {"★".repeat(review.rating)}
-                {"☆".repeat(5 - review.rating)}
-              </p>
-              <blockquote>{review.body}</blockquote>
-              <figcaption>
-                <strong>{review.displayName}</strong>
-                <span>Verified purchase</span>
-              </figcaption>
-            </figure>
+            <CustomerReviewCard key={review.id} productName={review.product.name} rating={review.rating} body={review.body} author={review.displayName} />
           ))}
         </div>
       ) : (
