@@ -6,7 +6,7 @@ import {
   Backpack, Badge, BadgeHelp, BriefcaseBusiness, Building2, Bus, Camera, Check, Clock, Compass, Contact, Dog, EyeOff,
   HandHelping, Heart, HeartHandshake, Home, ImageUp, Lock, Luggage, Map, MapPin, Medal, MessageCircle, Mic2, Package, PawPrint, Phone,
   Plane, QrCode, Radio, RefreshCw, Repeat2, Share2, Shield, ShieldCheck, ShoppingBag, Sparkles, SquarePen, Store, Tag,
-  Shapes, Trees, Users, Zap, Layers, Palette,
+  Shapes, Trees, Users, Zap, Layers, Palette, CreditCardCheck,
   BrushCleaning, PackageOpen, Feather, Droplets, Droplet, Leaf, ScanBox, HandCoins, PackageCheck, Truck, LockKeyhole, CircleUserRound, UserRound, SlidersHorizontal, Menu, X, Plus, Minus, ArrowRight, ArrowUpRight, ChevronLeft, ChevronRight, ChevronDown, Play, CirclePlay, Sparkle, Ruler, Recycle, Printer, CircleCheck, CircleHelp, MousePointerClick, Move, Weight, Hand, SwatchBook,
 } from "lucide-react";
 
@@ -18,7 +18,7 @@ export const contentLucideIcons = {
   medal: Medal, package: Package, paw: PawPrint, phone: Phone, plane: Plane, "qr-code": QrCode, radio: Radio, refresh: RefreshCw,
   "refresh-cw": RefreshCw, repeat: Repeat2, share: Share2, "share-2": Share2, shield: Shield,
   "shield-check": ShieldCheck, "shopping-bag": ShoppingBag, sparkles: Sparkles, "square-pen": SquarePen, store: Store, tag: Tag,
-  layers: Layers, palette: Palette, shapes: Shapes, trees: Trees, users: Users, zap: Zap,
+  layers: Layers, palette: Palette, shapes: Shapes, trees: Trees, users: Users, zap: Zap, "credit-card-check": CreditCardCheck,
   "brush-cleaning": BrushCleaning, "package-open": PackageOpen, feather: Feather, droplets: Droplets, droplet: Droplet, leaf: Leaf, "scan-box": ScanBox, "hand-coins": HandCoins, "package-check": PackageCheck, truck: Truck, "lock-keyhole": LockKeyhole, "circle-user-round": CircleUserRound, "user-round": UserRound, "sliders-horizontal": SlidersHorizontal, menu: Menu, x: X, plus: Plus, minus: Minus, "arrow-right": ArrowRight, "arrow-up-right": ArrowUpRight, "chevron-left": ChevronLeft, "chevron-right": ChevronRight, "chevron-down": ChevronDown, play: Play, "circle-play": CirclePlay, sparkle: Sparkle, ruler: Ruler, recycle: Recycle, printer: Printer, "circle-check": CircleCheck, "circle-help": CircleHelp, "mouse-pointer-click": MousePointerClick, move: Move, weight: Weight, hand: Hand, "swatch-book": SwatchBook,
 } as const;
 

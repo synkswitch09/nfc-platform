@@ -5387,7 +5387,7 @@ body[data-store="kosykin"] .site-header .nav-account {
 .kosy-hero-cta { transition: background-color .2s ease, color .2s ease; }
 .kosy-hero-cta:hover { transform: none; box-shadow: none; background: #f2e9dc; }
 .kosy-hero-down { bottom: 0; height: 49px; align-items: start; padding-top: 8px; }
-.kosy-hero-down svg { transform: rotate(90deg); stroke-width: 2.4; }
+.kosy-hero-down svg { stroke-width: 2.4; }
 @media (max-width: 800px) {
   body[data-store="kosykin"] .site-header nav { color: #24334b; }
   .kosy-hero-title { top: 13%; left: 7%; width: 85%; }
@@ -5502,7 +5502,7 @@ body[data-store="kosykin"] .modular-landing > .kosy-home-hero { max-width: 1440p
   border-radius: 0;
   background: url("/images/kosykin/hero-arrow-cutout.svg") center / 100% 100% no-repeat;
 }
-.kosy-hero-down svg { width: 24px; height: 24px; transform: rotate(90deg); }
+.kosy-hero-down svg { width: 24px; height: 24px; }
 
 @media (max-width: 1050px) {
   body[data-store="kosykin"] .site-header { padding-inline: 24px; }

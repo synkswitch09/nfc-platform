@@ -9,6 +9,7 @@ import Link from "next/link";
 import {
   ArrowRight,
   Camera,
+  ChevronDown,
   Check,
   PackageCheck,
   Palette,
@@ -212,7 +213,7 @@ export function ModularPageRenderer({
                       {text(value.ctaLabel)} <span aria-hidden="true"><StorefrontIcon name="arrowRight" size={36} fallback={<ArrowRight size={19} />} /></span>
                     </Link>}
                   </div>
-                  <a className="kosy-hero-down" href="#kosy-collections" aria-label="Explore collections"><StorefrontIcon name="chevronDown" size={27} fallback={<ArrowRight size={27} aria-hidden="true" />} /></a>
+                  <a className="kosy-hero-down" href="#kosy-collections" aria-label="Explore collections"><StorefrontIcon name="chevronDown" size={27} fallback={<ChevronDown size={27} aria-hidden="true" />} /></a>
                   {kosykinSocials && <div className="kosy-hero-socials" aria-label="Social media">
                     {(["instagram", "facebook"] as const).filter(platform => kosykinSocials.platforms.includes(platform)).map((platform) => {
                       const destination = kosykinSocials.links[platform];
@@ -224,7 +225,7 @@ export function ModularPageRenderer({
                 </div>
                 {features.length > 0 && <div className="kosy-trust-row">
                   {features.map((feature, index) => <div key={collectionKey("trust", feature, index)}>
-                    <span className="kosy-trust-icon"><StorefrontIcon name={feature.icon === 'shield-check' ? 'secureCheckout' : feature.icon === 'package' ? 'shipping' : 'madeToOrder'} imageUrl={feature.iconUrl} size={28} fallback={<CategoryIcon name={feature.icon} size={28} />} /></span>
+                    <span className="kosy-trust-icon"><CategoryIcon name={feature.icon} imageUrl={feature.iconUrl} size={28} /></span>
                     <span><strong>{feature.label}</strong><small>{feature.supportingText}</small></span>
                   </div>)}
                 </div>}
