@@ -41,3 +41,39 @@ export function cardCoverImage(product: ColourProduct, identity: string, seed: n
   for (const char of `${seed}:${identity}`) hash = Math.imul(hash ^ char.charCodeAt(0), 16777619);
   return images[(hash >>> 0) % images.length];
 }
+
+/** Hover is a second view of the cover colour, not another random choice. */
+export function cardHoverImage(product: ColourProduct, primary?: CardImage): CardImage | undefined {
+  if (!primary) return;
+  const different = (image: CardImage) => image.url !== primary.url;
+  const option = product.options?.find(item => item.type === "COLOUR" && item.active !== false);
+  if (option) {
+    const colours = option.values.filter(value => value.active !== false);
+    const belongs = (image: CardImage, colour: typeof colours[number]) => {
+      if (image.optionValueId) return image.optionValueId === colour.id;
+      return product.variants.some(variant => {
+        const selections = variant.optionSelection;
+        const matches = selections && typeof selections === "object" && option.code in selections
+          ? (selections as Record<string, unknown>)[option.code] === colour.value
+          : variant.colour?.toLowerCase() === colour.label.toLowerCase() || variant.colour?.toLowerCase() === colour.value.toLowerCase();
+        return matches && ((variant.id && image.variantId === variant.id) || (variant.imageId && image.id === variant.imageId));
+      });
+    };
+    const colour = colours.find(value => belongs(primary, value));
+    if (colour) {
+      const secondView = product.images.find(image => different(image) && belongs(image, colour));
+      if (secondView) return secondView;
+      return colours.filter(value => value.id !== colour.id).map(value => cardColourImage(product, value.value)).find(image => image && different(image));
+    }
+  }
+  // Legacy galleries can identify colour through their variant without a colour option.
+  const variant = product.variants.find(item => (item.id && primary.variantId === item.id) || (item.imageId && primary.id === item.imageId));
+  if (variant) {
+    const sameColour = product.variants.filter(item => variant.colour ? item.colour?.toLowerCase() === variant.colour.toLowerCase() : item.id === variant.id);
+    const secondView = product.images.find(image => different(image) && sameColour.some(item => (item.id && image.variantId === item.id) || (item.imageId && image.id === item.imageId)));
+    if (secondView) return secondView;
+    return product.variants.filter(item => !sameColour.includes(item)).map(item => product.images.find(image => (item.imageId && image.id === item.imageId) || (item.id && image.variantId === item.id))).find(image => image && different(image));
+  }
+  // Unassociated galleries retain their original first/second photo interaction.
+  return product.images.find(different);
+}

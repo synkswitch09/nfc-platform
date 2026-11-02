@@ -11,6 +11,19 @@ const product: StorefrontCardProduct & { featured: boolean } = {
   options: [{ code: 'colour', type: 'COLOUR', required: true, priceDeltaCents: 0, values: ['Pink', 'Blue', 'Peach', 'Lavender'].map(label => ({ id: label, label, value: label, swatchHex: '#ffffff', priceDeltaCents: 0 })) }],
 };
 describe('shared Home and Shop product cards', () => {
+  it('keeps the cover underneath a same-colour hover photo', () => {
+    const images = [
+      { url: '/pink-front.png', altText: 'Pink', optionValueId: 'Pink' },
+      { url: '/blue-front.png', altText: 'Blue', optionValueId: 'Blue' },
+      { url: '/blue-side.png', altText: 'Blue side', optionValueId: 'Blue' },
+    ];
+    const html = renderToStaticMarkup(<KosykinProductCard product={{ ...product, images }} currency="AUD" coverColours={['Blue']} />);
+    const photoLink = html.match(/<a class="kosy-product-image"[\s\S]*?<\/a>/)?.[0] ?? '';
+    expect(photoLink).toContain('src="/blue-front.png"');
+    expect(photoLink).toContain('class="kosy-product-hover-image"');
+    expect(photoLink).toContain('src="/blue-side.png"');
+    expect(photoLink).not.toContain('/pink-front.png');
+  });
   it('renders identical product navigation cards on Home and Shop', () => {
     const shop = renderToStaticMarkup(<KosykinProductCard product={product} currency="AUD" />);
     const home = renderToStaticMarkup(<KosykinHomeSection type="PRODUCT_SHOWCASE" value={{}} products={[product]} currency="AUD" />);
