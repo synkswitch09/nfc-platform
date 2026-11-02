@@ -1,6 +1,36 @@
 import { describe, expect, it } from "vitest";
-import { cardColourImage, cardCoverImages, cardCoverImage } from "@/lib/product-card-image";
+import { cardColourImage, cardCoverImages, cardCoverImage, cardHoverImage } from "@/lib/product-card-image";
 describe("CMS colour previews", () => {
+  const gallery = {
+    options: [{ code: "colour", type: "COLOUR", values: ["pink", "blue"].map(value => ({ id: value, value, label: value })) }],
+    variants: [{ id: "pink-variant", imageId: "pink-front", optionSelection: { colour: "pink" } }, { id: "blue-variant", imageId: "blue-front", optionSelection: { colour: "blue" } }],
+    images: [
+      { id: "pink-front", url: "/pink-front", altText: "Pink", optionValueId: "pink" },
+      { id: "blue-front", url: "/blue-front", altText: "Blue", optionValueId: "blue" },
+      { id: "pink-side", url: "/pink-side", altText: "Pink side", variantId: "pink-variant" },
+      { id: "blue-side", url: "/blue-side", altText: "Blue side", variantId: "blue-variant" },
+    ],
+  };
+  it("hovers the second photo of the randomly selected colour, even with interleaved galleries", () => {
+    for (const colour of ["pink", "blue"]) {
+      const cover = cardColourImage(gallery, colour)!;
+      expect(cardHoverImage(gallery, cover)?.url).toBe(`/${colour}-side`);
+      expect(cardColourImage(gallery, colour)).toBe(cover);
+    }
+  });
+  it("uses the first photo of another colour only when the current colour has no second view", () => {
+    const product = { ...gallery, images: gallery.images.filter(image => image.id !== "blue-side") };
+    expect(cardHoverImage(product, cardColourImage(product, "blue"))?.url).toBe("/pink-front");
+    const single = { ...gallery, images: gallery.images.filter(image => image.id === "blue-front") };
+    expect(cardHoverImage(single, single.images[0])).toBeUndefined();
+    expect(cardHoverImage(gallery)).toBeUndefined();
+  });
+  it("matches a cover assigned by variant image ID and retains unassociated legacy galleries", () => {
+    const product = { ...gallery, images: gallery.images.map(image => ({ ...image, optionValueId: undefined })) };
+    expect(cardHoverImage(product, product.images[1])?.url).toBe("/blue-side");
+    const legacy = { variants: [], images: [{ url: "/first", altText: "First" }, { url: "/second", altText: "Second" }] };
+    expect(cardHoverImage(legacy, legacy.images[0])?.url).toBe("/second");
+  });
   it("rotates photographed colours by browsing seed while keeping each product stable", () => {
     const product = {
       options: [{ code: "colour", type: "COLOUR", values: ["pink", "blue", "apricot", "missing", "disabled"].map(value => ({ id: value, value, label: value, active: value !== "disabled" })) }],

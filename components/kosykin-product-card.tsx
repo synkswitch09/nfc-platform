@@ -5,7 +5,7 @@ import { StorefrontIcon } from "@/components/storefront-icon";
 import { ArrowRight, ShoppingBag } from "lucide-react";
 import { useState, useSyncExternalStore } from "react";
 import { FavouriteButton } from "@/components/favourite-button";
-import { cardColourImage, cardCoverImage } from "@/lib/product-card-image";
+import { cardColourImage, cardCoverImage, cardHoverImage } from "@/lib/product-card-image";
 import { ProductCardSwatches } from "@/components/product-card-swatches";
 import { productCardPriceLabel, type CardPriceProduct } from "@/lib/product-card-price";
 
@@ -27,7 +27,7 @@ export function KosykinProductCard({ product, currency, canBuy = true, coverColo
   const [previewColour, setPreviewColour] = useState<string | null>(null);
   const preview = previewColour ? cardColourImage(product, previewColour) : undefined;
   const primary = preview ?? cardCoverImage(product, product.id, seed, coverColours);
-  const secondary = product.images.find(image => image.url !== primary?.url);
+  const secondary = cardHoverImage(product, primary);
   const newArrival = product.createdAt && Date.now() - new Date(product.createdAt).getTime() < 30 * 86400000;
   return <article className="kosy-product-card" onMouseLeave={() => setPreviewColour(null)}>
     <Link className="kosy-product-image" href={`/products/${product.slug}`}>{primary ? <Image src={primary.url} alt={primary.altText || product.name} width={520} height={520} unoptimized /> : <ShoppingBag aria-label="Product image coming soon" />}{!preview && secondary && <Image className="kosy-product-hover-image" src={secondary.url} alt="" width={520} height={520} unoptimized />}{newArrival && <span className="kosy-product-badge">✦ New arrival</span>}</Link>
