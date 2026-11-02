@@ -84,7 +84,7 @@ it("hides samples when one real approved review exists, or when the CMS switch i
   const real = (await prepareExperienceSections("s", sections)).find(
     (s) => s.id === "reviews",
   )!;
-  expect(JSON.stringify(real.content)).toContain("Verified purchase");
+  expect(real.content).toMatchObject({ items: [{ productName: "Stand", rating: 3, title: "Buyer", description: "My review" }] });
   expect(JSON.stringify(real.content)).not.toContain("Example");
   m.reviews.mockResolvedValue([]);
   m.experience.mockResolvedValue({

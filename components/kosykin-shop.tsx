@@ -31,7 +31,7 @@ export function KosykinShop({ products, filterProducts, categories, query, promo
       {activeFilters && <p className="kosy-filter-summary" role="status">{products.length} {products.length === 1 ? 'piece' : 'pieces'} found with your filters. <Link href={selected.length ? `/shop?${new URLSearchParams(selected.map(category => ['category', category.slug]))}` : '/shop'}>Clear filters</Link></p>}
       <div className="kosy-shop-grid">{products.map(product => {
         const canBuy = product.variants.some(available);
-        return <KosykinProductCard key={product.id} product={product} currency={currency} canBuy={canBuy} />;
+        return <KosykinProductCard key={product.id} product={product} currency={currency} canBuy={canBuy} coverColours={queryList(query.colour)} />;
       })}</div>
       {!products.length && <div className="kosy-shop-empty"><ShoppingBag size={32} /><h3>No pieces found</h3><p>Try another category or reset your filters to find your kind of Kosy.</p><Link className="kosy-section-action" href="/shop">See all pieces</Link></div>}
     </section>

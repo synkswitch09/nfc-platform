@@ -57,6 +57,8 @@ const cardStyleTypes = new Set<LandingSectionType>([
   "FAQ",
 ]);
 type SectionItem = {
+  productName?: string;
+  rating?: number;
   id?: string;
   icon?: string;
   iconUrl?: string;
@@ -503,6 +505,7 @@ export function LandingSectionEditor({
             {section.type === "CTA_BANNER" && <SharedBlockPicker value={String(section.content.sharedBlockId || "")} onChange={sharedBlockId => content(index, { sharedBlockId })} />}
             {(itemTypes.has(section.type) || (section.type === "CTA_BANNER" && section.content.layoutVariant === "KOSYKIN_PROMOTIONS")) && (
               <ItemsEditor
+                reviews={section.content.layoutVariant === "KOSYKIN_REVIEWS"}
                 collectionCategories={kosykinHome && section.type === "FEATURE_BADGES" && section.content.layoutVariant === "KOSYKIN_CIRCLES" ? collectionCategories : undefined}
                 categoryId={categoryId}
                 mediaUploadEndpoint={mediaUploadEndpoint}
@@ -1328,6 +1331,7 @@ function CtaFields({
 }
 
 function ItemsEditor({
+  reviews = false,
   collectionCategories,
   categoryId,
   mediaUploadEndpoint,
@@ -1335,6 +1339,7 @@ function ItemsEditor({
   items,
   onChange,
 }: {
+  reviews?: boolean;
   collectionCategories?: Array<{ name: string; slug: string }>;
   categoryId?: string;
   mediaUploadEndpoint?: string;
@@ -1375,12 +1380,20 @@ function ItemsEditor({
             />
           </div>
           <label className="field">
-            Title
+            {reviews ? "Reviewer name" : "Title"}
             <input name={`content.items.${index}.title`}
               value={item.title ?? ""}
               onChange={(event) => update(index, { title: event.target.value })}
             />
           </label>
+          {reviews && <>
+            <label className="field">Product name
+              <input name={`content.items.${index}.productName`} value={item.productName ?? ""} onChange={event => update(index, { productName: event.target.value })} />
+            </label>
+            <label className="field">Rating (1–5, optional)
+              <input name={`content.items.${index}.rating`} type="number" min="1" max="5" step="0.1" value={item.rating ?? ""} onChange={event => update(index, { rating: event.target.value === "" ? undefined : Number(event.target.value) })} />
+            </label>
+          </>}
           <label className="field wide">
             Description
             <textarea name={`content.items.${index}.description`}
