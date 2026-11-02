@@ -8,6 +8,8 @@ describe("CMS colour previews", () => {
       images: ["pink", "blue", "apricot", "disabled"].map(id => ({ id, url: `/${id}`, altText: id, optionValueId: id })),
     };
     expect(cardCoverImages(product).map(image => image.url)).toEqual(["/pink", "/blue", "/apricot"]);
+    expect(cardCoverImages(product, ["blue"]).map(image => image.url)).toEqual(["/blue"]);
+    expect(cardCoverImage(product, "stand", null, ["blue"])?.url).toBe("/blue");
     expect(cardCoverImage(product, "stand", null)?.url).toBe("/pink");
     expect(cardCoverImage(product, "stand", 0.3)).toEqual(cardCoverImage(product, "stand", 0.3));
     expect(new Set(Array.from({ length: 60 }, (_, i) => cardCoverImage(product, "stand", i / 60)?.url)).size).toBe(3);

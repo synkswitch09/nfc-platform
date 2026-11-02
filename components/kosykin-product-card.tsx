@@ -21,12 +21,12 @@ const subscribeToCover = () => () => {};
 const browserCoverSeed = () => browsingSeed ??= Math.random();
 const serverCoverSeed = () => null;
 
-export function KosykinProductCard({ product, currency, canBuy = true }: { product: StorefrontCardProduct; currency: string; canBuy?: boolean }) {
+export function KosykinProductCard({ product, currency, canBuy = true, coverColours }: { product: StorefrontCardProduct; currency: string; canBuy?: boolean; coverColours?: string[] }) {
   // Hydration uses the server snapshot; a fresh browser load then picks stable per-product colours.
   const seed = useSyncExternalStore(subscribeToCover, browserCoverSeed, serverCoverSeed);
   const [previewColour, setPreviewColour] = useState<string | null>(null);
   const preview = previewColour ? cardColourImage(product, previewColour) : undefined;
-  const primary = preview ?? cardCoverImage(product, product.id, seed);
+  const primary = preview ?? cardCoverImage(product, product.id, seed, coverColours);
   const secondary = product.images.find(image => image.url !== primary?.url);
   const newArrival = product.createdAt && Date.now() - new Date(product.createdAt).getTime() < 30 * 86400000;
   return <article className="kosy-product-card" onMouseLeave={() => setPreviewColour(null)}>
