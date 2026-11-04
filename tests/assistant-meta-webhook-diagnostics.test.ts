@@ -1,5 +1,5 @@
 import { after,NextRequest } from "next/server";
-import { beforeEach,afterEach,describe,expect,it,vi } from "vitest";
+import { beforeEach,afterEach,describe,expect,it,vi,type MockInstance } from "vitest";
 
 const mocks=vi.hoisted(()=>({ready:true,signature:true,receive:vi.fn(),process:vi.fn(),callbacks:[] as Array<()=>Promise<void>>}));
 vi.mock("next/server",async()=>{
@@ -13,7 +13,7 @@ vi.mock("@/lib/assistants/meta/queue",()=>({receiveMetaEvents:mocks.receive,proc
 import { POST } from "@/app/api/assistants/meta/webhook/route";
 
 describe("Meta webhook diagnostics",()=>{
- let logs:ReturnType<typeof vi.spyOn>;
+ let logs:MockInstance<typeof console.info>;
  beforeEach(()=>{
   vi.clearAllMocks();mocks.ready=true;mocks.signature=true;mocks.callbacks=[];
   mocks.receive.mockReset().mockResolvedValue(0);mocks.process.mockReset().mockResolvedValue({processed:0});
@@ -21,7 +21,7 @@ describe("Meta webhook diagnostics",()=>{
  });
  afterEach(()=>vi.restoreAllMocks());
  function request(body:string){return new NextRequest("https://example.test/api/assistants/meta/webhook",{method:"POST",body,headers:{"x-hub-signature-256":"secret-signature"}});}
- function records(){return logs.mock.calls.map(call=>JSON.parse(String(call[1])));}
+ function records():Array<{requestId:string;event:string;[key:string]:unknown}>{return logs.mock.calls.map(call=>JSON.parse(String(call[1])));}
  it("records receipt and signature rejection without storing untrusted input",async()=>{
   mocks.signature=false;
   const response=await POST(request('{"object":"private-message"}'));
