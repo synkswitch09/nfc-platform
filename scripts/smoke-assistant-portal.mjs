@@ -62,7 +62,7 @@ try {
   count++;
   const query = await read('/plans?locale=en-AU');
   assert.equal(query.status, 200);
-  assert.match(query.body, /Choose the help you need/);
+  assert.match(query.body, /Start with one channel/);
   count++;
   const flight = await read('/plans?_rsc', publicHost, { rsc: '1' });
   assert.equal(flight.status, 200, JSON.stringify(flight.headers));
