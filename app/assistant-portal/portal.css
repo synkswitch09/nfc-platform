@@ -2,7 +2,7 @@
   margin: 0;
   background: #faf9f6;
   color: #1c2a38;
-  font-family: var(--font-inter), Arial, sans-serif;
+  font-family: var(--font-inter, Arial), sans-serif;
   --ai-navy: #192d42;
   --ai-line: #e0e3e6;
 }
@@ -1547,5 +1547,45 @@ section[aria-label="Voice and calls"] details {
 @media (prefers-reduced-motion: reduce) {
   .ai-growth-list button {
     transition: none;
+  }
+}
+.ai-growth-grid > * {
+  min-width: 0;
+}
+.ai-growth fieldset {
+  min-width: 0;
+}
+.ai-growth .ai-field input,
+.ai-growth .ai-field textarea,
+.ai-growth .ai-field select {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.ai-mobile-navigation {
+  display: none;
+}
+@media (max-width: 850px) {
+  .ai-mobile-navigation {
+    display: grid;
+    gap: 8px;
+    font-size: 13px;
+    font-weight: 650;
+  }
+  .ai-mobile-navigation select {
+    width: 100%;
+    min-height: 44px;
+    border: 1px solid #cfd6e2;
+    border-radius: 12px;
+    padding: 10px 12px;
+    background: white;
+    color: #23334b;
+  }
+  .ai-sidebar nav {
+    display: none;
+  }
+  .ai-mobile-navigation select:focus-visible {
+    outline: 3px solid #6a51be;
+    outline-offset: 3px;
   }
 }

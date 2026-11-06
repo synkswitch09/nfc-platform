@@ -369,6 +369,42 @@ export function AssistantVoice({
                     Reconcile uncertain attempts in the provider dashboard.
                   </p>
                 )}
+                {!["STARTING", "STARTED"].includes(c.status) && (
+                  <form
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      const f = new FormData(e.currentTarget);
+                      void act({
+                        action: "reviewCall",
+                        callId: c.id,
+                        outcome: f.get("outcome"),
+                        notes: f.get("notes"),
+                      });
+                    }}
+                  >
+                    <label className="ai-field">
+                      Call outcome
+                      <select name="outcome">
+                        <option value="FOLLOW_UP">Follow up</option>
+                        <option value="DECLINED">Not interested</option>
+                        <option value="DO_NOT_CONTACT">Do not contact</option>
+                        <option value="NO_ANSWER">No answer</option>
+                      </select>
+                    </label>
+                    <label className="ai-field">
+                      Review notes
+                      <textarea
+                        name="notes"
+                        required
+                        minLength={3}
+                        maxLength={2000}
+                      />
+                    </label>
+                    <button className="ai-button ai-secondary" disabled={busy}>
+                      Save call review
+                    </button>
+                  </form>
+                )}
               </details>
             ))}
             {!catalog?.calls.length && <p>No calls yet.</p>}

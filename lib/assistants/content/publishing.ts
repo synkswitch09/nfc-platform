@@ -199,8 +199,13 @@ export async function advancePublication(jobId: string) {
     if (
       !connection?.tokenCiphertext ||
       (connection.tokenExpiresAt && connection.tokenExpiresAt <= new Date())
-    )
+    ) {
+      await tx.assistantResource.update({
+        where: { id: job.id },
+        data: { status: "BLOCKED" },
+      });
       return null;
+    }
     if (
       !(
         await tx.assistantResource.updateMany({

@@ -34,7 +34,9 @@ export async function GET(_request: NextRequest, { params }: Context) {
       take: 200,
     });
     const owned = resources.filter((r) => r.kind === "VOICE"),
-      settings = resources.find((r) => r.kind === "VOICE_SETTINGS");
+      settings = await db.assistantResource.findFirst({
+        where: { workspaceId: id, kind: "VOICE_SETTINGS" },
+      });
     let voices: { id: string; name: string }[] = [],
       providerIssue = "";
     if (voiceReady()) {
@@ -291,6 +293,77 @@ export async function POST(request: NextRequest, { params }: Context) {
           data: { status: "DELETED" },
         });
       }
+      return NextResponse.json({ saved: true });
+    }
+    if (action === "reviewCall") {
+      const input = z
+        .object({
+          callId: z.uuid(),
+          outcome: z.enum([
+            "FOLLOW_UP",
+            "DECLINED",
+            "DO_NOT_CONTACT",
+            "NO_ANSWER",
+          ]),
+          notes: z.string().trim().min(3).max(2000),
+        })
+        .strict()
+        .parse(body);
+      await db.$transaction(async (tx) => {
+        await tx.$queryRaw`SELECT id FROM "AssistantWorkspace" WHERE id=${id}::uuid FOR UPDATE`;
+        const call = await tx.assistantResource.findFirst({
+          where: { id: input.callId, workspaceId: id, kind: "CALL" },
+        });
+        if (!call) throw new AssistantError("Call not found.", 404);
+        const data = call.data as Record<string, unknown>;
+        if (["STARTING", "STARTED"].includes(call.status))
+          throw new AssistantError(
+            "Wait for the call to finish or reconcile its provider status first.",
+            409,
+          );
+        await tx.assistantResource.update({
+          where: { id: call.id },
+          data: {
+            status: "REVIEWED",
+            data: {
+              ...data,
+              reviewRequired: false,
+              outcome: input.outcome,
+              reviewNotes: input.notes,
+              reviewedBy: user.id,
+              reviewedAt: new Date().toISOString(),
+            },
+          },
+        });
+        if (typeof data.contactId === "string") {
+          const contact = await tx.assistantResource.findFirst({
+            where: { id: data.contactId, workspaceId: id, kind: "CONTACT" },
+          });
+          if (contact)
+            await tx.assistantResource.update({
+              where: { id: contact.id },
+              data: {
+                version: { increment: 1 },
+                data: {
+                  ...(contact.data as object),
+                  ...(input.outcome === "DO_NOT_CONTACT"
+                    ? { optedOut: true }
+                    : {}),
+                  stage:
+                    input.outcome === "FOLLOW_UP"
+                      ? "FOLLOW_UP"
+                      : input.outcome === "DECLINED"
+                        ? "LOST"
+                        : String(
+                            (contact.data as Record<string, unknown>).stage ||
+                              "NEW",
+                          ),
+                  notes: `${String((contact.data as Record<string, unknown>).notes || "").slice(-9000)}\nCall review: ${input.notes}`,
+                },
+              },
+            });
+        }
+      });
       return NextResponse.json({ saved: true });
     }
     if (action === "prepare") {

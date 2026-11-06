@@ -8,8 +8,8 @@ export const voiceSettingsSchema = z
     enabled: z.boolean(),
     monthlyMinuteLimit: z.number().int().min(0).max(10000),
     legalReviewUntil: z.string().datetime(),
-    holidayCalendarUntil: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-    holidays: z.array(z.string().regex(/^\d{4}-\d{2}-\d{2}$/)).max(200),
+    holidayCalendarUntil: z.iso.date(),
+    holidays: z.array(z.iso.date()).max(200),
     reviewEvidence: z.string().trim().min(10).max(2000),
   })
   .strict();

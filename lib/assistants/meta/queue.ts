@@ -1,3 +1,4 @@
+import { isOptOut, recordOptOut } from "../growth/opt-out";
 import { campaignContext, validateCampaignSend } from "../growth/campaigns";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
@@ -197,12 +198,15 @@ async function conversationFor(event: Event) {
   if (
     event.kind === "HANDOFF" ||
     needsHuman(event.text) ||
+    isOptOut(event.text) ||
     event.text.length > 4000
   )
     await db.assistantConversation.update({
       where: { id: conversation.id },
       data: { humanOnly: true },
     });
+  if (isOptOut(event.text))
+    await recordOptOut(event.connection.workspaceId, conversation.id);
   return db.assistantConversation.findUniqueOrThrow({
     where: { id: conversation.id },
   });
@@ -462,13 +466,10 @@ async function processEvent(event: Event, leaseToken: string) {
         throw new AssistantError("Campaign is paused or requires review.", 409);
       reply = await assistantReply(
         context.workspace,
-        history
-          .reverse()
-          .map((m) => ({
-            role:
-              m.role === "USER" ? ("user" as const) : ("assistant" as const),
-            content: m.text,
-          })),
+        history.reverse().map((m) => ({
+          role: m.role === "USER" ? ("user" as const) : ("assistant" as const),
+          content: m.text,
+        })),
         false,
         event.kind === "COMMENT"
           ? "public-comment"

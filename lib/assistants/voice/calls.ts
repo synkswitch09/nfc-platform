@@ -13,6 +13,7 @@ export async function startCallback(
     contactId: string;
     audioConsentEvidence: string;
   },
+  now = new Date(),
 ) {
   const result = await db.$transaction(async (tx) => {
     await tx.$queryRaw`SELECT id FROM "AssistantWorkspace" WHERE id=${workspaceId}::uuid FOR UPDATE`;
@@ -62,7 +63,7 @@ export async function startCallback(
         409,
       );
     const config = voiceSettingsSchema.parse(setting.data);
-    assertCallbackEligible(contact, config);
+    assertCallbackEligible(contact, config, now);
     const agent = await tx.assistantResource.findUnique({
       where: {
         workspaceId_kind_externalId: {
@@ -101,7 +102,7 @@ export async function startCallback(
       ).length >= campaign.maxCalls
     )
       throw new AssistantError("Campaign call allowance reached.");
-    const period = new Date().toISOString().slice(0, 7);
+    const period = now.toISOString().slice(0, 7);
     if (
       calls.filter((c) => c.createdAt.toISOString().startsWith(period)).length *
         3 +
@@ -117,6 +118,7 @@ export async function startCallback(
         data: {
           workspaceId,
           kind: "CALL",
+          createdAt: now,
           title: `${record.title} · ${contact.name}`,
           status: "STARTING",
           externalId: `${record.id}:${contactRecord.id}`,

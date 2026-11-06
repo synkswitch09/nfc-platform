@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Plus, Sparkles, Check, RefreshCw } from "lucide-react";
 type Kind = "CONTACT" | "CAMPAIGN" | "CONTENT" | "TASK";
 type Resource = {
@@ -55,6 +55,21 @@ export function AssistantGrowth({
     [cursor, setCursor] = useState<string | null>(null),
     [jobs, setJobs] = useState<Resource[]>([]),
     [voices, setVoices] = useState<{ id: string; name: string }[]>([]);
+  const detailRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    if ((selected || editing) && window.innerWidth <= 1000) {
+      detailRef.current?.scrollIntoView({
+        behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches
+          ? "instant"
+          : "smooth",
+        block: "start",
+      });
+      if (editing)
+        detailRef.current
+          ?.querySelector<HTMLInputElement>("input")
+          ?.focus({ preventScroll: true });
+    }
+  }, [selected, editing]);
   const base = `/api/assistants/workspaces/${workspaceId}`,
     endpoint = `${base}/growth`;
   const refresh = useCallback(async () => {
@@ -171,6 +186,15 @@ export function AssistantGrowth({
           type={options.type || "text"}
           required={options.required}
           maxLength={options.max || 2000}
+          list={
+            name.toLowerCase().includes("language")
+              ? "growth-languages"
+              : name.toLowerCase().includes("country")
+                ? "growth-countries"
+                : name === "timeZone"
+                  ? "growth-timezones"
+                  : undefined
+          }
           defaultValue={
             options.type === "datetime-local"
               ? dateValue(value(name))
@@ -219,6 +243,33 @@ export function AssistantGrowth({
   );
   return (
     <section className="ai-growth" aria-label={labels[kind]}>
+      <datalist id="growth-languages">
+        <option value="en-AU">English (Australia)</option>
+        <option value="es-CO">Español (Colombia)</option>
+        <option value="pt-BR">Português</option>
+        <option value="fr">Français</option>
+        <option value="ar">العربية</option>
+      </datalist>
+      <datalist id="growth-countries">
+        {[
+          ["AU", "Australia"],
+          ["CO", "Colombia"],
+          ["NZ", "New Zealand"],
+          ["US", "United States"],
+          ["GB", "United Kingdom"],
+          ["CA", "Canada"],
+          ["BR", "Brasil"],
+        ].map(([code, name]) => (
+          <option key={code} value={code}>
+            {name}
+          </option>
+        ))}
+      </datalist>
+      <datalist id="growth-timezones">
+        {Intl.supportedValuesOf("timeZone").map((zone) => (
+          <option value={zone} key={zone} />
+        ))}
+      </datalist>
       <div className="ai-section-heading">
         <div>
           <p className="ai-eyebrow">
@@ -368,7 +419,7 @@ export function AssistantGrowth({
             </button>
           )}
         </aside>
-        <section className="ai-card">
+        <section className="ai-card" ref={detailRef}>
           {editing ? (
             <form
               key={selected?.id || "new"}
@@ -873,6 +924,15 @@ export function AssistantGrowth({
                       }
                     >
                       Research niche with Claude
+                    </button>
+                    <button
+                      className="ai-button ai-secondary"
+                      disabled={busy}
+                      onClick={() =>
+                        act("analyse", { resourceId: selected.id })
+                      }
+                    >
+                      Analyse recent account posts
                     </button>
                     {["publish", "schedule"].map((action) => (
                       <button

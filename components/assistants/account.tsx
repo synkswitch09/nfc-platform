@@ -298,6 +298,21 @@ export function AssistantAccount({
             <strong>{workspace.name}</strong>
           </div>
         </div>
+        <label className="ai-mobile-navigation">
+          Open a section
+          <select
+            aria-label="Workspace section"
+            value={tab}
+            disabled={locked}
+            onChange={(e) => navigate(e.target.value)}
+          >
+            {navigation.map((item) => (
+              <option key={item.id} value={item.id}>
+                {item.label}
+              </option>
+            ))}
+          </select>
+        </label>
         <nav aria-label="Assistant settings">
           {navigation.map(({ id, label, icon: Icon }) => (
             <button
