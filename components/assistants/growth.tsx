@@ -831,7 +831,7 @@ export function AssistantGrowth({
                       ].includes(k),
                   )
                   .map(([k, v]) => (
-                    <div key={k}>
+                    <div key={k} data-field={k}>
                       <dt>{k.replace(/([A-Z])/g, " $1")}</dt>
                       <dd>
                         {Array.isArray(v)
