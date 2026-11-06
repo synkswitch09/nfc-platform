@@ -1,0 +1,5 @@
+ALTER TABLE "AssistantWorkspace" ADD COLUMN "preferredLanguage" TEXT NOT NULL DEFAULT 'en', ADD COLUMN "preferredCountry" TEXT NOT NULL DEFAULT 'AU', ADD COLUMN "timeZone" TEXT NOT NULL DEFAULT 'Australia/Adelaide';
+CREATE TABLE "AssistantResource" ("id" UUID NOT NULL, "workspaceId" UUID NOT NULL, "kind" TEXT NOT NULL, "title" TEXT NOT NULL, "status" TEXT NOT NULL DEFAULT 'DRAFT', "version" INTEGER NOT NULL DEFAULT 1, "data" JSONB NOT NULL, "externalId" TEXT, "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, "updatedAt" TIMESTAMP(3) NOT NULL, CONSTRAINT "AssistantResource_pkey" PRIMARY KEY ("id"));
+CREATE INDEX "AssistantResource_workspaceId_kind_updatedAt_idx" ON "AssistantResource"("workspaceId", "kind", "updatedAt");
+CREATE UNIQUE INDEX "AssistantResource_workspaceId_kind_externalId_key" ON "AssistantResource"("workspaceId", "kind", "externalId");
+ALTER TABLE "AssistantResource" ADD CONSTRAINT "AssistantResource_workspaceId_fkey" FOREIGN KEY ("workspaceId") REFERENCES "AssistantWorkspace"("id") ON DELETE CASCADE ON UPDATE CASCADE;

@@ -1,27 +1,352 @@
 "use client";
-import { useEffect,useRef,useState } from "react";
-import { ArrowUpRight,Inbox,MessageCircle,RefreshCw,Search,Send,UserRound } from "lucide-react";
-import { channelName,filterConversations,manualReplyAvailable,needsAttention,type ConversationView } from "./workspace-view";
+import { useEffect, useRef, useState } from "react";
+import {
+  ArrowUpRight,
+  Inbox,
+  MessageCircle,
+  RefreshCw,
+  Search,
+  Send,
+  UserRound,
+} from "lucide-react";
+import {
+  channelName,
+  filterConversations,
+  manualReplyAvailable,
+  needsAttention,
+  type ConversationView,
+} from "./workspace-view";
 
-export function AssistantInbox({conversations,busy,onRefresh,onAction,onConnections}:{conversations:ConversationView[];busy:boolean;onRefresh:()=>void;onAction:(data:unknown)=>Promise<boolean>;onConnections:()=>void}){
- const [query,setQuery]=useState(""),[channel,setChannel]=useState("ALL"),[mode,setMode]=useState("ALL"),[selectedId,setSelectedId]=useState(""),[drafts,setDrafts]=useState<Record<string,string>>({});
- const requestIds=useRef<Record<string,{text:string;id:string}>>({});
- const visible=filterConversations(conversations,query,channel,mode),selected=visible.find(c=>c.id===selectedId)||visible[0];
- const stamp=(value:Date)=>new Date(value).toLocaleString("en-AU",{month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"});
- const channels=[...new Set(conversations.map(c=>c.channel.replace(/_COMMENT$/,"")))];
- const replyAvailable=selected&&manualReplyAvailable(selected),draft=selected?drafts[selected.id]||"":"";
- const history=useRef<HTMLDivElement>(null),lastMessageId=selected?.messages[0]?.id;
- useEffect(()=>{if(history.current)history.current.scrollTop=history.current.scrollHeight;},[selected?.id,lastMessageId]);
- return <section className="ai-inbox" aria-label="Customer inbox">
-  <div className="ai-section-heading"><div><h2>Every conversation. One inbox.</h2><p className="ai-small">Search the latest 30 conversations. Open a thread to review messages or reply yourself.</p></div><button type="button" className="ai-button ai-secondary" onClick={onRefresh} disabled={busy}><RefreshCw size={16} aria-hidden="true"/>Refresh conversations</button></div>
-  <div className="ai-inbox-toolbar"><label className="ai-search"><Search size={17} aria-hidden="true"/><span className="sr-only">Search conversation messages</span><input type="search" placeholder="Search messages…" value={query} onChange={e=>setQuery(e.target.value)}/></label><label><span className="sr-only">Filter by channel</span><select value={channel} onChange={e=>setChannel(e.target.value)}><option value="ALL">All channels</option>{channels.map(c=><option key={c} value={c}>{channelName(c)}</option>)}</select></label><label><span className="sr-only">Filter by reply status</span><select value={mode} onChange={e=>setMode(e.target.value)}><option value="ALL">All conversations</option><option value="ATTENTION">Needs attention</option><option value="AI">AI replies enabled</option></select></label></div>
-  {!conversations.length?<div className="ai-empty"><span className="ai-empty-icon"><Inbox size={28} aria-hidden="true"/></span><h3>Your inbox starts with a hello.</h3><p>Connect a channel, activate replies and send a new message from a customer account. Refresh to see it here.</p><button className="ai-button" onClick={onConnections}>Review your channels<ArrowUpRight size={16} aria-hidden="true"/></button></div>:!visible.length?<div className="ai-empty"><Search size={26} aria-hidden="true"/><h3>No matching conversations</h3><p>Try another search or clear the filters.</p><button className="ai-button ai-secondary" onClick={()=>{setQuery("");setChannel("ALL");setMode("ALL");}}>Clear filters</button></div>:<div className="ai-inbox-layout">
-   <div className="ai-thread-list" aria-label="Conversations">{visible.map(conversation=>{const latest=conversation.messages[0];return <button key={conversation.id} type="button" className={`ai-thread ${selected?.id===conversation.id?"selected":""}`} aria-pressed={selected?.id===conversation.id} onClick={()=>setSelectedId(conversation.id)}><span className="ai-thread-top"><strong>{channelName(conversation.channel)}</strong><small>{stamp(conversation.updatedAt)}</small></span><span className="ai-thread-preview">{latest?.text||"No messages yet"}</span><span className={`ai-badge ${needsAttention(conversation)?"ai-warning-badge":""}`}>{needsAttention(conversation)?"Needs attention":"AI replies enabled"}</span></button>;})}</div>
-   {selected&&<section className="ai-thread-detail" aria-label="Selected conversation"><header className="ai-section-heading"><div><h3>{channelName(selected.channel)}</h3><p className="ai-small">{selected.humanOnly?"You are in control. Automatic replies are paused for this thread.":"AI replies are enabled for this thread. Channel and service settings also apply."}</p></div><button className="ai-button ai-secondary" disabled={busy} onClick={()=>onAction({conversationId:selected.id,humanOnly:!selected.humanOnly})}><UserRound size={16} aria-hidden="true"/>{selected.humanOnly?"Resume AI replies":"Take over"}</button></header>
-    <div className="ai-thread-messages" ref={history} tabIndex={0} aria-label="Message history">{[...selected.messages].reverse().map(message=><div className={`ai-message ${message.role==="ASSISTANT"?"assistant":""}`} key={message.id}><small>{message.role==="ASSISTANT"?"Business":"Customer"} · {stamp(message.createdAt)}</small><div>{message.text}</div>{(message.deliveryStatus||message.status!=="COMPLETE")&&<small className="ai-delivery-state">{message.deliveryStatus==="FAILED"?"Delivery failed — check Meta billing and the destination.":message.status==="UNCERTAIN"?"Delivery unconfirmed — check Meta before sending again.":message.status==="FAILED"?"Not sent":message.status==="PENDING"?"Sending…":message.deliveryStatus==="READ"?"Read":message.deliveryStatus==="DELIVERED"?"Delivered":message.deliveryStatus==="ACCEPTED"?"Accepted by provider":"Sent to provider"}</small>}</div>)}</div>
-    <form className="ai-reply-composer" onSubmit={async event=>{event.preventDefault();const text=draft.trim(),id=selected.id;if(!text)return;let attempt=requestIds.current[id];if(!attempt||attempt.text!==text){attempt={text,id:crypto.randomUUID()};requestIds.current[id]=attempt;}if(await onAction({conversationId:id,humanOnly:true,requestId:attempt.id,message:text})){setDrafts(previous=>({...previous,[id]:""}));delete requestIds.current[id];}}}><label className="ai-field">Reply as your business<textarea name="message" rows={3} maxLength={selected.socialConnectionId?990:3000} value={draft} disabled={busy||!replyAvailable} onChange={event=>setDrafts(previous=>({...previous,[selected.id]:event.target.value}))} placeholder="Write a helpful reply…" required/></label><div className="ai-composer-footer"><p className="ai-small">{replyAvailable?"Sending a reply pauses AI for this conversation. Your draft stays here if sending fails.":"The 24-hour reply window has closed. Reply directly in Meta, or wait for a new customer message."}</p><button className="ai-button" disabled={busy||!replyAvailable||!draft.trim()}><Send size={16} aria-hidden="true"/>{busy?"Sending…":"Send reply"}</button></div></form>
-   </section>}
-  </div>}
-  <p className="ai-small ai-inbox-note"><MessageCircle size={14} aria-hidden="true"/> Counts and searches cover the conversations loaded here, not your full account history.</p>
- </section>;
+export function AssistantInbox({
+  conversations,
+  busy,
+  onRefresh,
+  onAction,
+  onConnections,
+}: {
+  conversations: ConversationView[];
+  busy: boolean;
+  onRefresh: () => void;
+  onAction: (data: unknown) => Promise<boolean>;
+  onConnections: () => void;
+}) {
+  const [query, setQuery] = useState(""),
+    [channel, setChannel] = useState("ALL"),
+    [mode, setMode] = useState("ALL"),
+    [selectedId, setSelectedId] = useState(""),
+    [drafts, setDrafts] = useState<Record<string, string>>({});
+  const [leadNotice, setLeadNotice] = useState("");
+  const requestIds = useRef<Record<string, { text: string; id: string }>>({});
+  const visible = filterConversations(conversations, query, channel, mode),
+    selected = visible.find((c) => c.id === selectedId) || visible[0];
+  const stamp = (value: Date) =>
+    new Date(value).toLocaleString("en-AU", {
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  const channels = [
+    ...new Set(conversations.map((c) => c.channel.replace(/_COMMENT$/, ""))),
+  ];
+  const replyAvailable = selected && manualReplyAvailable(selected),
+    draft = selected ? drafts[selected.id] || "" : "";
+  const history = useRef<HTMLDivElement>(null),
+    lastMessageId = selected?.messages[0]?.id;
+  useEffect(() => {
+    if (history.current)
+      history.current.scrollTop = history.current.scrollHeight;
+  }, [selected?.id, lastMessageId]);
+  return (
+    <section className="ai-inbox" aria-label="Customer inbox">
+      <div className="ai-section-heading">
+        <div>
+          <h2>Every conversation. One inbox.</h2>
+          <p className="ai-small">
+            Search the latest 30 conversations. Open a thread to review messages
+            or reply yourself.
+          </p>
+        </div>
+        <button
+          type="button"
+          className="ai-button ai-secondary"
+          onClick={onRefresh}
+          disabled={busy}
+        >
+          <RefreshCw size={16} aria-hidden="true" />
+          Refresh conversations
+        </button>
+      </div>
+      <div className="ai-inbox-toolbar">
+        <label className="ai-search">
+          <Search size={17} aria-hidden="true" />
+          <span className="sr-only">Search conversation messages</span>
+          <input
+            type="search"
+            placeholder="Search messages…"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+        </label>
+        <label>
+          <span className="sr-only">Filter by channel</span>
+          <select value={channel} onChange={(e) => setChannel(e.target.value)}>
+            <option value="ALL">All channels</option>
+            {channels.map((c) => (
+              <option key={c} value={c}>
+                {channelName(c)}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          <span className="sr-only">Filter by reply status</span>
+          <select value={mode} onChange={(e) => setMode(e.target.value)}>
+            <option value="ALL">All conversations</option>
+            <option value="ATTENTION">Needs attention</option>
+            <option value="AI">AI replies enabled</option>
+          </select>
+        </label>
+      </div>
+      {!conversations.length ? (
+        <div className="ai-empty">
+          <span className="ai-empty-icon">
+            <Inbox size={28} aria-hidden="true" />
+          </span>
+          <h3>Your inbox starts with a hello.</h3>
+          <p>
+            Connect a channel, activate replies and send a new message from a
+            customer account. Refresh to see it here.
+          </p>
+          <button className="ai-button" onClick={onConnections}>
+            Review your channels
+            <ArrowUpRight size={16} aria-hidden="true" />
+          </button>
+        </div>
+      ) : !visible.length ? (
+        <div className="ai-empty">
+          <Search size={26} aria-hidden="true" />
+          <h3>No matching conversations</h3>
+          <p>Try another search or clear the filters.</p>
+          <button
+            className="ai-button ai-secondary"
+            onClick={() => {
+              setQuery("");
+              setChannel("ALL");
+              setMode("ALL");
+            }}
+          >
+            Clear filters
+          </button>
+        </div>
+      ) : (
+        <div className="ai-inbox-layout">
+          <div className="ai-thread-list" aria-label="Conversations">
+            {visible.map((conversation) => {
+              const latest = conversation.messages[0];
+              return (
+                <button
+                  key={conversation.id}
+                  type="button"
+                  className={`ai-thread ${selected?.id === conversation.id ? "selected" : ""}`}
+                  aria-pressed={selected?.id === conversation.id}
+                  onClick={() => setSelectedId(conversation.id)}
+                >
+                  <span className="ai-thread-top">
+                    <strong>{channelName(conversation.channel)}</strong>
+                    <small>{stamp(conversation.updatedAt)}</small>
+                  </span>
+                  <span className="ai-thread-preview">
+                    {latest?.text || "No messages yet"}
+                  </span>
+                  <span
+                    className={`ai-badge ${needsAttention(conversation) ? "ai-warning-badge" : ""}`}
+                  >
+                    {needsAttention(conversation)
+                      ? "Needs attention"
+                      : "AI replies enabled"}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+          {selected && (
+            <section
+              className="ai-thread-detail"
+              aria-label="Selected conversation"
+            >
+              <header className="ai-section-heading">
+                <div>
+                  <h3>{channelName(selected.channel)}</h3>
+                  <p className="ai-small">
+                    {selected.humanOnly
+                      ? "You are in control. Automatic replies are paused for this thread."
+                      : "AI replies are enabled for this thread. Channel and service settings also apply."}
+                  </p>
+                </div>
+                <button
+                  className="ai-button ai-secondary"
+                  disabled={busy}
+                  onClick={() =>
+                    onAction({
+                      conversationId: selected.id,
+                      humanOnly: !selected.humanOnly,
+                    })
+                  }
+                >
+                  <UserRound size={16} aria-hidden="true" />
+                  {selected.humanOnly ? "Resume AI replies" : "Take over"}
+                </button>
+              </header>
+              <details className="ai-card">
+                <summary>Save this conversation as a client</summary>
+                <form
+                  onSubmit={async (e) => {
+                    e.preventDefault();
+                    try {
+                      const r = await fetch(
+                          `/api/assistants/workspaces/${selected.workspaceId}/growth`,
+                          {
+                            method: "POST",
+                            headers: { "content-type": "application/json" },
+                            body: JSON.stringify({
+                              action: "capture",
+                              conversationId: selected.id,
+                              name: new FormData(e.currentTarget).get(
+                                "clientName",
+                              ),
+                            }),
+                          },
+                        ),
+                        data = await r.json();
+                      if (!r.ok) throw new Error(data.error);
+                      setLeadNotice(
+                        "Client saved. Open Clients & leads to add needs, next steps and contact permission.",
+                      );
+                    } catch (error) {
+                      setLeadNotice(
+                        error instanceof Error
+                          ? error.message
+                          : "Could not save client.",
+                      );
+                    }
+                  }}
+                >
+                  <label className="ai-field">
+                    Client name
+                    <input name="clientName" required maxLength={120} />
+                  </label>
+                  <button className="ai-button" disabled={busy}>
+                    Save client
+                  </button>
+                </form>
+                {leadNotice && <p role="status">{leadNotice}</p>}
+              </details>
+              <div
+                className="ai-thread-messages"
+                ref={history}
+                tabIndex={0}
+                aria-label="Message history"
+              >
+                {[...selected.messages].reverse().map((message) => (
+                  <div
+                    className={`ai-message ${message.role === "ASSISTANT" ? "assistant" : ""}`}
+                    key={message.id}
+                  >
+                    <small>
+                      {message.role === "ASSISTANT" ? "Business" : "Customer"} ·{" "}
+                      {stamp(message.createdAt)}
+                    </small>
+                    <div>{message.text}</div>
+                    {(message.deliveryStatus ||
+                      message.status !== "COMPLETE") && (
+                      <small className="ai-delivery-state">
+                        {message.deliveryStatus === "FAILED"
+                          ? "Delivery failed — check Meta billing and the destination."
+                          : message.status === "UNCERTAIN"
+                            ? "Delivery unconfirmed — check Meta before sending again."
+                            : message.status === "FAILED"
+                              ? "Not sent"
+                              : message.status === "PENDING"
+                                ? "Sending…"
+                                : message.deliveryStatus === "READ"
+                                  ? "Read"
+                                  : message.deliveryStatus === "DELIVERED"
+                                    ? "Delivered"
+                                    : message.deliveryStatus === "ACCEPTED"
+                                      ? "Accepted by provider"
+                                      : "Sent to provider"}
+                      </small>
+                    )}
+                  </div>
+                ))}
+              </div>
+              <form
+                className="ai-reply-composer"
+                onSubmit={async (event) => {
+                  event.preventDefault();
+                  const text = draft.trim(),
+                    id = selected.id;
+                  if (!text) return;
+                  let attempt = requestIds.current[id];
+                  if (!attempt || attempt.text !== text) {
+                    attempt = { text, id: crypto.randomUUID() };
+                    requestIds.current[id] = attempt;
+                  }
+                  if (
+                    await onAction({
+                      conversationId: id,
+                      humanOnly: true,
+                      requestId: attempt.id,
+                      message: text,
+                    })
+                  ) {
+                    setDrafts((previous) => ({ ...previous, [id]: "" }));
+                    delete requestIds.current[id];
+                  }
+                }}
+              >
+                <label className="ai-field">
+                  Reply as your business
+                  <textarea
+                    name="message"
+                    rows={3}
+                    maxLength={selected.socialConnectionId ? 990 : 3000}
+                    value={draft}
+                    disabled={busy || !replyAvailable}
+                    onChange={(event) =>
+                      setDrafts((previous) => ({
+                        ...previous,
+                        [selected.id]: event.target.value,
+                      }))
+                    }
+                    placeholder="Write a helpful reply…"
+                    required
+                  />
+                </label>
+                <div className="ai-composer-footer">
+                  <p className="ai-small">
+                    {replyAvailable
+                      ? "Sending a reply pauses AI for this conversation. Your draft stays here if sending fails."
+                      : "The 24-hour reply window has closed. Reply directly in Meta, or wait for a new customer message."}
+                  </p>
+                  <button
+                    className="ai-button"
+                    disabled={busy || !replyAvailable || !draft.trim()}
+                  >
+                    <Send size={16} aria-hidden="true" />
+                    {busy ? "Sending…" : "Send reply"}
+                  </button>
+                </div>
+              </form>
+            </section>
+          )}
+        </div>
+      )}
+      <p className="ai-small ai-inbox-note">
+        <MessageCircle size={14} aria-hidden="true" /> Counts and searches cover
+        the conversations loaded here, not your full account history.
+      </p>
+    </section>
+  );
 }
