@@ -3,3 +3,8 @@ CREATE TABLE "AssistantResource" ("id" UUID NOT NULL, "workspaceId" UUID NOT NUL
 CREATE INDEX "AssistantResource_workspaceId_kind_updatedAt_idx" ON "AssistantResource"("workspaceId", "kind", "updatedAt");
 CREATE UNIQUE INDEX "AssistantResource_workspaceId_kind_externalId_key" ON "AssistantResource"("workspaceId", "kind", "externalId");
 ALTER TABLE "AssistantResource" ADD CONSTRAINT "AssistantResource_workspaceId_fkey" FOREIGN KEY ("workspaceId") REFERENCES "AssistantWorkspace"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- Extend the existing provider constraint without changing existing account rows.
+ALTER TABLE "AssistantSocialConnection" DROP CONSTRAINT "AssistantSocialConnection_provider_check";
+ALTER TABLE "AssistantSocialConnection" ADD CONSTRAINT "AssistantSocialConnection_provider_check" CHECK ("provider" IN ('FACEBOOK','INSTAGRAM','WHATSAPP','TELEGRAM'));
+ALTER TABLE "AssistantResource" ADD CONSTRAINT "AssistantResource_version_check" CHECK ("version" > 0);

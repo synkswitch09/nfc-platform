@@ -71,13 +71,19 @@ async function main() {
           ownerId,
           name: "Growth A",
           billingExempt: true,
+          billingExemptReason: "Disposable CI fixture",
           channels: ["WEB", "FACEBOOK"],
           knowledgeApprovedAt: now,
           publishedKnowledge: "Approved services",
         },
       }),
       b = await db.assistantWorkspace.create({
-        data: { ownerId, name: "Growth B", billingExempt: true },
+        data: {
+          ownerId,
+          name: "Growth B",
+          billingExempt: true,
+          billingExemptReason: "Disposable CI fixture",
+        },
       });
     workspaceId = a.id;
     otherId = b.id;
@@ -95,6 +101,19 @@ async function main() {
         authorizingUserId: "9000",
         grantedScopes: ["pages_manage_posts"],
         tokenCiphertext: sealMeta("ci-token", `connection:${connectionId}`),
+      },
+    });
+    const telegramId = randomUUID();
+    await db.assistantSocialConnection.create({
+      data: {
+        id: telegramId,
+        workspaceId: a.id,
+        provider: "TELEGRAM",
+        accountId: "998877",
+        pageId: "998877",
+        displayName: "CI Telegram",
+        authorizingUserId: "9000",
+        tokenCiphertext: sealMeta("ci-bot", `connection:${telegramId}`),
       },
     });
     const content = await db.assistantResource.create({
