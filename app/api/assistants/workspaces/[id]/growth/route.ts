@@ -225,7 +225,13 @@ export async function POST(request: NextRequest, { params }: Context) {
         );
       await db.$transaction(async (tx) => {
         await tx.$queryRaw`SELECT id FROM "AssistantWorkspace" WHERE id=${id}::uuid FOR UPDATE`;
-        await validateCampaignSend(tx, id, person.conversationId!, input);
+        await validateCampaignSend(
+          tx,
+          id,
+          person.conversationId!,
+          input,
+          action === "send",
+        );
         const c = await tx.assistantConversation.findFirst({
           where: {
             id: person.conversationId!,
@@ -272,6 +278,7 @@ export async function POST(request: NextRequest, { params }: Context) {
           input.message,
           `campaign:${input.campaignId}:${contact.id}`,
           input,
+          action === "send",
         );
       }
       return NextResponse.json({ saved: true });

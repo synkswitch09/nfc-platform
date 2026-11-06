@@ -26,7 +26,7 @@ export async function POST(
         message: z
           .object({
             date: z.number().int(),
-            text: z.string().max(4000).optional(),
+            text: z.string().max(4096).optional(),
             from: z.object({ is_bot: z.boolean() }).optional(),
             chat: z.object({
               id: z.number().int().positive(),

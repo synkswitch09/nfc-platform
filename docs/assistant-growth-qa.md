@@ -3,8 +3,8 @@
 ## Verificaciones realizadas
 
 - La suite anterior completa: 136 archivos / 843 pruebas, aprobada antes de agregar las pruebas nuevas.
-- Nuevas pruebas unitarias/HTTP: 44 casos de locales, países/zonas horarias, evidencia de ventas, consentimiento, exclusión, expiración, horarios locales, festivos, presupuesto desactivado, firmas HMAC alteradas/antiguas, proveedor sin configurar, URL host arbitrario, validación de publicación, límites de cuerpo, búsquedas Claude con fuentes, CSRF, autenticación, aislamiento, versiones y cuotas por sección.
-- Revisión local final: **138 archivos / 887 pruebas aprobadas**, TypeScript aprobado y lint aprobado.
+- Nuevas pruebas unitarias/HTTP: 46 casos de locales, países/zonas horarias, evidencia de ventas, consentimiento, exclusión, expiración, horarios locales, festivos, presupuesto desactivado, firmas HMAC alteradas/antiguas, proveedor sin configurar, URL host arbitrario, validación de publicación, límites de cuerpo, búsquedas Claude con fuentes, CSRF, autenticación, aislamiento, versiones y cuotas por sección.
+- Revisión local final: **139 archivos / 889 pruebas aprobadas**, TypeScript aprobado y lint aprobado.
 - Compilación local de producción aprobada: Next.js compiló y generó las 118 páginas. Se regeneró una caché local de Turbopack dañada antes de esa ejecución. La comprobación SQL completa se consulta en CI para el commit final.
 - Navegador: vista real de los componentes con API simulada y datos sintéticos. Probados navegación, alta y guardado de cliente, presentación del estado sin permiso, selección de campaña, simulación privada, editor móvil de campaña y editor tablet de contenido.
 - Tamaños observados: escritorio; iframe con viewport móvil 390 × 844 (ancho útil 375 por scrollbar); tablet 768 × 1024 (ancho útil 753). En formularios comprobados, `scrollWidth === clientWidth`: sin desbordamiento horizontal.

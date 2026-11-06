@@ -64,6 +64,7 @@ export async function validateCampaignSend(
   workspaceId: string,
   conversationId: string,
   reference: { campaignId: string; version: number; contactId: string },
+  enforceHours = true,
 ) {
   const campaign = await client.assistantResource.findFirst({
       where: {
@@ -102,7 +103,10 @@ export async function validateCampaignSend(
       weekday: "short",
       timeZone: person.timeZone,
     }).format();
-  if (hour < 9 || hour >= 17 || ["Sat", "Sun"].includes(weekday))
+  if (
+    enforceHours &&
+    (hour < 9 || hour >= 17 || ["Sat", "Sun"].includes(weekday))
+  )
     throw new AssistantError(
       "Campaign follow-ups are restricted to local weekdays, 09:00–17:00.",
     );
