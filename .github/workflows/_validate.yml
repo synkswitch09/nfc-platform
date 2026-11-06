@@ -7,7 +7,12 @@ jobs:
     services:
       postgres:
         image: mirror.gcr.io/library/postgres:17-alpine@sha256:b0f9560a2de083e2cc7382e75f808c7381a32852a7ec49117deedb300e552b24
-        env: { POSTGRES_DB: nfc_platform, POSTGRES_USER: nfc, POSTGRES_PASSWORD: nfc }
+        env:
+          {
+            POSTGRES_DB: nfc_platform,
+            POSTGRES_USER: nfc,
+            POSTGRES_PASSWORD: nfc,
+          }
         ports: ["5432:5432"]
         options: >-
           --health-cmd "pg_isready -U nfc -d nfc_platform"
@@ -43,6 +48,8 @@ jobs:
         run: node --import tsx scripts/check-assistant-meta.ts
       - name: Verify WhatsApp and independent channel controls
         run: node --import tsx scripts/check-assistant-whatsapp.ts
+      - name: Verify assistant growth isolation and duplicate delivery fences
+        run: node --import tsx scripts/check-assistant-growth.ts
       - name: Validate environment worker provisioning
         run: python3 -m unittest discover -s tests -p test_*.py
       - run: npm run lint

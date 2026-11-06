@@ -1,56 +1,996 @@
 "use client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
-import { ArrowRight,ArrowUpRight,BookOpen,CheckCircle2,Copy,CreditCard,HelpCircle,Inbox,LayoutDashboard,Link2,ShieldCheck,Sparkles } from "lucide-react";
+import { useEffect, useState } from "react";
+import {
+  ArrowRight,
+  ArrowUpRight,
+  BookOpen,
+  CheckCircle2,
+  Copy,
+  CreditCard,
+  HelpCircle,
+  Inbox,
+  LayoutDashboard,
+  Link2,
+  ShieldCheck,
+  Sparkles,
+} from "lucide-react";
+import { AssistantGrowth } from "./growth";
+import { AssistantVoice } from "./voice";
+import { TelegramConnection } from "./telegram";
 import { AssistantInbox } from "./inbox";
 import { AssistantOverview } from "./overview";
 import { needsAttention } from "./workspace-view";
-import { AssistantSocialConnections,type SocialConnectionView,type MetaChoicesView,type SocialIssueView } from "./social-connections";
+import {
+  AssistantSocialConnections,
+  type SocialConnectionView,
+  type MetaChoicesView,
+  type SocialIssueView,
+} from "./social-connections";
 import { AssistantKnowledgeInput } from "./knowledge-input";
-import type { AssistantWorkspace,AssistantConversation,AssistantMessage,AssistantSupportMessage } from "@prisma/client";
-type Model={key:string;name:string;description:string};type Conversation=AssistantConversation&{messages:AssistantMessage[]};
-async function post(url:string,data:unknown){const response=await fetch(url,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(data)});const result=await response.json();if(!response.ok)throw new Error(result.error||"Please try again.");return result;}
-export function AssistantLogout(){const router=useRouter();return <button className="ai-button ai-secondary" onClick={async()=>{await post("/api/assistants/auth",{action:"logout"});router.push("/login");router.refresh();}}>Sign out</button>;}
-export function AssistantBusinessCreate({admin}:{admin:boolean}){const router=useRouter(),[busy,setBusy]=useState(false),[status,setStatus]=useState("");return <section className="ai-card"><h2>Add a business</h2><form onSubmit={async event=>{event.preventDefault();const form=event.currentTarget;setBusy(true);try{const result=await post("/api/assistants/workspaces",Object.fromEntries(new FormData(form)));router.push(`${admin?"/ai-assistants":"/account"}?business=${result.id}`);router.refresh();form.reset();}catch(error){setStatus(error instanceof Error?error.message:"Please try again.");}finally{setBusy(false);}}}><label className="ai-field">Business name<input name="name" required maxLength={100}/></label>{admin&&<label className="ai-field">Owner's verified email<input name="ownerEmail" type="email" required/></label>}<button className="ai-button" disabled={busy}>Add business</button></form>{admin&&<button className="ai-button ai-secondary" style={{marginTop:16}} disabled={busy} onClick={async()=>{setBusy(true);try{await post("/api/assistants/workspaces",{action:"own-businesses"});setStatus("Tapkin and Kosykin are ready to configure. New records are exempt from service and setup fees.");router.refresh();}catch(error){setStatus(error instanceof Error?error.message:"Please try again.");}finally{setBusy(false);}}}>Set up my Tapkin and Kosykin assistants</button>}{status&&<p className="ai-status" role="status">{status}</p>}</section>;}
-export function AssistantAccount({workspace,models,catalog,admin,ready,used,access,conversations,support,trialUsed,origin,connections,choices,metaReady,whatsAppReady,metaResult,socialIssues}:{connections:SocialConnectionView[];choices:MetaChoicesView;metaReady:boolean;whatsAppReady:boolean;metaResult?:string;socialIssues:SocialIssueView[];workspace:AssistantWorkspace;models:Model[];catalog:Model[];admin:boolean;ready:boolean;used:number;access:{active:boolean;reason:string;limit:number};conversations:Conversation[];support:AssistantSupportMessage[];trialUsed:boolean;origin:string}){
- const router=useRouter(),[tab,setTab]=useState(metaResult||choices?"Connections":"Overview"),[status,setStatus]=useState(""),[failed,setFailed]=useState(false),[busy,setBusy]=useState(false),[preview,setPreview]=useState(""),[importing,setImporting]=useState(false),[trialChannel,setTrialChannel]=useState(workspace.channels[0]||"WEB");
- const base=`/api/assistants/workspaces/${workspace.id}`;
- async function act(action:string,data:unknown={}):Promise<boolean>{
-  setBusy(true);setStatus("");setFailed(false);
-  try{const result=await post(`${base}/${action}`,data);if(result.url){window.location.assign(result.url);return false;}if(result.reply)setPreview(result.reply);else setStatus(action==="publish"?"Your saved information is published. Your assistant will use this version.":action==="conversation"?"Conversation updated.":action==="settings"?"Settings saved.":"Saved.");router.refresh();return true;}
-  catch(error){setFailed(true);setStatus(error instanceof Error?error.message:"Please try again.");return false;}finally{setBusy(false);}
- }
- const date=(value:Date|null)=>value?new Date(value).toLocaleDateString("en-AU",{timeZone:"Australia/Adelaide"}):"—";
- const locked=busy||importing,published=Boolean(workspace.knowledgeApprovedAt),hasDraftChanges=published&&(workspace.businessKnowledge!==workspace.publishedKnowledge||workspace.masterPrompt!==workspace.publishedPrompt),attention=conversations.filter(needsAttention).length;
- const websiteConfigured=workspace.channels.includes("WEB")&&workspace.allowedOrigins.length>0;
- const navigation=[{id:"Overview",label:"Overview",icon:LayoutDashboard},{id:"Conversations",label:"Inbox",icon:Inbox},{id:"Information",label:"Your assistant",icon:BookOpen},{id:"Connections",label:"Channels",icon:Link2},{id:"Billing",label:"Plan & usage",icon:CreditCard},{id:"Help",label:"Help & support",icon:HelpCircle},...(admin?[{id:"Administrator",label:"Administration",icon:ShieldCheck}]:[])];
- const current=navigation.find(item=>item.id===tab)!;
- const navigate=(next:string)=>{setTab(next);setStatus("");setFailed(false);};
- const settings={name:workspace.name,modelKey:workspace.modelKey,masterPrompt:workspace.masterPrompt,businessKnowledge:workspace.businessKnowledge,allowedOrigins:workspace.allowedOrigins,webEnabled:workspace.channels.includes("WEB"),responseToComments:workspace.responseToComments};
- const embed=`<script src="${origin}/assistant-widget.js" data-assistant="${workspace.widgetKey}" defer></script>`;
- const serviceStatus=workspace.pausedAt?"Replies paused":!ready?"AI setup needed":!published?"Publish your information":!access.active?"Service not active":"Service active";
- return <div className="ai-workspace">
-  <aside className="ai-sidebar"><div className="ai-workspace-identity"><span className="ai-workspace-avatar"><Sparkles size={22} aria-hidden="true"/></span><div><span className="ai-small">Business workspace</span><strong>{workspace.name}</strong></div></div><nav aria-label="Assistant settings">{navigation.map(({id,label,icon:Icon})=><button type="button" key={id} disabled={locked} aria-current={tab===id?"page":undefined} className={tab===id?"selected":""} onClick={()=>navigate(id)}><Icon size={18} aria-hidden="true"/><span>{label}</span>{id==="Conversations"&&attention>0&&<span className="ai-nav-count">{attention}<span className="sr-only"> needing attention</span></span>}</button>)}</nav><div className="ai-sidebar-note"><ShieldCheck size={18} aria-hidden="true"/><p>You stay in control.<br/>Pause a channel or take over any conversation.</p></div></aside>
-  <div className="ai-workspace-content"><header className="ai-workspace-heading"><div><p className="ai-eyebrow">{workspace.name}</p><h2>{current.label}</h2></div><span className={`ai-badge ${serviceStatus==="Service active"?"":"ai-warning-badge"}`}><span className="ai-status-dot"/>{serviceStatus}</span></header>
-  {status&&<p className={`ai-status ${failed?"ai-error-status":""}`} role={failed?"alert":"status"}>{status}</p>}
-  {tab==="Overview"&&<AssistantOverview workspace={workspace} connections={connections} conversations={conversations} active={access.active} ready={ready} used={used} limit={access.limit} issues={socialIssues.length} busy={locked} onNavigate={navigate}/>}
-  <section hidden={tab!=="Information"} aria-label="Assistant information"><div className="ai-section-heading"><div><h3>Make every answer feel like your business.</h3><p className="ai-small">Save your draft, try a customer question and publish when you are happy with the result.</p></div><span className={`ai-badge ${published&&!hasDraftChanges?"":"ai-warning-badge"}`}>{hasDraftChanges?"Saved changes not published":published?"Published":"Draft only"}</span></div>
-   <div className="ai-settings-grid"><form className="ai-card" onSubmit={async event=>{event.preventDefault();const f=new FormData(event.currentTarget),submitter=(event.nativeEvent as SubmitEvent).submitter,publish=submitter instanceof HTMLButtonElement&&submitter.value==="publish";if(await act("settings",{...settings,name:f.get("name"),modelKey:f.get("modelKey"),masterPrompt:f.get("masterPrompt"),businessKnowledge:f.get("businessKnowledge")})){if(publish)await act("publish");}}}>
-    <h3>Business knowledge & voice</h3><label className="ai-field">Business name<input name="name" required maxLength={100} defaultValue={workspace.name}/></label><label className="ai-field">How should your assistant respond?<textarea rows={5} name="masterPrompt" maxLength={12000} defaultValue={workspace.masterPrompt} placeholder="Friendly, brief, Australian English. Ask the team about complaints or anything you cannot confirm."/></label><AssistantKnowledgeInput workspaceId={workspace.id} initialKnowledge={workspace.businessKnowledge} disabled={busy} onImportingChange={setImporting}/>
-    <details><summary>Response model</summary><label className="ai-field">Choose your AI model<select name="modelKey" defaultValue={workspace.modelKey}>{!models.some(m=>m.key===workspace.modelKey)&&<option value={workspace.modelKey}>Current model — not available for testing yet</option>}{models.map(m=><option value={m.key} key={m.key}>{m.name} — {m.description}</option>)}</select></label></details><div className="ai-save-bar"><button className="ai-button ai-secondary" disabled={locked} name="intent" value="save">Save draft</button><button className="ai-button" disabled={locked} name="intent" value="publish"><CheckCircle2 size={16} aria-hidden="true"/>Save & publish</button></div>
-   </form><aside className="ai-card ai-test-panel"><span className="ai-icon-tile"><Sparkles size={22} aria-hidden="true"/></span><h3>Try a customer question</h3><p className="ai-small">This tests your saved draft privately. Save recent edits before testing. No message is sent to a customer.</p>{!ready&&<p className="ai-status">The AI connection is not ready yet. You can still prepare and save information.</p>}<form onSubmit={event=>{event.preventDefault();void act("preview",{message:new FormData(event.currentTarget).get("message")});}}><label className="ai-field">A question from a customer<textarea rows={4} name="message" maxLength={3000} placeholder="What do I need to know before ordering?" required/></label><button className="ai-button" disabled={locked||!ready}>{busy?"Working…":"Test answer"}<ArrowRight size={16} aria-hidden="true"/></button></form>{preview&&<div className="ai-preview-answer" role="status"><span className="ai-eyebrow">Draft response</span><p>{preview}</p></div>}<p className="ai-small">Twenty setup tests are included. Tests do not start your trial.</p></aside></div>
-  </section>
-  <section hidden={tab!=="Connections"} aria-label="Channel connections">
-   {metaResult==="retry"&&<p role="status" className="ai-status ai-warning-status">The connection was cancelled, expired or could not be authorised. Try again and allow the requested permissions.</p>}{metaResult==="connected"&&<p role="status" className="ai-status">Account connected. Choose your reply preferences, then activate the channel.</p>}
-   {(!published||!access.active||Boolean(workspace.pausedAt))&&<p className="ai-status ai-warning-status">Automatic replies also need published business information and active service access. {workspace.pausedAt?"All replies are currently paused by the platform administrator.":!published?"Publish your information under Your assistant.":"Review Plan & usage to activate your service."}</p>}
-   <AssistantSocialConnections workspaceId={workspace.id} connections={connections} choices={choices} ready={metaReady} whatsAppReady={whatsAppReady} issues={socialIssues}/>
-   <section className="ai-card"><div className="ai-section-heading"><div><h3>Website chat</h3><p className="ai-small">Add your assistant to your own website.</p></div><span className="ai-badge ai-neutral-badge">{websiteConfigured?"Configured":"Not configured"}</span></div><details><summary>Set up website chat</summary><form onSubmit={event=>{event.preventDefault();const f=new FormData(event.currentTarget);void act("settings",{...settings,allowedOrigins:String(f.get("allowedOrigins")||"").split(/\n/).map(v=>v.trim()).filter(Boolean),webEnabled:f.get("webEnabled")==="on"});}}><label className="ai-field">Approved website addresses, one per line<textarea rows={3} name="allowedOrigins" defaultValue={workspace.allowedOrigins.join("\n")} placeholder="https://yourbusiness.com.au"/></label><label className="ai-check"><input type="checkbox" name="webEnabled" defaultChecked={workspace.channels.includes("WEB")}/>Enable website chat</label><p className="ai-small">Use website origins only, without page paths. Add www and non-www separately if both are used.</p><button className="ai-button" disabled={locked}>Save website settings</button></form><div className="ai-section-heading ai-embed-heading"><h3>Installation code</h3><button type="button" className="ai-button ai-secondary" onClick={async()=>{try{await navigator.clipboard.writeText(embed);setFailed(false);setStatus("Installation code copied.");}catch{setFailed(true);setStatus("Copy is unavailable in this browser. Select the installation code below and copy it.");}}}><Copy size={15} aria-hidden="true"/>Copy code</button></div><pre className="ai-pre" tabIndex={0}>{embed}</pre><Link href="/help/website" className="ai-text-button">Read the installation guide <ArrowUpRight size={15} aria-hidden="true"/></Link></details></section>
-  </section>
-  {tab==="Conversations"&&<AssistantInbox conversations={conversations} busy={locked} onRefresh={()=>router.refresh()} onAction={data=>act("conversation",data)} onConnections={()=>navigate("Connections")}/>}
- {tab==="Billing"&&<section className="ai-card"><h2>Your subscription</h2>{workspace.billingExempt?<p>Service and setup fees are waived for this business.</p>:<><p>{workspace.stripeStatus?`Subscription: ${workspace.stripeStatus.replaceAll("_"," ")}`:"No paid subscription"}</p>{workspace.paidThrough&&<p>{workspace.cancelAtPeriodEnd?"Paid access ends":"Current paid period ends"} {date(workspace.paidThrough)}.</p>}{workspace.retentionAt&&!access.active&&<p>Configuration retained for reactivation until {date(workspace.retentionAt)}, with notice before deletion.</p>}<label className="ai-field">Channel for your free trial<select value={trialChannel} onChange={event=>setTrialChannel(event.target.value)}>{workspace.channels.map(channel=><option key={channel} value={channel}>{channel==="WEB"?"Website chat":channel}</option>)}</select></label><div className="ai-actions">{!trialUsed&&!workspace.trialStartedAt&&!workspace.stripeSubscriptionId&&<button className="ai-button" disabled={busy||importing} onClick={()=>act("trial",{channel:trialChannel})}>Start my seven free days</button>}{(!workspace.stripeSubscriptionId||["canceled","incomplete_expired"].includes(workspace.stripeStatus||""))&&<button className="ai-button" disabled={busy||importing} onClick={()=>act("checkout",{planKey:"respond"})}>Choose Responde — A$49/month</button>}{workspace.stripeSubscriptionId&&workspace.stripeStatus!=="canceled"&&<button className="ai-button ai-secondary" disabled={busy||importing} onClick={()=>act(workspace.cancelAtPeriodEnd?"resume":"cancel")}>{workspace.cancelAtPeriodEnd?"Keep my subscription":"Cancel monthly renewal"}</button>}<button className="ai-button ai-secondary" disabled={busy||importing} onClick={()=>act("billing")}>Invoices and payment details</button><button className="ai-button ai-secondary" disabled={busy||importing} onClick={()=>act("refresh-billing")}>Refresh payment status</button></div><p className="ai-small">The trial needs no card and pauses without charging. A subscription starts when you complete checkout. Applicable tax is shown there. Cancellation keeps access until the end of the paid period.</p></>}</section>}
- {tab==="Help"&&<section className="ai-card"><h2>Ask for help</h2><p><Link href="/help">Read the help centre →</Link></p><p className="ai-small">Ask about setup, a special connection, invoices or your data.</p>{support.map(message=><div className="ai-message" key={message.id}><small>{message.role==="ADMIN"?"Support":"Business"} · {date(message.createdAt)}</small>{message.text}</div>)}<form onSubmit={async event=>{event.preventDefault();const form=event.currentTarget;if(await act("support",{message:new FormData(form).get("message")}))form.reset();}}><label className="ai-field">Your message<textarea name="message" required minLength={5} maxLength={4000} rows={4}/></label><button className="ai-button" disabled={busy||importing}>Send message</button></form><p className="ai-small">Replies appear here. Do not send passwords or payment-card details.</p></section>}
- {tab==="Administrator"&&admin&&<section className="ai-card"><h2>Administrator controls</h2><p>Meta connection: {metaReady?"Platform credentials configured. Test the account permissions and webhook delivery in Meta.":"Setup required. Configure the Meta application once for the whole platform."}</p><p className="ai-small">Setup guide: docs/assistant-meta.md. Callback: {origin}/api/assistants/meta/callback · Webhooks: {origin}/api/assistants/meta/webhook</p><form onSubmit={event=>{event.preventDefault();const form=new FormData(event.currentTarget);void act("admin",{billingExempt:form.get("billingExempt")==="on",billingExemptReason:form.get("billingExemptReason"),allowedModelKeys:form.getAll("allowedModelKeys"),paused:form.get("paused")==="on"});}}><label className="ai-check"><input type="checkbox" name="billingExempt" defaultChecked={workspace.billingExempt}/>Waive service and setup fees</label><label className="ai-field">Reason for exemption<input name="billingExemptReason" maxLength={240} defaultValue={workspace.billingExemptReason||""}/></label><fieldset><legend>Models this business may choose</legend>{catalog.map(m=><label className="ai-check" key={m.key}><input type="checkbox" name="allowedModelKeys" value={m.key} defaultChecked={workspace.allowedModelKeys.includes(m.key)}/>{m.name}</label>)}</fieldset><label className="ai-check"><input type="checkbox" name="paused" defaultChecked={Boolean(workspace.pausedAt)}/>Pause all assistant replies</label><button className="ai-button" disabled={busy||importing}>Save administrator settings</button></form><p className="ai-small">Exemption does not remove provider costs or usage limits. Cancel an existing paid subscription before making it exempt.</p></section>}
-
- </div></div>;
+import type {
+  AssistantWorkspace,
+  AssistantConversation,
+  AssistantMessage,
+  AssistantSupportMessage,
+} from "@prisma/client";
+type Model = { key: string; name: string; description: string };
+type Conversation = AssistantConversation & { messages: AssistantMessage[] };
+async function post(url: string, data: unknown) {
+  const response = await fetch(url, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  const result = await response.json();
+  if (!response.ok) throw new Error(result.error || "Please try again.");
+  return result;
+}
+export function AssistantLogout() {
+  const router = useRouter();
+  return (
+    <button
+      className="ai-button ai-secondary"
+      onClick={async () => {
+        await post("/api/assistants/auth", { action: "logout" });
+        router.push("/login");
+        router.refresh();
+      }}
+    >
+      Sign out
+    </button>
+  );
+}
+export function AssistantBusinessCreate({ admin }: { admin: boolean }) {
+  const router = useRouter(),
+    [busy, setBusy] = useState(false),
+    [status, setStatus] = useState("");
+  return (
+    <section className="ai-card">
+      <h2>Add a business</h2>
+      <form
+        onSubmit={async (event) => {
+          event.preventDefault();
+          const form = event.currentTarget;
+          setBusy(true);
+          try {
+            const result = await post(
+              "/api/assistants/workspaces",
+              Object.fromEntries(new FormData(form)),
+            );
+            router.push(
+              `${admin ? "/ai-assistants" : "/account"}?business=${result.id}`,
+            );
+            router.refresh();
+            form.reset();
+          } catch (error) {
+            setStatus(
+              error instanceof Error ? error.message : "Please try again.",
+            );
+          } finally {
+            setBusy(false);
+          }
+        }}
+      >
+        <label className="ai-field">
+          Business name
+          <input name="name" required maxLength={100} />
+        </label>
+        {admin && (
+          <label className="ai-field">
+            Owner's verified email
+            <input name="ownerEmail" type="email" required />
+          </label>
+        )}
+        <button className="ai-button" disabled={busy}>
+          Add business
+        </button>
+      </form>
+      {admin && (
+        <button
+          className="ai-button ai-secondary"
+          style={{ marginTop: 16 }}
+          disabled={busy}
+          onClick={async () => {
+            setBusy(true);
+            try {
+              await post("/api/assistants/workspaces", {
+                action: "own-businesses",
+              });
+              setStatus(
+                "Tapkin and Kosykin are ready to configure. New records are exempt from service and setup fees.",
+              );
+              router.refresh();
+            } catch (error) {
+              setStatus(
+                error instanceof Error ? error.message : "Please try again.",
+              );
+            } finally {
+              setBusy(false);
+            }
+          }}
+        >
+          Set up my Tapkin and Kosykin assistants
+        </button>
+      )}
+      {status && (
+        <p className="ai-status" role="status">
+          {status}
+        </p>
+      )}
+    </section>
+  );
+}
+export function AssistantAccount({
+  workspace,
+  models,
+  catalog,
+  admin,
+  ready,
+  used,
+  access,
+  conversations,
+  support,
+  trialUsed,
+  origin,
+  connections,
+  choices,
+  metaReady,
+  whatsAppReady,
+  metaResult,
+  socialIssues,
+}: {
+  connections: SocialConnectionView[];
+  choices: MetaChoicesView;
+  metaReady: boolean;
+  whatsAppReady: boolean;
+  metaResult?: string;
+  socialIssues: SocialIssueView[];
+  workspace: AssistantWorkspace;
+  models: Model[];
+  catalog: Model[];
+  admin: boolean;
+  ready: boolean;
+  used: number;
+  access: { active: boolean; reason: string; limit: number };
+  conversations: Conversation[];
+  support: AssistantSupportMessage[];
+  trialUsed: boolean;
+  origin: string;
+}) {
+  const router = useRouter(),
+    [tab, setTab] = useState(
+      metaResult || choices ? "Connections" : "Overview",
+    ),
+    [status, setStatus] = useState(""),
+    [failed, setFailed] = useState(false),
+    [busy, setBusy] = useState(false),
+    [preview, setPreview] = useState(""),
+    [importing, setImporting] = useState(false),
+    [trialChannel, setTrialChannel] = useState(workspace.channels[0] || "WEB");
+  const [growthDirty, setGrowthDirty] = useState(false);
+  useEffect(() => {
+    const listener = (event: Event) =>
+      setGrowthDirty(Boolean((event as CustomEvent).detail));
+    window.addEventListener("assistant-dirty", listener);
+    return () => window.removeEventListener("assistant-dirty", listener);
+  }, []);
+  const base = `/api/assistants/workspaces/${workspace.id}`;
+  async function act(action: string, data: unknown = {}): Promise<boolean> {
+    setBusy(true);
+    setStatus("");
+    setFailed(false);
+    try {
+      const result = await post(`${base}/${action}`, data);
+      if (result.url) {
+        window.location.assign(result.url);
+        return false;
+      }
+      if (result.reply) setPreview(result.reply);
+      else
+        setStatus(
+          action === "publish"
+            ? "Your saved information is published. Your assistant will use this version."
+            : action === "conversation"
+              ? "Conversation updated."
+              : action === "settings"
+                ? "Settings saved."
+                : "Saved.",
+        );
+      router.refresh();
+      return true;
+    } catch (error) {
+      setFailed(true);
+      setStatus(error instanceof Error ? error.message : "Please try again.");
+      return false;
+    } finally {
+      setBusy(false);
+    }
+  }
+  const date = (value: Date | null) =>
+    value
+      ? new Date(value).toLocaleDateString("en-AU", {
+          timeZone: "Australia/Adelaide",
+        })
+      : "—";
+  const locked = busy || importing,
+    published = Boolean(workspace.knowledgeApprovedAt),
+    hasDraftChanges =
+      published &&
+      (workspace.businessKnowledge !== workspace.publishedKnowledge ||
+        workspace.masterPrompt !== workspace.publishedPrompt),
+    attention = conversations.filter(needsAttention).length;
+  const websiteConfigured =
+    workspace.channels.includes("WEB") && workspace.allowedOrigins.length > 0;
+  const navigation = [
+    { id: "Overview", label: "Overview", icon: LayoutDashboard },
+    { id: "Conversations", label: "Inbox", icon: Inbox },
+    { id: "Clients", label: "Clients & leads", icon: Inbox },
+    { id: "Campaigns", label: "Campaigns", icon: Sparkles },
+    { id: "Content", label: "Content studio", icon: BookOpen },
+    { id: "Tasks", label: "Tasks", icon: CheckCircle2 },
+    { id: "Voice", label: "Voice & calls", icon: Inbox },
+    { id: "Information", label: "Your assistant", icon: BookOpen },
+    { id: "Connections", label: "Channels", icon: Link2 },
+    { id: "Billing", label: "Plan & usage", icon: CreditCard },
+    { id: "Help", label: "Help & support", icon: HelpCircle },
+    ...(admin
+      ? [{ id: "Administrator", label: "Administration", icon: ShieldCheck }]
+      : []),
+  ];
+  const current = navigation.find((item) => item.id === tab)!;
+  const navigate = (next: string) => {
+    if (growthDirty && !window.confirm("Discard unsaved changes?")) return;
+    setGrowthDirty(false);
+    setTab(next);
+    setStatus("");
+    setFailed(false);
+  };
+  const settings = {
+    name: workspace.name,
+    modelKey: workspace.modelKey,
+    masterPrompt: workspace.masterPrompt,
+    businessKnowledge: workspace.businessKnowledge,
+    allowedOrigins: workspace.allowedOrigins,
+    webEnabled: workspace.channels.includes("WEB"),
+    responseToComments: workspace.responseToComments,
+  };
+  const embed = `<script src="${origin}/assistant-widget.js" data-assistant="${workspace.widgetKey}" defer></script>`;
+  const serviceStatus = workspace.pausedAt
+    ? "Replies paused"
+    : !ready
+      ? "AI setup needed"
+      : !published
+        ? "Publish your information"
+        : !access.active
+          ? "Service not active"
+          : "Service active";
+  return (
+    <div className="ai-workspace">
+      <aside className="ai-sidebar">
+        <div className="ai-workspace-identity">
+          <span className="ai-workspace-avatar">
+            <Sparkles size={22} aria-hidden="true" />
+          </span>
+          <div>
+            <span className="ai-small">Business workspace</span>
+            <strong>{workspace.name}</strong>
+          </div>
+        </div>
+        <label className="ai-mobile-navigation">
+          Open a section
+          <select
+            aria-label="Workspace section"
+            value={tab}
+            disabled={locked}
+            onChange={(e) => navigate(e.target.value)}
+          >
+            {navigation.map((item) => (
+              <option key={item.id} value={item.id}>
+                {item.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <nav aria-label="Assistant settings">
+          {navigation.map(({ id, label, icon: Icon }) => (
+            <button
+              type="button"
+              key={id}
+              disabled={locked}
+              aria-current={tab === id ? "page" : undefined}
+              className={tab === id ? "selected" : ""}
+              onClick={() => navigate(id)}
+            >
+              <Icon size={18} aria-hidden="true" />
+              <span>{label}</span>
+              {id === "Conversations" && attention > 0 && (
+                <span className="ai-nav-count">
+                  {attention}
+                  <span className="sr-only"> needing attention</span>
+                </span>
+              )}
+            </button>
+          ))}
+        </nav>
+        <div className="ai-sidebar-note">
+          <ShieldCheck size={18} aria-hidden="true" />
+          <p>
+            You stay in control.
+            <br />
+            Pause a channel or take over any conversation.
+          </p>
+        </div>
+      </aside>
+      <div className="ai-workspace-content">
+        <header className="ai-workspace-heading">
+          <div>
+            <p className="ai-eyebrow">{workspace.name}</p>
+            <h2>{current.label}</h2>
+          </div>
+          <span
+            className={`ai-badge ${serviceStatus === "Service active" ? "" : "ai-warning-badge"}`}
+          >
+            <span className="ai-status-dot" />
+            {serviceStatus}
+          </span>
+        </header>
+        {status && (
+          <p
+            className={`ai-status ${failed ? "ai-error-status" : ""}`}
+            role={failed ? "alert" : "status"}
+          >
+            {status}
+          </p>
+        )}
+        {tab === "Overview" && (
+          <AssistantOverview
+            workspace={workspace}
+            connections={connections}
+            conversations={conversations}
+            active={access.active}
+            ready={ready}
+            used={used}
+            limit={access.limit}
+            issues={socialIssues.length}
+            busy={locked}
+            onNavigate={navigate}
+          />
+        )}
+        {[
+          { tab: "Clients", kind: "CONTACT" as const },
+          { tab: "Campaigns", kind: "CAMPAIGN" as const },
+          { tab: "Content", kind: "CONTENT" as const },
+          { tab: "Tasks", kind: "TASK" as const },
+        ]
+          .filter((section) => tab === section.tab)
+          .map((section) => (
+            <AssistantGrowth
+              key={section.tab}
+              workspaceId={workspace.id}
+              kind={section.kind}
+              language={workspace.preferredLanguage}
+              country={workspace.preferredCountry}
+              timeZone={workspace.timeZone}
+            />
+          ))}
+        {tab === "Voice" && (
+          <AssistantVoice workspaceId={workspace.id} admin={admin} />
+        )}
+        <section
+          hidden={tab !== "Information"}
+          aria-label="Assistant information"
+        >
+          <div className="ai-section-heading">
+            <div>
+              <h3>Make every answer feel like your business.</h3>
+              <p className="ai-small">
+                Save your draft, try a customer question and publish when you
+                are happy with the result.
+              </p>
+            </div>
+            <span
+              className={`ai-badge ${published && !hasDraftChanges ? "" : "ai-warning-badge"}`}
+            >
+              {hasDraftChanges
+                ? "Saved changes not published"
+                : published
+                  ? "Published"
+                  : "Draft only"}
+            </span>
+          </div>
+          <form
+            className="ai-card"
+            onSubmit={async (e) => {
+              e.preventDefault();
+              const f = new FormData(e.currentTarget);
+              setBusy(true);
+              try {
+                await post(`${base}/growth`, {
+                  action: "locale",
+                  preferredLanguage: f.get("preferredLanguage"),
+                  preferredCountry: f.get("preferredCountry"),
+                  timeZone: f.get("timeZone"),
+                });
+                setFailed(false);
+                setStatus(
+                  "Language and market saved. Replies adapt to the customer’s language.",
+                );
+                router.refresh();
+              } catch (error) {
+                setFailed(true);
+                setStatus(
+                  error instanceof Error ? error.message : "Could not save.",
+                );
+              } finally {
+                setBusy(false);
+              }
+            }}
+          >
+            <h3>Language & market</h3>
+            <p className="ai-small">
+              Start in your preferred language and adapt when a customer uses
+              another. Country never implies consent to contact them.
+            </p>
+            <div className="ai-growth-fields">
+              <label className="ai-field">
+                Preferred language
+                <input
+                  name="preferredLanguage"
+                  required
+                  defaultValue={workspace.preferredLanguage}
+                  list="assistant-languages"
+                />
+                <datalist id="assistant-languages">
+                  <option value="en-AU">English (Australia)</option>
+                  <option value="es-CO">Español (Colombia)</option>
+                  <option value="pt-BR">Português</option>
+                  <option value="fr">Français</option>
+                </datalist>
+              </label>
+              <label className="ai-field">
+                Country code
+                <input
+                  name="preferredCountry"
+                  required
+                  pattern="[A-Z]{2}"
+                  maxLength={2}
+                  defaultValue={workspace.preferredCountry}
+                />
+              </label>
+              <label className="ai-field">
+                Time zone
+                <input
+                  name="timeZone"
+                  required
+                  defaultValue={workspace.timeZone}
+                />
+              </label>
+            </div>
+            <button className="ai-button ai-secondary" disabled={locked}>
+              Save language & market
+            </button>
+          </form>
+          <div className="ai-settings-grid">
+            <form
+              className="ai-card"
+              onSubmit={async (event) => {
+                event.preventDefault();
+                const f = new FormData(event.currentTarget),
+                  submitter = (event.nativeEvent as SubmitEvent).submitter,
+                  publish =
+                    submitter instanceof HTMLButtonElement &&
+                    submitter.value === "publish";
+                if (
+                  await act("settings", {
+                    ...settings,
+                    name: f.get("name"),
+                    modelKey: f.get("modelKey"),
+                    masterPrompt: f.get("masterPrompt"),
+                    businessKnowledge: f.get("businessKnowledge"),
+                  })
+                ) {
+                  if (publish) await act("publish");
+                }
+              }}
+            >
+              <h3>Business knowledge & voice</h3>
+              <label className="ai-field">
+                Business name
+                <input
+                  name="name"
+                  required
+                  maxLength={100}
+                  defaultValue={workspace.name}
+                />
+              </label>
+              <label className="ai-field">
+                How should your assistant respond?
+                <textarea
+                  rows={5}
+                  name="masterPrompt"
+                  maxLength={12000}
+                  defaultValue={workspace.masterPrompt}
+                  placeholder="Friendly, brief, Australian English. Ask the team about complaints or anything you cannot confirm."
+                />
+              </label>
+              <AssistantKnowledgeInput
+                workspaceId={workspace.id}
+                initialKnowledge={workspace.businessKnowledge}
+                disabled={busy}
+                onImportingChange={setImporting}
+              />
+              <details>
+                <summary>Response model</summary>
+                <label className="ai-field">
+                  Choose your AI model
+                  <select name="modelKey" defaultValue={workspace.modelKey}>
+                    {!models.some((m) => m.key === workspace.modelKey) && (
+                      <option value={workspace.modelKey}>
+                        Current model — not available for testing yet
+                      </option>
+                    )}
+                    {models.map((m) => (
+                      <option value={m.key} key={m.key}>
+                        {m.name} — {m.description}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </details>
+              <div className="ai-save-bar">
+                <button
+                  className="ai-button ai-secondary"
+                  disabled={locked}
+                  name="intent"
+                  value="save"
+                >
+                  Save draft
+                </button>
+                <button
+                  className="ai-button"
+                  disabled={locked}
+                  name="intent"
+                  value="publish"
+                >
+                  <CheckCircle2 size={16} aria-hidden="true" />
+                  Save & publish
+                </button>
+              </div>
+            </form>
+            <aside className="ai-card ai-test-panel">
+              <span className="ai-icon-tile">
+                <Sparkles size={22} aria-hidden="true" />
+              </span>
+              <h3>Try a customer question</h3>
+              <p className="ai-small">
+                This tests your saved draft privately. Save recent edits before
+                testing. No message is sent to a customer.
+              </p>
+              {!ready && (
+                <p className="ai-status">
+                  The AI connection is not ready yet. You can still prepare and
+                  save information.
+                </p>
+              )}
+              <form
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  void act("preview", {
+                    message: new FormData(event.currentTarget).get("message"),
+                  });
+                }}
+              >
+                <label className="ai-field">
+                  A question from a customer
+                  <textarea
+                    rows={4}
+                    name="message"
+                    maxLength={3000}
+                    placeholder="What do I need to know before ordering?"
+                    required
+                  />
+                </label>
+                <button className="ai-button" disabled={locked || !ready}>
+                  {busy ? "Working…" : "Test answer"}
+                  <ArrowRight size={16} aria-hidden="true" />
+                </button>
+              </form>
+              {preview && (
+                <div className="ai-preview-answer" role="status">
+                  <span className="ai-eyebrow">Draft response</span>
+                  <p>{preview}</p>
+                </div>
+              )}
+              <p className="ai-small">
+                Twenty setup tests are included. Tests do not start your trial.
+              </p>
+            </aside>
+          </div>
+        </section>
+        <section
+          hidden={tab !== "Connections"}
+          aria-label="Channel connections"
+        >
+          {metaResult === "retry" && (
+            <p role="status" className="ai-status ai-warning-status">
+              The connection was cancelled, expired or could not be authorised.
+              Try again and allow the requested permissions.
+            </p>
+          )}
+          {metaResult === "connected" && (
+            <p role="status" className="ai-status">
+              Account connected. Choose your reply preferences, then activate
+              the channel.
+            </p>
+          )}
+          {(!published || !access.active || Boolean(workspace.pausedAt)) && (
+            <p className="ai-status ai-warning-status">
+              Automatic replies also need published business information and
+              active service access.{" "}
+              {workspace.pausedAt
+                ? "All replies are currently paused by the platform administrator."
+                : !published
+                  ? "Publish your information under Your assistant."
+                  : "Review Plan & usage to activate your service."}
+            </p>
+          )}
+          <TelegramConnection
+            workspaceId={workspace.id}
+            connection={connections.find((c) => c.provider === "TELEGRAM")}
+          />
+          <AssistantSocialConnections
+            workspaceId={workspace.id}
+            connections={connections}
+            choices={choices}
+            ready={metaReady}
+            whatsAppReady={whatsAppReady}
+            issues={socialIssues}
+          />
+          <section className="ai-card">
+            <div className="ai-section-heading">
+              <div>
+                <h3>Website chat</h3>
+                <p className="ai-small">
+                  Add your assistant to your own website.
+                </p>
+              </div>
+              <span className="ai-badge ai-neutral-badge">
+                {websiteConfigured ? "Configured" : "Not configured"}
+              </span>
+            </div>
+            <details>
+              <summary>Set up website chat</summary>
+              <form
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  const f = new FormData(event.currentTarget);
+                  void act("settings", {
+                    ...settings,
+                    allowedOrigins: String(f.get("allowedOrigins") || "")
+                      .split(/\n/)
+                      .map((v) => v.trim())
+                      .filter(Boolean),
+                    webEnabled: f.get("webEnabled") === "on",
+                  });
+                }}
+              >
+                <label className="ai-field">
+                  Approved website addresses, one per line
+                  <textarea
+                    rows={3}
+                    name="allowedOrigins"
+                    defaultValue={workspace.allowedOrigins.join("\n")}
+                    placeholder="https://yourbusiness.com.au"
+                  />
+                </label>
+                <label className="ai-check">
+                  <input
+                    type="checkbox"
+                    name="webEnabled"
+                    defaultChecked={workspace.channels.includes("WEB")}
+                  />
+                  Enable website chat
+                </label>
+                <p className="ai-small">
+                  Use website origins only, without page paths. Add www and
+                  non-www separately if both are used.
+                </p>
+                <button className="ai-button" disabled={locked}>
+                  Save website settings
+                </button>
+              </form>
+              <div className="ai-section-heading ai-embed-heading">
+                <h3>Installation code</h3>
+                <button
+                  type="button"
+                  className="ai-button ai-secondary"
+                  onClick={async () => {
+                    try {
+                      await navigator.clipboard.writeText(embed);
+                      setFailed(false);
+                      setStatus("Installation code copied.");
+                    } catch {
+                      setFailed(true);
+                      setStatus(
+                        "Copy is unavailable in this browser. Select the installation code below and copy it.",
+                      );
+                    }
+                  }}
+                >
+                  <Copy size={15} aria-hidden="true" />
+                  Copy code
+                </button>
+              </div>
+              <pre className="ai-pre" tabIndex={0}>
+                {embed}
+              </pre>
+              <Link href="/help/website" className="ai-text-button">
+                Read the installation guide{" "}
+                <ArrowUpRight size={15} aria-hidden="true" />
+              </Link>
+            </details>
+          </section>
+        </section>
+        {tab === "Conversations" && (
+          <AssistantInbox
+            conversations={conversations}
+            busy={locked}
+            onRefresh={() => router.refresh()}
+            onAction={(data) => act("conversation", data)}
+            onConnections={() => navigate("Connections")}
+          />
+        )}
+        {tab === "Billing" && (
+          <section className="ai-card">
+            <h2>Your subscription</h2>
+            {workspace.billingExempt ? (
+              <p>Service and setup fees are waived for this business.</p>
+            ) : (
+              <>
+                <p>
+                  {workspace.stripeStatus
+                    ? `Subscription: ${workspace.stripeStatus.replaceAll("_", " ")}`
+                    : "No paid subscription"}
+                </p>
+                {workspace.paidThrough && (
+                  <p>
+                    {workspace.cancelAtPeriodEnd
+                      ? "Paid access ends"
+                      : "Current paid period ends"}{" "}
+                    {date(workspace.paidThrough)}.
+                  </p>
+                )}
+                {workspace.retentionAt && !access.active && (
+                  <p>
+                    Configuration retained for reactivation until{" "}
+                    {date(workspace.retentionAt)}, with notice before deletion.
+                  </p>
+                )}
+                <label className="ai-field">
+                  Channel for your free trial
+                  <select
+                    value={trialChannel}
+                    onChange={(event) => setTrialChannel(event.target.value)}
+                  >
+                    {workspace.channels.map((channel) => (
+                      <option key={channel} value={channel}>
+                        {channel === "WEB" ? "Website chat" : channel}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <div className="ai-actions">
+                  {!trialUsed &&
+                    !workspace.trialStartedAt &&
+                    !workspace.stripeSubscriptionId && (
+                      <button
+                        className="ai-button"
+                        disabled={busy || importing}
+                        onClick={() => act("trial", { channel: trialChannel })}
+                      >
+                        Start my seven free days
+                      </button>
+                    )}
+                  {(!workspace.stripeSubscriptionId ||
+                    ["canceled", "incomplete_expired"].includes(
+                      workspace.stripeStatus || "",
+                    )) && (
+                    <button
+                      className="ai-button"
+                      disabled={busy || importing}
+                      onClick={() => act("checkout", { planKey: "respond" })}
+                    >
+                      Choose Responde — A$49/month
+                    </button>
+                  )}
+                  {workspace.stripeSubscriptionId &&
+                    workspace.stripeStatus !== "canceled" && (
+                      <button
+                        className="ai-button ai-secondary"
+                        disabled={busy || importing}
+                        onClick={() =>
+                          act(workspace.cancelAtPeriodEnd ? "resume" : "cancel")
+                        }
+                      >
+                        {workspace.cancelAtPeriodEnd
+                          ? "Keep my subscription"
+                          : "Cancel monthly renewal"}
+                      </button>
+                    )}
+                  <button
+                    className="ai-button ai-secondary"
+                    disabled={busy || importing}
+                    onClick={() => act("billing")}
+                  >
+                    Invoices and payment details
+                  </button>
+                  <button
+                    className="ai-button ai-secondary"
+                    disabled={busy || importing}
+                    onClick={() => act("refresh-billing")}
+                  >
+                    Refresh payment status
+                  </button>
+                </div>
+                <p className="ai-small">
+                  The trial needs no card and pauses without charging. A
+                  subscription starts when you complete checkout. Applicable tax
+                  is shown there. Cancellation keeps access until the end of the
+                  paid period.
+                </p>
+              </>
+            )}
+          </section>
+        )}
+        {tab === "Help" && (
+          <section className="ai-card">
+            <h2>Ask for help</h2>
+            <p>
+              <Link href="/help">Read the help centre →</Link>
+            </p>
+            <p className="ai-small">
+              Ask about setup, a special connection, invoices or your data.
+            </p>
+            {support.map((message) => (
+              <div className="ai-message" key={message.id}>
+                <small>
+                  {message.role === "ADMIN" ? "Support" : "Business"} ·{" "}
+                  {date(message.createdAt)}
+                </small>
+                {message.text}
+              </div>
+            ))}
+            <form
+              onSubmit={async (event) => {
+                event.preventDefault();
+                const form = event.currentTarget;
+                if (
+                  await act("support", {
+                    message: new FormData(form).get("message"),
+                  })
+                )
+                  form.reset();
+              }}
+            >
+              <label className="ai-field">
+                Your message
+                <textarea
+                  name="message"
+                  required
+                  minLength={5}
+                  maxLength={4000}
+                  rows={4}
+                />
+              </label>
+              <button className="ai-button" disabled={busy || importing}>
+                Send message
+              </button>
+            </form>
+            <p className="ai-small">
+              Replies appear here. Do not send passwords or payment-card
+              details.
+            </p>
+          </section>
+        )}
+        {tab === "Administrator" && admin && (
+          <section className="ai-card">
+            <h2>Administrator controls</h2>
+            <p>
+              Meta connection:{" "}
+              {metaReady
+                ? "Platform credentials configured. Test the account permissions and webhook delivery in Meta."
+                : "Setup required. Configure the Meta application once for the whole platform."}
+            </p>
+            <p className="ai-small">
+              Setup guide: docs/assistant-meta.md. Callback: {origin}
+              /api/assistants/meta/callback · Webhooks: {origin}
+              /api/assistants/meta/webhook
+            </p>
+            <form
+              onSubmit={(event) => {
+                event.preventDefault();
+                const form = new FormData(event.currentTarget);
+                void act("admin", {
+                  billingExempt: form.get("billingExempt") === "on",
+                  billingExemptReason: form.get("billingExemptReason"),
+                  allowedModelKeys: form.getAll("allowedModelKeys"),
+                  paused: form.get("paused") === "on",
+                });
+              }}
+            >
+              <label className="ai-check">
+                <input
+                  type="checkbox"
+                  name="billingExempt"
+                  defaultChecked={workspace.billingExempt}
+                />
+                Waive service and setup fees
+              </label>
+              <label className="ai-field">
+                Reason for exemption
+                <input
+                  name="billingExemptReason"
+                  maxLength={240}
+                  defaultValue={workspace.billingExemptReason || ""}
+                />
+              </label>
+              <fieldset>
+                <legend>Models this business may choose</legend>
+                {catalog.map((m) => (
+                  <label className="ai-check" key={m.key}>
+                    <input
+                      type="checkbox"
+                      name="allowedModelKeys"
+                      value={m.key}
+                      defaultChecked={workspace.allowedModelKeys.includes(
+                        m.key,
+                      )}
+                    />
+                    {m.name}
+                  </label>
+                ))}
+              </fieldset>
+              <label className="ai-check">
+                <input
+                  type="checkbox"
+                  name="paused"
+                  defaultChecked={Boolean(workspace.pausedAt)}
+                />
+                Pause all assistant replies
+              </label>
+              <button className="ai-button" disabled={busy || importing}>
+                Save administrator settings
+              </button>
+            </form>
+            <p className="ai-small">
+              Exemption does not remove provider costs or usage limits. Cancel
+              an existing paid subscription before making it exempt.
+            </p>
+          </section>
+        )}
+      </div>
+    </div>
+  );
 }

@@ -2075,6 +2075,10 @@ model LoyaltyEntry {
 }
 
 model AssistantWorkspace {
+  preferredLanguage String @default("en")
+  preferredCountry String @default("AU")
+  timeZone String @default("Australia/Adelaide")
+  growthResources AssistantResource[]
  id String @id @default(uuid()) @db.Uuid
  ownerId String @db.Uuid
  name String
@@ -2277,4 +2281,20 @@ model AssistantSocialEvent {
 
   @@unique([connectionId, eventKey])
   @@index([status, createdAt])
+}
+
+model AssistantResource {
+  id String @id @default(uuid()) @db.Uuid
+  workspaceId String @db.Uuid
+  kind String
+  title String
+  status String @default("DRAFT")
+  version Int @default(1)
+  data Json
+  externalId String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  workspace AssistantWorkspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  @@index([workspaceId, kind, updatedAt])
+  @@unique([workspaceId, kind, externalId])
 }
