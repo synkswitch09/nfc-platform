@@ -278,7 +278,6 @@ export async function POST(request: NextRequest, { params }: Context) {
           input.message,
           `campaign:${input.campaignId}:${contact.id}`,
           input,
-          action === "send",
         );
       }
       return NextResponse.json({ saved: true });

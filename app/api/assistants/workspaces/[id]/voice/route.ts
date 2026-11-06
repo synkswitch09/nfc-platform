@@ -25,18 +25,27 @@ export async function GET(_request: NextRequest, { params }: Context) {
   try {
     const { id } = await params,
       { user } = await ownedWorkspace(id);
-    const resources = await db.assistantResource.findMany({
-      where: {
-        workspaceId: id,
-        kind: { in: ["VOICE", "VOICE_AGENT", "VOICE_SETTINGS", "CALL"] },
-      },
-      orderBy: { createdAt: "desc" },
-      take: 200,
-    });
-    const owned = resources.filter((r) => r.kind === "VOICE"),
-      settings = await db.assistantResource.findFirst({
+    // History volume must not hide an older approved voice or its settings.
+    const [owned, settings, calls, agents] = await Promise.all([
+      db.assistantResource.findMany({
+        where: { workspaceId: id, kind: "VOICE", status: { not: "DELETED" } },
+        orderBy: { createdAt: "desc" },
+        take: 5,
+      }),
+      db.assistantResource.findFirst({
         where: { workspaceId: id, kind: "VOICE_SETTINGS" },
-      });
+      }),
+      db.assistantResource.findMany({
+        where: { workspaceId: id, kind: "CALL" },
+        orderBy: { createdAt: "desc" },
+        take: 50,
+      }),
+      db.assistantResource.findMany({
+        where: { workspaceId: id, kind: "VOICE_AGENT" },
+        orderBy: { createdAt: "desc" },
+        take: 50,
+      }),
+    ]);
     let voices: { id: string; name: string }[] = [],
       providerIssue = "";
     if (voiceReady()) {
@@ -60,8 +69,8 @@ export async function GET(_request: NextRequest, { params }: Context) {
         ready: voiceReady(),
         voices,
         owned,
-        calls: resources.filter((r) => r.kind === "CALL").slice(0, 50),
-        agents: resources.filter((r) => r.kind === "VOICE_AGENT"),
+        calls,
+        agents,
         languages: voiceLanguages,
         settings: user.role === "ADMIN" ? settings?.data : null,
         callingEnabled: settings?.status === "ACTIVE",
