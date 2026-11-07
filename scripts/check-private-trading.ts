@@ -18,7 +18,7 @@ async function main() {
     await controlBot(ownerId, "start");
     const now = Date.now();
     const market: Market = { instrumentId: "BTC", price: 105, time: now,
-      bars: Array.from({ length: 221 }, (_, n) => ({ time: now - (223 - n) * 86400000, open: 99, high: 101, low: 98, close: 100 })).map((b, n) => n === 220 ? { ...b, open: 101, high: 106, low: 100, close: 105 } : b) };
+      bars: Array.from({ length: 221 }, (_, n) => ({ time: now - (221 - n) * 86400000, open: 99, high: 101, low: 98, close: 100 })).map((b, n) => n === 220 ? { ...b, open: 101, high: 106, low: 100, close: 105 } : b) };
     const reader = async () => market;
     const [a, b] = await Promise.all([runTradingCycle(ownerId, false, false, reader), runTradingCycle(ownerId, false, false, reader)]);
     assert.ok("skipped" in a || "skipped" in b, "a concurrent cycle must be fenced");
