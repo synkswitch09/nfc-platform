@@ -30,6 +30,7 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/scripts/reconcile-checkouts.mjs ./scripts/reconcile-checkouts.mjs
+COPY --from=builder --chown=nextjs:nodejs /app/scripts/trading-worker.mjs ./scripts/trading-worker.mjs
 USER nextjs
 EXPOSE 3000
 STOPSIGNAL SIGTERM
