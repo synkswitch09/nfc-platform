@@ -318,6 +318,7 @@ model User {
   assistantWorkspaces       AssistantWorkspace[]
   assistantSessions         AssistantSession[]
   assistantAuthTokens       AssistantAuthToken[]
+  tradingBot                TradingBot?
   assistantTrialUsedAt       DateTime?
   loyaltyWallets            LoyaltyWallet[]
   customerAccountData       CustomerAccountData[]
@@ -2297,4 +2298,36 @@ model AssistantResource {
   workspace AssistantWorkspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   @@index([workspaceId, kind, updatedAt])
   @@unique([workspaceId, kind, externalId])
+}
+
+// Personal trading is intentionally outside store/customer workspaces.
+model TradingBot {
+  id             String         @id @default(uuid()) @db.Uuid
+  ownerId        String         @unique @db.Uuid
+  owner          User           @relation(fields: [ownerId], references: [id], onDelete: Restrict)
+  enabled        Boolean        @default(false)
+  entriesPaused  Boolean        @default(false)
+  settings       Json
+  state          Json
+  leaseToken     String?
+  leaseUntil     DateTime?
+  lastRunAt      DateTime?
+  lastReportAt   DateTime?
+  reportDay      String?
+  reportsToday   Int            @default(0)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  events         TradingEvent[]
+}
+
+model TradingEvent {
+  id           String     @id @default(uuid()) @db.Uuid
+  botId        String     @db.Uuid
+  bot          TradingBot @relation(fields: [botId], references: [id], onDelete: Cascade)
+  kind         String
+  instrumentId String?
+  message      String
+  data         Json?
+  createdAt    DateTime   @default(now())
+  @@index([botId, createdAt])
 }

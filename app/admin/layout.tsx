@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { canAccessTrading, tradingConfig } from "@/lib/trading/config";
 import { hasPermission, permissionForRoute } from "@/lib/admin-permissions";
 import Image from "next/image";
 import type { Metadata } from "next";
@@ -184,6 +185,7 @@ export default async function AdminLayout({
               ))}
             </div>
           ))}
+          {canAccessTrading(user, tradingConfig().ownerId) && <Link href="/admin/trading">Personal trading</Link>}
           <Link href="/" className="admin-store-link">
             ← View storefront
           </Link>
