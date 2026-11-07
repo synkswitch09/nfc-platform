@@ -289,18 +289,12 @@ export function AssistantAccount({
   return (
     <div className="ai-workspace">
       <aside className="ai-sidebar">
-        <Link href="/" className="ai-console-brand">
-          <span aria-hidden="true">t/</span>
-          <strong>
-            tapkin<span>business desk</span>
-          </strong>
-        </Link>
         <div className="ai-workspace-identity">
-          <span className="ai-workspace-avatar" aria-hidden="true">
-            {workspace.name.slice(0, 1).toUpperCase()}
+          <span className="ai-workspace-avatar">
+            <Sparkles size={22} aria-hidden="true" />
           </span>
           <div>
-            <span className="ai-small">WORKSPACE</span>
+            <span className="ai-small">Business workspace</span>
             <strong>{workspace.name}</strong>
           </div>
         </div>
@@ -320,67 +314,40 @@ export function AssistantAccount({
           </select>
         </label>
         <nav aria-label="Assistant settings">
-          {[
-            {
-              label: "YOUR DESK",
-              ids: ["Overview", "Conversations", "Clients", "Tasks"],
-            },
-            { label: "CREATE & REACH", ids: ["Campaigns", "Content", "Voice"] },
-            { label: "BUSINESS SETUP", ids: ["Information", "Connections"] },
-            { label: "", ids: ["Billing", "Help", "Administrator"] },
-          ].map((group) => (
-            <div className="ai-nav-group" key={group.ids[0]}>
-              {group.label && <p>{group.label}</p>}
-              {group.ids.map((id) => {
-                const item = navigation.find((n) => n.id === id);
-                if (!item) return null;
-                const Icon = item.icon;
-                return (
-                  <button
-                    type="button"
-                    key={id}
-                    disabled={locked}
-                    aria-current={tab === id ? "page" : undefined}
-                    className={tab === id ? "selected" : ""}
-                    onClick={() => navigate(id)}
-                  >
-                    <Icon size={16} aria-hidden="true" />
-                    <span>{item.label}</span>
-                    {id === "Conversations" && attention > 0 && (
-                      <span className="ai-nav-count">
-                        {attention}
-                        <span className="sr-only"> needing attention</span>
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
+          {navigation.map(({ id, label, icon: Icon }) => (
+            <button
+              type="button"
+              key={id}
+              disabled={locked}
+              aria-current={tab === id ? "page" : undefined}
+              className={tab === id ? "selected" : ""}
+              onClick={() => navigate(id)}
+            >
+              <Icon size={18} aria-hidden="true" />
+              <span>{label}</span>
+              {id === "Conversations" && attention > 0 && (
+                <span className="ai-nav-count">
+                  {attention}
+                  <span className="sr-only"> needing attention</span>
+                </span>
+              )}
+            </button>
           ))}
         </nav>
         <div className="ai-sidebar-note">
-          <span className="ai-rail-status">
-            <i />
-            YOU’RE IN CONTROL
-          </span>
-          <p>Pause a channel or take over a conversation at any time.</p>
-          <div>
-            <Link href="/terms">Terms</Link>
-            <Link href="/privacy">Privacy</Link>
-          </div>
+          <ShieldCheck size={18} aria-hidden="true" />
+          <p>
+            You stay in control.
+            <br />
+            Pause a channel or take over any conversation.
+          </p>
         </div>
       </aside>
       <div className="ai-workspace-content">
         <header className="ai-workspace-heading">
           <div>
-            <p className="ai-eyebrow">
-              {workspace.name}{" "}
-              <span className="ai-breadcrumb-separator">/</span> WORKSPACE
-            </p>
-            <h2>
-              {current.label}
-              <span className="ai-heading-period">.</span>
-            </h2>
+            <p className="ai-eyebrow">{workspace.name}</p>
+            <h2>{current.label}</h2>
           </div>
           <span
             className={`ai-badge ${serviceStatus === "Service active" ? "" : "ai-warning-badge"}`}
