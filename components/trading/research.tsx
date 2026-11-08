@@ -1,0 +1,39 @@
+"use client";
+import { useEffect, useState } from "react";
+import type { researchView } from "@/lib/trading/research/service";
+import type { Metrics, Policy } from "@/lib/trading/research/schema";
+import "./trading.css";
+type View = Awaited<ReturnType<typeof researchView>>;
+const money = (value: number) => new Intl.NumberFormat("en-AU", { style: "currency", currency: "AUD" }).format(value);
+const date = (day?: number) => day === undefined ? "—" : new Date(day * 86400000).toLocaleDateString("en-AU", { timeZone: "UTC" });
+function Performance({ label, value }: { label: string; value?: Metrics }) {
+  return <article><small>{label}</small><strong>{value ? money(value.final) : "Waiting"}</strong><span>{value ? `${value.returnPct.toFixed(2)}% net · ${value.maxDrawdownPct.toFixed(2)}% max drawdown` : "No result yet"}</span></article>;
+}
+function PolicySummary({ value }: { value?: Policy }) {
+  return value ? <p>{value.family.toLowerCase()} · {value.universe.toLowerCase()} universe · up to {value.maxPositions} positions · {(value.riskFraction * 100).toFixed(2)}% planned risk/trade · {(value.allocation * 100).toFixed(0)}% allocation cap · {value.stopAtr}× ATR stop · {value.lookback}-day signal / {value.trend}-day trend</p> : <p>Cash reference. No tested strategy has yet qualified for promotion.</p>;
+}
+export function AutonomousResearch({ initial, serverEnabled }: { initial: View; serverEnabled: boolean }) {
+  const [view, setView] = useState(initial), [capital, setCapital] = useState(String(initial.capitalAud)), [busy, setBusy] = useState(false), [status, setStatus] = useState("");
+  async function refresh() { const r = await fetch("/api/assistants/trading/research", { cache: "no-store" }); if (r.ok) setView(await r.json()); }
+  useEffect(() => { const timer = setInterval(() => { void refresh().catch(() => undefined); }, 30000); return () => clearInterval(timer); }, []);
+  async function act(action: "start" | "pause") {
+    setBusy(true); setStatus("");
+    try {
+      const r = await fetch("/api/assistants/trading/research", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action, capitalAud: Number(capital) }) });
+      const body = await r.json(); if (!r.ok) throw new Error(body.error); setStatus(body.message); await refresh();
+    } catch (e) { setStatus(e instanceof Error ? e.message : "Please retry."); }
+    finally { setBusy(false); }
+  }
+  const state = view.state, last = state.evaluations.at(-1), review = state.reviews.at(-1), observed = state.sealEnd === undefined || state.latestDataDay === undefined ? 0 : Math.max(0, state.latestDataDay - state.sealEnd);
+  return <div className="trading-workspace">
+    <header className="trading-heading"><div><p className="trading-eyebrow">Private autonomous research</p><h1>Trading research lab</h1><p>You choose the virtual capital. The lab chooses, tests, reviews and adjusts the strategy.</p></div><span className="trading-badge">PAPER ONLY</span></header>
+    <section className="trading-card"><h2>Your experiment</h2><p>No real orders or account holdings are used. API and infrastructure costs are separate from virtual capital.</p><div className="trading-fields"><label>Maximum initial virtual capital · AUD<input type="number" min="50" max="100000" step="1" disabled={view.enabled || state.generation > 0} value={capital} onChange={e => setCapital(e.target.value)}/></label></div><div className="trading-actions"><button disabled={busy || !serverEnabled || view.enabled} onClick={() => void act("start")}>{state.generation ? "Resume autonomous research" : "Start autonomous research"}</button><button disabled={busy || !view.enabled} onClick={() => void act("pause")}>Pause research</button></div>{status && <p className="trading-status" role="status">{status}</p>}</section>
+    <section className="trading-notice"><strong>{!view.enabled ? "Paused" : state.stage === "INITIAL" ? "Preparing the initial historical experiment" : state.stage === "REVIEW" ? "Claude review queued" : `Forward comparison · ${Math.min(20, observed)}/20 new calendar dates with closed data`}</strong><p>Generation {state.generation}. Last worker cycle: {view.lastRunAt ? new Date(view.lastRunAt).toLocaleString("en-AU") : "Not run yet"}. This daily research process does not change strategy after every trade.</p></section>
+    <div className="trading-metrics"><Performance label="Latest sealed candidate test" value={last?.metrics}/><Performance label="Buy-and-hold · same test window" value={last?.hold}/><Performance label="Cash · same test window" value={last?.cash}/><Performance label="Current version · paper forward run" value={state.live}/></div>
+    <section className="trading-card"><h2>Current strategy</h2><PolicySummary value={state.champion}/><h3>Next challenger</h3><PolicySummary value={state.challenger}/><p className="trading-small">The objective rewards net return and penalizes drawdown. Promotion requires new chronological data, enough closed trades, comparison with the incumbent/cash/buy-and-hold and a doubled-cost stress check. “Best” means best qualified candidate tested so far, never a proven global optimum.</p></section>
+    <section className="trading-card"><h2>Automatic market selection</h2><p>The available pool is selected and verified automatically. The lab tests crypto-only, equity-only, core and combined subsets. It resolves IBKR contracts and historical AUD conversions without manual fields.</p><div className="trading-actions">{view.universe.map(asset => <span className="trading-badge" key={asset.id}>{asset.symbol} · {asset.provider}</span>)}</div>{!view.universe.length && <p>Data discovery starts on the first scheduled cycle.</p>}{view.issues.map((issue, index) => <p className="trading-small" key={index}>{issue}</p>)}<p className="trading-small">Fee/slippage assumptions are conservative estimates, not verified broker tariffs. Public Kraken quotes are used only as FX data; no Kraken account is needed. The declared asset pool and limited historical coverage can introduce selection bias.</p></section>
+    <section className="trading-card"><h2>Claude review & next experiment</h2>{review ? <><small>{new Date(review.at).toLocaleString("en-AU")} · {review.model} · {review.inputTokens} input / {review.outputTokens} output tokens</small><p className="trading-report">{review.text}</p></> : <p>{view.aiConfigured ? "A review runs automatically after the initial batch and each completed forward evaluation." : "Claude is not configured. Historical results will be retained while the review waits for provider setup."}</p>}<p className="trading-small">Claude proposes at most four bounded policies per review. It cannot execute code or orders. Provider attempts are capped at four per UTC day; failed reviews retry with a cooldown. Previous strategies and results are retained.</p></section>
+    <section className="trading-card"><h2>Experiment history</h2>{state.evaluations.length ? <div className="trading-table-wrap"><table><thead><tr><th>Generation</th><th>Independent window</th><th>Net return</th><th>Drawdown</th><th>Closed trades</th><th>Decision</th></tr></thead><tbody>{[...state.evaluations].reverse().map(e => <tr key={e.generation}><td>{e.generation}</td><td>{date(e.metrics.start)} – {date(e.metrics.end)}</td><td>{e.metrics.returnPct.toFixed(2)}%</td><td>{e.metrics.maxDrawdownPct.toFixed(2)}%</td><td>{e.metrics.trades}</td><td>{e.accepted ? "Promoted" : "Rejected / inconclusive"}</td></tr>)}</tbody></table></div> : <p>No experiments completed yet.</p>}{last && <p className="trading-small">{last.note}</p>}</section>
+    <section className="trading-card"><h2>Research activity</h2>{state.events.map((e, i) => <article className="trading-event" key={i}><small>{new Date(e.at).toLocaleString("en-AU")}</small><p>{e.text}</p></article>)}</section>
+  </div>;
+}

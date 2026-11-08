@@ -35,6 +35,7 @@ export async function updateSettings(ownerId: string, input: unknown) {
 }
 export async function controlBot(ownerId: string, action: "start" | "stop" | "pause-entries" | "resume-entries" | "close-paper") {
   const config = tradingConfig(), bot = await ensureBot(ownerId);
+  if ((await db.tradingResearch.findUnique({ where: { botId: bot.id }, select: { enabled: true } }))?.enabled) throw new MarketError("Autonomous research is active. Pause it before using the legacy manual paper controls.");
   if (action === "start" && !config.enabled) throw new MarketError("Set TRADING_ENABLED=true before starting.");
   await db.$transaction(async tx => {
     const claim = await tx.tradingBot.updateMany({ where: { id: bot.id, OR: [{ leaseUntil: null }, { leaseUntil: { lt: new Date() } }] }, data: { leaseToken: "control", leaseUntil: new Date(Date.now() + 30000) } });
@@ -60,6 +61,7 @@ export async function runTradingCycle(ownerId: string, manual = false, closeAll 
   const owner = await db.user.findUnique({ where: { id: ownerId }, select: { role: true, status: true, emailVerifiedAt: true } });
   if (!owner || owner.role !== "ADMIN" || owner.status !== "ACTIVE" || !owner.emailVerifiedAt) return { skipped: "owner-not-authorized" };
   const bot = await ensureBot(ownerId), now = new Date(), token = randomUUID();
+  if ((await db.tradingResearch.findUnique({ where: { botId: bot.id }, select: { enabled: true } }))?.enabled) return { skipped: "autonomous-research-active" };
   const claimed = await db.tradingBot.updateMany({ where: { id: bot.id,
     ...(manual ? {} : { enabled: true }),
     ...(closeAll ? { enabled: false } : {}),

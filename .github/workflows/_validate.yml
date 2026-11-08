@@ -58,6 +58,10 @@ jobs:
         run: node --import tsx scripts/check-private-trading.ts
         env:
           CI: "true"
+      - name: Verify autonomous research lifecycle and forward-only evaluation
+        run: node --import tsx scripts/check-trading-research.ts
+        env:
+          CI: "true"
       - name: Validate environment worker provisioning
         run: python3 -m unittest discover -s tests -p test_*.py
       - run: npm run lint

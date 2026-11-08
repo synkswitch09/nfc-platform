@@ -102,6 +102,14 @@ jobs:
           AZURE_CONTAINER_APP: ${{ vars.AZURE_CONTAINER_APP }}
           AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
           APP_URL: ${{ vars.APP_URL }}
+      - name: Ensure private autonomous trading worker
+        if: inputs.target_environment == 'staging' || inputs.target_environment == 'production'
+        run: python3 scripts/ensure-trading-worker.py
+        env:
+          TARGET_ENVIRONMENT: ${{ inputs.target_environment }}
+          AZURE_CONTAINER_APP: ${{ vars.AZURE_CONTAINER_APP }}
+          AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+          APP_URL: ${{ vars.APP_URL }}
       - name: Run post-deployment smoke tests
         run: npm run smoke
         env:
