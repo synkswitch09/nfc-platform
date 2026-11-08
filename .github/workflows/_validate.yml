@@ -50,6 +50,10 @@ jobs:
         run: node --import tsx scripts/check-assistant-whatsapp.ts
       - name: Verify assistant growth isolation and duplicate delivery fences
         run: node --import tsx scripts/check-assistant-growth.ts
+      - name: Verify assistant Google identity and store isolation
+        run: node --import tsx scripts/check-assistant-google.ts
+        env:
+          CI: "true"
       - name: Verify private trading concurrency and owner isolation
         run: node --import tsx scripts/check-private-trading.ts
         env:
