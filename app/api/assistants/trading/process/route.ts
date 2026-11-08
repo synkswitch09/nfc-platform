@@ -1,3 +1,4 @@
+import { ensureResearch, runResearchCycle } from "@/lib/trading/research/service";
 import { timingSafeEqual } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { tradingConfig } from "@/lib/trading/config";
@@ -10,6 +11,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const c = tradingConfig();
   if (!c.enabled || !c.ownerId) return NextResponse.json({ skipped: "trading-disabled" });
-  try { return NextResponse.json(await runTradingCycle(c.ownerId)); }
+  try { const research = await ensureResearch(c.ownerId); return NextResponse.json(research.enabled ? await runResearchCycle(c.ownerId) : await runTradingCycle(c.ownerId)); }
   catch { return NextResponse.json({ error: "Paper trading cycle failed; no live orders are supported." }, { status: 500 }); }
 }

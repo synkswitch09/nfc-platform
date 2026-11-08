@@ -2318,6 +2318,7 @@ model TradingBot {
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
   events         TradingEvent[]
+  research       TradingResearch?
 }
 
 model TradingEvent {
@@ -2330,4 +2331,34 @@ model TradingEvent {
   data         Json?
   createdAt    DateTime   @default(now())
   @@index([botId, createdAt])
+}
+
+model TradingResearch {
+  id          String   @id @default(uuid()) @db.Uuid
+  botId       String   @unique @db.Uuid
+  bot         TradingBot @relation(fields: [botId], references: [id], onDelete: Cascade)
+  capitalAud  Float    @default(1000)
+  enabled     Boolean  @default(false)
+  state       Json
+  dataset     Json?
+  leaseToken  String?
+  leaseUntil  DateTime?
+  lastRunAt   DateTime?
+  reviewDay   String?
+  reviewsToday Int     @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  batches     TradingResearchBatch[]
+}
+
+model TradingResearchBatch {
+  id          String   @id @default(uuid()) @db.Uuid
+  researchId  String   @db.Uuid
+  research    TradingResearch @relation(fields: [researchId], references: [id], onDelete: Cascade)
+  generation  Int
+  fingerprint String
+  snapshot    Json
+  results     Json
+  createdAt   DateTime @default(now())
+  @@unique([researchId, generation])
 }
