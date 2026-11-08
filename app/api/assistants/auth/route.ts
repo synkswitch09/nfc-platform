@@ -23,3 +23,13 @@ export async function POST(request:NextRequest){try{
  if(!assistantConfig().launchEnabled)throw new AssistantError("Registration is not open yet. Please check back soon.",503);if(!data.name||!data.businessName)throw new AssistantError("Enter your name and business name.");if(data.password.length<12)throw new AssistantError("Use at least 12 characters for your password.");if(existing)throw new AssistantError("An account already uses this email. Please sign in or reset your password.",409);
  const passwordHash=await hashPassword(data.password);const user=await db.$transaction(async tx=>{const user=await tx.user.create({data:{email:data.email,name:data.name!,passwordHash}});await tx.assistantWorkspace.create({data:{ownerId:user.id,name:data.businessName!}});return user;});await createAssistantSession(user.id);await assistantAuthEmail(user,"VERIFY");return NextResponse.json({ok:true,verified:false});
  }catch(error){return assistantError(error);}}
+
+// Only the signed-in user can read their own identity. Model configuration is admin-only.
+export async function GET() {
+  const user = await assistantUser();
+  if (!user || !user.emailVerifiedAt) return NextResponse.json({ error: "Please sign in with a verified account." }, { status: 401 });
+  const config = assistantConfig();
+  return NextResponse.json({ user: { id: user.id, email: user.email, name: user.name, role: user.role },
+    ...(user.role === "ADMIN" ? { models: config.models.map(m => ({ name: m.name, modelId: m.modelId, enabled: m.enabled })),
+      anthropicConfigured: Boolean(config.anthropicApiKey) } : {}) }, { headers: { "Cache-Control": "private, no-store" } });
+}

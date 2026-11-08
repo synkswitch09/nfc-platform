@@ -7,14 +7,18 @@ import { db } from "@/lib/db";
 import type { Storefront } from "@/lib/storefront";
 
 export type OAuthProviderName = "google" | "apple";
-type OAuthConfig = { provider: AuthProvider; clientId: string; client: oidc.Configuration; scope: string };
+export type OAuthConfig = { provider: AuthProvider; clientId: string; client: oidc.Configuration; scope: string };
 type OAuthTransaction = { provider: OAuthProviderName; state: string; nonce: string; verifier: string; next: string; storeId: string; origin: string; expires: number };
-type VerifiedClaims = { sub: string; email?: string; email_verified?: boolean | string; name?: string };
+export type VerifiedClaims = { sub: string; email?: string; email_verified?: boolean | string; name?: string };
 
 export const OAUTH_COOKIE = "nfc_oauth";
 
 export function getOAuthConfig(provider: OAuthProviderName, storeSlug: string): OAuthConfig | null {
   const credentials = provider === "google" ? googleOAuthCredentials(storeSlug) : { clientId: process.env.APPLE_CLIENT_ID, clientSecret: process.env.APPLE_CLIENT_SECRET };
+  return oauthConfigWithCredentials(provider, credentials);
+}
+
+export function oauthConfigWithCredentials(provider: OAuthProviderName, credentials: { clientId?: string; clientSecret?: string } | undefined): OAuthConfig | null {
   const clientId = credentials?.clientId; const clientSecret = credentials?.clientSecret;
   if (!clientId || !clientSecret) return null;
   const server = provider === "google"
@@ -45,26 +49,31 @@ function signatureFor(payload: string) { return createHmac("sha256", requiredSec
 
 export async function exchangeOAuthCode(provider: OAuthProviderName, storeSlug: string, callbackUrl: URL, verifier: string, state: string, nonce: string) {
   const config = getOAuthConfig(provider, storeSlug); if (!config) throw new Error("OAUTH_NOT_CONFIGURED");
+  return exchangeConfiguredOAuthCode(config, callbackUrl, verifier, state, nonce);
+}
+
+export async function exchangeConfiguredOAuthCode(config: OAuthConfig, callbackUrl: URL, verifier: string, state: string, nonce: string) {
   const tokens = await oidc.authorizationCodeGrant(config.client, callbackUrl, { pkceCodeVerifier: verifier, expectedState: state, expectedNonce: nonce });
   const claims = tokens.claims(); if (!claims) throw new Error("ID_TOKEN_REQUIRED");
   return claims as VerifiedClaims;
 }
 
-export async function findOrCreateOAuthUser(config: OAuthConfig, claims: VerifiedClaims, storeId: string) {
+export async function findOrCreateOAuthUser(config: OAuthConfig, claims: VerifiedClaims, storeId?: string, options: { allowCreate?: boolean } = {}) {
   const email = claims.email?.trim().toLowerCase(); const verified = claims.email_verified === true || claims.email_verified === "true";
   if (!claims.sub || !email || !verified) throw new Error("VERIFIED_EMAIL_REQUIRED");
   try {
     return await db.$transaction(async tx => {
       const linked = await tx.oAuthAccount.findUnique({ where: { provider_providerAccountId: { provider: config.provider, providerAccountId: claims.sub } }, include: { user: true } });
-      if (linked) { if (linked.user.status !== "ACTIVE") throw new Error("ACCOUNT_DISABLED"); await tx.storeMembership.upsert({ where: { storeId_userId: { storeId, userId: linked.user.id } }, create: { storeId, userId: linked.user.id }, update: {} }); return linked.user; }
+      if (linked) { if (linked.user.status !== "ACTIVE") throw new Error("ACCOUNT_DISABLED"); if (storeId) await tx.storeMembership.upsert({ where: { storeId_userId: { storeId, userId: linked.user.id } }, create: { storeId, userId: linked.user.id }, update: {} }); return linked.user; }
       const existing = await tx.user.findUnique({ where: { email } });
       if (existing?.status !== undefined && existing.status !== "ACTIVE") throw new Error("ACCOUNT_DISABLED");
       if(existing && !existing.emailVerifiedAt)throw new Error("VERIFY_EXISTING_EMAIL_FIRST");
+      if (!existing && options.allowCreate === false) throw new Error("REGISTRATION_CLOSED");
       const user = existing
         ? await tx.user.update({ where: { id: existing.id }, data: { emailVerifiedAt: existing.emailVerifiedAt ?? new Date() } })
         : await tx.user.create({ data: { email, name: claims.name?.trim().slice(0, 80) || email.split("@")[0], emailVerifiedAt: new Date() } });
       await tx.oAuthAccount.create({ data: { userId: user.id, provider: config.provider, providerAccountId: claims.sub, providerEmail: email, emailVerified: true } });
-      await tx.storeMembership.upsert({ where: { storeId_userId: { storeId, userId: user.id } }, create: { storeId, userId: user.id }, update: {} });
+      if (storeId) await tx.storeMembership.upsert({ where: { storeId_userId: { storeId, userId: user.id } }, create: { storeId, userId: user.id }, update: {} });
       await tx.auditLog.create({ data: { actorId: user.id, storeId, action: "OAUTH_ACCOUNT_LINKED", entityType: "OAuthAccount", metadata: { provider: config.provider } } });
       return user;
     });
