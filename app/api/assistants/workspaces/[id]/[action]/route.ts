@@ -1,3 +1,4 @@
+import { MAX_BUSINESS_KNOWLEDGE } from "@/lib/assistants/knowledge";
 import { NextRequest,NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
@@ -10,7 +11,7 @@ import { getStripe } from "@/lib/stripe";
 import { importAssistantWebsite } from "@/lib/assistants/website-import";
 import { DAY,assistantAccess,assistantChannelLimit } from "@/lib/assistants/policy";
 import { sendSocialManualReply } from "@/lib/assistants/meta/queue";
-const settings=z.object({name:z.string().trim().min(1).max(100),modelKey:z.string().min(1).max(80),masterPrompt:z.string().trim().max(12000),businessKnowledge:z.string().trim().max(30000),allowedOrigins:z.array(z.string().url()).max(5),webEnabled:z.boolean(),responseToComments:z.boolean()}).strict();
+const settings=z.object({name:z.string().trim().min(1).max(100),modelKey:z.string().min(1).max(80),masterPrompt:z.string().trim().max(12000),businessKnowledge:z.string().trim().max(MAX_BUSINESS_KNOWLEDGE),allowedOrigins:z.array(z.string().url()).max(5),webEnabled:z.boolean(),responseToComments:z.boolean()}).strict();
 export async function POST(request:NextRequest,{params}:{params:Promise<{id:string;action:string}>}){try{
  assistantWrite(request);const {id,action}=await params,{workspace,user}=await ownedWorkspace(id),config=assistantConfig(),body=await request.json().catch(()=>({}));
  if(action==="import-website"){const {websiteUrl}=z.object({websiteUrl:z.string().trim().min(1).max(2048)}).strict().parse(body);if(!(await rateLimit("assistant-website-import",user.id,5,15*60000)).allowed)throw new AssistantError("Please wait before importing another website.",429);return NextResponse.json(await importAssistantWebsite(websiteUrl));}
