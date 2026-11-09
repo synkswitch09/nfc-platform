@@ -73,6 +73,9 @@ type SectionItem = {
   ctaBackground?: string;
   ctaTextColour?: string;
   ctaBorderColour?: string;
+  ctaVisible?: boolean;
+  ctaPositionX?: number;
+  ctaPositionY?: number;
   backgroundColour?: string;
   textColour?: string;
   iconBackgroundColour?: string;
@@ -1284,6 +1287,10 @@ function CtaFields({
             />
             <span>Show primary button</span>
           </label>
+          {section.content.layoutVariant === "KOSYKIN_PROMOTIONS" && <>
+            <label className="field">Artwork button horizontal position · %<input name="content.ctaPositionX" type="number" min="5" max="95" step="0.5" value={Number(section.content.ctaPositionX ?? 72.5)} onChange={event => onChange({ ctaPositionX: Number(event.target.value) })}/></label>
+            <label className="field">Artwork button vertical position · %<input name="content.ctaPositionY" type="number" min="5" max="95" step="0.5" value={Number(section.content.ctaPositionY ?? 70)} onChange={event => onChange({ ctaPositionY: Number(event.target.value) })}/></label>
+          </>}
           <ColourField name="content.ctaBackground" label="Background" value={string(section.content.ctaBackground)} onChange={(ctaBackground) => onChange({ ctaBackground })} />
           <ColourField name="content.ctaTextColour" label="Text" value={string(section.content.ctaTextColour)} onChange={(ctaTextColour) => onChange({ ctaTextColour })} />
           <ColourField name="content.ctaBorderColour" label="Border" value={string(section.content.ctaBorderColour)} onChange={(ctaBorderColour) => onChange({ ctaBorderColour })} />
@@ -1477,6 +1484,11 @@ function ItemsEditor({
               }
             />
           </label>
+          {sectionType === "CTA_BANNER" && <>
+            <label className="check-field"><input type="checkbox" checked={item.ctaVisible !== false} onChange={event => update(index, { ctaVisible: event.target.checked })}/>Show promotion button / artwork link</label>
+            <label className="field">Artwork button horizontal position · %<input name={`content.items.${index}.ctaPositionX`} type="number" min="5" max="95" step="0.5" value={item.ctaPositionX ?? 72.5} onChange={event => update(index, { ctaPositionX: Number(event.target.value) })}/></label>
+            <label className="field">Artwork button vertical position · %<input name={`content.items.${index}.ctaPositionY`} type="number" min="5" max="95" step="0.5" value={item.ctaPositionY ?? 70} onChange={event => update(index, { ctaPositionY: Number(event.target.value) })}/></label>
+          </>}
           <ColourField name={`content.items.${index}.ctaBackground`}
             label="Card CTA background"
             value={item.ctaBackground ?? ""}

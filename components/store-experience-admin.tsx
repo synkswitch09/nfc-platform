@@ -293,6 +293,10 @@ export function StoreExperienceAdmin({
                         placeholder="/shop"
                       />
                     </label>
+                    <label className="check-field"><input type="checkbox" checked={slide.ctaVisible !== false} onChange={e => change({ ctaVisible: e.target.checked })}/>Show button / artwork link</label>
+                    {([['ctaBackground', 'Button background', '#ffffff'], ['ctaTextColour', 'Button text', '#243247'], ['ctaBorderColour', 'Button border', '#ffffff']] as const).map(([key, label, fallback]) => <label className="field" key={key}>{label}<input type="color" name={`groups.${groupIndex}.slides.${index}.${key}`} value={slide[key] || fallback} onChange={e => change({ [key]: e.target.value })}/></label>)}
+                    <label className="field">Button horizontal position · %<input type="number" min="5" max="95" step="0.5" name={`groups.${groupIndex}.slides.${index}.ctaPositionX`} value={slide.ctaPositionX} onChange={e => change({ ctaPositionX: Number(e.target.value) })}/></label>
+                    <label className="field">Button vertical position · %<input type="number" min="5" max="95" step="0.5" name={`groups.${groupIndex}.slides.${index}.ctaPositionY`} value={slide.ctaPositionY} onChange={e => change({ ctaPositionY: Number(e.target.value) })}/></label>
                     <label className="field">
                       Campaign visibility
                       <select
@@ -318,10 +322,11 @@ export function StoreExperienceAdmin({
                   </div>
                   <MediaUploadField
                     uploadEndpoint="/api/admin/settings/images"
-                    label="Banner artwork (optional; replaces banner text visually)"
+                    label="Banner artwork (optional; replaces banner text, keeps the configured button)"
                     name={`groups.${groupIndex}.slides.${index}.imageUrl`} value={slide.imageUrl}
                     onChange={(imageUrl) => change({ imageUrl })}
                   />
+                  {slide.imageUrl && <p className="muted">The button appears over the artwork. Position is measured from the left/top edge. On small screens it sits below the image to stay readable. Leave the button label empty to make the artwork itself the link.</p>}
                   <button
                     type="button"
                     disabled={index === 0}
@@ -380,6 +385,12 @@ export function StoreExperienceAdmin({
                       imageAlt: "",
                       backgroundColour: "#b9afcf",
                       textColour: "#243247",
+                      ctaVisible: true,
+                      ctaBackground: "",
+                      ctaTextColour: "",
+                      ctaBorderColour: "",
+                      ctaPositionX: 72.5,
+                      ctaPositionY: 70,
                       ctaLabel: "",
                       ctaHref: "",
                       campaignKey: "",

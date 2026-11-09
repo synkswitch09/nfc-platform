@@ -1,3 +1,4 @@
+import { promotionActionFields } from "./promotion-action";
 import { LandingSectionType, Prisma } from "@prisma/client";
 import { z } from "zod";
 import { isSafeImageSource } from "@/lib/image-source";
@@ -208,6 +209,8 @@ const featureSchema = z.object({
   order,
 });
 const baseCopy = {
+  ctaPositionX: promotionActionFields.ctaPositionX,
+  ctaPositionY: promotionActionFields.ctaPositionY,
   sharedBlockId: z.string().uuid().or(z.literal("")).default(""),
   hideBreadcrumbs: z.boolean().default(false),
   eyebrow: z.string().trim().max(100).default(""),
@@ -271,6 +274,7 @@ const narrativeSchema = z.object({
   contentPosition: z.enum(["LEFT", "CENTRE", "RIGHT"]).default("LEFT"),
 });
 const itemSchema = z.object({
+  ...promotionActionFields,
   productName: z.string().trim().max(160).optional(),
   rating: z.number().min(1).max(5).optional(),
   titleFont: z.enum(["INTER", "BEBAS_NEUE", "CAVEAT"]).optional(),

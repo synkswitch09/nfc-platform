@@ -1,11 +1,12 @@
 "use client";
+import type { PromotionAction } from "@/lib/promotion-action";
 import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import type { CSSProperties } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { StorefrontIcon } from "@/components/storefront-icon";
-type Slide = {
+type Slide = PromotionAction & {
   id: string;
   title: string;
   description: string;
@@ -29,9 +30,19 @@ export function KosykinPromotions({ slides }: { slides: Slide[] }) {
   const current = Math.min(index, slides.length - 1);
   const slide = slides[current];
   if (!slide) return null;
+  const showButton = slide.ctaVisible !== false && Boolean(slide.ctaLabel && slide.ctaHref);
+  const actionStyle = {
+    "--promo-cta-background": slide.ctaBackground || "#ffffff",
+    "--promo-cta-text": slide.ctaTextColour || "#243247",
+    "--promo-cta-border": slide.ctaBorderColour || "transparent",
+    "--promo-cta-x": `${slide.ctaPositionX ?? 72.5}%`,
+    "--promo-cta-y": `${slide.ctaPositionY ?? 70}%`,
+  } as CSSProperties;
+  const action = showButton ? <Link className="kosy-promotion-cta" style={actionStyle} href={slide.ctaHref!}>{slide.ctaLabel}</Link> : null;
+  const artwork = slide.imageUrl ? <Image src={slide.imageUrl} alt={slide.imageAlt || `${slide.title}. ${slide.description} ${slide.supportingText || ""}`} width={1340} height={330} unoptimized /> : null;
   return (
     <div
-      className="kosy-promotion-carousel"
+      className={`kosy-promotion-carousel${slide.imageUrl ? " has-artwork" : ""}`}
       aria-roledescription="carousel"
       aria-label="Store promotions"
       style={
@@ -86,31 +97,8 @@ export function KosykinPromotions({ slides }: { slides: Slide[] }) {
       >
         {slide.imageUrl ? (
           <>
-            {slide.ctaHref ? (
-              <Link href={slide.ctaHref}>
-                <Image
-                  src={slide.imageUrl}
-                  alt={
-                    slide.imageAlt ||
-                    `${slide.title}. ${slide.description} ${slide.supportingText || ""}`
-                  }
-                  width={1340}
-                  height={330}
-                  unoptimized
-                />
-              </Link>
-            ) : (
-              <Image
-                src={slide.imageUrl}
-                alt={
-                  slide.imageAlt ||
-                  `${slide.title}. ${slide.description} ${slide.supportingText || ""}`
-                }
-                width={1340}
-                height={330}
-                unoptimized
-              />
-            )}
+            {slide.ctaVisible !== false && slide.ctaHref && !slide.ctaLabel ? <Link className="kosy-promotion-artwork-link" href={slide.ctaHref}>{artwork}</Link> : artwork}
+            {action}
           </>
         ) : (
           <>
@@ -118,9 +106,7 @@ export function KosykinPromotions({ slides }: { slides: Slide[] }) {
             <div>
               <p>{slide.description}</p>
               {slide.supportingText && <small>{slide.supportingText}</small>}
-              {slide.ctaLabel && slide.ctaHref && (
-                <Link href={slide.ctaHref}>{slide.ctaLabel}</Link>
-              )}
+              {action}
             </div>
           </>
         )}

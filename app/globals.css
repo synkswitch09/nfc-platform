@@ -6102,8 +6102,13 @@ body[data-store="kosykin"] .site-header .brand { overflow: visible; }
 /* Shared content keeps the same geometry wherever it is placed. */
 .shared-banner-group { margin-block: 28px; min-width: 0; }
 .kosy-promotion-carousel { background: var(--promo-background, #b9afcf); color: var(--promo-text, #243247); }
-.kosy-promotion-slide.has-artwork { display: block; margin: -50px -65px; }
-.kosy-promotion-slide.has-artwork img { display: block; width: 100%; height: auto; border-radius: 24px; }
+.kosy-promotion-carousel.has-artwork { padding: 0; }
+.kosy-promotion-slide.has-artwork { position: relative; display: block; margin: 0; overflow: hidden; border-radius: inherit; }
+.kosy-promotion-slide.has-artwork .kosy-promotion-artwork-link { display: block; margin: 0; }
+.kosy-promotion-slide.has-artwork .kosy-promotion-artwork-link:focus-visible { outline-offset: -4px; }
+.kosy-promotion-slide.has-artwork img { display: block; width: 100%; height: auto; }
+.kosy-promotion-slide .kosy-promotion-cta { display: inline-flex; justify-content: center; align-items: center; min-height: 44px; min-width: clamp(140px, 12.5vw, 200px); max-width: calc(100% - 32px); padding: 10px 24px; border: 1px solid var(--promo-cta-border, transparent); border-radius: 999px; background: var(--promo-cta-background, #fff); color: var(--promo-cta-text, #243247); font-family: var(--font-inter), sans-serif; font-size: clamp(.875rem, 1.1vw, 1.125rem); font-weight: 700; line-height: 1.2; text-align: center; text-decoration: none; overflow-wrap: anywhere; }
+.kosy-promotion-slide.has-artwork .kosy-promotion-cta { position: absolute; top: var(--promo-cta-y, 70%); left: var(--promo-cta-x, 72.5%); transform: translate(-50%, -50%); margin: 0; }
 .kosy-promo-prev, .kosy-promo-next { z-index: 2; }
 .kosy-promo-dots { z-index: 2; }
 .kosy-promo-dots button { position: relative; }
@@ -6122,7 +6127,8 @@ body[data-store="kosykin"] .site-header .brand { overflow: visible; }
 @media(max-width:650px) {
   .kosy-promotion-slide { grid-template-columns: 1fr; gap: 22px; }
   .kosy-promotion-carousel { padding: 32px 24px; }
-  .kosy-promotion-slide.has-artwork { margin: -32px -24px; }
+  .kosy-promotion-carousel.has-artwork { padding: 0; }
+  .kosy-promotion-slide.has-artwork .kosy-promotion-cta { position: static; transform: none; display: flex; width: fit-content; margin: 16px auto; }
   .kosy-promo-prev { left: -10px; } .kosy-promo-next { right: -10px; }
 }
 
