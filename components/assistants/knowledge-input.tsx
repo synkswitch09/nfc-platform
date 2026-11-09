@@ -1,4 +1,5 @@
 'use client';
+import { MAX_BUSINESS_KNOWLEDGE } from '@/lib/assistants/knowledge';
 import { useState } from 'react';
 import type { WebsiteImport } from '@/lib/assistants/website-import';
 
@@ -25,7 +26,7 @@ export function AssistantKnowledgeInput({ workspaceId, initialKnowledge, disable
         setKnowledge(data.knowledge);
         setNotice('Your website information is ready. Review it below, save the draft and publish when ready.');
       } else {
-        setNotice('Website information is ready to review. Choose Replace draft below to use it. Your current information has been kept.');
+        setNotice('New import ready — NOT saved or published. Choose Replace draft with this import below, then Save & publish to update customer replies. Your current information has been kept.');
       }
     } catch (cause) { setError(cause instanceof Error ? cause.message : 'We could not read the website.'); }
     finally { setBusy(false); onImportingChange(false); }
@@ -44,18 +45,18 @@ export function AssistantKnowledgeInput({ workspaceId, initialKnowledge, disable
       {notice && <p className="ai-status" role="status">{notice}</p>}
       {imported && <div className="ai-import-summary" style={{ marginTop: 20 }}>
         <p><strong>{imported.sources.length} sources ready to review</strong>{imported.productCount ? ` · ${imported.productCount} products found` : ''}</p>
-        <p className="ai-small">Read on {new Date(imported.importedAt).toLocaleString('en-AU')}. This is a snapshot. Use Read my website again when your website changes.</p>
+        <p className="ai-small">Read on {new Date(imported.importedAt).toLocaleString('en-AU', { timeZone: 'Australia/Adelaide' })}. This is a snapshot. Use Read my website again when your website changes.</p>
         {imported.warnings.length > 0 && <ul className="ai-small">{imported.warnings.map(warning => <li key={warning}>{warning}</li>)}</ul>}
-        <details><summary>Pages used</summary><ul>{imported.sources.map((source, index) => <li key={`${source.url}-${index}`}><a href={source.url} target="_blank" rel="noreferrer">{source.title}</a></li>)}</ul></details>
+        <details><summary>Pages used</summary><ul>{imported.sources.map((source, index) => <li key={`${source.url}-${index}`}><a href={source.url} target="_blank" rel="noreferrer">{source.title}</a>{source.truncated && <strong> · Partially imported ({source.characters?.toLocaleString()} / {source.originalCharacters?.toLocaleString()} characters)</strong>}</li>)}</ul></details>
         {knowledge !== imported.knowledge && <details><summary>Review the new import</summary><pre className="ai-pre" style={{ maxHeight: 320, overflow: 'auto' }}>{imported.knowledge}</pre><button type="button" className="ai-button ai-secondary" onClick={() => { setKnowledge(imported.knowledge); setNotice('Imported information is now in your draft. Save the draft, then publish when ready.'); }}>Replace draft with this import</button><p className="ai-small">Replaces the information below. Your published answers stay unchanged until you save and publish.</p></details>}
       </div>}
     </>}
     <div hidden={mode === 'website' && !knowledge.trim()} style={{ marginTop: 20 }}>
-      {mode === 'website' ? <details open={Boolean(imported)}><summary>Review or correct imported information</summary><label className="ai-field">Information your assistant can use<textarea rows={12} name="businessKnowledge" maxLength={30000} value={knowledge} onChange={event => setKnowledge(event.target.value)} /></label></details> : <>
+      {mode === 'website' ? <details open={Boolean(imported)}><summary>Review or correct imported information</summary><label className="ai-field">Information your assistant can use<textarea rows={12} name="businessKnowledge" maxLength={MAX_BUSINESS_KNOWLEDGE} value={knowledge} onChange={event => setKnowledge(event.target.value)} /></label></details> : <>
         <p className="ai-small">Tell us about your products or services, prices, opening hours, FAQs and policies. Include only information your assistant may share with customers.</p>
-        <label className="ai-field">Business information and FAQs<textarea rows={12} name="businessKnowledge" maxLength={30000} value={knowledge} onChange={event => setKnowledge(event.target.value)} placeholder="What do you offer? What do customers usually ask? What should they know before ordering or booking?" /></label>
+        <label className="ai-field">Business information and FAQs<textarea rows={12} name="businessKnowledge" maxLength={MAX_BUSINESS_KNOWLEDGE} value={knowledge} onChange={event => setKnowledge(event.target.value)} placeholder="What do you offer? What do customers usually ask? What should they know before ordering or booking?" /></label>
       </>}
-      <p className="ai-small">{knowledge.length.toLocaleString()} / 30,000 characters. Save the draft, test it, then select Publish saved information.</p>
+      <p className="ai-small">{knowledge.length.toLocaleString()} / {MAX_BUSINESS_KNOWLEDGE.toLocaleString()} characters. Save the draft, test it, then select Publish saved information.</p>
     </div>
     <p className="ai-small">Draft changes do not replace published answers until you select Publish saved information.</p>
   </fieldset>;

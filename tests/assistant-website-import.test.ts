@@ -1,3 +1,4 @@
+import { MAX_BUSINESS_KNOWLEDGE } from '@/lib/assistants/knowledge';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 const mocks = vi.hoisted(() => ({ domain: vi.fn(), pages: vi.fn(), categories: vi.fn(), products: vi.fn() }));
 vi.mock('@/lib/db', () => ({ db: { storeDomain: { findUnique: mocks.domain }, contentPage: { findMany: mocks.pages }, productCategory: { findMany: mocks.categories }, product: { findMany: mocks.products } } }));
@@ -44,7 +45,7 @@ describe('external import', () => {
  it('does not follow off-site redirects', async () => { const reader = vi.fn().mockResolvedValue({ ...response('', 302), location: 'https://other.example/faq' }); await expect(crawlPublicWebsite(websiteUrl('example.com'), reader)).rejects.toThrow('different address'); expect(reader).toHaveBeenCalledTimes(1); });
  it('reports a website that blocks automated reading', async () => { const reader = vi.fn(async (url: URL) => url.pathname === '/robots.txt' ? response('User-agent: *\nDisallow: /', 200, 'text/plain') : response('<main>Business information that is public but disallows crawling.</main>')); await expect(crawlPublicWebsite(websiteUrl('example.com'), reader)).rejects.toThrow('blocks automated'); });
  it('does not import non-indexable pages', async () => { const reader = vi.fn(async (url: URL) => url.pathname === '/robots.txt' ? response('', 404) : response('<meta name="robots" content="noindex"><main>Hidden from search and automatic import.</main>')); await expect(crawlPublicWebsite(websiteUrl('example.com'), reader)).rejects.toThrow('No readable'); });
- it('caps the saved knowledge and explains omitted information', async () => { const reader = vi.fn(async (url: URL) => url.pathname === '/robots.txt' ? response('', 404) : response(`<main>${'Long business information. '.repeat(2000)}</main>`)); const result = await crawlPublicWebsite(websiteUrl('example.com'), reader); expect(result.knowledge.length).toBeLessThanOrEqual(30000); expect(result.warnings.join(' ')).toMatch(/Only part/); });
+ it('caps the saved knowledge and explains omitted information', async () => { const reader = vi.fn(async (url: URL) => url.pathname === '/robots.txt' ? response('', 404) : response(`<main>${'Long business information. '.repeat(10000)}</main>`)); const result = await crawlPublicWebsite(websiteUrl('example.com'), reader); expect(result.knowledge.length).toBeLessThanOrEqual(MAX_BUSINESS_KNOWLEDGE); expect(result.warnings.join(' ')).toMatch(/Only part/); });
 });
 describe('shared platform import', () => {
  it('imports only published store information and uses actual variant pricing', async () => {
@@ -56,4 +57,14 @@ describe('shared platform import', () => {
   expect(result.mode).toBe('published-store'); expect(result.knowledge).toContain('Parafield Gardens'); expect(result.knowledge).toContain('AUD $15.00'); expect(result.knowledge).not.toContain('From AUD'); expect(result.knowledge).toContain('85 × 85 × 35 mm');
   expect(mocks.pages.mock.calls[0][0].where).toMatchObject({ storeId: 'kosykin', status: 'PUBLISHED' }); expect(mocks.products.mock.calls[0][0].where).toEqual({ storeId: 'kosykin', status: 'ACTIVE', shopVisible: true }); expect(mocks.products.mock.calls[0][0].select).not.toHaveProperty('inventory');
  });
+});
+
+it('reserves import space for products and pickup FAQs even when a policy is enormous', async () => {
+ mocks.domain.mockResolvedValue({ store: { id: 'kosykin', status: 'ACTIVE', displayName: 'Kosykin', currency: 'AUD', homepage: {} } });
+ mocks.pages.mockResolvedValue([{ slug: 'terms', name: 'Terms', sections: [{ content: { copy: 'Long policy information. '.repeat(15000) } }] }, { slug: 'faq', name: 'FAQs', sections: [{ content: { items: [{ question: 'Local pickup?', answer: 'Collect from Parafield Gardens.', visible: true }] } }] }]);
+ mocks.categories.mockResolvedValue([]);
+ mocks.products.mockResolvedValue([{ slug: 'wavy-multi-stand', name: 'Wavy Multi Stand', description: 'Phone stand.', shortDescription: null, fullDescription: '', detailConfig: {}, personalisationMode: 'NONE', variants: [{ name: 'Pink', priceCents: 2495, colour: 'Pink', optionSelection: {} }], options: [] }]);
+ const result = await importAssistantWebsite('kosykin.com.au');
+ expect(result.knowledge).toContain('Parafield Gardens'); expect(result.knowledge).toContain('AUD $24.95'); expect(result.sources.find(s => s.title === 'Terms')?.truncated).toBe(true);
+ expect(result.sources.find(s => s.title === 'Wavy Multi Stand')?.truncated).toBe(false); expect(result.knowledge.length).toBeLessThanOrEqual(MAX_BUSINESS_KNOWLEDGE); expect(result.knowledge).toContain('Import coverage:');
 });

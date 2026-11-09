@@ -28,6 +28,7 @@ import {
   type MetaChoicesView,
   type SocialIssueView,
 } from "./social-connections";
+import { AssistantKnowledgeAudit } from "./knowledge-audit";
 import { AssistantKnowledgeInput } from "./knowledge-input";
 import type {
   AssistantWorkspace,
@@ -579,7 +580,7 @@ export function AssistantAccount({
                 </button>
               </div>
             </form>
-            <aside className="ai-card ai-test-panel">
+            <div><AssistantKnowledgeAudit draft={workspace.businessKnowledge} published={workspace.publishedKnowledge} publishedAt={workspace.knowledgeApprovedAt}/><aside className="ai-card ai-test-panel">
               <span className="ai-icon-tile">
                 <Sparkles size={22} aria-hidden="true" />
               </span>
@@ -626,7 +627,7 @@ export function AssistantAccount({
               <p className="ai-small">
                 Twenty setup tests are included. Tests do not start your trial.
               </p>
-            </aside>
+            </aside></div>
           </div>
         </section>
         <section
