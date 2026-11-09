@@ -1,3 +1,4 @@
+import { promotionActionFields } from "./promotion-action";
 import { availableGiftChoices } from "@/lib/gift-variants";
 import { cache } from "react";
 import { z } from "zod";
@@ -7,6 +8,7 @@ import { isSafeImageSource } from "@/lib/image-source";
 const colour = z.string().regex(/^#[\da-f]{6}$/i);
 const image = z.string().refine(isSafeImageSource).default("");
 const slide = z.object({
+  ...promotionActionFields,
   id: z.string().uuid(),
   title: z.string().trim().min(1).max(120),
   description: z.string().trim().max(1000),

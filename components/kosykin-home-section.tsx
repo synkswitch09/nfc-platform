@@ -1,3 +1,4 @@
+import type { PromotionAction } from "@/lib/promotion-action";
 import { KosykinProductCard, type StorefrontCardProduct } from "@/components/kosykin-product-card";
 import Image from "next/image";
 import Link from "next/link";
@@ -11,7 +12,7 @@ import type { FooterConfig } from "@/lib/site-chrome";
 import type { LandingSectionType } from "@prisma/client";
 
 type Product = StorefrontCardProduct & { featured: boolean };
-type Item = { id: string; title?: string; description?: string; productName?: string; rating?: number; supportingText?: string; imageUrl?: string; imageAlt?: string; icon?: string; iconUrl?: string; ctaLabel?: string; ctaHref?: string; visible?: boolean; order?: number };
+type Item = PromotionAction & { id: string; title?: string; description?: string; productName?: string; rating?: number; supportingText?: string; imageUrl?: string; imageAlt?: string; icon?: string; iconUrl?: string; ctaLabel?: string; ctaHref?: string; visible?: boolean; order?: number };
 const whyIcons: Record<string, StorefrontIconSlot> = { sparkles: 'whyAppearance', package: 'whyProduction', 'hand-helping': 'whyMaterials', 'heart-handshake': 'whyDetail' };
 const text = (value: unknown) => typeof value === "string" ? value : "";
 const items = (value: unknown) => (Array.isArray(value) ? value as Item[] : []).filter(item => item.visible !== false).sort((a,b) => (a.order ?? 0) - (b.order ?? 0));
@@ -32,7 +33,7 @@ export function KosykinHomeSection({ type, value, products, currency, socials }:
   if (type === "FAQ") return <><div>{heading}{action}</div><div className="kosy-faq-list">{(Array.isArray(value.items) ? value.items as { id: string; question: string; answer: string; visible?: boolean; order?: number }[] : []).filter(item => item.visible !== false).sort((a,b) => (a.order ?? 0) - (b.order ?? 0)).map(item => <details key={item.id}><summary>{item.question}<span className="kosy-faq-toggle" aria-hidden="true"><StorefrontIcon name="faq" size={18} fallback={<>+</>} /></span></summary><p>{item.answer}</p></details>)}</div></>;
   if (value.layoutVariant === "KOSYKIN_PROMOTIONS") {
     const slides = items(value.items);
-    return <KosykinPromotions slides={slides.length ? slides.map(item => ({ ...item, title: item.title || "", description: item.description || "" })) : [{ id: "main", title: text(value.headline), description: text(value.copy), ctaLabel: text(value.ctaLabel), ctaHref: text(value.ctaHref) }]} />;
+    return <KosykinPromotions slides={slides.length ? slides.map(item => ({ ...item, title: item.title || "", description: item.description || "" })) : [{ id: "main", title: text(value.headline), description: text(value.copy), ctaLabel: text(value.ctaLabel), ctaHref: text(value.ctaHref), imageUrl: text(value.imageUrl), imageAlt: text(value.imageAlt), ctaVisible: value.ctaVisible !== false, ctaBackground: text(value.ctaBackground), ctaTextColour: text(value.ctaTextColour), ctaBorderColour: text(value.ctaBorderColour), ctaPositionX: typeof value.ctaPositionX === "number" ? value.ctaPositionX : undefined, ctaPositionY: typeof value.ctaPositionY === "number" ? value.ctaPositionY : undefined }]} />;
   }
   if (value.layoutVariant === "KOSYKIN_REVIEWS") {
     const reviews = items(value.items);
