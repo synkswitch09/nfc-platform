@@ -13,6 +13,11 @@ describe('relevant business knowledge selection', () => {
     const result = select('Quiero saber mas acerca del wavy multistand');
     expect(result.text).toContain('AUD $24.95'); expect(result.sources[0].url).toContain('/products/wavy-multi-stand');
   });
+  it('offers available product summaries for a general catalogue question', () => {
+    const result = select('Que productos venden?');
+    expect(result.text).toContain('Wavy Multi Stand'); expect(result.text).toContain('Mini Tray'); expect(result.text).toContain('AUD $24.95');
+    expect(result.sources.every(s => s.url?.includes('/products/'))).toBe(true);
+  });
   it('uses previous customer context for a short follow-up rather than previous assistant guesses', () => {
     const result = selectKnowledge(snapshot, [{ role: 'user', content: 'Wavy Multi Stand' }, { role: 'assistant', content: 'The Mini Tray has orange colours. Unverified.' }, { role: 'user', content: 'Y en que colores?' }]);
     expect(result.sources[0].title).toBe('Wavy Multi Stand'); expect(result.text).toContain('pink and blue');

@@ -29,7 +29,7 @@ export function knowledgeAudit(knowledge: string) {
 }
 function normalize(value: string) { return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase(); }
 const stop = new Set('a an the this that it is are was were and or of to for in on at with from we our your you i me my can could would do does how what where when please thanks thank hello hi hey hola buenas buenos dias tardes noches gracias quiero quisiera saber mas acerca sobre el la los las un una unos unas de del al en y o que es son como por para con mi mis tu tus su sus se si puedo puedes puede seria tiene tienen hay esto este esta eso algo me lo'.split(' '));
-function tokens(value: string) { return [...new Set((normalize(value).match(/[a-z0-9]+/g) || []).filter(t => t.length > 1 && !stop.has(t)))]; }
+function tokens(value: string) { return [...new Set((normalize(value).match(/[\p{L}\p{N}]+/gu) || []).filter(t => t.length > 1 && !stop.has(t)))]; }
 // Small multilingual intent dictionary; product names and unknown vocabulary still match literally.
 const concepts = [
   ['pickup', 'pick up', 'collect', 'collection', 'recoger', 'recogida', 'recogerlo', 'recogida local', 'retiro', 'retirar', 'buscarlo'],
@@ -73,7 +73,10 @@ export function selectKnowledge(knowledge: string, messages: { role: string; con
   // No match: include only a small overview, never dump the whole catalogue.
   const counts = new Map<number, number>();
   const relevant = ranked.filter(c => { const count = counts.get(c.sourceIndex) || 0; if (c.score <= 0 || count >= 2) return false; counts.set(c.sourceIndex, count + 1); return true; });
-  const selected = relevant.length ? relevant.slice(0, 12) : sources.slice(0, 1).map(source => ({ source, text: source.text.slice(0, 1500) }));
+  const catalogueQuestion = /\b(?:products|productos|catalogue|catalog|catalogo|coleccion|collection)\b|what do you sell|que vendes|que venden/.test(normalize(latest));
+  const catalogue = sources.filter(source => source.url && /\/products?\//.test(source.url));
+  const summaries = (items: KnowledgeSource[]) => items.slice(0, 12).map(source => ({ source, text: source.text.slice(0, 750) }));
+  const selected = catalogueQuestion && catalogue.length ? summaries(catalogue) : relevant.length ? relevant.slice(0, 12) : summaries(sources);
   let text = ''; const used: { title: string; url: string | null }[] = [];
   for (const chunk of selected) {
     const heading = `\n--- ${chunk.source.title} ---${chunk.source.url ? `\nReference URL (share only when useful): ${chunk.source.url}` : ''}\n`;
